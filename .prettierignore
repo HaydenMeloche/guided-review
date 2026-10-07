@@ -1,0 +1,14 @@
+# Build output and generated files
+dist/
+coverage/
+node_modules/
+pnpm-lock.yaml
+
+# Docs are edited by hand; prose wrapping is not ours to change.
+*.md
+
+# Local tooling
+.idea/
+.vscode/
+.scratch/
+*.log

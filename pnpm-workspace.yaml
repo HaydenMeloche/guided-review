@@ -1,0 +1,6 @@
+# pnpm blocks dependency install scripts by default; only these two may run them.
+allowBuilds:
+  # esbuild installs its platform binary in a postinstall step; tsx and vitest (via vite) need it.
+  esbuild: true
+  # node-pty builds or fetches a native addon; the e2e harness (test/e2e/harness.ts) uses it to drive `gr` in a pseudo-terminal.
+  node-pty: true

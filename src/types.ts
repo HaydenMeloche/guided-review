@@ -3,14 +3,9 @@
 
 export type FileKind = 'logic' | 'test' | 'config' | 'mechanical' | 'generated' | 'vendored';
 
-export type ChapterKind =
-  | 'flow'
-  | 'supporting'
-  | 'tests'
-  | 'config'
-  | 'mechanical'
-  | 'generated'
-  | 'vendored';
+export type ChapterKind = 'flow' | 'supporting' | 'tests' | 'imports' | 'migrations' | 'api' | 'dependencies' | 'lockfiles' | 'infra' | 'ci' | 'config' | 'mechanical' | 'generated' | 'vendored';
+
+export type ChapterOrder = 'flow' | 'risk' | 'size' | 'file';
 
 export type Risk = 0 | 1 | 2 | 3; // none, low, medium, high
 
@@ -21,7 +16,7 @@ export interface DiffLine {
   newLine?: number;
 }
 
-export type LinkSource = 'coverage' | 'static-call' | 'naming';
+export type LinkSource = 'coverage' | 'name-match' | 'naming';
 
 export interface TestLink {
   testFile: string;
@@ -30,6 +25,9 @@ export interface TestLink {
   lines: string[]; // the test case's source
   source: LinkSource;
   confidence: number; // 0..1
+  diffHunks?: { header: string; lines: DiffLine[] }[]; // changed lines in this test case
+  testFileStatus?: DiffFile['status'];
+  testChange?: 'new' | 'modified';
 }
 
 export type Coverage = 'tested' | 'partial' | 'untested' | 'n/a';
@@ -48,6 +46,7 @@ export interface Hunk {
   symbols: string[]; // enclosing declarations in the head (or base, for pure deletions)
   narration?: string;
   narrationInferred?: boolean; // true when the narration cites no code
+  narrationShared?: boolean; // a minor hunk: narration is the chapter's shared summary of its minor hunks
   risk: Risk;
   riskReasons: string[];
   tests: TestLink[];
@@ -55,6 +54,7 @@ export interface Hunk {
   // Test hunks whose subject did not change: the unchanged code they cover, so
   // the reviewer can tell whether a test was loosened.
   covers?: { file: string; startLine: number; lines: string[]; symbol?: string };
+  importOnly?: boolean; // every changed line is an import: optional to review
 }
 
 export interface DiffFile {
@@ -108,16 +108,12 @@ export interface Chapter {
   untestedBranches: string[];
   collapsed: boolean; // low-priority kinds start collapsed to one-line summaries
   lowConfidence?: boolean; // flow edges from naming/model only
+  optional?: boolean; // low-value chapter (import-only changes): not stepped into by n/p, not counted as unread
+  checklist?: ChecklistItem[]; // team checklist items whose path pattern matches this chapter
+  narrated?: boolean; // the narration step for this chapter finished; an incomplete tour resumes from the others
 }
 
-export type FlagKind =
-  | 'scope-creep'
-  | 'missing-tests'
-  | 'generated-out-of-sync'
-  | 'large-pr'
-  | 'no-entry-point'
-  | 'model-unavailable'
-  | 'info';
+export type FlagKind = 'scope-creep' | 'missing-tests' | 'generated-out-of-sync' | 'large-pr' | 'no-entry-point' | 'model-unavailable' | 'missing-change' | 'info';
 
 export interface Flag {
   kind: FlagKind;
@@ -138,9 +134,20 @@ export interface BlastItem {
 }
 
 export interface ThreadComment {
+  id?: string;
+  nodeId?: string;
   author: string;
   body: string;
   createdAt: string;
+  reactionGroups?: ReactionGroup[];
+}
+
+export type ReactionContent = 'THUMBS_UP' | 'THUMBS_DOWN' | 'LAUGH' | 'CONFUSED' | 'HEART' | 'HOORAY' | 'ROCKET' | 'EYES';
+
+export interface ReactionGroup {
+  content: ReactionContent;
+  reactors: { totalCount: number };
+  viewerHasReacted: boolean;
 }
 
 export interface ExistingThread {
@@ -151,6 +158,15 @@ export interface ExistingThread {
   isResolved: boolean;
   isOutdated: boolean;
   comments: ThreadComment[];
+}
+
+export interface ExistingReview {
+  id: number;
+  author: string;
+  state: string;
+  body: string;
+  submittedAt: string;
+  url: string;
 }
 
 export type ReadState = 'unread' | 'read' | 'skipped' | 'deferred';
@@ -218,6 +234,7 @@ export interface Tour {
   createdAt: string;
   mode: 'agent' | 'plain';
   intent: string; // 2-3 sentence goal
+  description?: string; // the PR body as the author wrote it
   flags: Flag[];
   notes: string[];
   overview?: Graph;
@@ -226,20 +243,43 @@ export interface Tour {
   hunks: Record<string, Hunk>;
   blastRadius: BlastItem[];
   existingThreads: ExistingThread[];
+  existingReviews?: ExistingReview[];
+  viewer?: string;
+  mentionUsers?: string[];
   rereview?: ReReview;
-  agentSessionId?: string; // reused for live Q&A and comment polishing
+  agentSessions?: Partial<Record<import('./agent/types.js').AgentRole, string>>;
+  agentIdentity?: string; // effective model routing used for this cached tour
+  modelUsage?: Record<string, import('./agent/types.js').ModelStamp>;
+  complete?: boolean; // every analysis step finished; cached tours with this set are reused
+  source?: 'shared'; // imported from a tour CI posted to the PR, not built on this machine
 }
 
-// Repo-level rules from .claude/guided-review.json
+// Repo-level rules from .guided-review.json
 export interface KindRule {
   pattern: string; // glob, matched against the repo-relative path
   kind: FileKind;
 }
 
+export interface ChecklistRule {
+  pattern: string; // glob over changed paths, e.g. "db/**"
+  items: string[];
+}
+
 export interface RepoConfig {
   kinds: KindRule[];
   testPatterns: string[];
-  model?: string;
+  checklists: ChecklistRule[];
+}
+
+export type ChecklistStatus = 'pass' | 'fail' | 'unknown';
+
+export interface ChecklistItem {
+  id: string; // stable: hash of pattern + item
+  item: string;
+  pattern: string;
+  status: ChecklistStatus; // the agent's pre-check
+  reason?: string; // with a file:line citation when the agent checked it
+  confirmed?: boolean; // the reviewer's confirmation (stored separately, merged in by the UI)
 }
 
 export type ProgressFn = (step: string, done?: boolean) => void;

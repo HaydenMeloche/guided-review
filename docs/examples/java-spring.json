@@ -1,0 +1,21 @@
+{
+  "kinds": [
+    { "pattern": "**/src/main/resources/*.properties", "kind": "config" },
+    { "pattern": "**/src/main/resources/{logback,log4j2}*.xml", "kind": "config" }
+  ],
+  "testPatterns": ["**/src/integrationTest/**", "**/src/testFixtures/**"],
+  "checklists": [
+    {
+      "pattern": "**/src/main/resources/db/{migration,changelog}/**",
+      "items": ["Migrations work with the version currently running in production", "Already-applied migrations were not edited"]
+    },
+    {
+      "pattern": "{pom.xml,build.gradle,build.gradle.kts}",
+      "items": ["New dependencies are justified in the PR description", "No SNAPSHOT versions"]
+    },
+    {
+      "pattern": "*Controller.java",
+      "items": ["New endpoints have authorization checks", "Request bodies are validated"]
+    }
+  ]
+}

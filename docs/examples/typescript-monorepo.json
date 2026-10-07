@@ -1,0 +1,18 @@
+{
+  "kinds": [
+    { "pattern": "packages/api-client/src/**", "kind": "generated" },
+    { "pattern": "**/*.stories.tsx", "kind": "mechanical" },
+    { "pattern": "**/{openapi,schema}.{json,yaml}", "kind": "config" }
+  ],
+  "testPatterns": ["**/*.it.ts", "**/e2e/**/*.ts", "**/test-utils/**"],
+  "checklists": [
+    {
+      "pattern": "packages/*/package.json",
+      "items": ["New dependencies are justified in the PR description", "Version bumps follow semver"]
+    },
+    {
+      "pattern": "packages/web/src/**/*.tsx",
+      "items": ["New UI strings are translatable", "Interactive elements are keyboard accessible"]
+    }
+  ]
+}

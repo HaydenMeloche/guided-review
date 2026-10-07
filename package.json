@@ -1,42 +1,91 @@
 {
-  "name": "guided-review",
+  "name": "@haydenmeloche/guided-review",
   "version": "0.1.0",
   "description": "Guided Review: an AI-guided terminal walkthrough of pull requests",
+  "keywords": [
+    "code-review",
+    "pull-request",
+    "github",
+    "tui",
+    "terminal",
+    "ai",
+    "claude",
+    "codex",
+    "cli"
+  ],
+  "homepage": "https://github.com/HaydenMeloche/guided-review#readme",
+  "bugs": {
+    "url": "https://github.com/HaydenMeloche/guided-review/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HaydenMeloche/guided-review.git"
+  },
+  "license": "MIT",
+  "author": "Hayden Meloche",
+  "type": "module",
+  "bin": {
+    "gr": "./bin/gr.js",
+    "guided-review": "./bin/gr.js"
+  },
+  "files": [
+    "ARCHITECTURE.md",
+    "bin/",
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "codex/",
+    "claude/",
+    "docs/"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "packageManager": "pnpm@12.10.1",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p .",
     "dev": "tsx src/cli.tsx",
-    "typecheck": "tsc -p . --noEmit",
-    "test": "vitest run"
+    "reset:db": "node -e \"const fs=require('node:fs'); const path=require('node:path'); const os=require('node:os'); const dir=process.env.GR_HOME ?? path.join(os.homedir(),'.guided-review'); for (const suffix of ['', '-wal', '-shm']) fs.rmSync(path.join(dir,'gr.db'+suffix),{force:true}); console.log('Guided Review database reset.');\"",
+    "typecheck": "tsc -p . --noEmit && tsc -p tsconfig.test.json",
+    "test": "vitest run --project unit",
+    "test:e2e": "vitest run --project e2e",
+    "prepublishOnly": "pnpm typecheck && pnpm test && pnpm clean && pnpm build",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test:coverage": "vitest run --project unit --coverage"
   },
-  "author": "",
-  "license": "ISC",
-  "devEngines": {
-    "packageManager": {
-      "name": "pnpm",
-      "version": "12.10.1",
-      "onFail": "download"
-    }
-  },
-  "packageManager": "pnpm@12.10.1",
-  "type": "module",
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.292",
+    "@anthropic-ai/sdk": "^0.132.0",
+    "@cursor/sdk": "1.0.32",
     "ink": "^8.0.0",
+    "marked": "^18.1.0",
     "meow": "^14.1.0",
     "react": "^19.3.0",
-    "typescript": "~5.9.3"
+    "shiki": "^4.5.0",
+    "tree-sitter-wasms": "0.1.13",
+    "typescript": "~5.9.3",
+    "web-tree-sitter": "0.25.10"
   },
   "devDependencies": {
-    "@types/node": "^26.6.4",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.13.0",
     "@types/react": "^19.3.0",
+    "@vitest/coverage-v8": "5.0.3",
+    "@xterm/headless": "^6.0.0",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
     "ink-testing-library": "^4.0.0",
+    "node-pty": "^1.1.0",
+    "prettier": "^3.9.9",
     "tsx": "^4.23.15",
+    "typescript-eslint": "^8.71.1",
     "vitest": "^5.0.3"
-  },
-  "bin": {
-    "gr": "./bin/gr.js"
-  },
-  "engines": {
-    "node": ">=22.5"
   }
 }

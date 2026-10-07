@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Guided Review</title>
+    <meta name="description" content="Review pull requests as a guided tour, in your terminal." />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232f6f5e'/><text x='16' y='22' font-family='monospace' font-size='15' font-weight='700' fill='white' text-anchor='middle'>gr</text></svg>"
+    />
+    <style>
+      :root {
+        --bg: #fbfaf7;
+        --surface: #ffffff;
+        --text: #1d2125;
+        --muted: #5d656d;
+        --border: #e3e0d8;
+        --accent: #2f6f5e;
+        --accent-soft: #e5f0ec;
+        --code-bg: #f3f1ec;
+        --term-bg: #16191c;
+        --term-text: #d8dde2;
+        --term-muted: #7d8791;
+        --term-accent: #7fd1b5;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) {
+          --bg: #121416;
+          --surface: #191c1f;
+          --text: #e6e8ea;
+          --muted: #9aa3ab;
+          --border: #2b3035;
+          --accent: #7fd1b5;
+          --accent-soft: #1d2e29;
+          --code-bg: #202428;
+          --term-bg: #0c0e10;
+        }
+      }
+      :root[data-theme='dark'] {
+        --bg: #121416;
+        --surface: #191c1f;
+        --text: #e6e8ea;
+        --muted: #9aa3ab;
+        --border: #2b3035;
+        --accent: #7fd1b5;
+        --accent-soft: #1d2e29;
+        --code-bg: #202428;
+        --term-bg: #0c0e10;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          16px/1.6 ui-sans-serif,
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+      }
+      a {
+        color: var(--accent);
+        text-underline-offset: 2px;
+      }
+      code,
+      pre,
+      .mono {
+        font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+      }
+      code {
+        background: var(--code-bg);
+        padding: 0.1em 0.35em;
+        border-radius: 4px;
+        font-size: 0.9em;
+      }
+
+      .wrap {
+        max-width: 880px;
+        margin: 0 auto;
+        padding: 0 16px;
+      }
+
+      header.top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 0;
+      }
+      .brand {
+        font-weight: 700;
+        color: var(--text);
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .brand .mark {
+        width: 28px;
+        height: 28px;
+        border-radius: 7px;
+        background: var(--accent);
+        color: var(--bg);
+        display: grid;
+        place-items: center;
+        font:
+          700 13px ui-monospace,
+          Menlo,
+          monospace;
+      }
+      nav.links {
+        display: flex;
+        gap: 18px;
+        font-size: 15px;
+      }
+      nav.links a {
+        color: var(--muted);
+        text-decoration: none;
+      }
+      nav.links a:hover {
+        color: var(--text);
+      }
+
+      .hero {
+        padding: 48px 0 32px;
+      }
+      .hero h1 {
+        font-size: clamp(2rem, 6vw, 3.1rem);
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        margin: 0 0 16px;
+      }
+      .hero p.lede {
+        font-size: 1.15rem;
+        color: var(--muted);
+        max-width: 640px;
+        margin: 0 0 28px;
+      }
+      .status {
+        display: inline-block;
+        font-size: 13px;
+        color: var(--accent);
+        background: var(--accent-soft);
+        padding: 3px 10px;
+        border-radius: 99px;
+        margin-bottom: 18px;
+      }
+
+      .install {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        max-width: 100%;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 10px 10px 16px;
+        width: fit-content;
+      }
+      .install code {
+        background: none;
+        padding: 0;
+        font-size: 15px;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+      .install .prompt {
+        color: var(--muted);
+        user-select: none;
+      }
+      button.copy {
+        font: inherit;
+        font-size: 13px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text);
+        border-radius: 6px;
+        padding: 4px 10px;
+        cursor: pointer;
+        flex: none;
+      }
+      button.copy:hover {
+        border-color: var(--accent);
+      }
+
+      .term {
+        background: var(--term-bg);
+        color: var(--term-text);
+        border-radius: 12px;
+        margin: 40px 0 8px;
+        padding: 18px 20px;
+        font-size: 14px;
+        line-height: 1.7;
+        overflow-x: auto;
+      }
+      .term .c {
+        color: var(--term-muted);
+      }
+      .term .p {
+        color: var(--term-accent);
+        user-select: none;
+      }
+      .term pre {
+        margin: 0;
+      }
+
+      section {
+        padding: 40px 0;
+        border-top: 1px solid var(--border);
+      }
+      section h2 {
+        font-size: 1.5rem;
+        letter-spacing: -0.01em;
+        margin: 0 0 20px;
+      }
+      section > p {
+        color: var(--muted);
+        max-width: 680px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+      }
+      @media (max-width: 640px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        nav.links a.hide-sm {
+          display: none;
+        }
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px 18px;
+      }
+      .card h3 {
+        font-size: 1rem;
+        margin: 0 0 6px;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+
+      ol.steps {
+        padding-left: 1.2em;
+        margin: 0;
+      }
+      ol.steps li {
+        margin-bottom: 14px;
+      }
+      ol.steps li p {
+        margin: 2px 0 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+
+      figure.shot {
+        margin: 0 0 28px;
+      }
+      figure.shot.wide {
+        /* Break out of the text column so terminal text stays legible. */
+        width: min(1200px, calc(100vw - 48px));
+        margin-left: calc(50% - min(600px, calc(50vw - 24px)));
+      }
+      figure.shot a {
+        display: block;
+      }
+      figure.shot img {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+      }
+      figure.shot figcaption {
+        color: var(--muted);
+        font-size: 14px;
+        margin-top: 10px;
+        text-align: center;
+      }
+
+      pre.block {
+        background: var(--code-bg);
+        border-radius: 10px;
+        padding: 14px 16px;
+        overflow-x: auto;
+        font-size: 14px;
+        line-height: 1.6;
+        margin: 0 0 16px;
+      }
+
+      .providers {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .providers li {
+        border: 1px solid var(--border);
+        background: var(--surface);
+        border-radius: 99px;
+        padding: 4px 12px;
+        font-size: 14px;
+      }
+
+      footer {
+        padding: 32px 0 48px;
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 14px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 20px;
+        justify-content: space-between;
+      }
+      footer a {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <a class="brand" href="#"><span class="mark">gr</span>Guided Review</a>
+        <nav class="links">
+          <a class="hide-sm" href="#start">Get started</a>
+          <a class="hide-sm" href="#team">Team config</a>
+          <a class="hide-sm" href="#ci">CI</a>
+          <a href="https://github.com/HaydenMeloche/guided-review#readme">Docs</a>
+          <a href="https://github.com/HaydenMeloche/guided-review">GitHub</a>
+        </nav>
+      </header>
+
+      <div class="hero">
+        <span class="status">Early release (0.x)</span>
+        <h1>Review pull requests as a guided tour, in your terminal.</h1>
+        <p class="lede">
+          Guided Review turns a diff into a tour. A briefing explains the change, chapters follow the code's execution flows, and linked tests sit beside the hunks they exercise. Draft comments as you
+          go and submit them as one GitHub review.
+        </p>
+        <div class="install">
+          <code><span class="prompt">$ </span><span id="cmd">npm install -g @haydenmeloche/guided-review</span></code>
+          <button class="copy" type="button" data-copy="cmd">Copy</button>
+        </div>
+
+        <div class="term" aria-label="Example commands">
+          <pre><span class="p">$ </span>gr                    <span class="c"># pick a PR waiting for your review</span>
+<span class="p">$ </span>gr review 1234        <span class="c"># or owner/repo#1234, or a PR URL</span>
+<span class="p">$ </span>gr preview            <span class="c"># tour your own branch before opening a PR</span>
+<span class="p">$ </span>gr review --no-agent  <span class="c"># static analysis only, no model calls</span></pre>
+        </div>
+      </div>
+
+      <figure class="shot wide">
+        <a href="images/chapter.webp"
+          ><img
+            src="images/chapter.webp"
+            width="2000"
+            height="1191"
+            alt="A chapter of a Guided Review tour: an explanation of the hunk, the changed code, and linked tests with their diffs side by side"
+        /></a>
+        <figcaption>A chapter of a sample PR: an explanation, the changed code, and the linked tests beside it.</figcaption>
+      </figure>
+
+      <section>
+        <h2>The briefing</h2>
+        <p>Every tour opens with what the PR does, what the author said, the overview diagram, and chapters in a recommended reading order.</p>
+        <figure class="shot wide">
+          <a href="images/briefing.webp"
+            ><img
+              src="images/briefing.webp"
+              width="2000"
+              height="1178"
+              loading="lazy"
+              alt="The briefing screen: a summary of the PR, the author's description, an overview diagram, a list of chapters, and blast radius"
+          /></a>
+        </figure>
+        <h2>Ask about any line</h2>
+        <p>Select code and press <code>?</code>. Answers cite the files and lines they come from, and follow-up questions keep the thread.</p>
+        <figure class="shot wide">
+          <a href="images/ask.webp"
+            ><img src="images/ask.webp" width="2000" height="1137" loading="lazy" alt="A question about a changed line, answered inline below the code with file and line references"
+          /></a>
+        </figure>
+      </section>
+
+      <section>
+        <h2>What you get</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>A tour, not a file list</h3>
+            <p>Chapters start at entry points such as routes, commands, and handlers and follow the changed code in reading order. You can also sort by risk, size, or file.</p>
+          </div>
+          <div class="card">
+            <h3>Tests beside the code</h3>
+            <p>Linked test cases appear next to the hunks they exercise, and possible test gaps are flagged.</p>
+          </div>
+          <div class="card">
+            <h3>Track your progress</h3>
+            <p>Mark hunks read, skipped, or deferred, and pick up where you left off. Your reading state can carry over to a new push.</p>
+          </div>
+          <div class="card">
+            <h3>Draft, then submit once</h3>
+            <p>Comments stay local until you post them as a single GitHub review, with code suggestions and <code>@</code> mentions. Nothing posts until you confirm.</p>
+          </div>
+          <div class="card">
+            <h3>Re-review after a push</h3>
+            <p>See only the hunks that changed since your last pass, and check whether your earlier comments were addressed.</p>
+          </div>
+          <div class="card">
+            <h3>Ask about any line</h3>
+            <p>Ask the model about a selection, a chapter, or the whole PR without leaving the review. Follow-up questions keep the thread.</p>
+          </div>
+          <div class="card">
+            <h3>Learn a codebase</h3>
+            <p>Use real PRs as lessons: walk from the entry point to the functions it reaches, with the tests that cover them.</p>
+          </div>
+          <div class="card">
+            <h3>Preview your own branch</h3>
+            <p>Run <code>gr preview</code> to tour your branch before you open a PR and see your change the way a reviewer will.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="change-aware">
+        <h2>Changes explained by what they mean</h2>
+        <p>Some changes are easy to read in a diff but hard to judge from one. These get their own chapters, and the explanation says what the change means instead of what it edits.</p>
+        <div class="grid">
+          <div class="card">
+            <h3>Database migrations</h3>
+            <p>Table locks and rewrites, possible data loss, whether it can be rolled back, backfills, and whether code must deploy before or after it.</p>
+          </div>
+          <div class="card">
+            <h3>API contracts</h3>
+            <p>Which OpenAPI, protobuf, GraphQL, or Avro changes break existing clients and which are additive, and the clients in the repo that rely on them.</p>
+          </div>
+          <div class="card">
+            <h3>Dependencies and runtimes</h3>
+            <p>
+              For an upgrade, <code>name old → new</code> and the highlights in between: features, breaking changes, and security fixes. For a new or removed package, what it is and where it is used.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Lockfile changes</h3>
+            <p>One summary of indirect changes: major version jumps, notable packages added or removed, and known security fixes, without paging through thousands of lines.</p>
+          </div>
+          <div class="card">
+            <h3>Infrastructure</h3>
+            <p>Terraform, Kubernetes, and Helm resources created, destroyed, or replaced, and changes to IAM, network exposure, scaling, and secrets.</p>
+          </div>
+          <div class="card">
+            <h3>CI and workflows</h3>
+            <p>New triggers, permissions, and secrets, plus risky patterns such as <code>pull_request_target</code>, untrusted input in scripts, and actions not pinned to a SHA.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="start">
+        <h2>Get started</h2>
+        <ol class="steps">
+          <li>
+            <strong>Install</strong> with npm. You need Node 22.13 or newer and <code>git</code>.
+            <p>ripgrep (<code>rg</code>) is optional; the agent's repository search uses it. macOS and Linux (including WSL) are supported.</p>
+          </li>
+          <li>
+            <strong>Sign in to GitHub</strong> with <code>gh auth login</code>.
+            <p>No GitHub CLI? <code>gr config</code> can use a personal access token instead, including for GitHub Enterprise Server.</p>
+          </li>
+          <li>
+            <strong>Choose a model</strong> with <code>gr config</code>.
+            <p>Claude Code and Codex use your existing login, so neither needs an API key. Cursor uses a Cursor API key.</p>
+          </li>
+          <li>
+            <strong>Run <code>gr</code></strong> and pick a PR. Press <code>h</code> in a review to see the keys.
+          </li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>Bring your own model</h2>
+        <ul class="providers">
+          <li>Claude Code</li>
+          <li>Anthropic API</li>
+          <li>Codex</li>
+          <li>Cursor</li>
+          <li>OpenAI API</li>
+          <li>OpenAI-compatible endpoints</li>
+          <li>Amazon Bedrock</li>
+          <li>Google Vertex AI</li>
+        </ul>
+        <p>
+          Use different models for the briefing, chapter narration, and Q&amp;A. PR content is treated as untrusted: the model gets read-only access to the PR's worktree, and Guided Review has no
+          telemetry. See <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/security.md">data, privacy, and security</a>.
+        </p>
+      </section>
+
+      <section id="team">
+        <h2>Team configuration</h2>
+        <p>Commit a <code>.guided-review.json</code> at the repository root so everyone who reviews the repo gets the same rules. Run <code>gr config --repo</code> to create or edit it.</p>
+        <pre class="block">
+{
+  "kinds": [{ "pattern": "src/gen/**", "kind": "generated" }],
+  "testPatterns": ["**/*.it.ts"],
+  "checklists": [{ "pattern": "db/**", "items": ["Migrations are reversible"] }]
+}</pre>
+        <div class="grid">
+          <div class="card">
+            <h3><code>kinds</code></h3>
+            <p>
+              Reclassify files as <code>logic</code>, <code>test</code>, <code>config</code>, <code>mechanical</code>, <code>generated</code>, or <code>vendored</code>. Generated and vendored files
+              collapse to a one-line summary. Only logic and config files move into the migration, API, dependency, infrastructure, and CI chapters.
+            </p>
+          </div>
+          <div class="card">
+            <h3><code>testPatterns</code></h3>
+            <p>Add test-file globs on top of the built-in ones, such as integration-test suffixes your repo uses.</p>
+          </div>
+          <div class="card">
+            <h3><code>checklists</code></h3>
+            <p>Attach review items to chapters that touch matching paths. The agent pre-checks each item, and you confirm it with <code>i</code>.</p>
+          </div>
+          <div class="card">
+            <h3>Read from the merge base</h3>
+            <p>Rules come from the PR's merge base, not the PR itself, so a PR can't reclassify its own files. A PR that changes the config gets flagged.</p>
+          </div>
+        </div>
+        <p>
+          See the <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/repo-config.md">full reference</a> and
+          <a href="https://github.com/HaydenMeloche/guided-review/tree/master/docs/examples">example configs</a> for TypeScript, Go, Python, and Java repos.
+        </p>
+      </section>
+
+      <section id="ci">
+        <h2>Share tours from CI</h2>
+        <p>Build the tour once in GitHub Actions and post it to the PR. Reviewers then open it without spending their own model calls.</p>
+        <pre class="block">
+- uses: actions/checkout@v7
+  with:
+    fetch-depth: 0
+- uses: HaydenMeloche/guided-review@v0.1.0
+  with:
+    provider: anthropic
+  env:
+    ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}</pre>
+        <p>
+          See the <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/ci.md">full workflow</a>
+          in the CI guide.
+        </p>
+      </section>
+
+      <section>
+        <h2>Use it from your agent</h2>
+        <p>
+          <code>gr install-claude-command</code> adds a <code>/guided-review</code> command to Claude Code, and <code>gr install-codex-skill</code> adds a skill to Codex. Each opens the current
+          branch's PR in a new terminal window.
+        </p>
+      </section>
+
+      <footer>
+        <span>MIT licensed</span>
+        <span>
+          <a href="https://github.com/HaydenMeloche/guided-review#readme">README</a> · <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/usage.md">Usage</a> ·
+          <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/configuration.md">Configuration</a> ·
+          <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/repo-config.md">Team config</a> ·
+          <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/ci.md">CI</a> · <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/security.md">Security</a> ·
+          <a href="https://github.com/HaydenMeloche/guided-review/blob/master/ARCHITECTURE.md">Architecture</a> ·
+          <a href="https://www.npmjs.com/package/@haydenmeloche/guided-review">npm</a>
+        </span>
+      </footer>
+    </div>
+    <script>
+      document.querySelectorAll('button.copy').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var text = document.getElementById(btn.dataset.copy).textContent;
+          navigator.clipboard.writeText(text).then(function () {
+            btn.textContent = 'Copied';
+            setTimeout(function () {
+              btn.textContent = 'Copy';
+            }, 1500);
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -6,6 +6,8 @@
     "jsx": "react-jsx",
     "strict": true,
     "noUncheckedIndexedAccess": false,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,

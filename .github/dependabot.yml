@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      dev-dependencies:
+        dependency-type: development
+    ignore:
+      # web-tree-sitter must match the ABI of the grammars in tree-sitter-wasms.
+      - dependency-name: web-tree-sitter
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

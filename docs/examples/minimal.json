@@ -1,0 +1,5 @@
+{
+  "kinds": [{ "pattern": "src/api-client/**", "kind": "generated" }],
+  "testPatterns": ["**/*.it.ts"],
+  "checklists": [{ "pattern": "db/migrations/**", "items": ["Migrations are reversible"] }]
+}

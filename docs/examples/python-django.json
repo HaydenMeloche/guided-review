@@ -1,0 +1,17 @@
+{
+  "kinds": [
+    { "pattern": "**/locale/**/*.po", "kind": "generated" },
+    { "pattern": "**/fixtures/*.json", "kind": "test" }
+  ],
+  "testPatterns": ["**/conftest.py", "**/factories.py"],
+  "checklists": [
+    {
+      "pattern": "**/migrations/*.py",
+      "items": ["Migrations are reversible", "Safe to run on a large table without downtime"]
+    },
+    {
+      "pattern": "**/settings*.py",
+      "items": ["No secrets are committed", "New settings have production values"]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "kinds": [
+    { "pattern": "api/gen/**", "kind": "generated" },
+    { "pattern": "deploy/**", "kind": "config" },
+    { "pattern": "**/testdata/**", "kind": "test" }
+  ],
+  "testPatterns": ["integration/**/*.go"],
+  "checklists": [
+    {
+      "pattern": "**/*.proto",
+      "items": ["Field numbers are never reused", "No fields were removed without being reserved"]
+    },
+    {
+      "pattern": "db/migrations/**",
+      "items": ["Migrations are reversible", "No long-held locks on large tables"]
+    }
+  ]
+}

@@ -1,0 +1,193 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {
+  defaultUserConfig,
+  loadChapterOrder,
+  loadHideWhitespace,
+  loadUserConfig,
+  parseRepoConfig,
+  PRESET_MODELS,
+  presetUserConfig,
+  repoConfigProblems,
+  saveHideWhitespace,
+  saveUserConfig,
+  UserConfigError,
+} from '../src/config.js';
+import { configForRole, resolveApiKey, validateRouting } from '../src/agent/types.js';
+
+const originalHome = process.env.GR_HOME;
+const originalKey = process.env.GR_TEST_KEY;
+const roots: string[] = [];
+
+afterEach(() => {
+  if (originalHome === undefined) delete process.env.GR_HOME;
+  else process.env.GR_HOME = originalHome;
+  if (originalKey === undefined) delete process.env.GR_TEST_KEY;
+  else process.env.GR_TEST_KEY = originalKey;
+  for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
+});
+
+function configFile(): string {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gr-config-'));
+  roots.push(root);
+  process.env.GR_HOME = root;
+  return path.join(root, 'config.json');
+}
+
+describe('user config', () => {
+  it('errors instead of writing a default when no config exists', () => {
+    const file = configFile();
+    expect(() => loadUserConfig()).toThrow(UserConfigError);
+    expect(() => loadUserConfig()).toThrow(/no model provider is configured/);
+    expect(fs.existsSync(file)).toBe(false);
+  });
+
+  it('rejects configs without a provider, with an unknown provider, or with invalid JSON', () => {
+    const file = configFile();
+    fs.writeFileSync(file, '{}\n');
+    expect(() => loadUserConfig()).toThrow(/does not set a "provider"/);
+    fs.writeFileSync(file, '{"provider":"gemini"}\n');
+    expect(() => loadUserConfig()).toThrow(/unknown provider "gemini"/);
+    fs.writeFileSync(file, '{"provider":"claude-code", "roles": {"qa": {"provider":"nope"}}}\n');
+    expect(() => loadUserConfig()).toThrow(/roles.qa: unknown provider/);
+    fs.writeFileSync(file, '{"provider":');
+    expect(() => loadUserConfig()).toThrow(/not valid JSON/);
+  });
+
+  it('loads a custom config without rewriting it', () => {
+    const file = configFile();
+    const custom = '{"provider":"openai","model":"example","apiKeyEnv":"$MY_KEY"}\n';
+    fs.writeFileSync(file, custom);
+    expect(loadUserConfig()).toEqual({ provider: 'openai', model: 'example', apiKeyEnv: 'MY_KEY' });
+    expect(fs.readFileSync(file, 'utf8')).toBe(custom);
+  });
+
+  it('defaults to Codex with Luna briefing and narration, Sol Q&A', () => {
+    const config = defaultUserConfig();
+    expect(config.provider).toBe('codex');
+    expect(configForRole(config, 'briefing').model).toBe('gpt-6-luna');
+    expect(configForRole(config, 'narration').model).toBe('gpt-6-luna');
+    expect(configForRole(config, 'qa').model).toBe('gpt-6.1-sol');
+  });
+
+  it('routes OpenAI briefing and narration to Luna, Q&A to Sol', () => {
+    const file = configFile();
+    const config = presetUserConfig('openai', PRESET_MODELS.openai!, { apiKeyEnv: 'OPENAI_API_KEY' });
+    saveUserConfig(config);
+    expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual(config);
+    expect(loadUserConfig()).toEqual(config);
+    expect(configForRole(config, 'briefing').model).toBe('gpt-6-luna');
+    expect(configForRole(config, 'narration').model).toBe('gpt-6-luna');
+    expect(configForRole(config, 'qa').model).toBe('gpt-6.1-sol');
+    expect(configForRole(config, 'qa').apiKeyEnv).toBe('OPENAI_API_KEY');
+  });
+
+  it('defaults the chapter order to guide', () => {
+    configFile();
+    expect(loadChapterOrder()).toBe('flow');
+    expect(defaultUserConfig().chapterOrder).toBe('guide');
+  });
+
+  it('hides whitespace by default and reads the saved setting, even without a provider', () => {
+    const file = configFile();
+    expect(loadHideWhitespace()).toBe(true);
+    fs.writeFileSync(file, '{"hideWhitespace":false}\n');
+    expect(loadHideWhitespace()).toBe(false);
+    fs.writeFileSync(file, '{"provider":"openai","hideWhitespace":false}\n');
+    expect(loadUserConfig().hideWhitespace).toBe(false);
+    fs.writeFileSync(file, '{"hideWhitespace":"no"}\n');
+    expect(() => loadHideWhitespace()).toThrow(/"hideWhitespace" must be true or false/);
+  });
+
+  it('saves the whitespace setting without touching the rest of the config', () => {
+    const file = configFile();
+    saveHideWhitespace(false);
+    expect(fs.existsSync(file)).toBe(false); // no config yet: nothing is created
+    fs.writeFileSync(file, '{"provider":"openai","apiKeyEnv":"KEY","custom":{"a":1}}\n');
+    saveHideWhitespace(false);
+    expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual({ provider: 'openai', apiKeyEnv: 'KEY', custom: { a: 1 }, hideWhitespace: false });
+    expect(fs.statSync(file).mode & 0o777).toBe(0o600);
+    expect(loadHideWhitespace()).toBe(false);
+  });
+
+  it('reads the preferred chapter order, even without a provider', () => {
+    const file = configFile();
+    fs.writeFileSync(file, '{"chapterOrder":"risk"}\n');
+    expect(loadChapterOrder()).toBe('risk');
+    fs.writeFileSync(file, '{"provider":"openai","chapterOrder":"guide"}\n');
+    expect(loadChapterOrder()).toBe('flow');
+    expect(loadUserConfig().chapterOrder).toBe('guide');
+    fs.writeFileSync(file, '{"provider":"openai","chapterOrder":"flow"}\n');
+    expect(() => loadChapterOrder()).toThrow(/unknown chapterOrder "flow"/);
+    expect(() => loadUserConfig()).toThrow(/unknown chapterOrder "flow"/);
+  });
+
+  it('saves the config readable only by its owner', () => {
+    const file = configFile();
+    saveUserConfig(presetUserConfig('openai', { fast: 'a', strong: 'b' }, { apiKey: 'sk-secret' }));
+    expect(fs.statSync(file).mode & 0o777).toBe(0o600);
+    expect(loadUserConfig().apiKey).toBe('sk-secret');
+  });
+});
+
+describe('API keys', () => {
+  it('prefers a saved key, then the named variable, then the provider default', () => {
+    process.env.GR_TEST_KEY = 'from-env';
+    expect(resolveApiKey({ provider: 'openai', apiKey: 'saved', apiKeyEnv: 'GR_TEST_KEY' })).toEqual({ key: 'saved', source: 'config.json' });
+    expect(resolveApiKey({ provider: 'openai', apiKeyEnv: 'GR_TEST_KEY' })).toEqual({ key: 'from-env', source: '$GR_TEST_KEY' });
+    expect(resolveApiKey({ provider: 'openai-compatible' }).source).toBe('$OPENAI_API_KEY');
+    expect(resolveApiKey({ provider: 'anthropic' }).source).toBe('$ANTHROPIC_API_KEY');
+    expect(resolveApiKey({ provider: 'claude-code' })).toEqual({});
+    expect(resolveApiKey({ provider: 'bedrock' })).toEqual({});
+  });
+
+  it('fails validation when a required key is missing', () => {
+    delete process.env.GR_TEST_KEY;
+    const openai = presetUserConfig('openai', { fast: 'a', strong: 'b' }, { apiKeyEnv: 'GR_TEST_KEY' });
+    expect(() => validateRouting(openai)).toThrow(/\$GR_TEST_KEY is not set/);
+    expect(() => validateRouting({ ...openai, apiKey: 'saved' })).not.toThrow();
+    // Claude Code uses its own login, and local endpoints may need no key.
+    expect(() => validateRouting(defaultUserConfig())).not.toThrow();
+    const anthropic = presetUserConfig('anthropic', { fast: 'a', strong: 'b' }, { apiKeyEnv: 'GR_TEST_KEY' });
+    expect(() => validateRouting(anthropic)).toThrow(/anthropic needs an API key, but \$GR_TEST_KEY is not set/);
+    expect(() => validateRouting({ ...anthropic, apiKey: 'saved' })).not.toThrow();
+    expect(() => validateRouting({ provider: 'openai-compatible', model: 'm', baseUrl: 'http://localhost:1/v1' })).not.toThrow();
+  });
+});
+
+describe('repo config problems', () => {
+  it('accepts a valid config', () => {
+    const text = JSON.stringify({ kinds: [{ pattern: 'src/gen/**', kind: 'generated' }], testPatterns: ['**/*.it.ts'], checklists: [{ pattern: 'db/**', items: ['Reversible'] }] });
+    expect(repoConfigProblems(text)).toEqual([]);
+  });
+
+  it('reports what parseRepoConfig would silently drop', () => {
+    const text = JSON.stringify({ kind: [], kinds: [{ pattern: 'docs/**', kind: 'docs' }, 'x'], testPatterns: [1], checklists: [{ pattern: 'db/**' }] });
+    expect(repoConfigProblems(text)).toEqual([
+      'unknown key "kind" (expected kinds, testPatterns, checklists)',
+      'kinds[0]: unknown kind "docs" (expected logic, test, config, mechanical, generated, vendored)',
+      'kinds[1] must be an object like { "pattern": "src/gen/**", "kind": "generated" }',
+      'testPatterns[0] must be a string',
+      'checklists[0] needs an "items" array',
+    ]);
+  });
+
+  it('reports invalid JSON', () => {
+    expect(repoConfigProblems('{"kinds":')[0]).toMatch(/^not valid JSON/);
+    expect(repoConfigProblems('[]')).toEqual(['must contain a JSON object']);
+  });
+});
+
+describe('docs/examples', () => {
+  const dir = path.join(import.meta.dirname, '..', 'docs', 'examples');
+  for (const name of fs.readdirSync(dir).filter((f) => f.endsWith('.json'))) {
+    it(`${name} is a valid repo config`, () => {
+      const text = fs.readFileSync(path.join(dir, name), 'utf8');
+      expect(repoConfigProblems(text)).toEqual([]);
+      const cfg = parseRepoConfig(text);
+      expect(cfg.kinds.length + cfg.testPatterns.length + cfg.checklists.length).toBeGreaterThan(0);
+    });
+  }
+});

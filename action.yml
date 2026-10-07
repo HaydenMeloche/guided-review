@@ -1,0 +1,89 @@
+name: Guided Review tour
+description: Build a Guided Review tour of a pull request and post it to the PR, so reviewers open it without rebuilding it.
+author: Hayden Meloche
+branding:
+  icon: map
+  color: blue
+
+inputs:
+  provider:
+    description: >-
+      Model provider, "anthropic", "openai", or "cursor". The key is read from ANTHROPIC_API_KEY,
+      OPENAI_API_KEY, or CURSOR_API_KEY, which the calling step sets in its env. Required unless config
+      is set, which overrides it.
+    required: false
+    default: ''
+  model:
+    description: >-
+      Model that builds the tour. Defaults to claude-haiku-5-5 (anthropic), gpt-6-luna (openai), or
+      composer-2.5 (cursor).
+      Ignored when config is set.
+    required: false
+    default: ''
+  config:
+    description: >-
+      Full Guided Review config.json contents (provider, models, apiKeyEnv, baseUrl), for providers
+      such as Bedrock, Vertex, or an OpenAI-compatible endpoint. Overrides provider and model.
+    required: false
+    default: ''
+  pr:
+    description: Pull request number. Defaults to the PR that triggered the workflow.
+    required: false
+    default: ${{ github.event.pull_request.number }}
+  version:
+    description: Version of @haydenmeloche/guided-review to run.
+    required: false
+    default: latest
+  github-token:
+    description: Token for reading the PR and posting the comment. Needs pull-requests write.
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: 22
+    - name: Install ripgrep
+      shell: bash
+      run: command -v rg >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep; } || echo "ripgrep unavailable; the model's repo search is disabled"
+    - name: Write config
+      shell: bash
+      env:
+        GR_HOME: ${{ runner.temp }}/guided-review
+        GR_CONFIG: ${{ inputs.config }}
+        GR_PROVIDER: ${{ inputs.provider }}
+        GR_MODEL: ${{ inputs.model }}
+      run: |
+        mkdir -p "$GR_HOME"
+        if [ -n "$GR_CONFIG" ]; then
+          printf '%s' "$GR_CONFIG" > "$GR_HOME/config.json"
+        else
+          case "$GR_PROVIDER" in
+            anthropic) model=claude-haiku-5-5 key=ANTHROPIC_API_KEY ;;
+            openai) model=gpt-6-luna key=OPENAI_API_KEY ;;
+            cursor) model=composer-2.5 key=CURSOR_API_KEY ;;
+            '') echo "::error::set the provider input (\"anthropic\", \"openai\", or \"cursor\") or the config input"; exit 1 ;;
+            *) echo "::error::provider must be \"anthropic\", \"openai\", or \"cursor\" (got \"$GR_PROVIDER\"); use the config input for others"; exit 1 ;;
+          esac
+          [ -n "${!key}" ] || { echo "::error::$key is not set; pass it in this step's env"; exit 1; }
+          model="${GR_MODEL:-$model}"
+          # Inputs go through node so a model name can't break the JSON.
+          node -e 'const [provider, model, apiKeyEnv] = process.argv.slice(1); console.log(JSON.stringify({ provider, model, apiKeyEnv }, null, 2))' \
+            "$GR_PROVIDER" "$model" "$key" > "$GR_HOME/config.json"
+        fi
+        chmod 600 "$GR_HOME/config.json"
+    - name: Fetch full history
+      # The tour diffs against the merge base; a shallow clone makes it fall back to GitHub's diff,
+      # which reviewers' local builds would not reproduce exactly.
+      shell: bash
+      run: '[ "$(git rev-parse --is-shallow-repository 2>/dev/null)" != true ] || git fetch --quiet --unshallow'
+    - name: Build and post the tour
+      shell: bash
+      env:
+        GR_HOME: ${{ runner.temp }}/guided-review
+        GH_TOKEN: ${{ inputs.github-token }}
+        PR: ${{ inputs.pr }}
+        VERSION: ${{ inputs.version }}
+      run: npx --yes "@haydenmeloche/guided-review@$VERSION" build "$PR" --comment
