@@ -1,0 +1,42 @@
+{
+  "name": "guided-review",
+  "version": "0.1.0",
+  "description": "Guided Review: an AI-guided terminal walkthrough of pull requests",
+  "scripts": {
+    "build": "tsc -p .",
+    "dev": "tsx src/cli.tsx",
+    "typecheck": "tsc -p . --noEmit",
+    "test": "vitest run"
+  },
+  "author": "",
+  "license": "ISC",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.10.1",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@12.10.1",
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.292",
+    "ink": "^8.0.0",
+    "meow": "^14.1.0",
+    "react": "^19.3.0",
+    "typescript": "~5.9.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "ink-testing-library": "^4.0.0",
+    "tsx": "^4.23.15",
+    "vitest": "^5.0.3"
+  },
+  "bin": {
+    "gr": "./bin/gr.js"
+  },
+  "engines": {
+    "node": ">=22.5"
+  }
+}
