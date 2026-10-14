@@ -12,6 +12,10 @@ describe('diff syntax highlighting', () => {
     expect(highlightLanguage('src/lib.rs')).toBe('rust');
     expect(highlightLanguage('config/app.yaml')).toBe('yaml');
     expect(highlightLanguage('image.png')).toBeUndefined();
+    expect(highlightLanguage('docker/Dockerfile')).toBe('dockerfile');
+    expect(highlightLanguage('Dockerfile.dev')).toBe('dockerfile');
+    expect(highlightLanguage('Makefile')).toBe('make');
+    expect(highlightLanguage('README')).toBeUndefined();
     expect(await highlightHunk(hunk('h', 'image.png', [{ kind: 'add', text: 'anything', newLine: 1 }]))).toBeUndefined();
     for (const file of [
       'x.tsx',
@@ -35,6 +39,28 @@ describe('diff syntax highlighting', () => {
       'x.css',
       'x.html',
       'x.lua',
+      'x.sql',
+      'x.scala',
+      'x.ex',
+      'x.clj',
+      'x.dart',
+      'x.m',
+      'x.mm',
+      'x.scss',
+      'x.less',
+      'x.md',
+      'x.xml',
+      'x.csproj',
+      'x.graphql',
+      'x.proto',
+      'x.tf',
+      'x.hcl',
+      'x.vue',
+      'x.svelte',
+      'x.mk',
+      'Dockerfile',
+      'deploy/Dockerfile.prod',
+      'Makefile',
     ]) {
       expect(await highlightHunk(hunk('h', file, [{ kind: 'add', text: 'x', newLine: 1 }]))).toBeDefined();
     }
@@ -67,6 +93,13 @@ describe('diff syntax highlighting', () => {
       head: `/* begins above\n${text}\nconst x = 1;`,
     });
     expect(coloredText(text, result![0])).toBe(text);
+  });
+
+  it('highlights SQL keywords and strings', async () => {
+    const text = "SELECT id FROM users WHERE name = 'ada';";
+    const result = await highlightHunk(hunk('h', 'db/query.sql', [{ kind: 'add', text, newLine: 1 }]));
+    expect(coloredText(text, result![0])).toContain('SELECT');
+    expect(coloredText(text, result![0])).toContain("'ada'");
   });
 
   it('highlights YAML keys and comments', async () => {

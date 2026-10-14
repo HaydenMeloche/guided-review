@@ -20,7 +20,7 @@ const TABLE: [string[], Language][] = [
   [['go'], { id: 'go', family: 'go', treeSitter: 'go', shiki: 'go' }],
   [['kt', 'kts'], { id: 'kotlin', family: 'jvm', treeSitter: 'kotlin', shiki: 'kotlin' }],
   [['java'], { id: 'java', family: 'jvm', treeSitter: 'java', shiki: 'java' }],
-  [['scala'], { id: 'scala', family: 'jvm' }],
+  [['scala'], { id: 'scala', family: 'jvm', shiki: 'scala' }],
   [['cs'], { id: 'csharp', family: 'dotnet', shiki: 'csharp' }],
   [['swift'], { id: 'swift', family: 'swift', shiki: 'swift' }],
   [['c', 'h'], { id: 'c', family: 'c-family', treeSitter: 'c', shiki: 'c' }],
@@ -29,35 +29,65 @@ const TABLE: [string[], Language][] = [
   [['rs'], { id: 'rust', family: 'rust', treeSitter: 'rust', shiki: 'rust' }],
   [['php'], { id: 'php', family: 'php', shiki: 'php' }],
   [['sh', 'bash', 'zsh'], { id: 'shell', family: 'shell', shiki: 'bash' }],
-  [['ex', 'exs'], { id: 'elixir', family: 'elixir' }],
-  [['clj'], { id: 'clojure', family: 'clojure' }],
+  [['ex', 'exs'], { id: 'elixir', family: 'elixir', shiki: 'elixir' }],
+  [['clj'], { id: 'clojure', family: 'clojure', shiki: 'clojure' }],
   [['lua'], { id: 'lua', family: 'lua', shiki: 'lua' }],
-  [['dart'], { id: 'dart', family: 'dart' }],
-  [['m', 'mm'], { id: 'objc', family: 'objc' }],
+  [['dart'], { id: 'dart', family: 'dart', shiki: 'dart' }],
+  [['m'], { id: 'objc', family: 'objc', shiki: 'objective-c' }],
+  [['mm'], { id: 'objcpp', family: 'objc', shiki: 'objective-cpp' }],
   [['json'], { id: 'json', shiki: 'json' }],
   [['jsonc'], { id: 'jsonc', shiki: 'jsonc' }],
   [['yaml', 'yml'], { id: 'yaml', shiki: 'yaml' }],
   [['toml'], { id: 'toml', shiki: 'toml' }],
   [['css'], { id: 'css', shiki: 'css' }],
+  [['scss'], { id: 'scss', shiki: 'scss' }],
+  [['less'], { id: 'less', shiki: 'less' }],
   [['html', 'htm'], { id: 'html', shiki: 'html' }],
+  [['sql'], { id: 'sql', shiki: 'sql' }],
+  [['md', 'markdown'], { id: 'markdown', shiki: 'markdown' }],
+  [['xml', 'csproj', 'fsproj', 'vbproj', 'props', 'targets'], { id: 'xml', shiki: 'xml' }],
+  [['graphql', 'gql'], { id: 'graphql', shiki: 'graphql' }],
+  [['proto'], { id: 'proto', shiki: 'proto' }],
+  [['tf', 'tfvars'], { id: 'terraform', shiki: 'terraform' }],
+  [['hcl'], { id: 'hcl', shiki: 'hcl' }],
+  [['vue'], { id: 'vue', shiki: 'vue' }],
+  [['svelte'], { id: 'svelte', shiki: 'svelte' }],
+  [['dockerfile'], { id: 'dockerfile', shiki: 'dockerfile' }],
+  [['mk'], { id: 'make', shiki: 'make' }],
 ];
 
 const BY_EXT = new Map(TABLE.flatMap(([exts, lang]) => exts.map((e) => [e, lang] as const)));
+// Files known by name rather than extension. `Dockerfile.prod` and the like count as Dockerfiles.
+const BY_NAME = new Map([
+  ['dockerfile', BY_EXT.get('dockerfile')!],
+  ['containerfile', BY_EXT.get('dockerfile')!],
+  ['makefile', BY_EXT.get('mk')!],
+  ['gnumakefile', BY_EXT.get('mk')!],
+]);
 const CPP = BY_EXT.get('cpp')!;
 // A .h header is C unless its source uses C++-only syntax.
 const CPP_SYNTAX = /\b(class|namespace|template|constexpr)\b|::/;
 
+function baseOf(path: string): string {
+  return path.slice(path.lastIndexOf('/') + 1).toLowerCase();
+}
+
 function extOf(path: string): string {
-  const base = path.slice(path.lastIndexOf('/') + 1);
+  const base = baseOf(path);
   const dot = base.lastIndexOf('.');
-  return dot <= 0 ? '' : base.slice(dot + 1).toLowerCase();
+  return dot <= 0 ? '' : base.slice(dot + 1);
+}
+
+function byName(path: string): Language | undefined {
+  const base = baseOf(path);
+  return BY_NAME.get(base) ?? BY_NAME.get(base.slice(0, base.indexOf('.')));
 }
 
 // Pass the file's source to tell a C++ header from a C one.
 export function languageOf(path: string, source?: string): Language | undefined {
   const ext = extOf(path);
   if (ext === 'h' && source !== undefined && CPP_SYNTAX.test(source)) return CPP;
-  return BY_EXT.get(ext);
+  return BY_EXT.get(ext) ?? byName(path);
 }
 
 export function familyOf(path: string): string | undefined {
