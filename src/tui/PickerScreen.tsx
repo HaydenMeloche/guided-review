@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { fetchPRPreview, listReviewRequests, type PRPreview, type ReviewRequest } from '../github/gh.js';
 import type { Store } from '../store/db.js';
@@ -23,6 +23,7 @@ const PREVIEW_DELAY_MS = 120; // wait for j/k to settle before calling gh
 const FRAME_MS = 80;
 const SPIN = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 const BAR_W = 20;
+const REFRESH_MS = 2 * 60 * 1000; // the list refreshes itself this often
 
 // One PR's tour download, as the app reports it.
 export interface DownloadJob {
@@ -91,6 +92,7 @@ interface PickerProps {
   onQuit: () => void;
   downloads: Record<string, DownloadJob>;
   onDownload: (targets: Target[]) => void; // queues tours; progress arrives through `downloads`
+  refreshMs?: number;
 }
 
 export function PickerScreen(props: PickerProps) {
@@ -106,21 +108,55 @@ export function PickerScreen(props: PickerProps) {
   const [downloadNotice, setDownloadNotice] = useState('');
   const [hint, setHint] = useState('');
   const [localVersion, setLocalVersion] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const inflight = useRef(new Set<string>());
+  // load() runs from a timer too, so it reads the list and selection through refs.
+  const prsRef = useRef(prs);
+  prsRef.current = prs;
+  const selKey = useRef('');
+  const restoreKey = useRef<string | undefined>(undefined);
+  const loading = useRef(false);
 
+  // Refreshing keeps the current list on screen until the new one arrives.
   const load = () => {
-    setPrs(undefined);
+    if (loading.current) return;
+    loading.current = true;
+    setRefreshing(true);
     setErr('');
-    setSelected(new Set());
-    listReviewRequests().then(
-      (p) => {
-        setPrs(p);
-        setLoadedAt(Date.now());
-      },
-      (e) => setErr((e as Error).message),
-    );
+    listReviewRequests()
+      .then(
+        (p) => {
+          // PRs updated since the last fetch get a fresh preview.
+          const before = new Map((prsRef.current ?? []).map((x) => [keyFor(x), x.updatedAt]));
+          const stale = p.map(keyFor).filter((k, i) => before.has(k) && before.get(k) !== p[i].updatedAt);
+          if (stale.length) {
+            for (const k of stale) inflight.current.delete(k);
+            setPreviews((m) => Object.fromEntries(Object.entries(m).filter(([k]) => !stale.includes(k))));
+          }
+          const keys = new Set(p.map(keyFor));
+          setSelected((prev) => new Set([...prev].filter((id) => keys.has(id))));
+          restoreKey.current = selKey.current;
+          setPrs(p);
+          setLoadedAt(Date.now());
+        },
+        (e) => {
+          const msg = (e as Error).message;
+          if (prsRef.current) setHint(`Refresh failed: ${msg}`);
+          else setErr(msg);
+        },
+      )
+      .finally(() => {
+        loading.current = false;
+        setRefreshing(false);
+      });
   };
   useEffect(load, []);
+  const refreshMs = props.refreshMs ?? REFRESH_MS;
+  useEffect(() => {
+    const t = setInterval(load, refreshMs);
+    // load only touches refs and state setters, so the first one stays good.
+    return () => clearInterval(t);
+  }, [refreshMs]);
 
   const { rows, items } = useMemo(() => pickerRows(prs ?? [], filter), [prs, filter]);
   // What's already on this machine for each PR: cheap queries, computed once per list.
@@ -137,6 +173,16 @@ export function PickerScreen(props: PickerProps) {
   }, [prs, localVersion, props.store]);
   const current = items[Math.min(sel, items.length - 1)];
   const key = current ? `${current.repo}#${current.number}` : '';
+  selKey.current = key;
+
+  // After a refresh, stay on the PR that was highlighted, wherever it moved.
+  useLayoutEffect(() => {
+    const k = restoreKey.current;
+    if (k === undefined) return;
+    restoreKey.current = undefined;
+    const i = items.findIndex((p) => keyFor(p) === k);
+    setSel((s) => (i >= 0 ? i : Math.max(0, Math.min(s, items.length - 1))));
+  }, [items]);
 
   // Downloads since the queue was last empty, summarized once they all finish.
   const { downloads } = props;
@@ -145,11 +191,12 @@ export function PickerScreen(props: PickerProps) {
   const wave = useRef({ keys: new Set(activeKeys), startedAt: Date.now() });
   const wasActive = useRef(false);
   const [frame, setFrame] = useState(0);
+  const ticking = active || refreshing;
   useEffect(() => {
-    if (!active) return;
+    if (!ticking) return;
     const t = setInterval(() => setFrame((f) => f + 1), FRAME_MS);
     return () => clearInterval(t);
-  }, [active]);
+  }, [ticking]);
   const doneCount = Object.values(downloads).filter((j) => j.state === 'done').length;
   useEffect(() => setLocalVersion((v) => v + 1), [doneCount]);
   useEffect(() => {
@@ -196,6 +243,16 @@ export function PickerScreen(props: PickerProps) {
     return () => clearTimeout(t);
   }, [key, current]);
 
+  const open = (t: Target) => {
+    // Opening a PR mid-download would build its tour twice; others open as usual.
+    if (isActive(downloads[keyFor(t)])) {
+      setHint(`${keyFor(t)} is still downloading · it opens instantly once ready`);
+      return false;
+    }
+    props.onPick({ repo: t.repo, number: t.number });
+    return true;
+  };
+
   useInput(
     (input, key) => {
       setHint('');
@@ -224,11 +281,7 @@ export function PickerScreen(props: PickerProps) {
       if (input === 'k' || key.upArrow) setSel((s) => Math.max(0, s - 1));
       if (input === 'g') setSel(0);
       if (input === 'G') setSel(items.length - 1);
-      if (key.return && current) {
-        // Opening a PR mid-download would build its tour twice; others open as usual.
-        if (isActive(downloads[keyFor(current)])) return setHint(`${keyFor(current)} is still downloading · it opens instantly once ready`);
-        props.onPick({ repo: current.repo, number: current.number });
-      }
+      if (key.return && current) open(current);
       if (input === 'o' && current) openExternal(current.url).catch((e: unknown) => setHint(`Could not open ${current.url}: ${(e as Error).message}`));
     },
     { isActive: !filtering },
@@ -266,7 +319,9 @@ export function PickerScreen(props: PickerProps) {
     <Box flexDirection="column" width={width} height={height} paddingX={1}>
       <Text wrap="truncate">
         <Text bold>Review requests</Text>
-        <Text dimColor>{prs ? `  ${items.length}${filter ? ` of ${prs.length}` : ''} waiting on you · updated ${age(new Date(loadedAt).toISOString())}` : ''}</Text>
+        <Text dimColor>{prs ? `  ${items.length}${filter ? ` of ${prs.length}` : ''} waiting on you · ` : ''}</Text>
+        {prs && refreshing ? <Text color="cyan">{`${SPIN[frame % SPIN.length]} refreshing`}</Text> : null}
+        {prs && !refreshing ? <Text dimColor>{`updated ${age(new Date(loadedAt).toISOString())}`}</Text> : null}
       </Text>
       <KeyBar
         width={width - 2}
@@ -332,7 +387,11 @@ export function PickerScreen(props: PickerProps) {
       <Box flexDirection="row" height={bodyH}>
         <Box flexDirection="column" width={listW} flexShrink={0}>
           {err ? <Text color="red">{safe(err)}</Text> : null}
-          {!prs && !err ? <Text dimColor>Loading your review requests…</Text> : null}
+          {!prs && !err ? (
+            <Text dimColor>
+              <Text color="cyan">{SPIN[frame % SPIN.length]}</Text> Loading your review requests…
+            </Text>
+          ) : null}
           {prs && !items.length ? <Text dimColor>{filter ? 'Nothing matches the filter.' : 'Nothing is waiting on you. gr review <number or URL> opens a specific PR.'}</Text> : null}
           {visible.map((r) =>
             r.kind === 'repo' ? (
