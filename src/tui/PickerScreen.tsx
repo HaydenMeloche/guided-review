@@ -1,12 +1,13 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { fetchPRPreview, listReviewRequests, type PRPreview, type ReviewRequest } from '../github/gh.js';
+import { fetchPRPreview, listReviewRequests, parsePRArg, type PRPreview, type ReviewRequest } from '../github/gh.js';
 import type { Store } from '../store/db.js';
 import { KeyBar } from './ChapterScreen.js';
 import { TextInput } from './TextInput.js';
 import { pad, truncate, wrap } from './nav.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
 import { openExternal } from '../util/openExternal.js';
+import { readClipboard } from '../util/clipboard.js';
 import { MdLineView, line, renderMarkdown } from './markdown.js';
 
 export interface Target {
@@ -24,6 +25,22 @@ const FRAME_MS = 80;
 const SPIN = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 const BAR_W = 20;
 const REFRESH_MS = 2 * 60 * 1000; // the list refreshes itself this often
+const CLIPBOARD_MS = 1500;
+
+// Clipboard texts already opened or dismissed. Module-level, so returning to the picker
+// after a tour doesn't offer the same link again.
+const dismissedClips = new Set<string>();
+
+// The PR a copied link (or owner/name#N) points to; undefined for anything else.
+export function clipboardPR(text: string): Target | undefined {
+  const s = text.trim();
+  if (!s || s.length > 500 || /\s/.test(s) || dismissedClips.has(s)) return undefined;
+  try {
+    return parsePRArg(s);
+  } catch {
+    return undefined;
+  }
+}
 
 // One PR's tour download, as the app reports it.
 export interface DownloadJob {
@@ -92,6 +109,7 @@ interface PickerProps {
   onQuit: () => void;
   downloads: Record<string, DownloadJob>;
   onDownload: (targets: Target[]) => void; // queues tours; progress arrives through `downloads`
+  readClipboard?: () => Promise<string | undefined>; // tests stub the system clipboard
   refreshMs?: number;
 }
 
@@ -109,6 +127,7 @@ export function PickerScreen(props: PickerProps) {
   const [hint, setHint] = useState('');
   const [localVersion, setLocalVersion] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [clip, setClip] = useState<{ text: string; target: Target }>();
   const inflight = useRef(new Set<string>());
   // load() runs from a timer too, so it reads the list and selection through refs.
   const prsRef = useRef(prs);
@@ -157,6 +176,35 @@ export function PickerScreen(props: PickerProps) {
     // load only touches refs and state setters, so the first one stays good.
     return () => clearInterval(t);
   }, [refreshMs]);
+
+  // Offer a PR link as soon as it lands on the clipboard.
+  const readClip = props.readClipboard ?? readClipboard;
+  useEffect(() => {
+    let stopped = false;
+    let busy = false;
+    let last: string | undefined;
+    const check = async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        const text = await readClip();
+        if (stopped) return;
+        if (text === undefined) return clearInterval(t); // no clipboard reader on this machine
+        if (text === last) return;
+        last = text;
+        const target = clipboardPR(text);
+        setClip(target && { text: text.trim(), target });
+      } finally {
+        busy = false;
+      }
+    };
+    const t = setInterval(() => void check(), CLIPBOARD_MS);
+    void check();
+    return () => {
+      stopped = true;
+      clearInterval(t);
+    };
+  }, [readClip]);
 
   const { rows, items } = useMemo(() => pickerRows(prs ?? [], filter), [prs, filter]);
   // What's already on this machine for each PR: cheap queries, computed once per list.
@@ -253,10 +301,27 @@ export function PickerScreen(props: PickerProps) {
     return true;
   };
 
+  // A copied PR outside the list needs its title from a preview fetch.
+  const clipKey = clip ? keyFor(clip.target) : '';
+  const clipListed = clip ? prs?.find((p) => keyFor(p) === clipKey) : undefined;
+  useEffect(() => {
+    if (!clip || clipListed || inflight.current.has(clipKey)) return;
+    inflight.current.add(clipKey);
+    fetchPRPreview(clip.target.repo, clip.target.number).then(
+      (p) => setPreviews((m) => ({ ...m, [clipKey]: p })),
+      (e) => setPreviews((m) => ({ ...m, [clipKey]: { error: (e as Error).message } })),
+    );
+  }, [clip, clipKey, clipListed]);
+
   useInput(
     (input, key) => {
       setHint('');
       if (key.escape || input === 'q') return props.onQuit();
+      if (clip && (input === 'p' || input === 'x')) {
+        if (input === 'p' && !open(clip.target)) return;
+        dismissedClips.add(clip.text);
+        return setClip(undefined);
+      }
       if (input === '/') {
         setDownloadNotice('');
         return setFiltering(true);
@@ -300,17 +365,18 @@ export function PickerScreen(props: PickerProps) {
   const listW = wide ? Math.min(70, Math.max(48, Math.floor(width * 0.42))) : width - 2;
   const previewW = wide ? width - listW - 5 : 0;
   const bodyH = height - 4; // title, key bar, filter line, spacing
+  const listH = clip ? bodyH - 4 : bodyH; // the pinned clipboard row and its gap
 
   // Keep the selection in view; each PR takes two rows.
   const selRow = rows.findIndex((r) => r.kind === 'pr' && r.index === sel);
   const rowH = (r: Row) => (r.kind === 'repo' ? 1 : 2);
   let start = 0;
   let used = rows.slice(0, selRow + 1).reduce((n, r) => n + rowH(r), 0);
-  while (used > bodyH - 1 && start < selRow) used -= rowH(rows[start++]);
+  while (used > listH - 1 && start < selRow) used -= rowH(rows[start++]);
   if (start > 0 && rows[start - 1]?.kind === 'repo') start--; // keep the repo header with its first PR
   const visible: Row[] = [];
   let h = 0;
-  for (let i = start; i < rows.length && h + rowH(rows[i]) <= bodyH; i++) {
+  for (let i = start; i < rows.length && h + rowH(rows[i]) <= listH; i++) {
     visible.push(rows[i]);
     h += rowH(rows[i]);
   }
@@ -386,6 +452,7 @@ export function PickerScreen(props: PickerProps) {
       )}
       <Box flexDirection="row" height={bodyH}>
         <Box flexDirection="column" width={listW} flexShrink={0}>
+          {clip ? <ClipboardRow target={clip.target} listed={clipListed} preview={previews[clipKey]} width={listW} /> : null}
           {err ? <Text color="red">{safe(err)}</Text> : null}
           {!prs && !err ? (
             <Text dimColor>
@@ -425,6 +492,36 @@ export function PickerScreen(props: PickerProps) {
 
 export function keyFor(pr: Target): string {
   return `${pr.repo}#${pr.number}`;
+}
+
+// The copied PR, pinned above the list. Magenta, so it stands apart from the cyan list,
+// green notices and yellow hints.
+function ClipboardRow(props: { target: Target; listed?: ReviewRequest; preview?: PRPreview | { error: string }; width: number }) {
+  const { target, listed, preview, width } = props;
+  const info = listed ?? (preview && !('error' in preview) ? preview : undefined);
+  const meta = [target.repo, info ? `@${info.author}` : '', preview && 'error' in preview ? `could not load: ${preview.error}` : ''].filter(Boolean).join(' · ');
+  return (
+    <Box flexDirection="column" marginBottom={1}>
+      <Text color="magenta" bold>
+        {' ⎘ From clipboard'}
+      </Text>
+      <Text wrap="truncate">
+        <Text color="magenta">▸</Text>
+        <Text bold>{truncate(safe(` #${target.number} ${info?.title ?? ''}`), width - 2)}</Text>
+      </Text>
+      <Text wrap="truncate">
+        <Text dimColor>{`     ${truncate(safe(meta), Math.max(1, width - 1 - 5 - ' · p open tour · x dismiss'.length))} · `}</Text>
+        <Text color="magenta" bold>
+          p
+        </Text>
+        <Text dimColor> open tour · </Text>
+        <Text color="magenta" bold>
+          x
+        </Text>
+        <Text dimColor> dismiss</Text>
+      </Text>
+    </Box>
+  );
 }
 
 function DownloadStatus(props: { keys: string[]; downloads: Record<string, DownloadJob>; frame: number; startedAt: number }) {

@@ -32,6 +32,8 @@ export interface ReviewRequest {
 }
 
 export interface PRPreview {
+  title: string;
+  author: string;
   headRefName: string;
   baseRefName: string;
   headSha: string;
@@ -48,6 +50,8 @@ export interface PRPreview {
 }
 
 interface PRPreviewRaw {
+  title: string;
+  author: { login: string } | null; // null for a deleted account
   headRefName: string;
   baseRefName: string;
   headRefOid: string;
@@ -68,7 +72,7 @@ const PR_PREVIEW_QUERY = `
 query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
-      headRefName baseRefName headRefOid additions deletions changedFiles isDraft reviewDecision mergeable body
+      title author { login } headRefName baseRefName headRefOid additions deletions changedFiles isDraft reviewDecision mergeable body
       labels(first: 100) { nodes { name } }
       files(first: 100) { nodes { path additions deletions } }
       commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
@@ -103,7 +107,7 @@ async function prPreviewRaw(repo: string, number: number): Promise<PRPreviewRaw>
     '-R',
     repo,
     '--json',
-    'headRefName,baseRefName,headRefOid,additions,deletions,changedFiles,isDraft,reviewDecision,mergeable,labels,body,statusCheckRollup,files',
+    'title,author,headRefName,baseRefName,headRefOid,additions,deletions,changedFiles,isDraft,reviewDecision,mergeable,labels,body,statusCheckRollup,files',
   ]);
   return JSON.parse(out) as PRPreviewRaw;
 }
@@ -122,6 +126,8 @@ export async function fetchPRPreview(repo: string, number: number): Promise<PRPr
     } else checks.pending++;
   }
   return {
+    title: r.title,
+    author: r.author?.login ?? 'ghost',
     headRefName: r.headRefName,
     baseRefName: r.baseRefName,
     headSha: r.headRefOid,

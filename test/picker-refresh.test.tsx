@@ -1,12 +1,13 @@
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'ink-testing-library';
-import { PickerScreen, type Target } from '../src/tui/PickerScreen.js';
-import { listReviewRequests, type ReviewRequest } from '../src/github/gh.js';
+import { PickerScreen, clipboardPR, type Target } from '../src/tui/PickerScreen.js';
+import { fetchPRPreview, listReviewRequests, type PRPreview, type ReviewRequest } from '../src/github/gh.js';
 import type { Store } from '../src/store/db.js';
 import { waitFor } from './helpers/waitFor.js';
 
-vi.mock('../src/github/gh.js', () => ({
+vi.mock('../src/github/gh.js', async (importOriginal) => ({
+  parsePRArg: (await importOriginal<typeof import('../src/github/gh.js')>()).parsePRArg,
   listReviewRequests: vi.fn(),
   fetchPRPreview: vi.fn(() => new Promise(() => {})),
 }));
@@ -24,8 +25,21 @@ const pr = (number: number, title: string): ReviewRequest => ({
 
 const store = { listTours: () => [], listDrafts: () => [] } as unknown as Store;
 
-function picker(opts: { onPick?: (t: Target) => void; refreshMs?: number } = {}) {
-  return render(<PickerScreen store={store} width={120} height={25} onPick={opts.onPick ?? (() => {})} onQuit={() => {}} downloads={{}} onDownload={() => {}} refreshMs={opts.refreshMs} />);
+function picker(opts: { clipboard?: () => Promise<string | undefined>; onPick?: (t: Target) => void; refreshMs?: number } = {}) {
+  const readClipboard = opts.clipboard ?? (async () => undefined);
+  return render(
+    <PickerScreen
+      store={store}
+      width={120}
+      height={25}
+      onPick={opts.onPick ?? (() => {})}
+      onQuit={() => {}}
+      downloads={{}}
+      onDownload={() => {}}
+      readClipboard={readClipboard}
+      refreshMs={opts.refreshMs}
+    />,
+  );
 }
 
 afterEach(() => vi.mocked(listReviewRequests).mockReset());
@@ -73,5 +87,46 @@ describe('picker refresh', () => {
     const ui = picker({ refreshMs: 30 });
     await waitFor(() => expect(ui.lastFrame()).toContain('#2 Second'));
     ui.unmount();
+  });
+});
+
+describe('picker clipboard', () => {
+  it('offers a copied PR link and opens it with p', async () => {
+    vi.mocked(listReviewRequests).mockResolvedValue([pr(1, 'First')]);
+    const onPick = vi.fn();
+    const ui = picker({ clipboard: async () => 'https://github.com/other/repo/pull/482/files\n', onPick });
+    await waitFor(() => expect(ui.lastFrame()).toContain('From clipboard'));
+    expect(ui.lastFrame()).toContain('▸ #482');
+    expect(ui.lastFrame()).toContain('other/repo · p open tour · x dismiss');
+    ui.stdin.write('p');
+    await waitFor(() => expect(onPick).toHaveBeenCalledWith({ repo: 'other/repo', number: 482 }));
+    ui.unmount();
+    // Opened once; coming back to the picker doesn't offer it again.
+    expect(clipboardPR('https://github.com/other/repo/pull/482/files')).toBeUndefined();
+  });
+
+  it('fetches the title of a copied PR that is not in the list', async () => {
+    vi.mocked(listReviewRequests).mockResolvedValue([pr(1, 'First')]);
+    vi.mocked(fetchPRPreview).mockResolvedValueOnce({ title: 'Fix retry backoff', author: 'sam' } as PRPreview);
+    const ui = picker({ clipboard: async () => 'https://github.com/other/repo/pull/7' });
+    await waitFor(() => expect(ui.lastFrame()).toContain('▸ #7 Fix retry backoff'));
+    expect(ui.lastFrame()).toContain('other/repo · @sam · p open tour');
+    ui.unmount();
+  });
+
+  it('shows the title of a listed PR and dismisses with x', async () => {
+    vi.mocked(listReviewRequests).mockResolvedValue([pr(1, 'First')]);
+    const ui = picker({ clipboard: async () => 'acme/app#1' });
+    await waitFor(() => expect(ui.lastFrame()).toContain('▸ #1 First'));
+    expect(ui.lastFrame()).toContain('acme/app · @dev · p open tour');
+    ui.stdin.write('x');
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('From clipboard'));
+    ui.unmount();
+  });
+
+  it('ignores clipboard text that is not a PR', () => {
+    expect(clipboardPR('hello world')).toBeUndefined();
+    expect(clipboardPR('482')).toBeUndefined();
+    expect(clipboardPR('https://github.com/acme/app/issues/3')).toBeUndefined();
   });
 });

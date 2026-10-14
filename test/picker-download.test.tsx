@@ -28,6 +28,7 @@ vi.mock('../src/github/gh.js', () => ({
 }));
 
 const store = { listTours: () => [], listDrafts: () => [] } as unknown as Store;
+const noClipboard = async () => undefined;
 
 // Stands in for the app: holds the download jobs and lets the test drive them.
 function harness(opts: { onPick?: (t: Target) => void; onQuit?: () => void } = {}) {
@@ -43,6 +44,7 @@ function harness(opts: { onPick?: (t: Target) => void; onQuit?: () => void } = {
         height={25}
         onPick={opts.onPick ?? (() => {})}
         onQuit={opts.onQuit ?? (() => {})}
+        readClipboard={noClipboard}
         downloads={downloads}
         onDownload={(targets) => {
           requests.push(targets);
