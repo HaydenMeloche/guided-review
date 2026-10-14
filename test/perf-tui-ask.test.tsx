@@ -5,6 +5,8 @@ import { waitFor } from './helpers/waitFor.js';
 const TOKENS = 200;
 const FINAL = 'The final answer ends here: DONE.';
 let finalValue = FINAL;
+// Streaming 200 tokens through real renders can take seconds on a loaded runner (macOS CI, coverage).
+const SLOW = { timeout: 10_000 };
 
 vi.mock('../src/agent/agent.js', () => ({
   ask: vi.fn(async (opts: { onText?: (t: string) => void }) => {
@@ -35,19 +37,19 @@ describe('Ask streaming', () => {
     finalValue = FINAL;
     const ui = await askOnce();
     const before = ui.frames.length;
-    await waitFor(() => expect(ui.lastFrame()).toContain('DONE.'));
-    await waitFor(() => expect(ui.lastFrame()).toContain('enter: follow up'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('DONE.'), SLOW);
+    await waitFor(() => expect(ui.lastFrame()).toContain('enter: follow up'), SLOW);
     // One render per token would be over 200 frames.
     expect(ui.frames.length - before).toBeLessThan(TOKENS / 4);
     ui.unmount();
-  });
+  }, 30_000);
 
   it('keeps the last streamed text when the result carries no value', async () => {
     finalValue = '';
     const ui = await askOnce();
-    await waitFor(() => expect(ui.lastFrame()).toContain('enter: follow up'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('enter: follow up'), SLOW);
     expect(ui.lastFrame()).toContain('DONE.');
     expect(ui.lastFrame()).toContain('w199');
     ui.unmount();
-  });
+  }, 30_000);
 });

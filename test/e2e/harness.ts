@@ -88,6 +88,8 @@ export interface Session {
   kill: () => void;
 }
 
+const QUIET_MS = 100;
+
 export const KEY = { enter: '\r', escape: '\u001b', tab: '\t' } as const;
 
 // Runs gr in a pseudo-terminal and mirrors its output into a headless xterm,
@@ -97,7 +99,11 @@ export function startGr(box: Sandbox, args: string[], opts: { cwd: string; cols?
   const rows = opts.rows ?? 36;
   const term = new xterm.Terminal({ cols, rows, allowProposedApi: true });
   const proc = pty.spawn(process.execPath, [GR, ...args], { cols, rows, cwd: opts.cwd, env: box.env });
-  proc.onData((data) => term.write(data));
+  let lastData = Date.now();
+  proc.onData((data) => {
+    lastData = Date.now();
+    term.write(data);
+  });
   let alive = true;
   const exited = new Promise<number>((resolve) =>
     proc.onExit(({ exitCode }) => {
@@ -113,6 +119,16 @@ export function startGr(box: Sandbox, args: string[], opts: { cwd: string; cols?
     return lines.join('\n');
   };
 
+  // A match can land mid-frame (a header painted before the panel under it), and Ink binds its
+  // input handlers in effects that run after the first paint. Wait for the output to go quiet so
+  // assertions see the whole frame and the next key press is not dropped.
+  const settle = async () => {
+    const until = Date.now() + 2000;
+    while (Date.now() - lastData < QUIET_MS && Date.now() < until) await new Promise((resolve) => setTimeout(resolve, 10));
+    await new Promise<void>((resolve) => term.write('', resolve));
+    return screen();
+  };
+
   const waitFor = async (match: string | RegExp, timeoutMs = 10_000) => {
     const hit = (s: string) => (typeof match === 'string' ? s.includes(match) : match.test(s));
     const deadline = Date.now() + timeoutMs;
@@ -120,7 +136,7 @@ export function startGr(box: Sandbox, args: string[], opts: { cwd: string; cols?
       // Flush pending writes into the buffer before reading it.
       await new Promise<void>((resolve) => term.write('', resolve));
       const current = screen();
-      if (hit(current)) return current;
+      if (hit(current)) return settle();
       if (Date.now() > deadline) throw new Error(`Timed out waiting for ${String(match)}. Screen:\n${current}`);
       await new Promise((resolve) => setTimeout(resolve, 25));
     }
