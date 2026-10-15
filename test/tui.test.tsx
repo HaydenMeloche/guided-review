@@ -1249,6 +1249,30 @@ describe('split view, test pane toggle and expanded context', () => {
     ui.unmount();
   });
 
+  it('says when a file is too large to read more of', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gr-ctx-'));
+    fs.mkdirSync(path.join(root, 'src'));
+    fs.writeFileSync(path.join(root, 'src/big.ts'), 'x();\n'.repeat(210_000)); // just over 1 MB
+    const h = hunkFromDiff('src/big.ts', ' x();', '+y();', ' x();');
+    const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
+    const ui = render(screen(t, { services: { root, confirms: {}, setConfirm: () => {} } }));
+    await waitFor(() => expect(ui.lastFrame()).toContain('+y();'));
+    ui.stdin.write('+');
+    await waitFor(() => expect(ui.lastFrame()).toContain('over 1 MB'));
+    ui.unmount();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it('says a new file has no context to add', async () => {
+    const h = hunkFromDiff('src/new.ts', '+a();', '+b();');
+    const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h], {}, { 'src/new.ts': 'added' }) });
+    const ui = render(screen(t, { services: { root: os.tmpdir(), confirms: {}, setConfirm: () => {} } }));
+    await waitFor(() => expect(ui.lastFrame()).toContain('+b();'));
+    ui.stdin.write('+');
+    await waitFor(() => expect(ui.lastFrame()).toContain('this file is new'));
+    ui.unmount();
+  });
+
   it('says where a moved block went', async () => {
     const h = hunkFromDiff('src/a.ts', ' a();', '-first(block);', '-second(block);', '-third(block);', ' b();');
     h.lines.forEach((l, i) => l.kind === 'del' && (l.moved = { file: 'src/a.ts', line: 40 + i }));

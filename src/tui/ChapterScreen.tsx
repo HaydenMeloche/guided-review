@@ -40,13 +40,17 @@ const codeChunks = (text: string, width: number) => {
   return code.match(new RegExp(`.{1,${size}}`, 'g')) ?? [''];
 };
 
-// The head's lines of a hunk's file, for expanding its context: undefined for a file the head
-// lacks or that has no context to give (new, deleted, binary), and one changed since the diff.
-function headOf(hunk: Hunk, files: DiffFile[], root?: string): string[] | undefined {
+// The head's lines of a hunk's file, for expanding its context, or why there are none to show.
+function headOf(hunk: Hunk, files: DiffFile[], root?: string): { lines: string[] } | { reason: string } {
   const file = files.find((f) => f.path === hunk.file);
-  if (!root || !file || file.binary || file.status === 'added' || file.status === 'deleted') return undefined;
+  if (!root) return { reason: 'Context can be expanded once the checkout is ready.' };
+  if (!file || file.status === 'added') return { reason: 'No context to add: this file is new, so the hunk already shows all of it.' };
+  if (file.status === 'deleted') return { reason: 'No context to add: this file is deleted in the PR.' };
+  if (file.binary) return { reason: 'No context to add: this is a binary file.' };
   const text = safeReadFile(root, hunk.file);
-  return text === undefined ? undefined : headFor(hunk, fileLines(text));
+  if (text === undefined) return { reason: 'Can’t read more of this file: it is over 1 MB, or not a plain file in the checkout.' };
+  const lines = headFor(hunk, fileLines(text));
+  return lines ? { lines } : { reason: 'No context to add: the file has changed since the diff was taken.' };
 }
 
 const CONTEXT_STEP = 10; // lines + and - add or remove on each side of a hunk
@@ -102,7 +106,10 @@ export function ChapterScreen(props: {
   // Context the reader expanded around the hunk (+ and -), read from the checkout's head. Keyed
   // on the hunk, so moving to another hunk starts it unexpanded.
   const [expand, setExpand] = useState({ id: '', above: 0, below: 0 });
-  const headLines = useMemo(() => (diffHunk && expand.id === diffHunk.id ? headOf(diffHunk, tour.files, svc?.root) : undefined), [diffHunk, tour.files, svc?.root, expand.id]);
+  const headLines = useMemo(() => {
+    const head = diffHunk && expand.id === diffHunk.id ? headOf(diffHunk, tour.files, svc?.root) : undefined;
+    return head && 'lines' in head ? head.lines : undefined;
+  }, [diffHunk, tour.files, svc?.root, expand.id]);
   const neighbours = useMemo(() => {
     const ids = diffHunk ? (tour.files.find((f) => f.path === diffHunk.file)?.hunkIds ?? []) : [];
     const at = diffHunk ? ids.indexOf(diffHunk.id) : -1;
@@ -284,8 +291,9 @@ export function ChapterScreen(props: {
   // cursor on its line.
   const growContext = (by: number) => {
     if (!diffHunk) return;
-    const lines = headLines ?? headOf(diffHunk, tour.files, svc?.root);
-    if (!lines) return setFlash(svc?.root ? 'No context to add: the file is new, deleted, binary, or changed since the diff.' : 'Context can be expanded once the checkout is ready.');
+    const head = headLines ? { lines: headLines } : headOf(diffHunk, tour.files, svc?.root);
+    if ('reason' in head) return setFlash(head.reason);
+    const { lines } = head;
     const now = expand.id === diffHunk.id ? expand : { above: 0, below: 0 };
     const before = withContext(diffHunk, lines, now.above, now.below, neighbours);
     const after = withContext(diffHunk, lines, Math.max(0, now.above + by), Math.max(0, now.below + by), neighbours);
