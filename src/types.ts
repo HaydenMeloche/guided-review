@@ -14,9 +14,12 @@ export interface DiffLine {
   text: string;
   oldLine?: number;
   newLine?: number;
-  // Context read from the file, not part of the PR's diff (lines the reader expanded): GitHub
-  // cannot take a review comment on it.
+  // Context read from the file, not part of the PR's diff (the gap between two fused hunks, or
+  // lines the reader expanded): GitHub cannot take a review comment on it.
   expanded?: boolean;
+  // Part of a block moved within the PR: for a removed line, where it now is in the head; for an
+  // added line, where it was in the base.
+  moved?: { file: string; line: number };
 }
 
 export type LinkSource = 'coverage' | 'name-match' | 'naming';

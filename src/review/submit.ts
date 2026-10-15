@@ -1,4 +1,4 @@
-import type { CommentLabel, Draft, Hunk, ReadState, Tour } from '../types.js';
+import type { CommentLabel, DiffLine, Draft, Hunk, ReadState, Tour } from '../types.js';
 import type { ReviewPayload } from '../github/gh.js';
 
 type Side = 'LEFT' | 'RIGHT';
@@ -19,21 +19,31 @@ function formatBody(d: Draft, note?: string): string {
   return body;
 }
 
+// The line number of `l` on `side`, when GitHub's diff has it there. Expanded context is not in it.
+const lineOn = (l: DiffLine, side: Side) => (l.expanded ? undefined : side === 'RIGHT' ? (l.kind !== 'del' ? l.newLine : undefined) : l.kind !== 'add' ? l.oldLine : undefined);
+
 // Every line a review comment may attach to in this file, per side.
 function diffLines(tour: Tour, file: string, side: Side): number[] {
   const out: number[] = [];
   for (const h of Object.values(tour.hunks)) {
     if (h.file !== file) continue;
     for (const l of h.lines) {
-      if (side === 'RIGHT' && l.kind !== 'del' && l.newLine !== undefined) out.push(l.newLine);
-      if (side === 'LEFT' && l.kind !== 'add' && l.oldLine !== undefined) out.push(l.oldLine);
+      const n = lineOn(l, side);
+      if (n !== undefined) out.push(n);
     }
   }
   return out;
 }
 
-function hunkOf(tour: Tour, file: string, line: number, side: Side): Hunk | undefined {
-  return Object.values(tour.hunks).find((h) => h.file === file && h.lines.some((l) => (side === 'RIGHT' ? l.kind !== 'del' && l.newLine === line : l.kind !== 'add' && l.oldLine === line)));
+// Whether GitHub takes a comment over startLine..line: both ends in one of its hunks. A fused hunk
+// is several of GitHub's, joined by expanded context, so the range must not cross that context.
+function sameDiffHunk(tour: Tour, file: string, startLine: number, line: number, side: Side): boolean {
+  return Object.values(tour.hunks).some((h) => {
+    if (h.file !== file) return false;
+    const start = h.lines.findIndex((l) => lineOn(l, side) === startLine);
+    const end = h.lines.findIndex((l) => lineOn(l, side) === line);
+    return start >= 0 && end >= start && !h.lines.slice(start, end + 1).some((l) => l.expanded);
+  });
 }
 
 // The line a flow- or node-level comment lands on: first added line, else the
@@ -41,7 +51,7 @@ function hunkOf(tour: Tour, file: string, line: number, side: Side): Hunk | unde
 function anchorLineForHunk(h: Hunk): { line: number; side: Side } | undefined {
   const add = h.lines.find((l) => l.kind === 'add');
   if (add?.newLine !== undefined) return { line: add.newLine, side: 'RIGHT' };
-  const ctx = h.lines.find((l) => l.kind === 'ctx');
+  const ctx = h.lines.find((l) => l.kind === 'ctx' && !l.expanded);
   if (ctx?.newLine !== undefined) return { line: ctx.newLine, side: 'RIGHT' };
   const del = h.lines.find((l) => l.kind === 'del');
   if (del?.oldLine !== undefined) return { line: del.oldLine, side: 'LEFT' };
@@ -63,8 +73,7 @@ export function buildReviewPayload(tour: Tour, drafts: Draft[], event: ReviewPay
         const c: ReviewComment = { path: a.file, body: formatBody(d), line: a.line, side: a.side };
         // A range must start inside the same hunk to be accepted by GitHub.
         if (a.type === 'range' && a.startLine < a.line) {
-          const h = hunkOf(tour, a.file, a.line, a.side);
-          if (h && hunkOf(tour, a.file, a.startLine, a.side) === h) {
+          if (sameDiffHunk(tour, a.file, a.startLine, a.line, a.side)) {
             c.start_line = a.startLine;
             c.start_side = a.side;
           }

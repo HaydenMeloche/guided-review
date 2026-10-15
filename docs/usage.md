@@ -72,6 +72,8 @@ Upgrade highlights and package overviews come from a changelog in the worktree w
 | `o` | Open the current review context in Claude Code. |
 | `b` / `s` / `h` / `q` | Return to the briefing (description and overview diagram), open submit, show key help, or quit. `b` also works while the test pane has focus. |
 
+Hunks in a file that are at most six unchanged lines apart are shown as one hunk, with the lines between them read from the PR head and dimmed. GitHub's diff splits them, so code moved a short distance would otherwise appear as an unrelated addition and removal. A block of three or more lines removed in one place and added unchanged in another (indentation aside) is marked with where its other half is, for example `↕ 7 lines moved from line 66`.
+
 A diagram can also open as SVG in your browser with `b`. Changed nodes are highlighted; selecting a node with `Tab` and pressing `Enter` jumps to its hunk when it has one.
 
 ### Tests, risk, and review prompts

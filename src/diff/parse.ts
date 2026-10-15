@@ -29,11 +29,11 @@ function pathsFromDiffGit(line: string): { a: string; b: string } | undefined {
   }
 }
 
-function makeHunkId(path: string, header: string): string {
+export function makeHunkId(path: string, header: string): string {
   return 'h_' + sha1(path + '\0' + header).slice(0, 10);
 }
 
-function makeContentHash(path: string, lines: DiffLine[]): string {
+export function makeContentHash(path: string, lines: DiffLine[]): string {
   const changed = lines
     .filter((l) => l.kind !== 'ctx')
     .map((l) => (l.kind === 'add' ? '+' : '-') + l.text)

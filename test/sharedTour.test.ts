@@ -75,16 +75,17 @@ describe('shared tours', () => {
   });
 
   it('accepts a tour only when its code matches the diff line for line', () => {
+    const noHead = () => undefined;
     const tour = builtTour();
-    expect(matchesDiff(tour, diff)).toBe(true);
+    expect(matchesDiff(tour, diff, noHead)).toBe(true);
 
     const [id] = Object.keys(tour.hunks);
     const forged = structuredClone(tour);
     forged.hunks[id].lines[2].text = '  return 3;';
-    expect(matchesDiff(forged, diff)).toBe(false);
+    expect(matchesDiff(forged, diff, noHead)).toBe(false);
 
-    expect(matchesDiff(tour, diff.replace('return 2;', 'return 4;'))).toBe(false);
-    expect(matchesDiff(tour, '')).toBe(false);
+    expect(matchesDiff(tour, diff.replace('return 2;', 'return 4;'), noHead)).toBe(false);
+    expect(matchesDiff(tour, '', noHead)).toBe(false);
   });
 });
 

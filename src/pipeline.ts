@@ -1,6 +1,7 @@
 import type { Chapter, ChecklistStatus, DiffFile, Flag, Graph, Hunk, PRInfo, ProgressFn, RepoConfig, Risk, Tour } from './types.js';
 import { changedCount, maxRisk } from './diff/lines.js';
-import { HUNK_ID_RE, parseUnifiedDiff } from './diff/parse.js';
+import { HUNK_ID_RE } from './diff/parse.js';
+import { parseTourDiff } from './diff/fuse.js';
 import { classifyFiles } from './analysis/kinds.js';
 import { checkGeneratedSync } from './analysis/generatedSync.js';
 import { SPECIAL_CHAPTERS } from './analysis/special.js';
@@ -60,11 +61,11 @@ function repoConfigFromText(text: string | undefined): RepoConfig {
 export async function buildStaticTour(pr: PRInfo, diff: string, worktree: string, onProgress: ProgressFn, signal?: AbortSignal, opts: { mergeBase?: string } = {}): Promise<Tour> {
   signal?.throwIfAborted();
   onProgress('Parsing diff');
-  const { files, hunks: hunkList } = parseUnifiedDiff(diff);
+  const readHead = safeReader(worktree);
+  const { files, hunks: hunkList } = parseTourDiff(diff, readHead);
   const hunks: Record<string, Hunk> = Object.fromEntries(hunkList.map((h) => [h.id, h]));
   onProgress('Parsing diff', true);
 
-  const readHead = safeReader(worktree);
   // GitHub's baseRefOid is the base branch's current tip; the PR diff is against the merge base.
   const mergeBase = opts.mergeBase ?? (await mergeBaseOf(worktree, pr.baseSha, pr.headSha, signal)) ?? pr.baseSha;
   signal?.throwIfAborted();
@@ -477,7 +478,7 @@ export async function runPipeline(opts: PipelineOptions): Promise<Tour> {
     // A tour CI posted to the PR stands in for building one, once its code matches the diff.
     const shared = await sharedP;
     signal?.throwIfAborted();
-    if (shared && matchesDiff(shared, diff.text)) {
+    if (shared && matchesDiff(shared, diff.text, safeReader(worktree))) {
       attachChangedTestDiffs(shared.files, shared.hunks);
       const live = await liveData;
       signal?.throwIfAborted();

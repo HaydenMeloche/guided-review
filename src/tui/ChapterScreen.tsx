@@ -359,7 +359,8 @@ export function ChapterScreen(props: {
           const side = line?.kind === 'del' ? 'LEFT' : 'RIGHT';
           const lineNo = side === 'LEFT' ? line?.oldLine : line?.newLine;
           const target = Object.values(tour.hunks).find(
-            (candidate) => candidate.file === testFile && candidate.lines.some((l) => (side === 'LEFT' ? l.kind !== 'add' && l.oldLine === lineNo : l.kind !== 'del' && l.newLine === lineNo)),
+            (candidate) =>
+              candidate.file === testFile && candidate.lines.some((l) => !l.expanded && (side === 'LEFT' ? l.kind !== 'add' && l.oldLine === lineNo : l.kind !== 'del' && l.newLine === lineNo)),
           );
           if (!target || lineNo === undefined || !testFile) return setFlash('This test line is outside the PR diff, so GitHub cannot attach a line comment.');
           setPending(newDraft({ type: 'line', hunkId: target.id, file: testFile, line: lineNo, side }));
@@ -989,6 +990,18 @@ function threadAt(threads: ExistingThread[], file: string, line?: number, side: 
   return threads.filter((t) => t.path === file && (side === 'LEFT' ? t.isOutdated && t.originalLine === line : t.line === line || (t.line === undefined && !t.isOutdated && t.originalLine === line)));
 }
 
+// Under the last line of a block moved within the PR: where the block was, or went.
+function movedNote(hunk: Hunk, j: number): string | undefined {
+  const l = hunk.lines[j];
+  const same = (k: number) => !!hunk.lines[k]?.moved && hunk.lines[k].kind === l.kind;
+  if (!l.moved || same(j + 1)) return undefined;
+  let first = j;
+  while (same(first - 1)) first--;
+  const at = hunk.lines[first].moved!;
+  const where = at.file === hunk.file ? `line ${at.line}` : `${safe(at.file)}:${at.line}`;
+  return `↕ ${j - first + 1} line${j === first ? '' : 's'} moved ${l.kind === 'del' ? 'to' : 'from'} ${where}`;
+}
+
 function draftsAt(drafts: Draft[], hunk: Hunk, line?: number, side: 'LEFT' | 'RIGHT' = 'RIGHT') {
   if (line === undefined) return [];
   return drafts.filter((d) => (d.anchor.type === 'line' || d.anchor.type === 'range') && d.anchor.file === hunk.file && d.anchor.line === line && d.anchor.side === side);
@@ -1096,7 +1109,7 @@ const SourcePane = React.memo(function SourcePane(props: {
     }
     const reindentedOnly = (l: DiffLine, i: number) => l.kind === 'ctx' || props.hidden.get(i) === 'whitespace' || props.hidden.get(props.partner[i]) === 'whitespace';
     if (props.ignoreWhitespace && hunk.lines.every(reindentedOnly)) out.push({ idx: -1, node: <Text dimColor>{truncate('  whitespace-only changes hidden · w to show', width)}</Text> });
-    // Review threads and drafts under line j, on rows of line i.
+    // Review threads, drafts and a moved block's origin under line j, on rows of line i.
     const notesUnder = (j: number, i: number) => {
       const l = hunk.lines[j];
       const line = l.kind === 'del' ? l.oldLine : l.newLine;
@@ -1116,6 +1129,8 @@ const SourcePane = React.memo(function SourcePane(props: {
           node: <Text color={LABEL_COLOR[d.label]}>{truncate(`         ✎ [${d.label}]${d.posted ? ' (posted)' : ''} ${clean(d.body).replace(/\s+/g, ' ')}`, width)}</Text>,
         });
       }
+      const moved = movedNote(hunk, j);
+      if (moved) out.push({ idx: i, node: <Text color="magenta">{truncate(`         ${moved}`, width)}</Text> });
     };
     if (props.split) {
       // Old on the left, new on the right; a removed line shares its replacement's row.

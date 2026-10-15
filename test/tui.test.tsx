@@ -1222,4 +1222,13 @@ describe('split view, test pane toggle and expanded context', () => {
     expect(ui.lastFrame()).not.toContain('◂');
     ui.unmount();
   });
+
+  it('says where a moved block went', async () => {
+    const h = hunkFromDiff('src/a.ts', ' a();', '-first(block);', '-second(block);', '-third(block);', ' b();');
+    h.lines.forEach((l, i) => l.kind === 'del' && (l.moved = { file: 'src/a.ts', line: 40 + i }));
+    const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
+    const ui = render(screen(t));
+    await waitFor(() => expect(ui.lastFrame()).toContain('3 lines moved to line 41'));
+    ui.unmount();
+  });
 });

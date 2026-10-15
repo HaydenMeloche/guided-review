@@ -1,6 +1,6 @@
 import { gunzipSync, gzipSync } from 'node:zlib';
 import type { Tour } from '../types.js';
-import { parseUnifiedDiff } from '../diff/parse.js';
+import { parseTourDiff } from '../diff/fuse.js';
 import { githubAuth } from './auth.js';
 import { restJson, restPages } from './api.js';
 import { gh, ghHttpStatus } from './gh.js';
@@ -70,9 +70,10 @@ export function decodeSharedTour(body: string, expect: { repo: string; pr: numbe
 }
 
 // The comment is written by CI, not by the reader, so the code it shows must be the PR's code:
-// every file and hunk must match the diff the reader fetched, line for line.
-export function matchesDiff(tour: Tour, diff: string): boolean {
-  const { files, hunks } = parseUnifiedDiff(diff);
+// every file and hunk must match the diff the reader fetched, line for line, including the
+// context fused hunks read from the reader's own checkout.
+export function matchesDiff(tour: Tour, diff: string, readHead: (path: string) => string | undefined): boolean {
+  const { files, hunks } = parseTourDiff(diff, readHead);
   if (files.length !== tour.files.length || hunks.length !== Object.keys(tour.hunks).length) return false;
   const sharedFiles = new Map(tour.files.map((f) => [f.path, f]));
   for (const f of files) {
@@ -85,7 +86,7 @@ export function matchesDiff(tour: Tour, diff: string): boolean {
     for (let i = 0; i < h.lines.length; i++) {
       const a = h.lines[i];
       const b = s.lines[i];
-      if (a.kind !== b.kind || a.text !== b.text || a.oldLine !== b.oldLine || a.newLine !== b.newLine) return false;
+      if (a.kind !== b.kind || a.text !== b.text || a.oldLine !== b.oldLine || a.newLine !== b.newLine || !a.expanded !== !b.expanded) return false;
     }
   }
   return true;
