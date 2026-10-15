@@ -55,12 +55,12 @@ Upgrade highlights and package overviews come from a changelog in the worktree w
 | `e` | Open review threads on the selected line inline. Scroll with `j`/`k` or `J`/`K`; use `Tab` to select a comment and `a` to add or remove a reaction; press `Esc` to close. |
 | `y` | Reply to a review thread on the selected line in the inline panel. Replies post to GitHub when you press Enter. |
 | `?` | Ask the agent about the selection in a panel below the selected line. Questions form a thread: press `Enter` again to ask a follow-up, and `↑`/`↓` to scroll. Press `Esc` to return to review. |
-| `t` | Focus linked tests; narrow terminals toggle source and tests. Long code lines wrap in both panes. |
+| `t` | Focus linked tests; narrow terminals toggle source and tests. Long code lines wrap in both panes. When linked tests are not beside the code, a `◂ 2 tests · t` tab at the top right says so. |
 | `T` | Hide or show the test pane beside the code, to give the diff the full width. `t` still opens the tests when the pane is hidden. |
 | `U` | Expand or collapse details about possible untested behavior and missing test links. |
 | `d` | Open the chapter diagram. Select a node to jump to its code or comment on it. |
 | `r` | Toggle the raw unified diff. |
-| `S` | Switch between inline and split view, with old code on the left and new code on the right. A removed line sits on the same row as the line that replaces it. The choice is saved as `splitDiff` in your config. When the terminal is too narrow for a split diff beside the tests, the tests move below (open them with `t`). In split view, a comment on a replaced line goes on its new side; switch to inline to comment on the removed line itself. |
+| `S` | Switch between inline and split view, with old code on the left and new code on the right. A removed line sits on the same row as the line that replaces it. The choice is saved as `splitDiff` in your config. When the terminal is too narrow for a split diff beside the tests, the tests move behind the `◂ tests · t` tab. In split view, a comment on a replaced line goes on its new side; switch to inline to comment on the removed line itself. |
 | `w` | Hide or show whitespace-only changes (hidden by default; the choice is saved as `hideWhitespace` in your config). A line that was only reindented shows once, marked `~`. Either way, changed words within a line are highlighted, and a line that only gained words shows once with the additions in green. |
 | `x` / `z` / `u` | Mark a hunk skipped, deferred, or unread. |
 | `m` | Move the current hunk to another chapter. |

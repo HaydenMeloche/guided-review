@@ -485,6 +485,10 @@ export function ChapterScreen(props: {
   }
   if (hunk && hunk.risk >= 2 && hunk.riskReasons.length > 1) chapterNotes.push(`Risk: ${hunk.riskReasons.join('; ')}`);
 
+  // Linked tests that are not beside the code (a narrow terminal, T, or a split diff) get a tab
+  // saying they are there and how to open them.
+  const testDrawer =
+    hasLinkedTests && !sideBySide && !testFocus && !collapsedView ? `◂ ${hunk.covers ? 'code it covers' : `${relevantTests.length} test${relevantTests.length === 1 ? '' : 's'}`}` : undefined;
   const nameGuess = hunk?.tests.find((t) => t.source === 'naming');
   const showTests = hasLinkedTests;
 
@@ -679,7 +683,7 @@ export function ChapterScreen(props: {
         <Box flexDirection="column" width={mainWidth}>
           {overlayNode ?? (
             <>
-              <ChapterTitle chapter={chapter} hunk={hunk} hi={hi} isNew={!!hunk && delta.has(hunk.id)} width={mainWidth} states={states} />
+              <ChapterTitle chapter={chapter} hunk={hunk} hi={hi} isNew={!!hunk && delta.has(hunk.id)} width={mainWidth} states={states} drawer={testDrawer} />
               {explainLines.length ? (
                 <Box flexDirection="column" flexShrink={0} borderStyle="round" borderColor={hunk?.narrationInferred ? 'gray' : 'blue'} paddingX={1} width={mainWidth}>
                   <Text bold color={hunk?.narrationInferred ? 'gray' : 'blue'}>
@@ -797,11 +801,7 @@ export function ChapterScreen(props: {
       <DraftLine drafts={props.drafts} hunk={hunk} cursor={cursor} flash={flash} width={width} describe={describeAnchor} />
       <KeyBar
         width={width}
-        status={
-          overlay === 'none' && hunk && !testFocus
-            ? [raw && 'raw', splitView && 'split', ignoreWhitespace && 'whitespace hidden', hasLinkedTests && hideTests && 'tests hidden', testsStacked && 'tests below: t'].filter(Boolean).join(' · ')
-            : undefined
-        }
+        status={overlay === 'none' && hunk && !testFocus ? [raw && 'raw', splitView && 'split', ignoreWhitespace && 'whitespace hidden'].filter(Boolean).join(' · ') : undefined}
         end={
           overlay !== 'none'
             ? []
@@ -868,7 +868,8 @@ const ChapterList = React.memo(function ChapterList(props: { tour: Tour; chapter
   );
 });
 
-const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: Chapter; hunk?: Hunk; hi: number; isNew: boolean; width: number; states: States }) {
+// `drawer`: a hint at the right end of the title row for linked tests that are not on screen.
+const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: Chapter; hunk?: Hunk; hi: number; isNew: boolean; width: number; states: States; drawer?: string }) {
   const { chapter, hunk, hi } = props;
   const rk = riskMark(hunk ? hunk.risk : chapter.risk);
   const cov = hunk ? COVERAGE[hunk.coverage] : undefined;
@@ -876,18 +877,30 @@ const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: Chapter;
   const orphan = hunk ? chapter.orphanReasons[hunk.id] : undefined;
   return (
     <Box flexDirection="column" flexShrink={0}>
-      <Text wrap="truncate">
-        <Text bold color="cyan">
-          {truncate(safe(chapter.title), Math.floor(props.width * 0.6))}
-        </Text>
-        {chapter.entryPoint ? <Text dimColor> · entry {safe(chapter.entryPoint)}</Text> : null}
-        {hunk ? (
-          <Text dimColor>
-            {' '}
-            · hunk {hi + 1}/{chapter.hunkIds.length}
+      <Box width={props.width}>
+        <Box flexShrink={1} flexGrow={1}>
+          <Text wrap="truncate">
+            <Text bold color="cyan">
+              {truncate(safe(chapter.title), Math.floor(props.width * 0.6))}
+            </Text>
+            {chapter.entryPoint ? <Text dimColor> · entry {safe(chapter.entryPoint)}</Text> : null}
+            {hunk ? (
+              <Text dimColor>
+                {' '}
+                · hunk {hi + 1}/{chapter.hunkIds.length}
+              </Text>
+            ) : null}
           </Text>
+        </Box>
+        {props.drawer ? (
+          <Box flexShrink={0}>
+            <Text color="cyan">
+              {` ${props.drawer} · `}
+              <Text bold>t</Text>
+            </Text>
+          </Box>
         ) : null}
-      </Text>
+      </Box>
       {hunk ? (
         <Text wrap="truncate">
           {st ? <Text color={st.color}>{st.mark} </Text> : null}

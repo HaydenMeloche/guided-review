@@ -1158,11 +1158,31 @@ describe('split view and test pane toggle', () => {
     const hi = t.chapters[ci].hunkIds.findIndex((id) => t.hunks[id].tests.some((x) => x.source !== 'naming'));
     const ui = render(screen(t, { ci, hi }));
     await waitFor(() => expect(ui.lastFrame()).toMatch(/Tests\s/));
+    expect(ui.lastFrame()).not.toContain('· t ');
     ui.stdin.write('T');
-    await waitFor(() => expect(ui.lastFrame()).toContain('tests hidden'));
+    await waitFor(() => expect(ui.lastFrame()).toMatch(/◂ \d+ tests? · t/));
     expect(ui.lastFrame()).not.toMatch(/│ Tests/);
     ui.stdin.write('t');
     await waitFor(() => expect(ui.lastFrame()).toContain('back to code'));
+    ui.unmount();
+  });
+
+  it('shows a tests tab at the top right when the terminal is too narrow for them beside the code', async () => {
+    const t = fixtureTour();
+    const ci = t.chapters.findIndex((c) => c.hunkIds.some((id) => t.hunks[id].tests.some((x) => x.source !== 'naming')));
+    const hi = t.chapters[ci].hunkIds.findIndex((id) => t.hunks[id].tests.some((x) => x.source !== 'naming'));
+    const ui = render(screen(t, { ci, hi, width: 100 }));
+    await waitFor(() => expect(ui.lastFrame()).toMatch(/◂ \d+ tests? · t\s*$/m));
+    // On the title row, right-aligned with the hunk counter.
+    expect(
+      ui
+        .lastFrame()!
+        .split('\n')
+        .find((r) => r.includes('◂')),
+    ).toContain('· hunk');
+    ui.stdin.write('t');
+    await waitFor(() => expect(ui.lastFrame()).toContain('back to code'));
+    expect(ui.lastFrame()).not.toContain('◂');
     ui.unmount();
   });
 });
