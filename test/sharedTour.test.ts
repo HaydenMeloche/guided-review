@@ -84,6 +84,14 @@ describe('shared tours', () => {
     forged.hunks[id].lines[2].text = '  return 3;';
     expect(matchesDiff(forged, diff, noHead)).toBe(false);
 
+    // A moved note or a content hash the reader's own diff does not produce.
+    const fakeMove = structuredClone(tour);
+    fakeMove.hunks[id].lines.find((l) => l.kind === 'add')!.moved = { file: 'src/old.ts', line: 12 };
+    expect(matchesDiff(fakeMove, diff, noHead)).toBe(false);
+    const fakeHash = structuredClone(tour);
+    fakeHash.hunks[id].contentHash = 'other';
+    expect(matchesDiff(fakeHash, diff, noHead)).toBe(false);
+
     expect(matchesDiff(tour, diff.replace('return 2;', 'return 4;'), noHead)).toBe(false);
     expect(matchesDiff(tour, '', noHead)).toBe(false);
   });

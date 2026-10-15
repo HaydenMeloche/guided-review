@@ -82,11 +82,14 @@ export function matchesDiff(tour: Tour, diff: string, readHead: (path: string) =
   }
   for (const h of hunks) {
     const s = tour.hunks[h.id];
-    if (!s || s.file !== h.file || s.header !== h.header || s.lines.length !== h.lines.length) return false;
+    // The content hash keys read state, and a moved note tells the reader a block is old code:
+    // neither may be the CI's word alone.
+    if (!s || s.file !== h.file || s.header !== h.header || s.contentHash !== h.contentHash || s.lines.length !== h.lines.length) return false;
     for (let i = 0; i < h.lines.length; i++) {
       const a = h.lines[i];
       const b = s.lines[i];
       if (a.kind !== b.kind || a.text !== b.text || a.oldLine !== b.oldLine || a.newLine !== b.newLine || !a.expanded !== !b.expanded) return false;
+      if (a.moved?.file !== b.moved?.file || a.moved?.line !== b.moved?.line) return false;
     }
   }
   return true;
