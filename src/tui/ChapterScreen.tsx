@@ -43,10 +43,10 @@ const codeChunks = (text: string, width: number) => {
 // The head's lines of a hunk's file, for expanding its context, or why there are none to show.
 function headOf(hunk: Hunk, files: DiffFile[], root?: string): { lines: string[] } | { reason: string } {
   const file = files.find((f) => f.path === hunk.file);
-  if (!root) return { reason: 'Context can be expanded once the checkout is ready.' };
   if (!file || file.status === 'added') return { reason: 'No context to add: this file is new, so the hunk already shows all of it.' };
   if (file.status === 'deleted') return { reason: 'No context to add: this file is deleted in the PR.' };
   if (file.binary) return { reason: 'No context to add: this is a binary file.' };
+  if (!root) return { reason: 'Context can be expanded once the checkout is ready.' };
   const text = safeReadFile(root, hunk.file);
   if (text === undefined) return { reason: 'Can’t read more of this file: it is over 1 MB, or not a plain file in the checkout.' };
   const lines = headFor(hunk, fileLines(text));
