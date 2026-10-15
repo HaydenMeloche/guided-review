@@ -103,7 +103,7 @@ describe('submit dialog', () => {
     expect(ui.lastFrame()).toContain('Submit review');
     expect(ui.lastFrame()).toMatch(/P\s+post/);
     ui.stdin.write('P');
-    await waitFor(() => expect(ui.lastFrame()).toContain('y / n'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('Y / n'));
     ui.unmount();
   });
 });

@@ -64,7 +64,7 @@ export function SubmitScreen(props: {
   useInput(
     (input, key) => {
       if (mode === 'confirm') {
-        if (input === 'y') return void post();
+        if (input === 'y' || key.return) return void post();
         return setMode('list');
       }
       if (mode === 'confirm-delete') {
@@ -170,7 +170,7 @@ export function SubmitScreen(props: {
       {result ? <Text color="red">{safe(result)}</Text> : null}
       {mode === 'confirm' ? (
         <Text color="yellow" bold>
-          Post a "{EVENT_TEXT[event]}" review with {pending.length} comment(s) to {safe(tour.repo)}#{tour.pr}? y / n
+          Post a "{EVENT_TEXT[event]}" review with {pending.length} comment(s) to {safe(tour.repo)}#{tour.pr}? Y / n
         </Text>
       ) : mode === 'confirm-delete' ? (
         <Text color="yellow">Delete this draft? y / n</Text>

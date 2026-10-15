@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render } from 'ink-testing-library';
 import type { ChapterOrder, Draft, ExistingThread, Hunk, ReadState, Tour } from '../src/types.js';
 import { buildFixture, ctx, head } from './fixtures/invoiceFlow.js';
@@ -19,6 +19,9 @@ import { BriefingScreen } from '../src/tui/BriefingScreen.js';
 import { ORDER_SEQUENCE, positionAfterOrderChange, progress, sortChapters, type States } from '../src/tui/nav.js';
 import { waitFor } from './helpers/waitFor.js';
 import { filesFor, hunkFromDiff, tour as makeTour } from './fixtures/tour.js';
+
+// Never reach GitHub from a test: confirming the submit screen posts through this.
+vi.mock('../src/github/gh.js', async (orig) => ({ ...(await orig<typeof import('../src/github/gh.js')>()), postReview: vi.fn(async () => ({ id: 1, url: 'https://example.test/review/1' })) }));
 
 // A short settle for keypresses that change no output but must land before the next key
 // (e.g. letting a newly active input handler attach). Waits on output use waitFor.
@@ -769,10 +772,35 @@ describe('BriefingScreen and SubmitScreen', () => {
     await waitFor(() => expect(ui.lastFrame()).toContain('Suggested: Request changes'));
     expect(ui.lastFrame()).toContain('This drops the error.');
     ui.stdin.write('P');
-    await waitFor(() => expect(ui.lastFrame()).toContain('y / n'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('Y / n'));
     ui.stdin.write('n'); // cancel: nothing posts
-    await waitFor(() => expect(ui.lastFrame()).not.toContain('y / n'));
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('Y / n'));
     expect(ui.lastFrame()).not.toContain('Posting');
+    ui.unmount();
+  });
+
+  it('enter confirms posting, since yes is the default', async () => {
+    const tour = fixtureTour();
+    let posted: string | undefined;
+    const ui = render(
+      <SubmitScreen
+        tour={tour}
+        chapters={tour.chapters}
+        states={{}}
+        drafts={[]}
+        width={140}
+        height={40}
+        onEdit={() => {}}
+        onDelete={() => {}}
+        onPosted={(_ids, review) => (posted = review.url)}
+        onBack={() => {}}
+      />,
+    );
+    await waitFor(() => expect(ui.lastFrame()).toContain('Submit review'));
+    ui.stdin.write('P');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Y / n'));
+    ui.stdin.write('\r');
+    await waitFor(() => expect(posted).toBe('https://example.test/review/1'));
     ui.unmount();
   });
 });
