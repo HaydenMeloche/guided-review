@@ -1,10 +1,10 @@
 import fs from 'node:fs';
 import { fetchPR } from './github/gh.js';
-import { encodeSharedTour, postSharedTour, shareableTour } from './github/sharedTour.js';
+import { encodeSharedTour, postSharedTour, shareableTour, SharedTourTooLargeError } from './github/sharedTour.js';
 import { ensureWorktree } from './git/worktree.js';
 import { runPipeline } from './pipeline.js';
 import type { AgentRouting } from './agent/types.js';
-import type { Tour } from './types.js';
+import type { PRInfo, Tour } from './types.js';
 
 export interface BuildOptions {
   target: { repo: string; number: number };
@@ -57,9 +57,23 @@ export async function buildTour(opts: BuildOptions): Promise<Tour> {
       log(`Wrote ${opts.out}`);
     }
   }
-  if (opts.comment) {
-    const url = await postSharedTour(pr.repo, pr.number, encodeSharedTour(tour, { command: `${opts.command} ${pr.number}` }));
-    log(`Posted the tour to ${url}`);
-  }
+  if (opts.comment) await shareOnPR(pr, tour, `${opts.command} ${pr.number}`, log);
   return tour;
+}
+
+// Posts the tour to the PR. One too large for a comment is skipped with a warning, not an error:
+// reviewers build it locally as usual, and a big PR should not turn its CI red.
+export async function shareOnPR(pr: Pick<PRInfo, 'repo' | 'number'>, tour: Tour, command: string, log: (line: string) => void, post = postSharedTour): Promise<boolean> {
+  let body: string;
+  try {
+    body = encodeSharedTour(tour, { command });
+  } catch (e) {
+    if (!(e instanceof SharedTourTooLargeError)) throw e;
+    const message = `Not posting the tour: ${e.message}. Reviewers will build it locally.`;
+    // In GitHub Actions, also an annotation on the run.
+    log(process.env.GITHUB_ACTIONS === 'true' ? `::warning::${message}` : message);
+    return false;
+  }
+  log(`Posted the tour to ${await post(pr.repo, pr.number, body)}`);
+  return true;
 }

@@ -54,7 +54,7 @@ To use Cursor, set `provider: cursor` and pass a Cursor API key (Cursor Dashboar
 
 For any other setup, pass the `config` input (the contents of a `config.json`), which overrides `provider` and `model`. Claude Code and Codex logins aren't available in CI, so use an API-key provider, Bedrock, or Vertex there. Outside GitHub Actions, run `gr build <pr> --comment` with `GH_TOKEN` set and a config under `$GR_HOME`.
 
-The tour travels gzipped inside a hidden part of one comment, which the job updates on each push. A tour whose encoded size exceeds GitHub's 65,536-character comment limit is not posted, and reviewers build it locally as usual. A reader uses a shared tour only when all of these hold:
+The tour travels gzipped inside a hidden part of one comment, which the job updates on each push. A tour whose encoded size exceeds GitHub's 65,536-character comment limit is not posted: the job logs a warning and still succeeds, and reviewers build the tour locally as usual. A reader uses a shared tour only when all of these hold:
 
 - the comment was written by `github-actions[bot]`, which only the repository's own workflows can post as;
 - the tour is complete and was built for the PR's current head commit; and
