@@ -5,14 +5,14 @@ import path from 'node:path';
 import {
   defaultUserConfig,
   loadChapterOrder,
-  loadHideWhitespace,
   loadUserConfig,
+  loadViewSetting,
   parseRepoConfig,
   PRESET_MODELS,
   presetUserConfig,
   repoConfigProblems,
-  saveHideWhitespace,
   saveUserConfig,
+  saveViewSetting,
   UserConfigError,
 } from '../src/config.js';
 import { configForRole, resolveApiKey, validateRouting } from '../src/agent/types.js';
@@ -92,24 +92,36 @@ describe('user config', () => {
 
   it('hides whitespace by default and reads the saved setting, even without a provider', () => {
     const file = configFile();
-    expect(loadHideWhitespace()).toBe(true);
+    expect(loadViewSetting('hideWhitespace')).toBe(true);
     fs.writeFileSync(file, '{"hideWhitespace":false}\n');
-    expect(loadHideWhitespace()).toBe(false);
+    expect(loadViewSetting('hideWhitespace')).toBe(false);
     fs.writeFileSync(file, '{"provider":"openai","hideWhitespace":false}\n');
     expect(loadUserConfig().hideWhitespace).toBe(false);
     fs.writeFileSync(file, '{"hideWhitespace":"no"}\n');
-    expect(() => loadHideWhitespace()).toThrow(/"hideWhitespace" must be true or false/);
+    expect(() => loadViewSetting('hideWhitespace')).toThrow(/"hideWhitespace" must be true or false/);
   });
 
   it('saves the whitespace setting without touching the rest of the config', () => {
     const file = configFile();
-    saveHideWhitespace(false);
+    saveViewSetting('hideWhitespace', false);
     expect(fs.existsSync(file)).toBe(false); // no config yet: nothing is created
     fs.writeFileSync(file, '{"provider":"openai","apiKeyEnv":"KEY","custom":{"a":1}}\n');
-    saveHideWhitespace(false);
+    saveViewSetting('hideWhitespace', false);
     expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual({ provider: 'openai', apiKeyEnv: 'KEY', custom: { a: 1 }, hideWhitespace: false });
     expect(fs.statSync(file).mode & 0o777).toBe(0o600);
-    expect(loadHideWhitespace()).toBe(false);
+    expect(loadViewSetting('hideWhitespace')).toBe(false);
+  });
+
+  it('keeps split view off by default and saves it beside the whitespace setting', () => {
+    const file = configFile();
+    expect(loadViewSetting('splitDiff')).toBe(false);
+    fs.writeFileSync(file, '{"provider":"openai","hideWhitespace":false}\n');
+    saveViewSetting('splitDiff', true);
+    expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual({ provider: 'openai', hideWhitespace: false, splitDiff: true });
+    expect(loadViewSetting('splitDiff')).toBe(true);
+    expect(loadUserConfig().splitDiff).toBe(true);
+    fs.writeFileSync(file, '{"splitDiff":1}\n');
+    expect(() => loadViewSetting('splitDiff')).toThrow(/"splitDiff" must be true or false/);
   });
 
   it('reads the preferred chapter order, even without a provider', () => {

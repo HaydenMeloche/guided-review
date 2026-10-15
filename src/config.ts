@@ -102,7 +102,7 @@ export function githubApiUrlProblem(value: string): string | undefined {
   return url.protocol === 'https:' ? undefined : 'the GitHub API URL must use https';
 }
 
-export type UserConfig = AgentRouting & { chapterOrder?: ChapterOrderSetting; hideWhitespace?: boolean; github?: GitHubConfig };
+export type UserConfig = AgentRouting & { chapterOrder?: ChapterOrderSetting; hideWhitespace?: boolean; splitDiff?: boolean; github?: GitHubConfig };
 
 export class UserConfigError extends Error {}
 
@@ -182,25 +182,29 @@ export function loadChapterOrder(): ChapterOrder {
   return CHAPTER_ORDER_SETTINGS[(raw && parseChapterOrder(raw, userConfigPath())) ?? DEFAULT_CHAPTER_ORDER];
 }
 
-function parseHideWhitespace(raw: Record<string, unknown>, where: string): boolean | undefined {
-  if (raw.hideWhitespace === undefined) return undefined;
-  if (typeof raw.hideWhitespace !== 'boolean') throw new UserConfigError(`${where}: "hideWhitespace" must be true or false`);
-  return raw.hideWhitespace;
+// Diff view settings a key toggles during a tour and saves for the next one.
+export type ViewSetting = 'hideWhitespace' | 'splitDiff';
+const VIEW_DEFAULTS: Record<ViewSetting, boolean> = { hideWhitespace: true, splitDiff: false };
+
+function parseViewSetting(raw: Record<string, unknown>, key: ViewSetting, where: string): boolean | undefined {
+  if (raw[key] === undefined) return undefined;
+  if (typeof raw[key] !== 'boolean') throw new UserConfigError(`${where}: "${key}" must be true or false`);
+  return raw[key];
 }
 
-// Whether the diff hides whitespace-only changes, readable without a model provider; on when unset.
-export function loadHideWhitespace(): boolean {
+// A view setting, readable without a model provider: hideWhitespace is on when unset, splitDiff off.
+export function loadViewSetting(key: ViewSetting): boolean {
   const raw = readUserConfigFile();
-  return (raw && parseHideWhitespace(raw, userConfigPath())) ?? true;
+  return (raw && parseViewSetting(raw, key, userConfigPath())) ?? VIEW_DEFAULTS[key];
 }
 
-// Records the w toggle. Only this key changes; the rest of the file is written back as it was.
+// Records a toggle. Only this key changes; the rest of the file is written back as it was.
 // Without a config file it does nothing: a file holding only this would read as "no provider".
-export function saveHideWhitespace(value: boolean): void {
+export function saveViewSetting(key: ViewSetting, value: boolean): void {
   const file = userConfigPath();
   const raw = readUserConfigFile();
-  if (!raw || raw.hideWhitespace === value) return;
-  fs.writeFileSync(file, JSON.stringify({ ...raw, hideWhitespace: value }, null, 2) + '\n', { mode: 0o600 });
+  if (!raw || raw[key] === value) return;
+  fs.writeFileSync(file, JSON.stringify({ ...raw, [key]: value }, null, 2) + '\n', { mode: 0o600 });
   fs.chmodSync(file, 0o600);
 }
 
@@ -235,8 +239,10 @@ export function loadUserConfig(): UserConfig {
   const out: UserConfig = parseAgentConfig(raw, file);
   const chapterOrder = parseChapterOrder(raw, file);
   if (chapterOrder) out.chapterOrder = chapterOrder;
-  const hideWhitespace = parseHideWhitespace(raw, file);
-  if (hideWhitespace !== undefined) out.hideWhitespace = hideWhitespace;
+  for (const key of ['hideWhitespace', 'splitDiff'] as const) {
+    const value = parseViewSetting(raw, key, file);
+    if (value !== undefined) out[key] = value;
+  }
   const github = parseGitHubConfig(raw, file);
   if (github) out.github = github;
   if (raw.roles !== undefined) {

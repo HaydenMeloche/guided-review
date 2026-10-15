@@ -345,6 +345,7 @@ export async function setup(opts: { edit?: boolean } = {}): Promise<void> {
   const config = await configureProvider(choice, current);
   config.chapterOrder = await choose('Default chapter order (press f during a tour to switch):', CHAPTER_ORDER_CHOICES, current?.chapterOrder ?? DEFAULT_CHAPTER_ORDER);
   if (current?.hideWhitespace !== undefined) config.hideWhitespace = current.hideWhitespace; // set by w during a tour
+  if (current?.splitDiff !== undefined) config.splitDiff = current.splitDiff; // set by S during a tour
   const github = await configureGitHub(current?.github);
   if (github) config.github = github;
   if (current?.roles && Object.values(current.roles).some((r) => r?.provider || r?.baseUrl || r?.apiKey || r?.apiKeyEnv)) {

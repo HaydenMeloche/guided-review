@@ -68,6 +68,7 @@ All of Cursor's built-in tools (shell, edit, web, subagents) are turned off. The
 | `toolCalling` | Set `false` for a compatible endpoint that cannot call functions. Generation still receives the supplied diff, but Q&A is limited to the selected code. |
 | `chapterOrder` | The chapter order a tour opens in: `guide` (default), `risk`, `size` (small first), or `file`. Also read with `--no-agent`. `gr config` asks for it. Press `f` during a tour to switch; a PR you have already opened reopens in the order you last used there. |
 | `hideWhitespace` | Whether diffs hide whitespace-only changes (default `true`). Pressing `w` during a tour switches it and saves the choice here, so the next tour opens the same way. Also read with `--no-agent`. |
+| `splitDiff` | Whether diffs show old and new code side by side (default `false`). Pressing `S` during a tour switches it and saves the choice here. Also read with `--no-agent`. |
 | `github` | Use a personal access token instead of `gh`: `{ "tokenEnv": "GITHUB_TOKEN" }` or `{ "tokenFile": "~/.config/guided-review/github-token" }`, plus an optional `"apiUrl"` (default `https://api.github.com`). Leave it out to use `gh`. See [GitHub access](#github-access). |
 | `roles` | Per-task overrides for `briefing` (PR summary, chapter titles, overview), `narration` (each chapter's hunks), and `qa`. |
 

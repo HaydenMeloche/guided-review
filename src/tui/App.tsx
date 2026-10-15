@@ -7,6 +7,7 @@ import { fetchHeadSha, fetchPR, fetchThreads, getMentionUsers, replyToThread, se
 import { ensureWorktree } from '../git/worktree.js';
 import { runPipeline } from '../pipeline.js';
 import type { AgentRole, AgentRouting } from '../agent/types.js';
+import type { ViewSetting } from '../config.js';
 import { fileOrderChapters } from '../analysis/flows.js';
 import { applyMoves, ORDER_SEQUENCE, positionAfterOrderChange, sortChapters, type States } from './nav.js';
 import { ChapterScreen, type Services } from './ChapterScreen.js';
@@ -28,7 +29,8 @@ export interface AppOptions {
   agent?: AgentRouting;
   chapterOrder?: ChapterOrder; // the user's default; a PR's saved order wins
   hideWhitespace?: boolean; // the user's saved w setting; on when unset
-  saveHideWhitespace?: (value: boolean) => void; // records a w toggle for next time
+  splitDiff?: boolean; // the user's saved S setting; off when unset
+  saveViewSetting?: (key: ViewSetting, value: boolean) => void; // records a w or S toggle for next time
   noAgent?: boolean;
   fresh?: boolean;
   preview?: { pr: PRInfo; diff: string; worktree: string }; // author mode on a local branch
@@ -86,6 +88,8 @@ export function App(opts: AppOptions) {
   const [moves, setMoves] = useState<Record<string, string>>({});
   const [order, setOrder] = useState<ChapterOrder>(opts.chapterOrder ?? 'flow');
   const [hideWhitespace, setHideWhitespace] = useState(opts.hideWhitespace ?? true);
+  const [splitDiff, setSplitDiff] = useState(opts.splitDiff ?? false);
+  const [hideTestPane, setHideTestPane] = useState(false);
   const [deltaOnly, setDeltaOnly] = useState(false);
   const [pos, setPosState] = useState({ ci: 0, hi: 0 });
   const [banner, setBanner] = useState<string | undefined>();
@@ -386,6 +390,15 @@ export function App(opts: AppOptions) {
     });
   };
 
+  const toggleView = (key: ViewSetting, value: boolean, set: (v: boolean) => void) => {
+    set(!value);
+    try {
+      opts.saveViewSetting?.(key, !value);
+    } catch {
+      // An unwritable or broken config keeps the setting for this session only.
+    }
+  };
+
   const checkout = (info: PRInfo): Promise<string> => {
     const previous = checkouts.current.get(info.repo) ?? Promise.resolve();
     const run = previous.catch(() => undefined).then(() => ensureWorktree(info, { localRepo: opts.localRepo }));
@@ -544,15 +557,11 @@ export function App(opts: AppOptions) {
       }}
       toggleOrder={cycleOrder}
       hideWhitespace={hideWhitespace}
-      toggleWhitespace={() => {
-        const next = !hideWhitespace;
-        setHideWhitespace(next);
-        try {
-          opts.saveHideWhitespace?.(next);
-        } catch {
-          // An unwritable or broken config keeps the setting for this session only.
-        }
-      }}
+      toggleWhitespace={() => toggleView('hideWhitespace', hideWhitespace, setHideWhitespace)}
+      splitDiff={splitDiff}
+      toggleSplit={() => toggleView('splitDiff', splitDiff, setSplitDiff)}
+      hideTestPane={hideTestPane}
+      toggleTestPane={() => setHideTestPane((h) => !h)}
       toggleDelta={() => {
         setDeltaOnly((d) => !d);
         setPosState({ ci: 0, hi: 0 });

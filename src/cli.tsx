@@ -4,7 +4,7 @@ import type { AppOptions } from './tui/App.js';
 import { currentBranchPR, currentRepo, parsePRArg } from './github/gh.js';
 import { cleanupWorktrees, defaultBaseRef, localRepoRoot, mergeBaseOf, prDiff } from './git/worktree.js';
 import { git } from './git/git.js';
-import { loadChapterOrder, loadHideWhitespace, loadUserConfig, saveHideWhitespace, UserConfigError } from './config.js';
+import { loadChapterOrder, loadUserConfig, loadViewSetting, saveViewSetting, UserConfigError } from './config.js';
 import { editRepoConfig, setup } from './setup.js';
 import { installClaudeCommand, installCodexSkill, type SkillInstallResult } from './codexSkill.js';
 import { planOpen, runOpen, targetArg } from './open.js';
@@ -240,9 +240,11 @@ async function main() {
   const agent = loadAgent(noAgent);
   let chapterOrder: AppOptions['chapterOrder'];
   let hideWhitespace: boolean;
+  let splitDiff: boolean;
   try {
     chapterOrder = loadChapterOrder();
-    hideWhitespace = loadHideWhitespace();
+    hideWhitespace = loadViewSetting('hideWhitespace');
+    splitDiff = loadViewSetting('splitDiff');
   } catch (error) {
     if (!(error instanceof UserConfigError)) throw error;
     fail(`${error.message}.\n\n  Run \`gr config --edit\` to fix it.`);
@@ -251,7 +253,8 @@ async function main() {
     agent,
     chapterOrder,
     hideWhitespace,
-    saveHideWhitespace,
+    splitDiff,
+    saveViewSetting,
     noAgent,
     fresh: cli.flags.fresh,
     localRepo: await localRepoP,

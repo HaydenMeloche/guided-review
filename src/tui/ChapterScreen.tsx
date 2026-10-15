@@ -10,7 +10,7 @@ import { ThreadView } from './ThreadView.js';
 import { AskOverlay } from './AskOverlay.js';
 import { highlightDiffLines, highlightSourceLines, type HunkHighlights, type SyntaxSpan } from './highlight.js';
 import { highlightHunkCached, hunkHighlightKey, peekHunkHighlights } from './highlightCache.js';
-import { codePaneWidths } from './paneWidths.js';
+import { codePaneWidths, MIN_SPLIT_WIDTH } from './paneWidths.js';
 import { ReviewPopup } from './ReviewPopup.js';
 import type { AgentContext } from '../agent/types.js';
 import { sanitizeTerminal } from '../util/sanitize.js';
@@ -70,6 +70,10 @@ export function ChapterScreen(props: {
   toggleOrder: () => void;
   hideWhitespace?: boolean; // hide whitespace-only changes; the screen keeps its own when unset
   toggleWhitespace?: () => void;
+  splitDiff?: boolean; // old and new side by side; the screen keeps its own when unset
+  toggleSplit?: () => void;
+  hideTestPane?: boolean; // keep linked tests out of the way (t still opens them); likewise
+  toggleTestPane?: () => void;
   toggleDelta: () => void;
   openSubmit: () => void;
   openBriefing: () => void;
@@ -98,6 +102,10 @@ export function ChapterScreen(props: {
   const [summarySel, setSummarySel] = useState(0);
   const [flash, setFlash] = useState('');
   const svc = props.services;
+  const [ownSplit, setOwnSplit] = useState(false);
+  const wantSplit = props.splitDiff ?? ownSplit;
+  const [ownHideTests, setOwnHideTests] = useState(false);
+  const hideTests = props.hideTestPane ?? ownHideTests;
   // The pipeline fills tour.mentionUsers only if the collaborator list arrived in time; fetch it
   // (memoized in gh.ts) the first time an editor that offers @mentions opens.
   const [lateMentions, setLateMentions] = useState<string[]>();
@@ -122,19 +130,6 @@ export function ChapterScreen(props: {
       ),
     [tour.author, tour.existingReviews, tour.existingThreads, mentionUsers],
   );
-  const partner = useMemo(() => (hunk ? pairChangedLines(hunk.lines) : []), [hunk]);
-  // Removed lines folded into the line replacing them; the cursor steps over them.
-  const hidden = useMemo(() => (hunk ? foldedLines(hunk.lines, partner, ignoreWhitespace) : new Map<number, Fold>()), [hunk, partner, ignoreWhitespace]);
-  const visibleLine = (i: number, dir: 1 | -1) => {
-    const n = hunk?.lines.length ?? 0;
-    for (let j = i; j >= 0 && j < n; j += dir) if (!hidden.has(j)) return j;
-    for (let j = i; j >= 0 && j < n; j -= dir) if (!hidden.has(j)) return j;
-    return i;
-  };
-  const moveCursor = (by: number) => setCursor((c) => visibleLine(Math.max(0, Math.min((hunk?.lines.length ?? 1) - 1, c + by)), by > 0 ? 1 : -1));
-  const cursorLine = hunk?.lines[cursor];
-  const cursorThreads =
-    hunk && cursorLine ? threadAt(tour.existingThreads, hunk.file, cursorLine.kind === 'del' ? cursorLine.oldLine : cursorLine.newLine, cursorLine.kind === 'del' ? 'LEFT' : 'RIGHT') : [];
   const relevantTests = useMemo(() => hunk?.tests.filter((t) => t.source !== 'naming') ?? [], [hunk]);
   const selectedTest = relevantTests[testIdx];
   const testFile = hunk?.covers?.file ?? selectedTest?.testFile;
@@ -148,6 +143,49 @@ export function ChapterScreen(props: {
     [hunk, selectedTest],
   );
 
+  const wide = width >= 180;
+  const roomForTests = width >= 130; // tests can sit beside the code
+  const listWidth = wide ? 32 : 0;
+  const mainWidth = width - listWidth - (wide ? 1 : 0);
+  const hasLinkedTests = !!hunk && (relevantTests.length > 0 || !!hunk.covers);
+  const paneWidths = useMemo(
+    () =>
+      codePaneWidths(
+        mainWidth - 1,
+        hunk?.lines.map((line) => line.text) ?? [],
+        testCodeLines.map((line) => line.text),
+        testFocus ? 'test' : 'source',
+        wantSplit,
+      ),
+    [mainWidth, hunk, testCodeLines, testFocus, wantSplit],
+  );
+  // A split diff too narrow to read beside the tests stacks them instead: t still opens them.
+  const testsStacked = roomForTests && hasLinkedTests && !hideTests && wantSplit && paneWidths.source < MIN_SPLIT_WIDTH;
+  const sideBySide = roomForTests && hasLinkedTests && !hideTests && !testsStacked;
+  // Stacked, only one pane shows at a time, so whichever is visible gets the full width.
+  const srcWidth = sideBySide ? paneWidths.source : mainWidth;
+  const testWidth = sideBySide ? paneWidths.test : mainWidth;
+  const splitView = wantSplit && !raw && srcWidth >= MIN_SPLIT_WIDTH;
+
+  const partner = useMemo(() => (hunk ? pairChangedLines(hunk.lines) : []), [hunk]);
+  // Removed lines folded into the line replacing them; the cursor steps over them.
+  // Split, every removed line with a replacement sits beside it, on the replacement's row.
+  const hidden = useMemo(() => {
+    const folds = hunk ? foldedLines(hunk.lines, partner, ignoreWhitespace) : new Map<number, Fold>();
+    if (splitView && hunk) for (const [i, p] of partner.entries()) if (p >= 0 && hunk.lines[i].kind === 'del' && !folds.has(i)) folds.set(i, 'beside');
+    return folds;
+  }, [hunk, partner, ignoreWhitespace, splitView]);
+  const visibleLine = (i: number, dir: 1 | -1) => {
+    const n = hunk?.lines.length ?? 0;
+    for (let j = i; j >= 0 && j < n; j += dir) if (!hidden.has(j)) return j;
+    for (let j = i; j >= 0 && j < n; j -= dir) if (!hidden.has(j)) return j;
+    return i;
+  };
+  const moveCursor = (by: number) => setCursor((c) => visibleLine(Math.max(0, Math.min((hunk?.lines.length ?? 1) - 1, c + by)), by > 0 ? 1 : -1));
+  const cursorLine = hunk?.lines[cursor];
+  const threadsOn = (l: DiffLine | undefined) => (hunk && l ? threadAt(tour.existingThreads, hunk.file, l.kind === 'del' ? l.oldLine : l.newLine, l.kind === 'del' ? 'LEFT' : 'RIGHT') : []);
+  // Split, a removed line's threads are on the row it shares with its replacement.
+  const cursorThreads = [...threadsOn(cursorLine), ...(hidden.get(partner[cursor]) === 'beside' ? threadsOn(hunk?.lines[partner[cursor]]) : [])];
   // Reset per-hunk view state when the hunk changes; the test side jumps to the matching case.
   useEffect(() => {
     // The first real change: not a folded line, nor a line that only changed whitespace.
@@ -185,26 +223,6 @@ export function ChapterScreen(props: {
     const t = setTimeout(() => setFlash(''), 2500);
     return () => clearTimeout(t);
   }, [flash]);
-
-  const wide = width >= 180;
-  const split = width >= 130;
-  const listWidth = wide ? 32 : 0;
-  const mainWidth = width - listWidth - (wide ? 1 : 0);
-  const hasLinkedTests = !!hunk && (relevantTests.length > 0 || !!hunk.covers);
-  const paneWidths = useMemo(
-    () =>
-      codePaneWidths(
-        mainWidth - 1,
-        hunk?.lines.map((line) => line.text) ?? [],
-        testCodeLines.map((line) => line.text),
-        testFocus ? 'test' : 'source',
-      ),
-    [mainWidth, hunk, testCodeLines, testFocus],
-  );
-  const sideBySide = split && hasLinkedTests;
-  // Stacked, only one pane shows at a time, so whichever is visible gets the full width.
-  const srcWidth = sideBySide ? paneWidths.source : mainWidth;
-  const testWidth = sideBySide ? paneWidths.test : mainWidth;
 
   const collapsedView = !!chapter && chapter.collapsed && hi < 0;
   const prog = useMemo(() => progress(tour, states), [tour, states]);
@@ -336,6 +354,14 @@ export function ChapterScreen(props: {
       if (input === 'u' && hunk) return props.setState(hunk, 'unread');
       if (input === 'r' && hunk) return setRaw((r) => !r);
       if (input === 'w') return props.toggleWhitespace ? props.toggleWhitespace() : setOwnHideWhitespace((w) => !w);
+      if (input === 'S') {
+        if (!wantSplit && srcWidth < MIN_SPLIT_WIDTH) setFlash('Split view needs a wider terminal; showing it once there is room.');
+        return props.toggleSplit ? props.toggleSplit() : setOwnSplit((v) => !v);
+      }
+      if (input === 'T') {
+        if (!hasLinkedTests) return setFlash('No test exercises this hunk.');
+        return props.toggleTestPane ? props.toggleTestPane() : setOwnHideTests((v) => !v);
+      }
       if (input === 'U') return setShowUntested((shown) => !shown);
       if (input === 't') {
         const has = !!hunk && (hunk.tests.some((t) => t.source !== 'naming') || !!hunk.covers);
@@ -438,6 +464,7 @@ export function ChapterScreen(props: {
       ...(showTests ? ([['t', 'tests']] as [string, string][]) : []),
       ...(chapter?.diagram || tour.overview ? ([['d', 'diagram']] as [string, string][]) : []),
       ['x', 'skip'],
+      ['S', splitView ? 'inline' : 'split'],
     ];
   };
 
@@ -700,6 +727,7 @@ export function ChapterScreen(props: {
                       cursor={cursor}
                       range={anchor !== null ? selRange() : null}
                       raw={raw}
+                      split={splitView}
                       partner={partner}
                       hidden={hidden}
                       ignoreWhitespace={ignoreWhitespace}
@@ -769,7 +797,11 @@ export function ChapterScreen(props: {
       <DraftLine drafts={props.drafts} hunk={hunk} cursor={cursor} flash={flash} width={width} describe={describeAnchor} />
       <KeyBar
         width={width}
-        status={overlay === 'none' && hunk && !testFocus ? [raw && 'raw', ignoreWhitespace && 'whitespace hidden'].filter(Boolean).join(' · ') : undefined}
+        status={
+          overlay === 'none' && hunk && !testFocus
+            ? [raw && 'raw', splitView && 'split', ignoreWhitespace && 'whitespace hidden', hasLinkedTests && hideTests && 'tests hidden', testsStacked && 'tests below: t'].filter(Boolean).join(' · ')
+            : undefined
+        }
         end={
           overlay !== 'none'
             ? []
@@ -931,6 +963,7 @@ const SourcePane = React.memo(function SourcePane(props: {
   cursor: number;
   range: [number, number] | null;
   raw: boolean;
+  split: boolean; // old and new side by side
   partner: number[]; // pairChangedLines(hunk.lines)
   hidden: ReadonlyMap<number, Fold>; // removed lines folded into their replacement (foldedLines)
   ignoreWhitespace: boolean;
@@ -1000,6 +1033,73 @@ const SourcePane = React.memo(function SourcePane(props: {
     }
     const reindentedOnly = (l: DiffLine, i: number) => l.kind === 'ctx' || props.hidden.get(i) === 'whitespace' || props.hidden.get(props.partner[i]) === 'whitespace';
     if (props.ignoreWhitespace && hunk.lines.every(reindentedOnly)) out.push({ idx: -1, node: <Text dimColor>{truncate('  whitespace-only changes hidden · w to show', width)}</Text> });
+    // Review threads and drafts under line j, on rows of line i.
+    const notesUnder = (j: number, i: number) => {
+      const l = hunk.lines[j];
+      const line = l.kind === 'del' ? l.oldLine : l.newLine;
+      const threads = threadAt(props.threads, hunk.file, line, l.kind === 'del' ? 'LEFT' : 'RIGHT');
+      if (threads.length)
+        out.push({
+          idx: i,
+          node: (
+            <Text color="cyan">
+              {truncate(`         ┊ ${threads.length} review ${threads.length === 1 ? 'thread' : 'threads'} · ${threads.reduce((n, t) => n + t.comments.length, 0)} comments · e to read`, width)}
+            </Text>
+          ),
+        });
+      for (const d of draftsAt(props.drafts, hunk, line, l.kind === 'del' ? 'LEFT' : 'RIGHT')) {
+        out.push({
+          idx: i,
+          node: <Text color={LABEL_COLOR[d.label]}>{truncate(`         ✎ [${d.label}]${d.posted ? ' (posted)' : ''} ${clean(d.body).replace(/\s+/g, ' ')}`, width)}</Text>,
+        });
+      }
+    };
+    if (props.split) {
+      // Old on the left, new on the right; a removed line shares its replacement's row.
+      const half = Math.max(8, Math.floor((width - 2) / 2));
+      const codeW = Math.max(1, half - 6);
+      const cells = (j: number | undefined, side: 'old' | 'new'): React.ReactNode[] => {
+        if (j === undefined) return [];
+        const l = hunk.lines[j];
+        const reindented = props.hidden.get(l.kind === 'del' ? j : props.partner[j]) === 'whitespace' && l.kind !== 'ctx';
+        const no = `${(side === 'old' ? l.oldLine : l.newLine) ?? ''}`.padStart(4);
+        const sign = reindented ? '~' : l.kind === 'add' ? '+' : l.kind === 'del' ? '-' : ' ';
+        const color = reindented ? undefined : l.kind === 'add' ? 'green' : l.kind === 'del' ? 'red' : undefined;
+        const text = clean(l.text);
+        const emphasis = reindented || l.kind === 'ctx' ? undefined : words[j]?.filter(([s, e]) => !props.ignoreWhitespace || text.slice(s, e).trim());
+        return codeChunks(l.text, codeW).map((code, part) => (
+          <Text key={`${side}${part}`} backgroundColor={reindented ? undefined : DIFF_BACKGROUND[l.kind]}>
+            <Text dimColor>{part === 0 ? no : '    '} </Text>
+            <Text color={color} dimColor={reindented}>
+              {part === 0 ? sign : ' '}
+            </Text>
+            <SyntaxText text={code} spans={highlights?.[j]} column={part * codeW} emphasis={emphasis} emphasisColor={WORD_BACKGROUND[l.kind]} />
+            {' '.repeat(Math.max(0, codeW - code.length))}
+          </Text>
+        ));
+      };
+      const blank = ' '.repeat(half);
+      hunk.lines.forEach((l, i) => {
+        if (props.hidden.has(i)) return;
+        const beside = l.kind === 'add' && props.hidden.has(props.partner[i]) ? props.partner[i] : undefined;
+        const left = cells(l.kind === 'add' ? beside : i, 'old');
+        const right = cells(l.kind === 'del' ? undefined : i, 'new');
+        for (let k = 0; k < Math.max(left.length, right.length); k++)
+          out.push({
+            idx: i,
+            node: (
+              <Text>
+                {left[k] ?? blank}
+                <Text dimColor>│</Text>
+                {right[k] ?? blank}
+              </Text>
+            ),
+          });
+        if (beside !== undefined) notesUnder(beside, i);
+        notesUnder(i, i);
+      });
+      return out;
+    }
     hunk.lines.forEach((l, i) => {
       if (props.hidden.has(i)) return;
       // An added line whose removed partner is folded into it shows once, on a plain background:
@@ -1026,26 +1126,10 @@ const SourcePane = React.memo(function SourcePane(props: {
           ),
         }),
       );
-      const line = l.kind === 'del' ? l.oldLine : l.newLine;
-      const threads = threadAt(props.threads, hunk.file, line, l.kind === 'del' ? 'LEFT' : 'RIGHT');
-      if (threads.length)
-        out.push({
-          idx: i,
-          node: (
-            <Text color="cyan">
-              {truncate(`         ┊ ${threads.length} review ${threads.length === 1 ? 'thread' : 'threads'} · ${threads.reduce((n, t) => n + t.comments.length, 0)} comments · e to read`, width)}
-            </Text>
-          ),
-        });
-      for (const d of draftsAt(props.drafts, hunk, line, l.kind === 'del' ? 'LEFT' : 'RIGHT')) {
-        out.push({
-          idx: i,
-          node: <Text color={LABEL_COLOR[d.label]}>{truncate(`         ✎ [${d.label}]${d.posted ? ' (posted)' : ''} ${clean(d.body).replace(/\s+/g, ' ')}`, width)}</Text>,
-        });
-      }
+      notesUnder(i, i);
     });
     return out;
-  }, [hunk, props.raw, props.partner, props.hidden, props.ignoreWhitespace, words, props.threads, props.drafts, width, highlights]);
+  }, [hunk, props.raw, props.split, props.partner, props.hidden, props.ignoreWhitespace, words, props.threads, props.drafts, width, highlights]);
 
   // Keep the cursor in view.
   const cursorRow = rows.findIndex((r) => r.idx === cursor);
@@ -1368,10 +1452,12 @@ const HELP_ROWS: [string, string][] = [
   ['y', 'Reply to an existing review thread on the selected line'],
   ['?', 'Ask the agent about the selection'],
   ['t', 'Focus the test pane (narrow terminals: toggle source/tests)'],
+  ['T', 'Hide or show the test pane beside the code'],
   ['Focused tests', 'n/p test · j/k line · c comment · ? ask · t/Esc back to source'],
   ['U', 'Expand or collapse possible test gaps in the explanation'],
   ['d', 'Chapter diagram (select a node to jump to its code)'],
   ['r', 'Raw unified diff for the hunk'],
+  ['S', 'Split view (old beside new) or inline'],
   ['w', 'Hide or show whitespace-only changes'],
   ['x / z / u', 'Mark the hunk skipped / deferred / unread'],
   ['m', 'Move the hunk to another chapter'],

@@ -1091,3 +1091,78 @@ describe('feedback round: guide, tests, inline comments, description', () => {
     ui.unmount();
   });
 });
+
+describe('split view and test pane toggle', () => {
+  const screen = (t: Tour, extra: Partial<React.ComponentProps<typeof ChapterScreen>> = {}) => (
+    <ChapterScreen
+      tour={t}
+      chapters={t.chapters}
+      states={{}}
+      drafts={[]}
+      ci={0}
+      hi={0}
+      order="flow"
+      deltaOnly={false}
+      width={150}
+      height={40}
+      setPos={() => {}}
+      setState={() => {}}
+      saveDraft={() => {}}
+      moveHunk={() => {}}
+      toggleOrder={() => {}}
+      toggleDelta={() => {}}
+      openSubmit={() => {}}
+      openBriefing={() => {}}
+      openInClaude={() => {}}
+      quit={() => {}}
+      {...extra}
+    />
+  );
+
+  it('S shows the old line beside its replacement, and back', async () => {
+    const h = hunkFromDiff('src/a.ts', ' keep();', '-const total = price;', '+const total = price * quantity - discount;', ' done();');
+    const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
+    const ui = render(screen(t));
+    await waitFor(() => expect(ui.lastFrame()).toContain('+const total = price * quantity'));
+    expect(
+      ui
+        .lastFrame()!
+        .split('\n')
+        .some((r) => r.includes('-const total = price;') && r.includes('+const total')),
+    ).toBe(false);
+    ui.stdin.write('S');
+    await waitFor(() =>
+      expect(
+        ui
+          .lastFrame()!
+          .split('\n')
+          .some((r) => r.includes('-const total = price;') && r.includes('+const total = price * quantity')),
+      ).toBe(true),
+    );
+    expect(ui.lastFrame()).toContain('split');
+    ui.stdin.write('S');
+    await waitFor(() =>
+      expect(
+        ui
+          .lastFrame()!
+          .split('\n')
+          .some((r) => r.includes('-const total = price;') && r.includes('+const total')),
+      ).toBe(false),
+    );
+    ui.unmount();
+  });
+
+  it('T hides the test pane beside the code and t still opens the tests', async () => {
+    const t = fixtureTour();
+    const ci = t.chapters.findIndex((c) => c.hunkIds.some((id) => t.hunks[id].tests.some((x) => x.source !== 'naming')));
+    const hi = t.chapters[ci].hunkIds.findIndex((id) => t.hunks[id].tests.some((x) => x.source !== 'naming'));
+    const ui = render(screen(t, { ci, hi }));
+    await waitFor(() => expect(ui.lastFrame()).toMatch(/Tests\s/));
+    ui.stdin.write('T');
+    await waitFor(() => expect(ui.lastFrame()).toContain('tests hidden'));
+    expect(ui.lastFrame()).not.toMatch(/│ Tests/);
+    ui.stdin.write('t');
+    await waitFor(() => expect(ui.lastFrame()).toContain('back to code'));
+    ui.unmount();
+  });
+});
