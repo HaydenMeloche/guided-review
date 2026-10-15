@@ -31,6 +31,7 @@ export function sandbox(): Sandbox {
     TERM: 'xterm-256color',
     LANG: 'en_US.UTF-8',
     GIT_CONFIG_NOSYSTEM: '1',
+    GR_NO_UPDATE_CHECK: '1',
   };
   fs.mkdirSync(env.HOME!);
   return {

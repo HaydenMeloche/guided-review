@@ -11,6 +11,7 @@ import { planOpen, runOpen, targetArg } from './open.js';
 import type { PRInfo } from './types.js';
 import { KEEP_TOURS_PER_PR, TOUR_MAX_AGE_DAYS } from './store/retention.js';
 import { AGENT_ROLES, configForRole, validateRouting } from './agent/types.js';
+import { promptForUpdate, startUpdateCheck } from './updateCheck.js';
 
 // node:sqlite prints an ExperimentalWarning on load; drop just that one so it
 // does not land on top of the TUI. The store, and the TUI that imports it, are
@@ -56,6 +57,7 @@ ${[
 
   Also installed as \`${NAME === 'gr' ? 'guided-review' : 'gr'}\`. Use \`guided-review\` if \`gr\` is a shell alias (Oh My Zsh: git remote).
   Set GR_DEBUG=1 to print stack traces on errors.
+  Set GR_NO_UPDATE_CHECK=1 to stop checking npm for a newer version.
 
   Keys inside a tour: n/p hunk · ]/[ chapter · c comment · ? ask · t tests · d diagram · s submit · h help
 `,
@@ -73,6 +75,14 @@ ${[
     },
   },
 );
+
+// Runs in the background while the command works. Never for build: it runs in CI.
+const updateCheck = cli.input[0] === 'build' ? undefined : startUpdateCheck();
+
+async function printUpdateNotice(graceMs = 0): Promise<void> {
+  const notice = await updateCheck?.finish(graceMs);
+  if (notice) process.stderr.write(`${notice}\n`);
+}
 
 function fail(msg: string, error?: unknown): never {
   process.stderr.write(`${NAME}: ${msg}\n`);
@@ -229,6 +239,11 @@ async function main() {
   // Everything below starts the full-screen tour. Check for a terminal before
   // spending any gh or network calls on it.
   if (!process.stdin.isTTY || !process.stdout.isTTY) fail(`${NAME} is an interactive terminal app; run it in a terminal.`);
+  const offer = updateCheck?.offer();
+  if (offer) {
+    const code = await promptForUpdate(offer);
+    if (code !== undefined) process.exit(code);
+  }
   // Load the TUI while the PR is being resolved below.
   const tui = Promise.all([import('ink'), import('./tui/App.js')]);
   tui.catch(() => undefined); // awaited below; a failure surfaces there
@@ -279,4 +294,9 @@ async function main() {
   process.exit(0);
 }
 
-main().catch((e) => fail(e instanceof Error ? e.message : String(e), e));
+// Only the short commands get here: build and the tour exit from main (the tour
+// offers updates before it starts). Give a check still in flight a moment so
+// quick commands can refresh the cache too.
+main()
+  .then(() => printUpdateNotice(300))
+  .catch((e) => fail(e instanceof Error ? e.message : String(e), e));
