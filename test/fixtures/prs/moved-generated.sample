@@ -1,0 +1,126 @@
+# Made up: .gitattributes marks src/schema/ generated, and src/generated/ hand-written despite
+# its path. Moves into and within the generated file get no note; the move in the hand-written
+# file does.
+=== file .gitattributes
+src/schema/** linguist-generated=true
+src/generated/** linguist-generated=false
+=== file src/app.ts
+import type { Loan } from './schema/types.js';
+
+export function describeLoan(loan: Loan): string {
+  const isbn = loan.isbn.replace(/-/g, '');
+  const member = loan.memberId.toUpperCase();
+  return `${isbn} lent to ${member}`;
+}
+
+export function overdue(days: number): boolean {
+  return days > 14;
+}
+=== file src/generated/fixtures.ts
+export function sampleMember() {
+  const member = { id: 'm-1', name: 'Ada Lovelace' };
+  const joined = new Date('2026-01-01T00:00:00Z');
+  return { ...member, joined };
+}
+
+export const LIBRARY_NAME = 'Central';
+export const OPENING_HOUR = 9;
+export const CLOSING_HOUR = 17;
+export const LATE_FEE_CENTS = 25;
+
+export function sampleLoan() {
+  return { isbn: '978-0135957059', memberId: 'm-1' };
+}
+=== file src/schema/types.ts
+export interface Member {
+  id: string;
+  name: string;
+}
+
+export function memberLabel(member: Member): string {
+  const initials = member.name.split(' ').map((part) => part[0]);
+  return `${initials.join('')} (${member.id})`;
+}
+
+export interface Loan {
+  isbn: string;
+  memberId: string;
+}
+
+export interface Hold {
+  isbn: string;
+  queuedAt: string;
+}
+=== patch
+diff --git a/src/app.ts b/src/app.ts
+--- a/src/app.ts
++++ b/src/app.ts
+@@ -1,11 +1,5 @@
+-import type { Loan } from './schema/types.js';
++export { describeLoan } from './schema/types.js';
+
+-export function describeLoan(loan: Loan): string {
+-  const isbn = loan.isbn.replace(/-/g, '');
+-  const member = loan.memberId.toUpperCase();
+-  return `${isbn} lent to ${member}`;
+-}
+-
+ export function overdue(days: number): boolean {
+   return days > 14;
+ }
+diff --git a/src/generated/fixtures.ts b/src/generated/fixtures.ts
+--- a/src/generated/fixtures.ts
++++ b/src/generated/fixtures.ts
+@@ -1,14 +1,14 @@
+-export function sampleMember() {
+-  const member = { id: 'm-1', name: 'Ada Lovelace' };
+-  const joined = new Date('2026-01-01T00:00:00Z');
+-  return { ...member, joined };
+-}
+-
+ export const LIBRARY_NAME = 'Central';
+ export const OPENING_HOUR = 9;
+ export const CLOSING_HOUR = 17;
+ export const LATE_FEE_CENTS = 25;
++
++export function sampleMember() {
++  const member = { id: 'm-1', name: 'Ada Lovelace' };
++  const joined = new Date('2026-01-01T00:00:00Z');
++  return { ...member, joined };
++}
+
+ export function sampleLoan() {
+   return { isbn: '978-0135957059', memberId: 'm-1' };
+ }
+diff --git a/src/schema/types.ts b/src/schema/types.ts
+--- a/src/schema/types.ts
++++ b/src/schema/types.ts
+@@ -3,17 +3,23 @@
+   name: string;
+ }
+
+-export function memberLabel(member: Member): string {
+-  const initials = member.name.split(' ').map((part) => part[0]);
+-  return `${initials.join('')} (${member.id})`;
+-}
+-
+ export interface Loan {
+   isbn: string;
+   memberId: string;
+ }
+
+ export interface Hold {
+   isbn: string;
+   queuedAt: string;
+ }
++
++export function memberLabel(member: Member): string {
++  const initials = member.name.split(' ').map((part) => part[0]);
++  return `${initials.join('')} (${member.id})`;
++}
++
++export function describeLoan(loan: Loan): string {
++  const isbn = loan.isbn.replace(/-/g, '');
++  const member = loan.memberId.toUpperCase();
++  return `${isbn} lent to ${member}`;
++}

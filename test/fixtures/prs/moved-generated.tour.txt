@@ -1,0 +1,27 @@
+# Made up: .gitattributes marks src/schema/ generated, and src/generated/ hand-written despite
+# its path. Moves into and within the generated file get no note; the move in the hand-written
+# file does.
+3 files, 3 hunks (4 GitHub hunks)
+
+files:
+  src/app.ts  modified · logic
+  src/generated/fixtures.ts  modified · mechanical
+  src/schema/types.ts  modified · generated
+
+1. Hand-written logic (file order)  [flow · low confidence]
+   src/app.ts  @@ -1,10 +1,4 @@  +1 -7 · risk 2 · untested
+
+2. Mechanical changes  [mechanical · collapsed]
+   src/generated/fixtures.ts  @@ -1,14 +1,14 @@  +5 -5 · risk 0 · n/a
+     ↕ 5 lines moved from src/generated/fixtures.ts:7
+     ↕ 5 lines moved to src/generated/fixtures.ts:1
+
+3. Generated code  [generated · collapsed]
+   src/schema/types.ts  @@ -3,17 +3,23 @@  +11 -5 · risk 0 · n/a · fused 2 · 3 gap lines
+
+flags:
+  no-entry-point: No entry point found; logic is shown in file order.
+  missing-tests: 1 risky hunk(s) have no linked test
+
+notes:
+  No entry point found: chapters use file order by kind.

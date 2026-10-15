@@ -34,17 +34,20 @@ const pr = (base: string, head: string): PRInfo => ({
 
 const count = (h: Hunk, kind: DiffLine['kind']) => h.lines.filter((l) => l.kind === kind).length;
 
-// Moved blocks in a hunk, as "N lines moved to/from file:line", one per contiguous block.
+// Moved blocks in a hunk, as "N lines moved/reindented/copied to/from file:line", one per
+// contiguous block.
 function moves(h: Hunk): string[] {
   const out: string[] = [];
   h.lines.forEach((l, i) => {
     const prev = h.lines[i - 1];
     if (!l.moved) return;
-    if (prev?.moved && prev.kind === l.kind && prev.moved.file === l.moved.file && prev.moved.line + 1 === l.moved.line) {
+    const m = l.moved;
+    if (prev?.moved && prev.kind === l.kind && prev.moved.file === m.file && prev.moved.line + 1 === m.line && prev.moved.kind === m.kind && prev.moved.indent === m.indent) {
       out[out.length - 1] = out[out.length - 1].replace(/^(\d+)/, (n) => String(+n + 1));
       return;
     }
-    out.push(`1 lines moved ${l.kind === 'del' ? 'to' : 'from'} ${l.moved.file}:${l.moved.line}`);
+    const also = m.also.map((a) => `; also ${a.side === 'add' ? 'added' : 'removed'} at ${a.file}:${a.line}`).join('');
+    out.push(`1 lines ${m.kind} ${l.kind === 'del' ? 'to' : 'from'} ${m.file}:${m.line}${m.indent ? `, indent ${m.indent}` : ''}${also}`);
   });
   return out;
 }

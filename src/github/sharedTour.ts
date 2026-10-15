@@ -1,6 +1,7 @@
 import { gunzipSync, gzipSync } from 'node:zlib';
 import type { Hunk, TestLink, Tour } from '../types.js';
 import { parseTourDiff } from '../diff/fuse.js';
+import { markMovedLines, unmovedFiles } from '../diff/moves.js';
 import { githubAuth } from './auth.js';
 import { restJson, restPages } from './api.js';
 import { gh, ghHttpStatus } from './gh.js';
@@ -145,6 +146,8 @@ export function restoreSharedTour(shared: SharedTour, diff: string, readHead: (p
     }
     out[h.id] = hunk;
   }
+  // Moves are marked on the reader's lines, leaving out what the tour classified as generated.
+  markMovedLines(hunks, readHead, unmovedFiles(shared.files));
   return { ...shared, hunks: out };
 }
 

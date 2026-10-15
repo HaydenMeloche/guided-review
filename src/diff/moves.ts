@@ -1,13 +1,17 @@
-import type { DiffLine, Hunk, MovedTo } from '../types.js';
-import { looksGenerated } from '../analysis/kinds.js';
+import type { DiffFile, DiffLine, Hunk, MovedTo } from '../types.js';
 import { fileLines, headFor, headMatches } from './context.js';
+
+// Files whose changes are never moved code: generated and vendored ones (lockfiles included), as
+// classified with the repo's rules and .gitattributes.
+export function unmovedFiles(files: DiffFile[]): Set<string> {
+  return new Set(files.filter((f) => f.kind === 'generated' || f.kind === 'vendored').map((f) => f.path));
+}
 
 // A moved block is at least this many lines with this much non-whitespace text, so a lone `}`
 // or a repeated blank line never reads as a move.
 const MIN_MOVED_LINES = 3;
 const MIN_MOVED_CHARS = 20;
-// A diff this large is mostly generated code; lockfiles and generated files, never moved code,
-// do not count.
+// A diff this large is mostly generated code; skipped files do not count.
 const MAX_CHANGED_LINES = 20_000;
 // A move starts on a line with this much text, matched in at most this many places. Without
 // both, lines like `}` repeated through a PR make matching quadratic: an author could stall it.
@@ -139,8 +143,8 @@ class FileView {
 // other side is, comparing lines with their indentation stripped but requiring the whole block
 // to shift by one amount. A line removed and added again in the same run of changes is a
 // rewrite or a reindent, not a move. Text still in the file it was removed from, or already in
-// the file it was added to, is matching boilerplate, not a move. Generated files are left out.
-export function markMovedLines(hunks: Hunk[], readHead: (path: string) => string | undefined): void {
+// the file it was added to, is matching boilerplate, not a move. Files in `skip` are left out.
+export function markMovedLines(hunks: Hunk[], readHead: (path: string) => string | undefined, skip: ReadonlySet<string>): void {
   const byFile = new Map<string, Hunk[]>();
   for (const hunk of hunks) byFile.set(hunk.file, [...(byFile.get(hunk.file) ?? []), hunk]);
   const heads = new Map<string, string | undefined>();
@@ -153,13 +157,12 @@ export function markMovedLines(hunks: Hunk[], readHead: (path: string) => string
     if (!views.has(p)) views.set(p, new FileView(byFile.get(p)!, () => headOf(p)));
     return views.get(p)!;
   };
-  const generated = new Set([...byFile].filter(([p, hs]) => looksGenerated(p, firstLines(headOf(p), hs))).map(([p]) => p));
 
   const dels: Ref[][] = [];
   const adds: Ref[][] = [];
   let changed = 0;
   for (const hunk of hunks) {
-    if (generated.has(hunk.file)) continue;
+    if (skip.has(hunk.file)) continue;
     for (let i = 0; i < hunk.lines.length;) {
       if (hunk.lines[i].kind === 'ctx') {
         i++;
@@ -286,15 +289,4 @@ export function markMovedLines(hunks: Hunk[], readHead: (path: string) => string
       t.line.moved = { file: f.hunk.oldFile ?? f.hunk.file, line: f.line.oldLine!, ...extra };
     });
   }
-}
-
-// The first lines of a file, from the head or, for a deleted file, the diff, to look for a
-// generated-code header.
-function firstLines(head: string | undefined, hunks: Hunk[]): string {
-  if (head !== undefined) return head.split('\n', 5).join('\n');
-  const first = hunks.find((h) => h.oldStart <= 1 || h.newStart <= 1);
-  return (first?.lines ?? [])
-    .slice(0, 5)
-    .map((l) => l.text)
-    .join('\n');
 }

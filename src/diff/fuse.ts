@@ -1,6 +1,5 @@
 import type { DiffFile, DiffLine, Hunk } from '../types.js';
 import { makeContentHash, makeHunkId, parseUnifiedDiff } from './parse.js';
-import { markMovedLines } from './moves.js';
 import { fileLines, headFor, headMatches } from './context.js';
 
 // GitHub's diff keeps three lines of context, so changes more than six lines apart land in
@@ -69,11 +68,9 @@ export function fuseNearbyHunks(files: DiffFile[], hunks: Hunk[], readHead: (pat
   });
 }
 
-// The PR diff as a tour shows it: parsed, nearby hunks fused, and moved blocks marked. Shared
-// tours are checked against this same view of the reader's diff.
+// The PR diff as a tour shows it: parsed and nearby hunks fused. Shared tours are checked against
+// this same view of the reader's diff. Moved blocks are marked once files have their kinds.
 export function parseTourDiff(diff: string, readHead: (path: string) => string | undefined): { files: DiffFile[]; hunks: Hunk[] } {
   const { files, hunks } = parseUnifiedDiff(diff);
-  const fused = fuseNearbyHunks(files, hunks, readHead);
-  markMovedLines(fused, readHead);
-  return { files, hunks: fused };
+  return { files, hunks: fuseNearbyHunks(files, hunks, readHead) };
 }

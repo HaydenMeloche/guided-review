@@ -110,6 +110,24 @@ describe('shared tours', () => {
     }
   });
 
+  it('marks moved code on the restored lines, leaving out files the tour classified as generated', () => {
+    const steps = ['charge(order.card, order.total);', 'sendReceipt(order.customer);', 'markPaid(order.id);'];
+    // The three lines leave src/a.ts and arrive in src/b.ts.
+    const file = (p: string, header: string, sign: string) =>
+      `diff --git a/${p} b/${p}\nindex 1111111..2222222 100644\n--- a/${p}\n+++ b/${p}\n${header}\n ok();\n${steps.map((l) => `${sign}${l}\n`).join('')}`;
+    const moveDiff = file('src/a.ts', '@@ -1,4 +1,1 @@', '-') + file('src/b.ts', '@@ -1,1 +1,4 @@', '+');
+    for (const [kind, marked] of [
+      ['logic', true],
+      ['generated', false],
+    ] as const) {
+      const { files, hunks } = parseUnifiedDiff(moveDiff);
+      files.find((f) => f.path === 'src/b.ts')!.kind = kind;
+      const t = makeTour(hunks, [{ hunkIds: hunks.map((h) => h.id) }], { pr: 7, files, complete: true });
+      const restored = restoreSharedTour(decodeSharedTour(encodeSharedTour(t), expected)!, moveDiff, () => undefined)!;
+      expect(Object.values(restored.hunks).some((h) => h.lines.some((l) => l.moved))).toBe(marked);
+    }
+  });
+
   it('accepts a tour only when it matches the diff hunk for hunk', () => {
     const noHead = () => undefined;
     const shared = compactTour(builtTour());

@@ -2,6 +2,7 @@ import type { Chapter, ChecklistStatus, DiffFile, Flag, Graph, Hunk, PRInfo, Pro
 import { changedCount, maxRisk } from './diff/lines.js';
 import { HUNK_ID_RE } from './diff/parse.js';
 import { parseTourDiff } from './diff/fuse.js';
+import { markMovedLines, unmovedFiles } from './diff/moves.js';
 import { classifyFiles } from './analysis/kinds.js';
 import { checkGeneratedSync } from './analysis/generatedSync.js';
 import { SPECIAL_CHAPTERS } from './analysis/special.js';
@@ -99,6 +100,7 @@ export async function buildStaticTour(pr: PRInfo, diff: string, worktree: string
   onProgress('Classifying files by kind');
   const config = repoConfigFromText(configText);
   classifyFiles(files, hunks, { gitattributes: gitattributes ?? '', readHead, config });
+  markMovedLines(hunkList, readHead, unmovedFiles(files));
   flags.push(...checkGeneratedSync(files, hunks));
   markImportOnly(files, hunks);
   onProgress('Classifying files by kind', true);
