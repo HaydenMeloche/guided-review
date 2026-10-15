@@ -1,8 +1,10 @@
 name: Release
 
+# Publishing a release in the GitHub UI deploys it: that is also where the
+# Marketplace listing for action.yml is ticked, which no API can do.
 on:
-  push:
-    tags: ['v*']
+  release:
+    types: [published]
 
 permissions:
   contents: read
@@ -12,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: write # create the GitHub release
+      contents: read
       id-token: write # npm trusted publishing
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -32,6 +34,3 @@ jobs:
       # Trusted publishing (OIDC, no token) needs npm >= 11.5.1; it also attaches provenance.
       - run: npm install -g npm@11.6.2
       - run: npm publish
-      - run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag
-        env:
-          GH_TOKEN: ${{ github.token }}
