@@ -106,7 +106,9 @@ export const fileHighlightKey = (file: string, sha: string, theme = HIGHLIGHT_TH
 // Everything a hunk's highlight depends on. A new tour object with the same hunk keeps this key.
 export function hunkHighlightKey(req: HighlightRequest): string {
   const { hunk } = req;
-  return [HIGHLIGHT_THEME, req.root ?? '', hunk.id, hunk.file, hunk.oldFile ?? '', req.headSha, req.baseSha].join('\0');
+  // The first line and the count tell a hunk with expanded context from the hunk itself.
+  const span = `${hunk.lines[0]?.newLine ?? hunk.lines[0]?.oldLine ?? ''}+${hunk.lines.length}`;
+  return [HIGHLIGHT_THEME, req.root ?? '', hunk.id, span, hunk.file, hunk.oldFile ?? '', req.headSha, req.baseSha].join('\0');
 }
 
 function spansFor(file: string, sha: string, read: () => Promise<string | undefined>): Promise<FileTokens | undefined> {

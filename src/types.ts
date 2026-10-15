@@ -14,6 +14,9 @@ export interface DiffLine {
   text: string;
   oldLine?: number;
   newLine?: number;
+  // Context read from the file, not part of the PR's diff (lines the reader expanded): GitHub
+  // cannot take a review comment on it.
+  expanded?: boolean;
 }
 
 export type LinkSource = 'coverage' | 'name-match' | 'naming';

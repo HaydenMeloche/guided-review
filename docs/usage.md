@@ -61,6 +61,7 @@ Upgrade highlights and package overviews come from a changelog in the worktree w
 | `d` | Open the chapter diagram. Select a node to jump to its code or comment on it. |
 | `r` | Toggle the raw unified diff. |
 | `S` | Switch between inline and split view, with old code on the left and new code on the right. A removed line sits on the same row as the line that replaces it. The choice is saved as `splitDiff` in your config. When the terminal is too narrow for a split diff beside the tests, the tests move behind the `◂ tests · t` tab. In split view, a comment on a replaced line goes on its new side; switch to inline to comment on the removed line itself. |
+| `+` / `-` | Show 10 more or 10 fewer lines of the file above and below the hunk, up to the file's edges and the neighbouring hunks. Added lines are dimmed: they are not part of the PR's diff, so GitHub cannot take a comment on them. |
 | `w` | Hide or show whitespace-only changes (hidden by default; the choice is saved as `hideWhitespace` in your config). A line that was only reindented shows once, marked `~`. Either way, changed words within a line are highlighted, and a line that only gained words shows once with the additions in green. |
 | `x` / `z` / `u` | Mark a hunk skipped, deferred, or unread. |
 | `m` | Move the current hunk to another chapter. |

@@ -16,6 +16,8 @@ import type { AgentContext } from '../agent/types.js';
 import { sanitizeTerminal } from '../util/sanitize.js';
 import { foldedLines, pairChangedLines, wordDiff, type CharRange, type Fold } from '../diff/lines.js';
 import { isSpecialKind } from '../analysis/special.js';
+import { safeReadFile } from '../analysis/safeRead.js';
+import { fileLines, headMatches, withContext } from '../diff/context.js';
 
 export type AgentCtx = AgentContext;
 
@@ -37,6 +39,18 @@ const codeChunks = (text: string, width: number) => {
   const size = Math.max(1, width);
   return code.match(new RegExp(`.{1,${size}}`, 'g')) ?? [''];
 };
+
+// The head's lines of a hunk's file, for expanding its context: undefined for a file the head
+// lacks or that has no context to give (new, deleted, binary), and one changed since the diff.
+function headOf(hunk: Hunk, files: DiffFile[], root?: string): string[] | undefined {
+  const file = files.find((f) => f.path === hunk.file);
+  if (!root || !file || file.binary || file.status === 'added' || file.status === 'deleted') return undefined;
+  const text = safeReadFile(root, hunk.file);
+  const lines = text === undefined ? undefined : fileLines(text);
+  return lines && headMatches(hunk, lines) ? lines : undefined;
+}
+
+const CONTEXT_STEP = 10; // lines + and - add or remove on each side of a hunk
 
 const COVERAGE = {
   tested: { mark: '●', color: 'green', text: 'tested' },
@@ -84,7 +98,21 @@ export function ChapterScreen(props: {
 }) {
   const { tour, chapters, states, ci, hi, width, height } = props;
   const chapter = chapters[ci];
-  const hunk: Hunk | undefined = chapter && hi >= 0 ? tour.hunks[chapter.hunkIds[hi]] : undefined;
+  const diffHunk: Hunk | undefined = chapter && hi >= 0 ? tour.hunks[chapter.hunkIds[hi]] : undefined;
+  const svc = props.services;
+  // Context the reader expanded around the hunk (+ and -), read from the checkout's head. Keyed
+  // on the hunk, so moving to another hunk starts it unexpanded.
+  const [expand, setExpand] = useState({ id: '', above: 0, below: 0 });
+  const headLines = useMemo(() => (diffHunk && expand.id === diffHunk.id ? headOf(diffHunk, tour.files, svc?.root) : undefined), [diffHunk, tour.files, svc?.root, expand.id]);
+  const neighbours = useMemo(() => {
+    const ids = diffHunk ? (tour.files.find((f) => f.path === diffHunk.file)?.hunkIds ?? []) : [];
+    const at = diffHunk ? ids.indexOf(diffHunk.id) : -1;
+    const prev = at > 0 ? tour.hunks[ids[at - 1]] : undefined;
+    const next = at >= 0 ? tour.hunks[ids[at + 1]] : undefined;
+    return { prevEnd: prev?.lines.findLast((l) => l.newLine !== undefined)?.newLine, nextStart: next?.lines.find((l) => l.newLine !== undefined)?.newLine };
+  }, [diffHunk, tour.files, tour.hunks]);
+  // The hunk as shown: the diff's hunk plus any expanded context, with the same id and content hash.
+  const hunk = useMemo(() => (diffHunk && headLines ? withContext(diffHunk, headLines, expand.above, expand.below, neighbours).hunk : diffHunk), [diffHunk, headLines, expand, neighbours]);
   const [cursor, setCursor] = useState(0);
   const [anchor, setAnchor] = useState<number | null>(null);
   const [scroll, setScroll] = useState(0);
@@ -101,7 +129,6 @@ export function ChapterScreen(props: {
   const [moveSel, setMoveSel] = useState(0);
   const [summarySel, setSummarySel] = useState(0);
   const [flash, setFlash] = useState('');
-  const svc = props.services;
   const [ownSplit, setOwnSplit] = useState(false);
   const wantSplit = props.splitDiff ?? ownSplit;
   const [ownHideTests, setOwnHideTests] = useState(false);
@@ -254,6 +281,23 @@ export function ChapterScreen(props: {
     }
   };
 
+  // Shows `by` more lines of context on each side of the hunk, or fewer when negative, keeping the
+  // cursor on its line.
+  const growContext = (by: number) => {
+    if (!diffHunk) return;
+    const lines = headLines ?? headOf(diffHunk, tour.files, svc?.root);
+    if (!lines) return setFlash(svc?.root ? 'No context to add: the file is new, deleted, binary, or changed since the diff.' : 'Context can be expanded once the checkout is ready.');
+    const now = expand.id === diffHunk.id ? expand : { above: 0, below: 0 };
+    const before = withContext(diffHunk, lines, now.above, now.below, neighbours);
+    const after = withContext(diffHunk, lines, Math.max(0, now.above + by), Math.max(0, now.below + by), neighbours);
+    if (by > 0 && after.above === before.above && after.below === before.below) return setFlash('No more context: the hunk reaches the file’s edges or its neighbouring hunks.');
+    const shift = after.above - before.above;
+    const last = after.hunk.lines.length - 1;
+    setCursor((c) => Math.max(0, Math.min(last, c + shift)));
+    setAnchor((a) => (a === null ? null : Math.max(0, Math.min(last, a + shift))));
+    setExpand({ id: diffHunk.id, above: after.above, below: after.below });
+  };
+
   const selRange = (): [number, number] => {
     if (anchor === null) return [cursor, cursor];
     return [Math.min(anchor, cursor), Math.max(anchor, cursor)];
@@ -273,7 +317,7 @@ export function ChapterScreen(props: {
 
   const lineAnchor = (h: Hunk): DraftAnchor | undefined => {
     const [a, b] = selRange();
-    const lines = h.lines.slice(a, b + 1);
+    const lines = h.lines.slice(a, b + 1).filter((l) => !l.expanded);
     const right = lines.filter((l) => l.newLine !== undefined && l.kind !== 'del');
     const side: 'LEFT' | 'RIGHT' = right.length ? 'RIGHT' : 'LEFT';
     const nums = side === 'RIGHT' ? right.map((l) => l.newLine!) : lines.map((l) => l.oldLine!).filter((n) => n !== undefined);
@@ -362,6 +406,9 @@ export function ChapterScreen(props: {
         if (!hasLinkedTests) return setFlash('No test exercises this hunk.');
         return props.toggleTestPane ? props.toggleTestPane() : setOwnHideTests((v) => !v);
       }
+      if ((input === '+' || input === '=') && hunk) return growContext(CONTEXT_STEP);
+      if (input === '-' && hunk) return growContext(-CONTEXT_STEP);
+
       if (input === 'U') return setShowUntested((shown) => !shown);
       if (input === 't') {
         const has = !!hunk && (hunk.tests.some((t) => t.source !== 'naming') || !!hunk.covers);
@@ -370,6 +417,8 @@ export function ChapterScreen(props: {
       }
       if (input === 'c' && hunk) {
         const a = lineAnchor(hunk);
+        const [from, to] = selRange();
+        if (!a && hunk.lines.slice(from, to + 1).every((l) => l.expanded)) return setFlash('This is context outside the PR’s diff: GitHub can’t take a comment on it.');
         if (!a) return setFlash('Nothing to anchor a comment to here.');
         setPending(newDraft(a));
         return setOverlay('comment');
@@ -464,6 +513,7 @@ export function ChapterScreen(props: {
       ...(showTests ? ([['t', 'tests']] as [string, string][]) : []),
       ...(chapter?.diagram || tour.overview ? ([['d', 'diagram']] as [string, string][]) : []),
       ['x', 'skip'],
+      ['+/-', 'context'],
       ['S', splitView ? 'inline' : 'split'],
     ];
   };
@@ -1081,7 +1131,7 @@ const SourcePane = React.memo(function SourcePane(props: {
         const text = clean(l.text);
         const emphasis = reindented || l.kind === 'ctx' ? undefined : words[j]?.filter(([s, e]) => !props.ignoreWhitespace || text.slice(s, e).trim());
         return codeChunks(l.text, codeW).map((code, part) => (
-          <Text key={`${side}${part}`} backgroundColor={reindented ? undefined : DIFF_BACKGROUND[l.kind]}>
+          <Text key={`${side}${part}`} backgroundColor={reindented ? undefined : DIFF_BACKGROUND[l.kind]} dimColor={l.expanded}>
             <Text dimColor>{part === 0 ? no : '    '} </Text>
             <Text color={color} dimColor={reindented}>
               {part === 0 ? sign : ' '}
@@ -1129,7 +1179,7 @@ const SourcePane = React.memo(function SourcePane(props: {
         out.push({
           idx: i,
           node: (
-            <Text backgroundColor={DIFF_BACKGROUND[kind]}>
+            <Text backgroundColor={DIFF_BACKGROUND[kind]} dimColor={l.expanded}>
               <Text dimColor>{part === 0 ? no : ' '.repeat(9)} </Text>
               <Text color={color} dimColor={reindented}>
                 {part === 0 ? sign : ' '}
@@ -1471,6 +1521,7 @@ const HELP_ROWS: [string, string][] = [
   ['d', 'Chapter diagram (select a node to jump to its code)'],
   ['r', 'Raw unified diff for the hunk'],
   ['S', 'Split view (old beside new) or inline'],
+  ['+ / -', 'Show 10 more or fewer lines of the file around the hunk'],
   ['w', 'Hide or show whitespace-only changes'],
   ['x / z / u', 'Mark the hunk skipped / deferred / unread'],
   ['m', 'Move the hunk to another chapter'],

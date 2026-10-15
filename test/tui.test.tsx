@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { render } from 'ink-testing-library';
 import type { ChapterOrder, Draft, ExistingThread, Hunk, ReadState, Tour } from '../src/types.js';
@@ -1092,7 +1095,7 @@ describe('feedback round: guide, tests, inline comments, description', () => {
   });
 });
 
-describe('split view and test pane toggle', () => {
+describe('split view, test pane toggle and expanded context', () => {
   const screen = (t: Tour, extra: Partial<React.ComponentProps<typeof ChapterScreen>> = {}) => (
     <ChapterScreen
       tour={t}
@@ -1165,6 +1168,40 @@ describe('split view and test pane toggle', () => {
     ui.stdin.write('t');
     await waitFor(() => expect(ui.lastFrame()).toContain('back to code'));
     ui.unmount();
+  });
+
+  it('+ shows more of the file around the hunk, dimmed and not commentable, and - takes it away', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gr-ctx-'));
+    fs.mkdirSync(path.join(root, 'src'));
+    fs.writeFileSync(path.join(root, 'src/a.ts'), Array.from({ length: 30 }, (_, i) => (i === 10 ? 'changed();' : `l${i + 1}();`)).join('\n') + '\n');
+    const h = hunkFromDiff('src/a.ts', ' l10();', '-old();', '+changed();', ' l12();');
+    for (const l of h.lines) {
+      if (l.oldLine) l.oldLine += 9;
+      if (l.newLine) l.newLine += 9;
+    }
+    const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
+    const ui = render(screen(t, { services: { root, confirms: {}, setConfirm: () => {} } }));
+    await waitFor(() => expect(ui.lastFrame()).toContain('changed();'));
+    expect(ui.lastFrame()).not.toContain('l5();');
+    ui.stdin.write('+');
+    await waitFor(() => expect(ui.lastFrame()).toContain('l5();'));
+    expect(ui.lastFrame()).toContain('l1();');
+    expect(ui.lastFrame()).toContain('l22();');
+    // The cursor stays on the changed line.
+    expect(
+      ui
+        .lastFrame()!
+        .split('\n')
+        .find((r) => r.includes('▶')),
+    ).toContain('-old();');
+    for (let i = 0; i < 9; i++) ui.stdin.write('k');
+    await tick();
+    ui.stdin.write('c');
+    await waitFor(() => expect(ui.lastFrame()).toContain('outside the PR’s diff'));
+    ui.stdin.write('-');
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('l5();'));
+    ui.unmount();
+    fs.rmSync(root, { recursive: true, force: true });
   });
 
   it('shows a tests tab at the top right when the terminal is too narrow for them beside the code', async () => {
