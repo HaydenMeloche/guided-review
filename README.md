@@ -74,8 +74,8 @@ Before your first review, run `gr config` to choose a model provider, the models
 
 ### Use from Claude Code or Codex
 
-- **Claude Code:** `gr install-claude-command` installs a `/guided-review` command. It runs `guided-review open`, which opens the PR in a new tmux window (inside tmux) or a new Terminal window (macOS), and otherwise prints the command to run. The command is only allowed to run `guided-review open`. If `~/.claude/commands/guided-review.md` already exists with different content, the installer stops; pass `--force` to replace it.
-- **Codex:** `gr install-codex-skill` copies a `guided-review` skill to `$CODEX_HOME/skills/` (or `~/.codex/skills/` when `CODEX_HOME` is unset); restart Codex afterwards. Running it again is safe. If that skill path contains different content, the installer stops so your edits are preserved; pass `--force` to replace it.
+- **Claude Code:** `gr install-claude-command` installs a `/guided-review` command that previews your local changes: the current branch against its merge base with the default branch, uncommitted work included, with no PR needed. It runs `guided-review open --preview`, which opens `gr preview` in a new tmux window (inside tmux) or a new Terminal window (macOS), and otherwise prints the command to run. The command is only allowed to run `guided-review open --preview`. If `~/.claude/commands/guided-review.md` already exists with different content, the installer stops; pass `--force` to replace it.
+- **Codex:** `gr install-codex-skill` copies a `guided-review` skill, which previews your local changes the same way, to `$CODEX_HOME/skills/` (or `~/.codex/skills/` when `CODEX_HOME` is unset); restart Codex afterwards. Running it again is safe. If that skill path contains different content, the installer stops so your edits are preserved; pass `--force` to replace it.
 
 ## Start a review
 
@@ -87,6 +87,7 @@ gr review owner/repo#1234
 gr review                    # current branch's open PR
 gr preview                   # tour the current branch before opening a PR
 gr open 1234                 # open a tour in a new tmux or Terminal window
+gr open --preview            # open gr preview in a new tmux or Terminal window
 gr build 1234 --comment      # build a tour without the TUI and post it to the PR (for CI)
 ```
 
@@ -102,6 +103,7 @@ Guided Review checks out the PR head in a detached worktree under `~/.guided-rev
 | `--fresh` | Rebuild the tour even if this head commit has a completed cached tour or a tour shared on the PR. |
 | `--comment` | With `build`, post the tour to the PR as a comment. See [Share tours from CI](docs/ci.md). |
 | `--out <file>` | With `build`, write the tour JSON to a file, or `-` for stdout (the default without `--comment`). |
+| `--preview` | With `open`, open `gr preview` of your local changes instead of a PR's tour. |
 | `--force` | With `install-claude-command` or `install-codex-skill`, replace an existing file that has different content. |
 
 Set `GR_DEBUG=1` to print stack traces on errors.

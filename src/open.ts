@@ -2,8 +2,9 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-// `gr open` starts `gr review <pr>` in a new terminal window, so tools like the
-// Claude Code slash command never need osascript or open themselves. Every
+// `gr open` starts `gr review <pr>` (or, with --preview, `gr preview`) in a new
+// terminal window, so tools like the Claude Code slash command never need
+// osascript or open themselves. Every
 // argument travels as an argv entry; nothing is spliced into a shell or
 // AppleScript string.
 
@@ -43,19 +44,22 @@ export function defaultGrCommand(): string[] {
   return [process.execPath, fileURLToPath(new URL('../bin/gr.js', import.meta.url))];
 }
 
-export function planOpen(opts: { target: OpenTarget; cwd: string; env?: NodeJS.ProcessEnv; platform?: NodeJS.Platform; gr?: string[] }): OpenPlan {
+// A PR target opens `gr review <target>`; 'preview' opens `gr preview` on the cwd's checkout.
+export function planOpen(opts: { target: OpenTarget | 'preview'; cwd: string; env?: NodeJS.ProcessEnv; platform?: NodeJS.Platform; gr?: string[] }): OpenPlan {
   const env = opts.env ?? process.env;
   const platform = opts.platform ?? process.platform;
   const gr = opts.gr ?? defaultGrCommand();
-  const review = [...gr, 'review', targetArg(opts.target)];
+  const sub = opts.target === 'preview' ? ['preview'] : ['review', targetArg(opts.target)];
+  const command = [...gr, ...sub];
   if (env.TMUX) {
     // With more than one argument, tmux runs the command directly, without a shell.
-    return { kind: 'tmux', command: 'tmux', args: ['new-window', '-c', opts.cwd, '--', ...review] };
+    return { kind: 'tmux', command: 'tmux', args: ['new-window', '-c', opts.cwd, '--', ...command] };
   }
   if (platform === 'darwin') {
-    return { kind: 'terminal', command: 'osascript', args: ['-e', TERMINAL_SCRIPT, opts.cwd, ...review] };
+    return { kind: 'terminal', command: 'osascript', args: ['-e', TERMINAL_SCRIPT, opts.cwd, ...command] };
   }
-  return { kind: 'print', commandLine: `gr review ${targetArg(opts.target)}` };
+  // The full name, since `gr` may be a shell alias (Oh My Zsh: git remote).
+  return { kind: 'print', commandLine: `guided-review ${sub.join(' ')}` };
 }
 
 export function runOpen(plan: OpenPlan): void {

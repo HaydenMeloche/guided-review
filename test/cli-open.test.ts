@@ -29,8 +29,18 @@ describe('gr open', () => {
     expect(TERMINAL_SCRIPT).toContain('quoted form of');
   });
 
-  it('prints the command elsewhere', () => {
-    expect(planOpen({ target, cwd: '/w', env: {}, platform: 'linux', gr })).toEqual({ kind: 'print', commandLine: 'gr review owner/repo#12' });
+  it('prints the command elsewhere, by its full name', () => {
+    expect(planOpen({ target, cwd: '/w', env: {}, platform: 'linux', gr })).toEqual({ kind: 'print', commandLine: 'guided-review review owner/repo#12' });
+  });
+
+  it('opens gr preview for a preview', () => {
+    expect(planOpen({ target: 'preview', cwd: '/w', env: { TMUX: '/tmp/tmux' }, platform: 'linux', gr })).toEqual({
+      kind: 'tmux',
+      command: 'tmux',
+      args: ['new-window', '-c', '/w', '--', ...gr, 'preview'],
+    });
+    expect(planOpen({ target: 'preview', cwd: '/w', env: {}, platform: 'darwin', gr })).toMatchObject({ kind: 'terminal', args: ['-e', TERMINAL_SCRIPT, '/w', ...gr, 'preview'] });
+    expect(planOpen({ target: 'preview', cwd: '/w', env: {}, platform: 'linux', gr })).toEqual({ kind: 'print', commandLine: 'guided-review preview' });
   });
 
   it('rejects targets that are not a plain owner/name#N', () => {
@@ -52,7 +62,7 @@ describe('gr install-claude-command', () => {
     const first = installClaudeCommand({ home });
     expect(first).toEqual({ path: path.join(home, '.claude', 'commands', 'guided-review.md'), status: 'installed' });
     const shipped = fs.readFileSync(first.path, 'utf8');
-    expect(shipped).toContain('allowed-tools: Bash(guided-review open:*)');
+    expect(shipped).toContain('allowed-tools: Bash(guided-review open --preview)\n');
     expect(shipped).not.toMatch(/osascript|Bash\(open/);
     expect(installClaudeCommand({ home }).status).toBe('already-installed');
 

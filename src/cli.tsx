@@ -38,6 +38,7 @@ ${[
   usage('review <number|URL>', 'Start or resume a guided tour of a PR'),
   usage('preview', 'Author mode: tour your current branch before opening the PR'),
   usage('open [number|URL]', 'Open the tour of a PR (default: this branch) in a new terminal window'),
+  usage('open --preview', 'Open the preview of your current branch in a new terminal window'),
   usage('build [number|URL]', 'Build a tour without the TUI (for CI); share it with --comment or --out'),
   usage('cleanup [--days n]', 'Remove local PR worktrees (skip worktrees with changes) and old tours'),
   usage('config', 'Choose a model provider, models, API key, and GitHub access'),
@@ -50,6 +51,7 @@ ${[
   Options
     --no-agent       Plain mode: kind sorting and test pairing, no model calls
     --fresh          Rebuild the tour even if one is cached or shared on the PR for this head
+    --preview        With open: open \`${NAME} preview\` instead of a PR's tour
     --force          With install-*: replace an existing file that has different content
     --comment        With build: post the tour to the PR, where \`${NAME} review\` picks it up
     --out <file>     With build: write the tour JSON to a file (- for stdout)
@@ -69,6 +71,7 @@ ${[
       repo: { type: 'boolean', default: false },
       edit: { type: 'boolean', default: false },
       force: { type: 'boolean', default: false },
+      preview: { type: 'boolean', default: false },
       comment: { type: 'boolean', default: false },
       out: { type: 'string' },
       days: { type: 'number' },
@@ -194,7 +197,19 @@ async function main() {
     return;
   }
   if (cmd === 'install-claude-command') {
-    reportInstall(installClaudeCommand({ force: cli.flags.force }), 'The /guided-review command', "Run /guided-review in Claude Code to open the current branch's PR.");
+    reportInstall(installClaudeCommand({ force: cli.flags.force }), 'The /guided-review command', 'Run /guided-review in Claude Code to preview your local changes.');
+    return;
+  }
+  if (cmd === 'open' && cli.flags.preview) {
+    if (arg) fail(`--preview tours your local changes and takes no PR. Usage: ${NAME} open --preview`);
+    const root = (await localRepoRoot(cwd)) ?? fail(`${NAME} open --preview must run inside a git repository.`);
+    const plan = planOpen({ target: 'preview', cwd: root });
+    runOpen(plan);
+    if (plan.kind === 'print') {
+      process.stdout.write(`Could not open a new terminal window here. Run this in another terminal, from ${root}:\n  ${plan.commandLine}\n`);
+    } else {
+      process.stdout.write(`Opened a preview of ${root} in a new ${plan.kind === 'tmux' ? 'tmux' : 'Terminal'} window.\n`);
+    }
     return;
   }
   if (cmd === 'open') {

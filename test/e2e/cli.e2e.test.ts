@@ -71,7 +71,7 @@ describe('gr commands that print and exit', () => {
   it('installs the Claude Code command into HOME', async () => {
     const result = await runGr(box, ['install-claude-command']);
     expect(result.code).toBe(0);
-    expect(fs.readFileSync(path.join(box.env.HOME!, '.claude', 'commands', 'guided-review.md'), 'utf8')).toContain('guided-review open');
+    expect(fs.readFileSync(path.join(box.env.HOME!, '.claude', 'commands', 'guided-review.md'), 'utf8')).toContain('guided-review open --preview');
   });
 
   it('keeps an edited Claude Code command unless --force is given', async () => {
@@ -85,7 +85,7 @@ describe('gr commands that print and exit', () => {
     const forced = await runGr(box, ['install-claude-command', '--force']);
     expect(forced.code).toBe(0);
     expect(forced.stdout).toContain('Replaced');
-    expect(fs.readFileSync(dest, 'utf8')).toContain('guided-review open');
+    expect(fs.readFileSync(dest, 'utf8')).toContain('guided-review open --preview');
   });
 });
 

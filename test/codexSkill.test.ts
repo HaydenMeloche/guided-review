@@ -23,7 +23,8 @@ describe('Codex skill installation', () => {
     expect(first.path).toBe(path.join(home, 'skills', 'guided-review', 'SKILL.md'));
     const installed = fs.readFileSync(first.path, 'utf8');
     expect(installed).toContain('name: guided-review');
-    expect(installed).toContain('gr review <number-or-URL>');
+    expect(installed).toContain('guided-review open --preview');
+    expect(installed).not.toContain('gr review');
 
     const second = installCodexSkill({ codexHome: home });
     expect(second).toEqual({ path: first.path, status: 'already-installed' });
