@@ -19,7 +19,7 @@ import { applicableChecklists } from './analysis/checklists.js';
 import { listFiles, diffBetween, fetchCommit, hasCommit, mergeBaseOf, prDiff } from './git/worktree.js';
 import { primeBaseCache, readBlobs } from './git/blobs.js';
 import { fetchDiff, fetchReviews, fetchThreads, getMentionUsers, viewerLogin } from './github/gh.js';
-import { fetchSharedTour, matchesDiff } from './github/sharedTour.js';
+import { fetchSharedTour, restoreSharedTour } from './github/sharedTour.js';
 import { analyzeBriefing, analyzeChapter, AgentUnavailableError, type ChapterResult } from './agent/agent.js';
 import { routingIdentity, type AgentRole, type AgentRouting } from './agent/types.js';
 import { chapterBatches, isTruncated, MINOR_SUMMARY_ID, minorHunkIds } from './agent/prompts.js';
@@ -478,12 +478,13 @@ export async function runPipeline(opts: PipelineOptions): Promise<Tour> {
     // A tour CI posted to the PR stands in for building one, once its code matches the diff.
     const shared = await sharedP;
     signal?.throwIfAborted();
-    if (shared && matchesDiff(shared, diff.text, safeReader(worktree))) {
-      attachChangedTestDiffs(shared.files, shared.hunks);
+    const restored = shared && restoreSharedTour(shared, diff.text, safeReader(worktree));
+    if (restored) {
+      attachChangedTestDiffs(restored.files, restored.hunks);
       const live = await liveData;
       signal?.throwIfAborted();
       onProgress('Fetching review threads', true);
-      tour = withLive(shared, live);
+      tour = withLive(restored, live);
       await attachReReview(tour, opts, live.viewer);
       signal?.throwIfAborted();
       onProgress('Using the tour posted to the PR', true);

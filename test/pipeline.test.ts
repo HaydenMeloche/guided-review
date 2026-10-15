@@ -37,7 +37,7 @@ vi.mock('../src/agent/agent.js', async (importOriginal) => ({
 
 import { CHAPTER_CONCURRENCY, reuseLevel, runPipeline, sanitizeGraph } from '../src/pipeline.js';
 import { fetchDiff, fetchThreads } from '../src/github/gh.js';
-import { fetchSharedTour } from '../src/github/sharedTour.js';
+import { decodeSharedTour, encodeSharedTour, fetchSharedTour } from '../src/github/sharedTour.js';
 import { parseUnifiedDiff } from '../src/diff/parse.js';
 import { AgentUnavailableError, analyzeBriefing, analyzeChapter } from '../src/agent/agent.js';
 import { routingIdentity } from '../src/agent/types.js';
@@ -247,16 +247,20 @@ describe('runPipeline with a tour shared on the PR', () => {
     });
   }
 
+  // The tour as the reader gets it from the comment.
+  const posted = (tour: Tour) => decodeSharedTour(encodeSharedTour(tour), { repo: pr.repo, pr: pr.number, headSha: pr.headSha });
+
   it('opens the shared tour instead of building one, with live threads', async () => {
     const diff = writeModules(1);
     vi.mocked(fetchDiff).mockResolvedValue(diff);
-    vi.mocked(fetchSharedTour).mockResolvedValueOnce(sharedTourFor(diff));
+    vi.mocked(fetchSharedTour).mockResolvedValueOnce(posted(sharedTourFor(diff)));
     const store = fakeStore();
 
     const tour = await runPipeline(options(store));
 
     expect(fetchSharedTour).toHaveBeenCalledWith('o/r', 7, 'head', undefined);
     expect(tour.intent).toBe('Built in CI.');
+    expect(tour.source).toBe('shared');
     expect(tour.existingThreads).toEqual([{ id: 'thread-1' }]);
     expect(tour.viewer).toBe('me');
     expect(briefing).not.toHaveBeenCalled();
@@ -267,7 +271,7 @@ describe('runPipeline with a tour shared on the PR', () => {
   it('builds its own tour when the shared one does not match the diff', async () => {
     const diff = writeModules(1);
     vi.mocked(fetchDiff).mockResolvedValue(diff);
-    vi.mocked(fetchSharedTour).mockResolvedValueOnce(sharedTourFor(diff.replace('return 0;', 'return 9;')));
+    vi.mocked(fetchSharedTour).mockResolvedValueOnce(posted(sharedTourFor(diff.replace('return 0;', 'return 9;'))));
     briefing.mockImplementation(async (t) => briefingFor(t.chapters));
     chapter.mockImplementation(async (_t, c) => narrationFor(c));
 

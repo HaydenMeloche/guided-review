@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../src/util/exec.js', () => ({ run: vi.fn() }));
 
 import { run } from '../src/util/exec.js';
-import { decodeSharedTour, encodeSharedTour, fetchSharedTour, matchesDiff, MAX_COMMENT_CHARS, postSharedTour, SharedTourTooLargeError } from '../src/github/sharedTour.js';
+import { compactTour, decodeSharedTour, encodeSharedTour, fetchSharedTour, MAX_COMMENT_CHARS, postSharedTour, restoreSharedTour, SharedTourTooLargeError } from '../src/github/sharedTour.js';
 import { parseUnifiedDiff } from '../src/diff/parse.js';
 import type { Tour } from '../src/types.js';
 import { tour as makeTour } from './fixtures/tour.js';
@@ -64,7 +64,7 @@ describe('shared tours', () => {
     expect(decodeSharedTour(body, { ...expected, pr: 8 })).toBeUndefined();
     expect(decodeSharedTour(body, { ...expected, repo: 'x/y' })).toBeUndefined();
     expect(decodeSharedTour(encodeSharedTour(builtTour({ complete: false })), expected)).toBeUndefined();
-    expect(decodeSharedTour('<!-- guided-review:tour -->\n<!-- guided-review:data v1 not-gzip -->', expected)).toBeUndefined();
+    expect(decodeSharedTour('<!-- guided-review:tour -->\n<!-- guided-review:data v2 not-gzip -->', expected)).toBeUndefined();
     expect(decodeSharedTour('LGTM', expected)).toBeUndefined();
   });
 
@@ -74,26 +74,57 @@ describe('shared tours', () => {
     expect(() => encodeSharedTour(builtTour({ intent: noise }))).toThrow(SharedTourTooLargeError);
   });
 
-  it('accepts a tour only when its code matches the diff line for line', () => {
-    const noHead = () => undefined;
+  it("leaves the code out of the comment and restores it from the reader's diff and checkout", () => {
     const tour = builtTour();
-    expect(matchesDiff(tour, diff, noHead)).toBe(true);
-
     const [id] = Object.keys(tour.hunks);
-    const forged = structuredClone(tour);
-    forged.hunks[id].lines[2].text = '  return 3;';
-    expect(matchesDiff(forged, diff, noHead)).toBe(false);
+    tour.hunks[id].tests = [
+      { testFile: 'test/a.test.ts', testName: 'returns 2', startLine: 2, lines: ['it("returns 2", () => {', '  expect(a()).toBe(2);', '});'], source: 'name-match', confidence: 0.65 },
+      { testFile: 'coverage', testName: 'all added lines executed in coverage run', startLine: 1, lines: [], source: 'coverage', confidence: 0.95 },
+    ];
+    tour.hunks[id].covers = { file: 'src/b.ts', startLine: 1, lines: ['export const b = 1;'] };
+    const head: Record<string, string> = {
+      'test/a.test.ts': 'import { a } from "../src/a";\nit("returns 2", () => {\n  expect(a()).toBe(2);\n});\n',
+      'src/b.ts': 'export const b = 1;\n',
+    };
 
-    // A moved note or a content hash the reader's own diff does not produce.
-    const fakeMove = structuredClone(tour);
-    fakeMove.hunks[id].lines.find((l) => l.kind === 'add')!.moved = { file: 'src/old.ts', line: 12 };
-    expect(matchesDiff(fakeMove, diff, noHead)).toBe(false);
-    const fakeHash = structuredClone(tour);
+    const body = encodeSharedTour(tour);
+    const shared = decodeSharedTour(body, expected)!;
+    expect(JSON.stringify(shared)).not.toContain('return 2;');
+    expect(JSON.stringify(shared)).not.toContain('toBe(2)');
+
+    const restored = restoreSharedTour(shared, diff, (p) => head[p])!;
+    expect(restored.hunks[id].lines).toEqual(tour.hunks[id].lines);
+    expect(restored.hunks[id].tests.map((t) => t.lines)).toEqual(tour.hunks[id].tests.map((t) => t.lines));
+    expect(restored.hunks[id].covers).toEqual(tour.hunks[id].covers);
+    expect(restored.hunks[id].narration).toBe('Bumps the value.');
+
+    // A snippet the reader's checkout cannot supply means the tour is not for this code.
+    expect(restoreSharedTour(shared, diff, (p) => (p === 'src/b.ts' ? head[p] : undefined))).toBeUndefined();
+    expect(restoreSharedTour(shared, diff, (p) => (p === 'src/b.ts' ? undefined : head[p]))).toBeUndefined();
+
+    // Snippet fields that do not describe a run of head lines.
+    for (const bad of [{ lineCount: undefined }, { lineCount: -1 }, { lineCount: 1.5 }, { startLine: 0 }, { testFile: 7 }]) {
+      const forged = structuredClone(shared);
+      Object.assign(forged.hunks[id].tests[0], bad);
+      expect(restoreSharedTour(forged, diff, (p) => head[p])).toBeUndefined();
+    }
+  });
+
+  it('accepts a tour only when it matches the diff hunk for hunk', () => {
+    const noHead = () => undefined;
+    const shared = compactTour(builtTour());
+    expect(restoreSharedTour(shared, diff, noHead)).toBeDefined();
+
+    const [id] = Object.keys(shared.hunks);
+    const fakeHash = structuredClone(shared);
     fakeHash.hunks[id].contentHash = 'other';
-    expect(matchesDiff(fakeHash, diff, noHead)).toBe(false);
+    expect(restoreSharedTour(fakeHash, diff, noHead)).toBeUndefined();
+    const fakeRange = structuredClone(shared);
+    fakeRange.hunks[id].newLines = 9;
+    expect(restoreSharedTour(fakeRange, diff, noHead)).toBeUndefined();
 
-    expect(matchesDiff(tour, diff.replace('return 2;', 'return 4;'), noHead)).toBe(false);
-    expect(matchesDiff(tour, '', noHead)).toBe(false);
+    expect(restoreSharedTour(shared, diff.replace('return 2;', 'return 4;'), noHead)).toBeUndefined();
+    expect(restoreSharedTour(shared, '', noHead)).toBeUndefined();
   });
 });
 
@@ -126,6 +157,16 @@ describe('postSharedTour', () => {
 });
 
 describe('fetchSharedTour', () => {
+  it('asks gh only for comments built for this head', async () => {
+    const comment = (body: string) => JSON.stringify({ id: 1, body, login: 'github-actions[bot]' }) + '\n';
+    vi.mocked(run)
+      .mockReset()
+      .mockResolvedValueOnce(comment(encodeSharedTour(builtTour())));
+    expect((await fetchSharedTour('o/r', 7, 'head'))?.intent).toBe('Returns 2.');
+    const args = vi.mocked(run).mock.calls[0][1];
+    expect(args[args.indexOf('--jq') + 1]).toContain('startswith("<!-- guided-review:tour head=head -->")');
+  });
+
   it('treats a failed lookup as no tour, but still rejects when aborted', async () => {
     vi.mocked(run).mockRejectedValue(new Error('offline'));
     expect(await fetchSharedTour('o/r', 7, 'head')).toBeUndefined();
