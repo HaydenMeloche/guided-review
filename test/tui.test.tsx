@@ -55,6 +55,7 @@ function Harness(props: {
   width?: number;
   onBriefing?: () => void;
   onReply?: (body: string) => Promise<void>;
+  onDelete?: (d: Draft) => void;
 }) {
   const { tour } = props;
   const [pos, setPos] = useState({ ci: props.startCi ?? 0, hi: 0 });
@@ -81,8 +82,12 @@ function Harness(props: {
         })
       }
       saveDraft={(d) => {
-        setDrafts((ds) => [...ds, d]);
+        setDrafts((ds) => [...ds.filter((x) => x.id !== d.id), d]);
         props.onDraft(d);
+      }}
+      deleteDraft={(d) => {
+        setDrafts((ds) => ds.filter((x) => x.id !== d.id));
+        props.onDelete?.(d);
       }}
       replyToThread={props.onReply ? async (_thread, body) => props.onReply!(body) : undefined}
       moveHunk={() => {}}
@@ -440,6 +445,51 @@ describe('ChapterScreen', () => {
     ui.unmount();
   });
 
+  it('edits and deletes the draft on the selected line', async () => {
+    const tour = fixtureTour();
+    const drafts: Draft[] = [];
+    const deleted: Draft[] = [];
+    const ui = render(<Harness tour={tour} onDraft={(d) => drafts.push(d)} onState={() => {}} onDelete={(d) => deleted.push(d)} />);
+    await waitFor(() => expect(ui.lastFrame()).toContain('hunk 1/'));
+
+    ui.stdin.write('E');
+    await waitFor(() => expect(ui.lastFrame()).toContain('No draft on this line'));
+
+    ui.stdin.write('c');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Comment on'));
+    ui.stdin.write('first take');
+    await tick();
+    ui.stdin.write('\r');
+    await waitFor(() => expect(drafts).toHaveLength(1));
+    await waitFor(() => expect(ui.lastFrame()).toContain('edit draft'));
+
+    ui.stdin.write('E');
+    await waitFor(() => expect(ui.lastFrame()).toContain('first take'));
+    ui.stdin.write('\t'); // question -> suggestion
+    await tick();
+    ui.stdin.write(' revised');
+    await tick();
+    ui.stdin.write('\r');
+    await waitFor(() => expect(drafts).toHaveLength(2));
+    expect(drafts[1].id).toBe(drafts[0].id);
+    expect(drafts[1].body).toBe('first take revised');
+    expect(drafts[1].label).toBe('suggestion');
+    expect(ui.lastFrame()).toContain('Draft updated');
+
+    ui.stdin.write('X');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Delete this draft?'));
+    ui.stdin.write('n');
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('Delete this draft?'));
+    expect(deleted).toHaveLength(0);
+
+    ui.stdin.write('X');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Delete this draft?'));
+    ui.stdin.write('y');
+    await waitFor(() => expect(deleted.map((d) => d.id)).toEqual([drafts[0].id]));
+    await waitFor(() => expect(ui.lastFrame()).toContain('Draft deleted'));
+    ui.unmount();
+  });
+
   it('skips a whole collapsed chapter with x', async () => {
     const tour = fixtureTour();
     const collapsedIdx = tour.chapters.findIndex((c) => c.collapsed);
@@ -467,6 +517,7 @@ describe('ChapterScreen', () => {
             })
           }
           saveDraft={() => {}}
+          deleteDraft={() => {}}
           moveHunk={() => {}}
           toggleOrder={() => {}}
           toggleDelta={() => {}}
@@ -763,6 +814,7 @@ describe('optional import chapter', () => {
         setPos={(ci, hi) => seen.push([ci, hi])}
         setState={() => {}}
         saveDraft={() => {}}
+        deleteDraft={() => {}}
         moveHunk={() => {}}
         toggleOrder={() => {}}
         toggleDelta={() => {}}
@@ -815,6 +867,7 @@ describe('team checklist in the chapter screen', () => {
         setPos={() => {}}
         setState={() => {}}
         saveDraft={() => {}}
+        deleteDraft={() => {}}
         moveHunk={() => {}}
         toggleOrder={() => {}}
         toggleDelta={() => {}}
@@ -860,6 +913,7 @@ describe('lazy @mention users', () => {
         setPos={() => {}}
         setState={() => {}}
         saveDraft={() => {}}
+        deleteDraft={() => {}}
         moveHunk={() => {}}
         toggleOrder={() => {}}
         toggleDelta={() => {}}
@@ -965,6 +1019,7 @@ describe('feedback round: guide, tests, inline comments, description', () => {
       setPos={() => {}}
       setState={() => {}}
       saveDraft={() => {}}
+      deleteDraft={() => {}}
       moveHunk={() => {}}
       toggleOrder={() => {}}
       toggleDelta={() => {}}
@@ -1111,6 +1166,7 @@ describe('split view, test pane toggle and expanded context', () => {
       setPos={() => {}}
       setState={() => {}}
       saveDraft={() => {}}
+      deleteDraft={() => {}}
       moveHunk={() => {}}
       toggleOrder={() => {}}
       toggleDelta={() => {}}

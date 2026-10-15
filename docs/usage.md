@@ -54,6 +54,7 @@ Upgrade highlights and package overviews come from a changelog in the worktree w
 | `c` / `C` | Draft a comment on the selected line or range, or on the whole chapter. |
 | `e` | Open review threads on the selected line inline. Scroll with `j`/`k` or `J`/`K`; use `Tab` to select a comment and `a` to add or remove a reaction; press `Esc` to close. |
 | `y` | Reply to a review thread on the selected line in the inline panel. Replies post to GitHub when you press Enter. |
+| `E` / `X` | Edit or delete your unposted draft on the selected line (`X` asks first). The submit screen does the same for every draft with `e` / `x`. |
 | `?` | Ask the agent about the selection in a panel below the selected line. Questions form a thread: press `Enter` again to ask a follow-up, and `↑`/`↓` to scroll. Press `Esc` to return to review. |
 | `t` | Focus linked tests; narrow terminals toggle source and tests. Long code lines wrap in both panes. When linked tests are not beside the code, a `◂ 2 tests · t` tab at the top right says so. |
 | `T` | Hide or show the test pane beside the code, to give the diff the full width. `t` still opens the tests when the pane is hidden. |

@@ -551,6 +551,10 @@ export function App(opts: AppOptions) {
       setPos={setPos}
       setState={setHunkState}
       saveDraft={saveDraft}
+      deleteDraft={(d) => {
+        store.deleteDraft(d.id);
+        setDrafts(store.listDrafts(d.repo, d.pr));
+      }}
       replyToThread={opts.preview ? undefined : sendThreadReply}
       reactToComment={opts.preview ? undefined : reactToComment}
       moveHunk={(h, chapterId) => {

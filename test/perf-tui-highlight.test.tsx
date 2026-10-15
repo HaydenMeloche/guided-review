@@ -113,6 +113,7 @@ describe('SourcePane highlighting', () => {
       setPos: () => {},
       setState: () => {},
       saveDraft: () => {},
+      deleteDraft: () => {},
       moveHunk: () => {},
       toggleOrder: () => {},
       toggleDelta: () => {},

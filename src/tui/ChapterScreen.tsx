@@ -21,7 +21,7 @@ import { fileLines, headFor, withContext } from '../diff/context.js';
 
 export type AgentCtx = AgentContext;
 
-type Overlay = 'none' | 'diagram' | 'comment' | 'thread' | 'reply' | 'ask' | 'move' | 'help' | 'checklist';
+type Overlay = 'none' | 'diagram' | 'comment' | 'thread' | 'reply' | 'ask' | 'move' | 'help' | 'checklist' | 'delete';
 
 // v1.1 features that need the worktree, the repo config or the store.
 export interface Services {
@@ -81,6 +81,7 @@ export function ChapterScreen(props: {
   setPos: (ci: number, hi: number) => void;
   setState: (h: Hunk, s: ReadState) => void;
   saveDraft: (d: Draft) => void;
+  deleteDraft: (d: Draft) => void;
   replyToThread?: (thread: ExistingThread, body: string) => Promise<void>;
   reactToComment?: (comment: ThreadComment, content: ReactionContent, remove: boolean) => Promise<void>;
   moveHunk: (h: Hunk, chapterId: string) => void;
@@ -219,6 +220,11 @@ export function ChapterScreen(props: {
   const threadsOn = (l: DiffLine | undefined) => (hunk && l ? threadAt(tour.existingThreads, hunk.file, l.kind === 'del' ? l.oldLine : l.newLine, l.kind === 'del' ? 'LEFT' : 'RIGHT') : []);
   // Split, a removed line's threads are on the row it shares with its replacement.
   const cursorThreads = [...threadsOn(cursorLine), ...(hidden.get(partner[cursor]) === 'beside' ? threadsOn(hunk?.lines[partner[cursor]]) : [])];
+  // Unposted drafts on the selected line, likewise; E and X act on the newest.
+  const draftsOn = (l: DiffLine | undefined) => (hunk && l ? draftsAt(props.drafts, hunk, l.kind === 'del' ? l.oldLine : l.newLine, l.kind === 'del' ? 'LEFT' : 'RIGHT').filter((d) => !d.posted) : []);
+  const cursorDraft = [...draftsOn(cursorLine), ...(hidden.get(partner[cursor]) === 'beside' ? draftsOn(hunk?.lines[partner[cursor]]) : [])]
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .at(-1);
   // Reset per-hunk view state when the hunk changes; the test side jumps to the matching case.
   useEffect(() => {
     // The first real change: not a folded line, nor a line that only changed whitespace.
@@ -358,6 +364,14 @@ export function ChapterScreen(props: {
     return start === end ? { type: 'line', hunkId: h.id, file: h.file, line: end, side } : { type: 'range', hunkId: h.id, file: h.file, startLine: start, line: end, side };
   };
 
+  const saveDraft = (d: Draft) => {
+    const edited = props.drafts.some((x) => x.id === d.id);
+    props.saveDraft(d);
+    setAnchor(null);
+    setOverlay('none');
+    setFlash(`Draft ${edited ? 'updated' : 'saved'} (${d.label}). Nothing posts until you submit.`);
+  };
+
   const describeAnchor = (d: Draft): string => {
     const a = d.anchor;
     if (a.type === 'line') return `${a.file}:${a.line}`;
@@ -463,6 +477,15 @@ export function ChapterScreen(props: {
         if (!cursorThreads.length) return setFlash('No review thread on this line. Move to a commented line and press e.');
         return setOverlay('thread');
       }
+      if (input === 'E' && hunk) {
+        if (!cursorDraft) return setFlash('No draft on this line. Move to a line with ✎ and press E.');
+        setPending(cursorDraft);
+        return setOverlay('comment');
+      }
+      if (input === 'X' && hunk) {
+        if (!cursorDraft) return setFlash('No draft on this line. Move to a line with ✎ and press X.');
+        return setOverlay('delete');
+      }
       if (input === 'C' && chapter) {
         setPending(newDraft({ type: 'chapter', chapterId: chapter.id }));
         return setOverlay('comment');
@@ -505,6 +528,17 @@ export function ChapterScreen(props: {
     { isActive: props.active !== false && (overlay === 'help' || overlay === 'move') },
   );
 
+  useInput(
+    (input) => {
+      if (input === 'y' && cursorDraft) {
+        props.deleteDraft(cursorDraft);
+        setFlash(`Draft deleted (${cursorDraft.label}).`);
+      }
+      setOverlay('none');
+    },
+    { isActive: props.active !== false && overlay === 'delete' },
+  );
+
   if (!chapter) {
     if (overlay !== 'none') setOverlay('none'); // see overlayShown below
     return (
@@ -539,6 +573,12 @@ export function ChapterScreen(props: {
       ['n/p', 'hunk'],
       ['c', selecting ? 'comment on range' : 'comment'],
       ...(cursorThreads.length ? ([['e', 'thread'], ...(props.replyToThread ? [['y', 'reply']] : [])] as [string, string][]) : []),
+      ...(cursorDraft
+        ? ([
+            ['E', 'edit draft'],
+            ['X', 'delete draft'],
+          ] as [string, string][])
+        : []),
       ['?', 'ask'],
       ['v', selecting ? 'end range' : 'range'],
       [']/[', 'chapter'],
@@ -646,10 +686,7 @@ export function ChapterScreen(props: {
           mentions={mentions}
           onCancel={() => setOverlay('none')}
           onSave={(d) => {
-            props.saveDraft(d);
-            setAnchor(null);
-            setOverlay('none');
-            setFlash(`Draft saved (${d.label}). Nothing posts until you submit.`);
+            saveDraft(d);
           }}
         />
       );
@@ -686,10 +723,7 @@ export function ChapterScreen(props: {
         mentions={mentions}
         onCancel={() => setOverlay('none')}
         onSave={(d) => {
-          props.saveDraft(d);
-          setAnchor(null);
-          setOverlay('none');
-          setFlash(`Draft saved (${d.label}). Nothing posts until you submit.`);
+          saveDraft(d);
         }}
       />
     );
@@ -726,6 +760,7 @@ export function ChapterScreen(props: {
   const threadInline = (overlay === 'thread' || overlay === 'reply') && cursorThreads.length > 0;
   const overlayShown =
     overlay === 'help' ||
+    (overlay === 'delete' && !!cursorDraft) ||
     overlayNode !== null ||
     (collapsedView && !!askPanel) ||
     (sourcePaneShown && (threadInline || !!inlineSourceComment || (!!askPanel && !testFocus))) ||
@@ -866,7 +901,13 @@ export function ChapterScreen(props: {
           )}
         </Box>
       </Box>
-      <DraftLine drafts={props.drafts} hunk={hunk} cursor={cursor} flash={flash} width={width} describe={describeAnchor} />
+      {overlay === 'delete' && cursorDraft ? (
+        <Text color="yellow" wrap="truncate">
+          {truncate(`Delete this draft? [${cursorDraft.label}] ${clean(cursorDraft.body).replace(/\s+/g, ' ')}`, width - 8)} y / n
+        </Text>
+      ) : (
+        <DraftLine drafts={props.drafts} hunk={hunk} cursor={cursor} flash={flash} width={width} describe={describeAnchor} />
+      )}
       <KeyBar
         width={width}
         status={overlay === 'none' && hunk && !testFocus ? [raw && 'raw', splitView && 'split', ignoreWhitespace && 'whitespace hidden'].filter(Boolean).join(' · ') : undefined}
@@ -1549,6 +1590,7 @@ const HELP_ROWS: [string, string][] = [
   ['c / C', 'Comment on the selected line or range / on the whole flow'],
   ['e', 'Read existing review threads on the selected line inline'],
   ['y', 'Reply to an existing review thread on the selected line'],
+  ['E / X', 'Edit or delete your draft on the selected line'],
   ['?', 'Ask the agent about the selection'],
   ['t', 'Focus the test pane (narrow terminals: toggle source/tests)'],
   ['T', 'Hide or show the test pane beside the code'],
