@@ -1,0 +1,13 @@
+# Made up, in the shape of the report that led to fusing: a <FeeSection> block moved up past
+# another section, next to an unrelated label edit, plus a prop removed in a second file.
+2 files, 2 hunks (3 GitHub hunks)
+
+files:
+  src/components/fees/FeeBreakdown.tsx  modified · logic
+  src/components/fees/FeeSection.tsx  modified · logic
+
+1. <FeeBreakdown>  [flow]  entry React component (FeeBreakdown)
+   src/components/fees/FeeBreakdown.tsx  @@ -16,32 +16,32 @@  +9 -9 · risk 0 · untested · fused 2 · 3 gap lines
+     ↕ 7 lines moved from src/components/fees/FeeBreakdown.tsx:38
+     ↕ 7 lines moved to src/components/fees/FeeBreakdown.tsx:24
+   src/components/fees/FeeSection.tsx  @@ -21,9 +21,9 @@  +2 -2 · risk 0 · untested

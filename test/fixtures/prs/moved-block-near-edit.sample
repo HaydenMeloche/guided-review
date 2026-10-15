@@ -1,0 +1,151 @@
+# Made up, in the shape of the report that led to fusing: a <FeeSection> block moved up past
+# another section, next to an unrelated label edit, plus a prop removed in a second file.
+=== file src/components/fees/FeeBreakdown.tsx
+import { useTranslation } from 'react-i18next';
+import { formatCurrency } from '../../utils/money';
+import { FeeSection } from './FeeSection';
+import type { FeeEntry } from './types';
+
+interface Props {
+  added: FeeEntry[];
+  deducted: FeeEntry[];
+  totalAdvance: number;
+}
+
+export const FeeBreakdown = ({ added, deducted, totalAdvance }: Props) => {
+  const { t } = useTranslation();
+  const addedTotal = added.reduce((sum, e) => sum + e.amount, 0);
+  const deductedTotal = deducted.reduce((sum, e) => sum + e.amount, 0);
+
+  return (
+    <aside
+      className="sticky top-[calc(var(--nav-height)_+_124px)] flex h-fit w-100 flex-col rounded-xl border"
+      data-testid="fee-breakdown"
+    >
+      <h2 className="px-6 pt-4 pb-2 text-xl font-bold">{t('FEES_OVERVIEW')}</h2>
+
+      <FeeSection
+        entries={added}
+        title={t('FEES_ADDED_TO_LOAN')}
+        total={`+${formatCurrency(addedTotal)}`}
+        totalLabel={t('FEES_TOTAL_ADD_TO_ADVANCE')}
+      />
+
+      <div className="flex justify-between border-t px-6 py-4 font-bold">
+        <span>{t('FEES_TOTAL_ADVANCE')}</span>
+        <span className="text-lg" data-testid="fee-total-advance">
+          {formatCurrency(totalAdvance)}
+        </span>
+      </div>
+
+      <FeeSection
+        entries={deducted}
+        title={t('FEES_DEDUCTED')}
+        total={`-${formatCurrency(deductedTotal)}`}
+        totalLabel={t('FEES_TOTAL_DEDUCTED')}
+      />
+
+      <div className="flex justify-between border-t px-6 py-4 font-bold">
+        <span>{t('FEES_MAX_FUNDS')}</span>
+        <span data-testid="fee-max-funds">{formatCurrency(totalAdvance - deductedTotal)}</span>
+      </div>
+    </aside>
+  );
+};
+=== file src/components/fees/FeeSection.tsx
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatCurrency } from '../../utils/money';
+import type { FeeEntry } from './types';
+
+interface Props {
+  title: string;
+  total: string;
+  totalLabel: string;
+  entries: FeeEntry[];
+}
+
+export const FeeSection = ({ title, total, totalLabel, entries }: Props) => {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="border-t px-6 py-4">
+      <button type="button" onClick={() => setOpen(!open)} className="flex w-full justify-between">
+        <span>{title}</span>
+        <span>{total}</span>
+      </button>
+      {open && !!entries.length && (
+        <ul className="flex flex-col gap-2 rounded-md px-3 py-2">
+          {entries.map(({ key, label, amount, recipient }) => (
+            <li className="flex justify-between gap-4 text-sm" key={key}>
+              <span>{recipient ? `${t(label)} · ${t(`FEES_RECIPIENT_${recipient}`)}` : t(label)}</span>
+              <span>{formatCurrency(amount)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-sm">{totalLabel}</p>
+    </section>
+  );
+};
+=== patch
+diff --git a/src/components/fees/FeeBreakdown.tsx b/src/components/fees/FeeBreakdown.tsx
+index 77e057d..c7a5fc9 100644
+--- a/src/components/fees/FeeBreakdown.tsx
++++ b/src/components/fees/FeeBreakdown.tsx
+@@ -16,16 +16,23 @@ export const FeeBreakdown = ({ added, deducted, totalAdvance }: Props) => {
+ 
+   return (
+     <aside
+-      className="sticky top-[calc(var(--nav-height)_+_124px)] flex h-fit w-100 flex-col rounded-xl border"
++      className="sticky top-[calc(var(--nav-height)+124px)] flex h-fit w-100 flex-col rounded-xl border"
+       data-testid="fee-breakdown"
+     >
+       <h2 className="px-6 pt-4 pb-2 text-xl font-bold">{t('FEES_OVERVIEW')}</h2>
+ 
++      <FeeSection
++        entries={deducted}
++        title={t('FEES_DEDUCTED')}
++        total={`-${formatCurrency(deductedTotal)}`}
++        totalLabel={t('FEES_TOTAL_DEDUCTED')}
++      />
++
+       <FeeSection
+         entries={added}
+         title={t('FEES_ADDED_TO_LOAN')}
+         total={`+${formatCurrency(addedTotal)}`}
+-        totalLabel={t('FEES_TOTAL_ADD_TO_ADVANCE')}
++        totalLabel={t('FEES_TOTAL_ADD_TO_LOAN')}
+       />
+ 
+       <div className="flex justify-between border-t px-6 py-4 font-bold">
+@@ -35,13 +42,6 @@ export const FeeBreakdown = ({ added, deducted, totalAdvance }: Props) => {
+         </span>
+       </div>
+ 
+-      <FeeSection
+-        entries={deducted}
+-        title={t('FEES_DEDUCTED')}
+-        total={`-${formatCurrency(deductedTotal)}`}
+-        totalLabel={t('FEES_TOTAL_DEDUCTED')}
+-      />
+-
+       <div className="flex justify-between border-t px-6 py-4 font-bold">
+         <span>{t('FEES_MAX_FUNDS')}</span>
+         <span data-testid="fee-max-funds">{formatCurrency(totalAdvance - deductedTotal)}</span>
+diff --git a/src/components/fees/FeeSection.tsx b/src/components/fees/FeeSection.tsx
+index 7f9c521..15d2a59 100644
+--- a/src/components/fees/FeeSection.tsx
++++ b/src/components/fees/FeeSection.tsx
+@@ -21,9 +21,9 @@ export const FeeSection = ({ title, total, totalLabel, entries }: Props) => {
+       </button>
+       {open && !!entries.length && (
+         <ul className="flex flex-col gap-2 rounded-md px-3 py-2">
+-          {entries.map(({ key, label, amount, recipient }) => (
++          {entries.map(({ key, label, amount }) => (
+             <li className="flex justify-between gap-4 text-sm" key={key}>
+-              <span>{recipient ? `${t(label)} · ${t(`FEES_RECIPIENT_${recipient}`)}` : t(label)}</span>
++              <span>{t(label)}</span>
+               <span>{formatCurrency(amount)}</span>
+             </li>
+           ))}

@@ -1,0 +1,30 @@
+# Made up: a short move next to an edit (loans), a long move within a file (http), and a
+# class moved between files (fines to books).
+4 files, 5 hunks (5 GitHub hunks)
+
+files:
+  src/books.ts  modified · logic
+  src/fines.ts  modified · logic
+  src/http.ts  modified · logic
+  src/loans.ts  modified · logic
+
+1. giveBack  [flow]  entry exported API (giveBack)
+   src/loans.ts  @@ -10,18 +10,18 @@  +6 -6 · risk 2 · untested
+
+2. UnknownBookError  [flow]  entry exported API (UnknownBookError)
+   src/books.ts  @@ -15,3 +15,9 @@  +6 -0 · risk 1 · untested
+     ↕ 5 lines moved from src/fines.ts:5
+
+3. Supporting changes  [supporting]
+   src/fines.ts  @@ -1,13 +1,7 @@  +1 -7 · risk 2 · untested
+     ↕ 5 lines moved to src/books.ts:19
+     orphan: helper not called by changed code
+   src/http.ts  @@ -1,19 +1,12 @@  +1 -8 · risk 0 · untested
+     ↕ 6 lines moved to src/http.ts:30
+     orphan: helper not called by changed code
+   src/http.ts  @@ -34,6 +27,12 @@  +6 -0 · risk 0 · untested
+     ↕ 6 lines moved from src/http.ts:11
+     orphan: helper not called by changed code
+
+flags:
+  missing-tests: 2 risky hunk(s) have no linked test

@@ -1,0 +1,130 @@
+# Made up: a migration, dependency bumps, a CI deploy job, a Dockerfile base image bump, an
+# infrastructure change and a small code edit.
+=== file .github/workflows/ci.yml
+name: CI
+on:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm test
+=== file Dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY . .
+CMD ["node", "src/server.js"]
+=== file infra/db.tf
+resource "aws_db_instance" "orders" {
+  identifier        = "orders"
+  engine            = "postgres"
+  instance_class    = "db.t3.medium"
+  allocated_storage = 50
+  publicly_accessible = false
+}
+=== file package.json
+{
+  "name": "orders-api",
+  "version": "1.4.0",
+  "type": "module",
+  "dependencies": {
+    "express": "^4.19.2",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.0"
+  }
+}
+=== file src/server.ts
+import express from 'express';
+import { router } from './routes/orders.js';
+
+const app = express();
+app.use(express.json());
+app.use(router);
+app.listen(Number(process.env.PORT ?? 3000));
+=== patch
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 0f622df..884883f 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -11,3 +11,11 @@ jobs:
+           node-version: 22
+       - run: npm ci
+       - run: npm test
++deploy:
++  needs: test
++  runs-on: ubuntu-latest
++  permissions:
++    id-token: write
++  steps:
++    - uses: actions/checkout@v4
++    - run: ./scripts/deploy.sh ${{ github.event.pull_request.title }}
+diff --git a/Dockerfile b/Dockerfile
+index 0d86a4e..df6d912 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -1,4 +1,4 @@
+-FROM node:20-alpine
++FROM node:22-alpine
+ WORKDIR /app
+ COPY package*.json ./
+ RUN npm ci --omit=dev
+diff --git a/infra/db.tf b/infra/db.tf
+index b0e0ea3..3953329 100644
+--- a/infra/db.tf
++++ b/infra/db.tf
+@@ -1,7 +1,7 @@
+ resource "aws_db_instance" "orders" {
+   identifier        = "orders"
+   engine            = "postgres"
+-  instance_class    = "db.t3.medium"
++  instance_class    = "db.t3.large"
+   allocated_storage = 50
+-  publicly_accessible = false
++  publicly_accessible = true
+ }
+diff --git a/migrations/20261015_refunds.sql b/migrations/20261015_refunds.sql
+new file mode 100644
+index 0000000..1c10d70
+--- /dev/null
++++ b/migrations/20261015_refunds.sql
+@@ -0,0 +1,3 @@
++ALTER TABLE orders ADD COLUMN refunded_at timestamptz;
++CREATE INDEX CONCURRENTLY orders_refunded_at ON orders (refunded_at);
++ALTER TABLE orders DROP COLUMN legacy_status;
+diff --git a/package.json b/package.json
+index bfbf437..8c8e5bc 100644
+--- a/package.json
++++ b/package.json
+@@ -4,9 +4,9 @@
+   "type": "module",
+   "dependencies": {
+     "express": "^4.19.2",
+-    "pg": "^8.11.3"
++    "pg": "^8.13.1"
+   },
+   "devDependencies": {
+-    "vitest": "^1.6.0"
++    "vitest": "^3.2.0"
+   }
+ }
+diff --git a/src/server.ts b/src/server.ts
+index 51dd84f..3781b72 100644
+--- a/src/server.ts
++++ b/src/server.ts
+@@ -2,6 +2,6 @@ import express from 'express';
+ import { router } from './routes/orders.js';
+ 
+ const app = express();
+-app.use(express.json());
++app.use(express.json({ limit: '1mb' }));
+ app.use(router);
+ app.listen(Number(process.env.PORT ?? 3000));

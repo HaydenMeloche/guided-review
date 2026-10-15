@@ -1,0 +1,467 @@
+# guided-review f3b5721: Highlight SQL and other missing languages in the diff viewer
+=== file docs/usage.md
+# Using Guided Review
+
+How to pick a PR, read a tour, ask questions, draft comments, review again after a push, and preview your own branch. For installation and setup, see the [README](../README.md).
+
+## Pick a PR
+
+The picker groups review requests by repository. Press `/` to filter by repo, title, author, or label; `j`/`k` to move; `Enter` to open; `o` to open the selected PR in a browser; or `r` to refresh. Press `Space` to select PRs, `a` to select all PRs shown by the filter, and `d` to download the selected tours before opening them. With no selection, `d` downloads the highlighted tour. Downloads run one at a time and show progress in the picker; completed tours are cached for later opening. On a wide terminal, the preview shows the description, changed files, checks, review decision, and whether a local tour or drafts already exist.
+
+For a PR, Guided Review fetches metadata, the diff, and existing review threads through `gh`. It checks out the PR head in a detached worktree under `~/.guided-review/worktrees/`. Your own working checkout is left alone. If the current repository is not the PR's repository, it uses a cached clone under `~/.guided-review/repos/`.
+
+Run `gr cleanup` to remove managed PR worktrees and prune old tours. Tours are also pruned as they are saved: each PR keeps the three heads you opened most recently. `gr cleanup` also deletes tours you have not opened in 90 days (`--days <n>` to change it), and for a PR left with no tour, its reading state, position, chapter moves, checklist confirmations, and posted drafts. Unposted drafts and cached repository clones are always kept. Git refuses to remove a worktree with local changes, so the command reports and skips it.
+
+## Read the tour
+
+The **briefing** opens once it is ready; chapter narration may continue in the background. It shows the PR's intent and author description, recent reviewer feedback, flagged gaps, an overview diagram, chapters with risk, and your progress. Press `V` to read all submitted reviews. The chapter heading names the current order. Press `f` to cycle **Guided** (recommended reading path), **Risk first**, **Small first** (fewest changed lines), and **File** (path order). Select a chapter with `j`/`k` and `Enter`, or press `n` to resume where you left off. Press `r` to read the full PR description, `d` for the overview diagram, or `?` to ask about the whole PR in a panel below the briefing.
+
+<p align="center"><img src="images/briefing.webp" alt="The briefing screen: a summary of the PR, the author's description, flagged gaps, an overview diagram, chapters in reading order, and blast radius" width="900"></p>
+
+A **chapter** shows an explanation, code hunk, risk and test status, existing review threads, and linked tests. Wide terminals put code and tests side by side; narrow terminals let `t` toggle between them. Generated, vendored, and mechanical changes start collapsed into summaries. Import-only changes form an optional chapter that normal `n`/`p` navigation skips.
+
+<p align="center"><img src="images/ask.webp" alt="A question about a changed line, answered inline below the code with file and line references" width="900"></p>
+
+Press `?` on a selected line or range to ask about it. The model can read the rest of the repository, so answers cover code outside the diff and cite the files and lines they come from. Above, it finds that cancelling an order twice restocks its items twice, by following `release` into a file the PR does not touch.
+
+Typing `@` in a draft comment or thread reply suggests people with access to the repository, along with the PR author and existing reviewers. Press `Tab` to complete a suggested handle.
+
+Static analysis finds entry points such as routes, commands, and handlers and links changed code through name-matched call references. These links are reading suggestions: the tool does not resolve imports, receivers, and scopes to prove a call target. Ambiguous changed targets are skipped. Shared code appears once and is linked from other chapters. The default Guided order ranks flows by the amount of changed code they reach, then the model can recommend a reading order; supporting and lower-priority changes follow. This is a reading path, not a strict risk ranking. If no entry point is found, the tour uses file order. TypeScript and JavaScript use the TypeScript compiler API; Python, Go, Kotlin, C, C++, Java, Ruby, and Rust use tree-sitter. Other source languages may use a lower-confidence regex fallback. JSON and YAML changes appear as configuration chapters. Test linking recognizes conventional Java, C/C++, and Ruby test cases as well as the existing JavaScript, Python, Go, and Kotlin cases. Press `f` on the briefing or in a chapter to change the order.
+
+The diff viewer also highlights syntax for TypeScript, JavaScript, Python, Go, Kotlin, Rust, Ruby, Java, C#, Swift, C/C++, PHP, shell, JSON, YAML, TOML, CSS, HTML, and Lua using Shiki. It loads highlighting when a hunk opens and reads the old and new file versions so multiline strings and comments keep their color across hunks. Unknown file types remain readable as plain colored diff lines. Syntax highlighting does not change the language support of flow analysis.
+
+### Change-aware chapters
+
+Some changes are easy to read in a diff but hard to judge from one. These get their own chapters, placed after the flow, supporting, and test chapters. With a model, the explanation for each hunk says what the change means instead of what it edits.
+
+| Chapter | Files | The explanation covers |
+| --- | --- | --- |
+| Database migrations | `migrations/`, `migrate/`, `alembic/versions/`, Flyway `V1__*.sql`, `db/changelog/` | Table locks and rewrites, possible data loss, whether it can be rolled back, backfills, and whether code must deploy before or after it |
+| API contracts | OpenAPI, Swagger, and AsyncAPI specs, `.proto`, GraphQL schemas, Avro `.avsc` | Which changes break existing clients and which are additive, and the clients in the repo that rely on them |
+| Dependencies and runtimes | Dependency lines in `package.json`, `pom.xml`, Gradle, `Cargo.toml`, `go.mod`, `pyproject.toml`, `requirements*.txt`, `Gemfile`, `composer.json`, `.csproj`, and similar manifests; runtime versions such as `.nvmrc`, `.tool-versions`, Docker `FROM` lines, `engines`, the `go` directive, `requires-python`, and the TypeScript `target` | For an upgrade or downgrade, `name old → new` and highlights of what changed between the versions: features, breaking changes, deprecations, security fixes, and end of life for runtimes. For a package that is new or removed, a short overview of what it is and, if new, where the PR uses it |
+| Lockfile changes | `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `Cargo.lock`, `go.sum`, `poetry.lock`, `uv.lock`, `Gemfile.lock`, `composer.lock`, `bun.lock` | One summary of indirect changes: major version jumps, notable packages added or removed, and known security fixes. Starts collapsed |
+| Infrastructure | Terraform, Terragrunt, and YAML under `k8s/`, `helm/`, `charts/`, `deploy/`, `infra/`, and similar; Helm `Chart.yaml` and `values*.yaml`, Kustomize, serverless, CloudFormation, and Pulumi files | Resources created, destroyed, or replaced, in-place edits that force a replacement or restart, and IAM, network, scaling, and secret changes |
+| CI and workflows | `.github/workflows/`, `.github/actions/`, `action.yml`, GitLab CI, CircleCI, Jenkins, Buildkite, Azure Pipelines, Travis, and Bitbucket Pipelines | New triggers, jobs, permissions, and secrets, plus risky patterns such as `pull_request_target` checking out PR code, untrusted input in `run` scripts, and actions not pinned to a commit SHA |
+
+Upgrade highlights and package overviews come from a changelog in the worktree when there is one, and otherwise from the model's own knowledge, because the model has no internet access. Those explanations are marked as inferred. Only hand-written logic and config files are moved into these chapters, so a test under `migrations/` stays with the tests. To move a file out of these chapters, classify it with a [`kinds` rule](repo-config.md#kinds). With `--no-agent` the chapters still appear, with the static file summary instead of an explanation.
+
+### Chapter keys
+
+| Key | Action |
+| --- | --- |
+| `n` / `p` | Next hunk, marking the current one read, or previous hunk. At the end, move to the next chapter. |
+| `j` / `k`, `J` / `K` | Move the code cursor by one line or ten lines. |
+| `v` | Start or end a line-range selection. |
+| `]` / `[` | Next or previous chapter, including optional chapters. |
+| `c` / `C` | Draft a comment on the selected line or range, or on the whole chapter. |
+| `e` | Open review threads on the selected line inline. Scroll with `j`/`k` or `J`/`K`; use `Tab` to select a comment and `a` to add or remove a reaction; press `Esc` to close. |
+| `y` | Reply to a review thread on the selected line in the inline panel. Replies post to GitHub when you press Enter. |
+| `?` | Ask the agent about the selection in a panel below the selected line. Questions form a thread: press `Enter` again to ask a follow-up, and `↑`/`↓` to scroll. Press `Esc` to return to review. |
+| `t` | Focus linked tests; narrow terminals toggle source and tests. Long code lines wrap in both panes. |
+| `U` | Expand or collapse details about possible untested behavior and missing test links. |
+| `d` | Open the chapter diagram. Select a node to jump to its code or comment on it. |
+| `r` | Toggle the raw unified diff. |
+| `w` | Hide or show whitespace-only changes (hidden by default; the choice is saved as `hideWhitespace` in your config). A line that was only reindented shows once, marked `~`. Either way, changed words within a line are highlighted, and a line that only gained words shows once with the additions in green. |
+| `x` / `z` / `u` | Mark a hunk skipped, deferred, or unread. |
+| `m` | Move the current hunk to another chapter. |
+| `f` | Cycle Guided, Risk first, Small first, and File order. Your current hunk stays selected. |
+| `D` | On a re-review, toggle between changed hunks and the whole tour. |
+| `R` | Rebuild the tour on a newer PR head after the author pushes. |
+| `i` | Open the team's checklist for this chapter. |
+| `o` | Open the current review context in Claude Code. |
+| `b` / `s` / `h` / `q` | Return to the briefing (description and overview diagram), open submit, show key help, or quit. `b` also works while the test pane has focus. |
+
+A diagram can also open as SVG in your browser with `b`. Changed nodes are highlighted; selecting a node with `Tab` and pressing `Enter` jumps to its hunk when it has one.
+
+### Tests, risk, and review prompts
+
+Test links use available coverage data, symbol names found in test cases, and naming conventions. A symbol name in a test is a possible link, not proof that the test ran or called that specific declaration. Only execution coverage marks a hunk tested; name matches and filename guesses mark it partial. If a test changes without its subject code changing, the test-only chapter can show that unchanged code beside it.
+
+When a linked test case is new or modified in the PR, the Tests pane shows its diff with `+` and `-` lines and a colored `new` or `modified` badge. An unchanged linked case still shows its current source.
+
+Possible test gaps appear as a short line in the hunk explanation. Press `U` to see the full notes, including branches or behaviors the agent could not link to a test; press it again to collapse them. These are review leads, not proof that a test is absent.
+
+Risk scores call attention to changes involving authentication, payments, migrations, public APIs, concurrency, command execution, error handling, and similar areas. The briefing may flag risky code without linked tests, possible generated-file or lockfile mismatches, and likely missing migrations, changesets, environment examples, translations, documentation, or feature flag checks. These are prompts to inspect, not conclusions that the PR is wrong. The model can raise a hunk's static risk score but never lower it, so text in a PR cannot talk the tour into downplaying a risky change.
+
+Repo checklists are pre-checked by the agent as pass, fail, or unknown; use `i` to confirm each item yourself. Confirmations are saved locally and shown on the submit screen as a reminder; they are not posted to GitHub.
+
+## Draft and submit comments
+
+Select a line or range and press `c`, or press `C` for a chapter-level comment. Diagram nodes can also anchor comments. A comment remains a local draft until you submit a review.
+
+In the comment editor:
+
+| Key | Action |
+| --- | --- |
+| `Tab` / `Shift+Tab` | Complete an `@username` if suggestions appear; otherwise cycle through blocking, question, suggestion, and nit labels. |
+| `Enter` / `Shift+Enter` | Save the draft or insert a newline. |
+| `Ctrl+G` | For a line or range comment, edit a GitHub code suggestion in `$EDITOR`. |
+| `Ctrl+D` | Remove a code suggestion. |
+| `Esc` | Cancel the editor. |
+
+Press `s` to review your drafts in a popup over the current briefing or chapter. It groups them by label, shows unread and deferred work, and proposes **Approve**, **Comment**, or **Request changes** from your drafts and progress. You can edit or delete drafts, change the verdict with `a`/`c`/`r`, and add a review summary with `b`. Press `P`, then confirm, to post all pending drafts as **one GitHub review**. Nothing posts while you are drafting or navigating.
+
+If a draft's original line is no longer in the diff, Guided Review attaches it to the nearest available diff line or places it in the review body, then tells you what moved. Flow-level comments are summarized in the review body as well as anchored to a relevant changed line when one exists.
+
+## Review after a new push
+
+Guided Review checks for a new PR head while you review and offers `R` to rebuild on it. It keeps your drafts and reading state. A new tour can start in **delta-only** mode, showing hunks that are new or changed since the previous head; press `D` to show the whole tour.
+
+The briefing also compares your posted comments and GitHub threads with the new diff. It reports whether the commented lines changed, the file was deleted, or a thread was resolved. A changed line is a reason to re-check the author's update, not proof that the concern is fixed. Drafts whose original hunk disappeared are flagged for review.
+
+## Preview your own branch
+
+Run `gr preview` on your branch before you open a PR to see the tour a reviewer would get. It compares your checkout, including uncommitted changes, with its merge base on the repository's default branch. The commit messages since that merge base stand in for the PR description. Preview works without `gh`.
+
+To find the default branch, `gr preview` tries these in order and uses the first that exists:
+
+1. `origin/HEAD`, which `git clone` records.
+2. The repository's default branch on GitHub.
+3. The branch origin's `HEAD` points to, asked with `git ls-remote`. This covers clones made with `git init` and `git remote add`, and remotes that aren't on GitHub. It gives up after a few seconds and never prompts for credentials.
+4. `origin/main`, `origin/master`, local `main`, then local `master`.
+
+For each name found in steps 1 to 3, origin's copy is preferred over your local branch. Your git `init.defaultBranch` setting is ignored, because it describes new repositories you create, not the repository you contribute to.
+
+If the tour includes changes that aren't yours, your copy of the default branch is probably out of date: run `git fetch` and preview again. To make step 1 work offline, run `git remote set-head origin --auto`.
+=== file src/util/language.ts
+// One table for every per-language decision: which parser reads a file, which tests pair with
+// it by name, and how it is highlighted.
+
+export type TreeSitterLang = 'python' | 'go' | 'kotlin' | 'c' | 'cpp' | 'java' | 'ruby' | 'rust';
+
+export interface Language {
+  id: string;
+  // Sources and tests pair by file name only within a family. Data and markup have none, which
+  // also marks them as not code.
+  family?: string;
+  treeSitter?: TreeSitterLang;
+  shiki?: string;
+}
+
+const TABLE: [string[], Language][] = [
+  [['ts', 'mts', 'cts'], { id: 'typescript', family: 'js', shiki: 'typescript' }],
+  [['tsx'], { id: 'tsx', family: 'js', shiki: 'tsx' }],
+  [['js', 'jsx', 'mjs', 'cjs'], { id: 'javascript', family: 'js', shiki: 'javascript' }],
+  [['py'], { id: 'python', family: 'python', treeSitter: 'python', shiki: 'python' }],
+  [['go'], { id: 'go', family: 'go', treeSitter: 'go', shiki: 'go' }],
+  [['kt', 'kts'], { id: 'kotlin', family: 'jvm', treeSitter: 'kotlin', shiki: 'kotlin' }],
+  [['java'], { id: 'java', family: 'jvm', treeSitter: 'java', shiki: 'java' }],
+  [['scala'], { id: 'scala', family: 'jvm' }],
+  [['cs'], { id: 'csharp', family: 'dotnet', shiki: 'csharp' }],
+  [['swift'], { id: 'swift', family: 'swift', shiki: 'swift' }],
+  [['c', 'h'], { id: 'c', family: 'c-family', treeSitter: 'c', shiki: 'c' }],
+  [['cc', 'cpp', 'cxx', 'hpp', 'hh', 'hxx'], { id: 'cpp', family: 'c-family', treeSitter: 'cpp', shiki: 'cpp' }],
+  [['rb'], { id: 'ruby', family: 'ruby', treeSitter: 'ruby', shiki: 'ruby' }],
+  [['rs'], { id: 'rust', family: 'rust', treeSitter: 'rust', shiki: 'rust' }],
+  [['php'], { id: 'php', family: 'php', shiki: 'php' }],
+  [['sh', 'bash', 'zsh'], { id: 'shell', family: 'shell', shiki: 'bash' }],
+  [['ex', 'exs'], { id: 'elixir', family: 'elixir' }],
+  [['clj'], { id: 'clojure', family: 'clojure' }],
+  [['lua'], { id: 'lua', family: 'lua', shiki: 'lua' }],
+  [['dart'], { id: 'dart', family: 'dart' }],
+  [['m', 'mm'], { id: 'objc', family: 'objc' }],
+  [['json'], { id: 'json', shiki: 'json' }],
+  [['jsonc'], { id: 'jsonc', shiki: 'jsonc' }],
+  [['yaml', 'yml'], { id: 'yaml', shiki: 'yaml' }],
+  [['toml'], { id: 'toml', shiki: 'toml' }],
+  [['css'], { id: 'css', shiki: 'css' }],
+  [['html', 'htm'], { id: 'html', shiki: 'html' }],
+];
+
+const BY_EXT = new Map(TABLE.flatMap(([exts, lang]) => exts.map((e) => [e, lang] as const)));
+const CPP = BY_EXT.get('cpp')!;
+// A .h header is C unless its source uses C++-only syntax.
+const CPP_SYNTAX = /\b(class|namespace|template|constexpr)\b|::/;
+
+function extOf(path: string): string {
+  const base = path.slice(path.lastIndexOf('/') + 1);
+  const dot = base.lastIndexOf('.');
+  return dot <= 0 ? '' : base.slice(dot + 1).toLowerCase();
+}
+
+// Pass the file's source to tell a C++ header from a C one.
+export function languageOf(path: string, source?: string): Language | undefined {
+  const ext = extOf(path);
+  if (ext === 'h' && source !== undefined && CPP_SYNTAX.test(source)) return CPP;
+  return BY_EXT.get(ext);
+}
+
+export function familyOf(path: string): string | undefined {
+  return languageOf(path)?.family;
+}
+
+// The extensions of the matching languages as a regex alternation, e.g. `c|h|cc|cpp`.
+export function extensionsWhere(match: (lang: Language) => boolean): string {
+  return TABLE.filter(([, lang]) => match(lang))
+    .flatMap(([exts]) => exts)
+    .join('|');
+}
+=== file test/highlight.test.ts
+import { describe, expect, it } from 'vitest';
+import { highlightDiffLines, highlightHunk, highlightLanguage, highlightSourceLines, type SyntaxSpan } from '../src/tui/highlight.js';
+import { hunk } from './fixtures/tour.js';
+
+function coloredText(text: string, spans: SyntaxSpan[]) {
+  return spans.map((s) => text.slice(s.start, s.end)).join('');
+}
+
+describe('diff syntax highlighting', () => {
+  it('recognizes common source and config languages and falls back for unknown files', async () => {
+    expect(highlightLanguage('src/app.tsx')).toBe('tsx');
+    expect(highlightLanguage('src/lib.rs')).toBe('rust');
+    expect(highlightLanguage('config/app.yaml')).toBe('yaml');
+    expect(highlightLanguage('image.png')).toBeUndefined();
+    expect(await highlightHunk(hunk('h', 'image.png', [{ kind: 'add', text: 'anything', newLine: 1 }]))).toBeUndefined();
+    for (const file of [
+      'x.tsx',
+      'x.ts',
+      'x.js',
+      'x.py',
+      'x.go',
+      'x.kt',
+      'x.rs',
+      'x.rb',
+      'x.java',
+      'x.cs',
+      'x.swift',
+      'x.c',
+      'x.cpp',
+      'x.php',
+      'x.sh',
+      'x.json',
+      'x.yaml',
+      'x.toml',
+      'x.css',
+      'x.html',
+      'x.lua',
+    ]) {
+      expect(await highlightHunk(hunk('h', file, [{ kind: 'add', text: 'x', newLine: 1 }]))).toBeDefined();
+    }
+  });
+
+  it('colors tokens in added Rust lines and deleted Python lines', async () => {
+    const rust = 'fn greet() { println!("hi"); }';
+    const added = await highlightHunk(hunk('h', 'lib.rs', [{ kind: 'add', text: rust, newLine: 1 }]));
+    expect(coloredText(rust, added![0])).toContain('fn');
+    expect(coloredText(rust, added![0])).toContain('hi');
+
+    const python = 'return "old"';
+    const deleted = await highlightHunk(hunk('h', 'app.py', [{ kind: 'del', text: python, oldLine: 1 }]));
+    expect(coloredText(python, deleted![0])).toContain('return');
+    expect(coloredText(python, deleted![0])).toContain('old');
+  });
+
+  it('uses colors distinct from diff green for Kotlin keywords and strings', async () => {
+    const text = 'fun greet() = "hello"';
+    const result = await highlightHunk(hunk('h', 'Greeting.kt', [{ kind: 'add', text, newLine: 1 }]));
+    const keyword = result![0].find((span) => text.slice(span.start, span.end) === 'fun');
+    const string = result![0].find((span) => text.slice(span.start, span.end).includes('hello'));
+    expect(keyword?.color.toLowerCase()).toBe('#3e8fb0');
+    expect(string?.color.toLowerCase()).toBe('#f6c177');
+  });
+
+  it('uses full-file context for multiline comments', async () => {
+    const text = 'still a comment */';
+    const result = await highlightHunk(hunk('h', 'app.ts', [{ kind: 'add', text, newLine: 2 }]), {
+      head: `/* begins above\n${text}\nconst x = 1;`,
+    });
+    expect(coloredText(text, result![0])).toBe(text);
+  });
+
+  it('highlights YAML keys and comments', async () => {
+    const text = 'retries: 3 # maximum';
+    const result = await highlightHunk(hunk('h', 'config.yml', [{ kind: 'add', text, newLine: 1 }]));
+    expect(coloredText(text, result![0])).toContain('retries');
+    expect(coloredText(text, result![0])).toContain('3');
+    expect(coloredText(text, result![0])).toContain('# maximum');
+  });
+});
+
+describe('test pane syntax highlighting', () => {
+  it('colors added and removed test lines by the test file language', async () => {
+    const added = 'fun verifiesTotal() = assertEquals(42, total)';
+    const removed = 'fun verifiesTotal() = assertEquals(41, total)';
+    const spans = await highlightDiffLines('src/test/kotlin/TotalTest.kt', [
+      { kind: 'del', text: removed, oldLine: 10 },
+      { kind: 'add', text: added, newLine: 10 },
+    ]);
+    expect(coloredText(removed, spans![0])).toContain('fun');
+    expect(coloredText(added, spans![1])).toContain('assertEquals');
+    expect(spans![1].some((span) => span.color.toLowerCase() === '#3e8fb0')).toBe(true);
+  });
+
+  it('colors test snippets by their own file language', async () => {
+    const ts = 'expect(save(1)).toBe(1); // verified';
+    const ruby = 'expect(save(1)).to eq(1) # verified';
+    const tsSpans = await highlightSourceLines('test/store.test.ts', [ts]);
+    const rubySpans = await highlightSourceLines('spec/store_spec.rb', [ruby]);
+    expect(coloredText(ts, tsSpans![0])).toContain('verified');
+    expect(coloredText(ruby, rubySpans![0])).toContain('verified');
+    expect(await highlightSourceLines('test/data.unknown', [ts])).toBeUndefined();
+  });
+
+  it('keeps offsets relative to each displayed test line', async () => {
+    const lines = ['describe("store", () => {', '  it("saves", () => save(1));', '});'];
+    const spans = await highlightSourceLines('test/store.test.ts', lines);
+    expect(coloredText(lines[1], spans![1])).toContain('saves');
+    expect(spans![1].every((span) => span.start >= 0 && span.end <= lines[1].length)).toBe(true);
+  });
+});
+=== patch
+diff --git a/docs/usage.md b/docs/usage.md
+index 3c77394..ebbf46a 100644
+--- a/docs/usage.md
++++ b/docs/usage.md
+@@ -26,7 +26,7 @@ Typing `@` in a draft comment or thread reply suggests people with access to the
+ 
+ Static analysis finds entry points such as routes, commands, and handlers and links changed code through name-matched call references. These links are reading suggestions: the tool does not resolve imports, receivers, and scopes to prove a call target. Ambiguous changed targets are skipped. Shared code appears once and is linked from other chapters. The default Guided order ranks flows by the amount of changed code they reach, then the model can recommend a reading order; supporting and lower-priority changes follow. This is a reading path, not a strict risk ranking. If no entry point is found, the tour uses file order. TypeScript and JavaScript use the TypeScript compiler API; Python, Go, Kotlin, C, C++, Java, Ruby, and Rust use tree-sitter. Other source languages may use a lower-confidence regex fallback. JSON and YAML changes appear as configuration chapters. Test linking recognizes conventional Java, C/C++, and Ruby test cases as well as the existing JavaScript, Python, Go, and Kotlin cases. Press `f` on the briefing or in a chapter to change the order.
+ 
+-The diff viewer also highlights syntax for TypeScript, JavaScript, Python, Go, Kotlin, Rust, Ruby, Java, C#, Swift, C/C++, PHP, shell, JSON, YAML, TOML, CSS, HTML, and Lua using Shiki. It loads highlighting when a hunk opens and reads the old and new file versions so multiline strings and comments keep their color across hunks. Unknown file types remain readable as plain colored diff lines. Syntax highlighting does not change the language support of flow analysis.
++The diff viewer also highlights syntax for TypeScript, JavaScript, Python, Go, Kotlin, Java, Scala, Rust, Ruby, C#, Swift, C/C++, Objective-C, PHP, Elixir, Clojure, Dart, Lua, shell, SQL, JSON, YAML, TOML, XML, Markdown, CSS, SCSS, Less, HTML, Vue, Svelte, GraphQL, Protobuf, Terraform/HCL, Dockerfiles, and Makefiles using Shiki. It loads highlighting when a hunk opens and reads the old and new file versions so multiline strings and comments keep their color across hunks. Unknown file types remain readable as plain colored diff lines. Syntax highlighting does not change the language support of flow analysis.
+ 
+ ### Change-aware chapters
+ 
+diff --git a/src/util/language.ts b/src/util/language.ts
+index 238ebb1..a7246db 100644
+--- a/src/util/language.ts
++++ b/src/util/language.ts
+@@ -20,7 +20,7 @@ const TABLE: [string[], Language][] = [
+   [['go'], { id: 'go', family: 'go', treeSitter: 'go', shiki: 'go' }],
+   [['kt', 'kts'], { id: 'kotlin', family: 'jvm', treeSitter: 'kotlin', shiki: 'kotlin' }],
+   [['java'], { id: 'java', family: 'jvm', treeSitter: 'java', shiki: 'java' }],
+-  [['scala'], { id: 'scala', family: 'jvm' }],
++  [['scala'], { id: 'scala', family: 'jvm', shiki: 'scala' }],
+   [['cs'], { id: 'csharp', family: 'dotnet', shiki: 'csharp' }],
+   [['swift'], { id: 'swift', family: 'swift', shiki: 'swift' }],
+   [['c', 'h'], { id: 'c', family: 'c-family', treeSitter: 'c', shiki: 'c' }],
+@@ -29,35 +29,65 @@ const TABLE: [string[], Language][] = [
+   [['rs'], { id: 'rust', family: 'rust', treeSitter: 'rust', shiki: 'rust' }],
+   [['php'], { id: 'php', family: 'php', shiki: 'php' }],
+   [['sh', 'bash', 'zsh'], { id: 'shell', family: 'shell', shiki: 'bash' }],
+-  [['ex', 'exs'], { id: 'elixir', family: 'elixir' }],
+-  [['clj'], { id: 'clojure', family: 'clojure' }],
++  [['ex', 'exs'], { id: 'elixir', family: 'elixir', shiki: 'elixir' }],
++  [['clj'], { id: 'clojure', family: 'clojure', shiki: 'clojure' }],
+   [['lua'], { id: 'lua', family: 'lua', shiki: 'lua' }],
+-  [['dart'], { id: 'dart', family: 'dart' }],
+-  [['m', 'mm'], { id: 'objc', family: 'objc' }],
++  [['dart'], { id: 'dart', family: 'dart', shiki: 'dart' }],
++  [['m'], { id: 'objc', family: 'objc', shiki: 'objective-c' }],
++  [['mm'], { id: 'objcpp', family: 'objc', shiki: 'objective-cpp' }],
+   [['json'], { id: 'json', shiki: 'json' }],
+   [['jsonc'], { id: 'jsonc', shiki: 'jsonc' }],
+   [['yaml', 'yml'], { id: 'yaml', shiki: 'yaml' }],
+   [['toml'], { id: 'toml', shiki: 'toml' }],
+   [['css'], { id: 'css', shiki: 'css' }],
++  [['scss'], { id: 'scss', shiki: 'scss' }],
++  [['less'], { id: 'less', shiki: 'less' }],
+   [['html', 'htm'], { id: 'html', shiki: 'html' }],
++  [['sql'], { id: 'sql', shiki: 'sql' }],
++  [['md', 'markdown'], { id: 'markdown', shiki: 'markdown' }],
++  [['xml', 'csproj', 'fsproj', 'vbproj', 'props', 'targets'], { id: 'xml', shiki: 'xml' }],
++  [['graphql', 'gql'], { id: 'graphql', shiki: 'graphql' }],
++  [['proto'], { id: 'proto', shiki: 'proto' }],
++  [['tf', 'tfvars'], { id: 'terraform', shiki: 'terraform' }],
++  [['hcl'], { id: 'hcl', shiki: 'hcl' }],
++  [['vue'], { id: 'vue', shiki: 'vue' }],
++  [['svelte'], { id: 'svelte', shiki: 'svelte' }],
++  [['dockerfile'], { id: 'dockerfile', shiki: 'dockerfile' }],
++  [['mk'], { id: 'make', shiki: 'make' }],
+ ];
+ 
+ const BY_EXT = new Map(TABLE.flatMap(([exts, lang]) => exts.map((e) => [e, lang] as const)));
++// Files known by name rather than extension. `Dockerfile.prod` and the like count as Dockerfiles.
++const BY_NAME = new Map([
++  ['dockerfile', BY_EXT.get('dockerfile')!],
++  ['containerfile', BY_EXT.get('dockerfile')!],
++  ['makefile', BY_EXT.get('mk')!],
++  ['gnumakefile', BY_EXT.get('mk')!],
++]);
+ const CPP = BY_EXT.get('cpp')!;
+ // A .h header is C unless its source uses C++-only syntax.
+ const CPP_SYNTAX = /\b(class|namespace|template|constexpr)\b|::/;
+ 
++function baseOf(path: string): string {
++  return path.slice(path.lastIndexOf('/') + 1).toLowerCase();
++}
++
+ function extOf(path: string): string {
+-  const base = path.slice(path.lastIndexOf('/') + 1);
++  const base = baseOf(path);
+   const dot = base.lastIndexOf('.');
+-  return dot <= 0 ? '' : base.slice(dot + 1).toLowerCase();
++  return dot <= 0 ? '' : base.slice(dot + 1);
++}
++
++function byName(path: string): Language | undefined {
++  const base = baseOf(path);
++  return BY_NAME.get(base) ?? BY_NAME.get(base.slice(0, base.indexOf('.')));
+ }
+ 
+ // Pass the file's source to tell a C++ header from a C one.
+ export function languageOf(path: string, source?: string): Language | undefined {
+   const ext = extOf(path);
+   if (ext === 'h' && source !== undefined && CPP_SYNTAX.test(source)) return CPP;
+-  return BY_EXT.get(ext);
++  return BY_EXT.get(ext) ?? byName(path);
+ }
+ 
+ export function familyOf(path: string): string | undefined {
+diff --git a/test/highlight.test.ts b/test/highlight.test.ts
+index c1881bd..1f0b9e5 100644
+--- a/test/highlight.test.ts
++++ b/test/highlight.test.ts
+@@ -12,6 +12,10 @@ describe('diff syntax highlighting', () => {
+     expect(highlightLanguage('src/lib.rs')).toBe('rust');
+     expect(highlightLanguage('config/app.yaml')).toBe('yaml');
+     expect(highlightLanguage('image.png')).toBeUndefined();
++    expect(highlightLanguage('docker/Dockerfile')).toBe('dockerfile');
++    expect(highlightLanguage('Dockerfile.dev')).toBe('dockerfile');
++    expect(highlightLanguage('Makefile')).toBe('make');
++    expect(highlightLanguage('README')).toBeUndefined();
+     expect(await highlightHunk(hunk('h', 'image.png', [{ kind: 'add', text: 'anything', newLine: 1 }]))).toBeUndefined();
+     for (const file of [
+       'x.tsx',
+@@ -35,6 +39,28 @@ describe('diff syntax highlighting', () => {
+       'x.css',
+       'x.html',
+       'x.lua',
++      'x.sql',
++      'x.scala',
++      'x.ex',
++      'x.clj',
++      'x.dart',
++      'x.m',
++      'x.mm',
++      'x.scss',
++      'x.less',
++      'x.md',
++      'x.xml',
++      'x.csproj',
++      'x.graphql',
++      'x.proto',
++      'x.tf',
++      'x.hcl',
++      'x.vue',
++      'x.svelte',
++      'x.mk',
++      'Dockerfile',
++      'deploy/Dockerfile.prod',
++      'Makefile',
+     ]) {
+       expect(await highlightHunk(hunk('h', file, [{ kind: 'add', text: 'x', newLine: 1 }]))).toBeDefined();
+     }
+@@ -69,6 +95,13 @@ describe('diff syntax highlighting', () => {
+     expect(coloredText(text, result![0])).toBe(text);
+   });
+ 
++  it('highlights SQL keywords and strings', async () => {
++    const text = "SELECT id FROM users WHERE name = 'ada';";
++    const result = await highlightHunk(hunk('h', 'db/query.sql', [{ kind: 'add', text, newLine: 1 }]));
++    expect(coloredText(text, result![0])).toContain('SELECT');
++    expect(coloredText(text, result![0])).toContain("'ada'");
++  });
++
+   it('highlights YAML keys and comments', async () => {
+     const text = 'retries: 3 # maximum';
+     const result = await highlightHunk(hunk('h', 'config.yml', [{ kind: 'add', text, newLine: 1 }]));

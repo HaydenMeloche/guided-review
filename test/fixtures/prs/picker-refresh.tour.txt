@@ -1,0 +1,28 @@
+# guided-review 1bde471: Refresh the picker in place, and on its own every two minutes
+3 files, 11 hunks (12 GitHub hunks)
+
+files:
+  docs/usage.md  modified · config
+  src/tui/PickerScreen.tsx  modified · logic
+  test/picker-refresh.test.tsx  added · test
+
+1. <PickerScreen>  [flow]  entry React component (PickerScreen)
+   src/tui/PickerScreen.tsx  @@ -106,21 +108,55 @@  +43 -9 · risk 2 · partial
+     test test/picker-refresh.test.tsx › picker refresh > refreshes on its own (name-match)
+   src/tui/PickerScreen.tsx  @@ -137,19 +173,30 @@  +13 -2 · risk 0 · untested · fused 2 · 2 gap lines
+   src/tui/PickerScreen.tsx  @@ -196,6 +243,16 @@  +10 -0 · risk 0 · untested
+   src/tui/PickerScreen.tsx  @@ -224,11 +281,7 @@  +1 -5 · risk 0 · untested
+   src/tui/PickerScreen.tsx  @@ -266,7 +319,9 @@  +3 -1 · risk 0 · untested
+   src/tui/PickerScreen.tsx  @@ -332,7 +387,11 @@  +5 -1 · risk 0 · untested
+   src/tui/PickerScreen.tsx  @@ -91,6 +92,7 @@  +1 -0 · risk 0 · untested
+   test/picker-refresh.test.tsx  @@ -0,0 +1,77 @@  +77 -0 · risk 0 · n/a
+
+2. Supporting changes  [supporting]
+   src/tui/PickerScreen.tsx  @@ -23,6 +23,7 @@  +1 -0 · risk 0 · untested
+     orphan: constant change
+
+3. Import-only changes  [imports · collapsed · optional]
+   src/tui/PickerScreen.tsx  @@ -1,4 +1,4 @@  +1 -1 · risk 0 · n/a · imports only
+
+4. Config, infra and docs  [config]
+   docs/usage.md  @@ -4,7 +4,7 @@  +1 -1 · risk 0 · n/a

@@ -1,0 +1,35 @@
+# Made up: a refund endpoint through route, service and repository, a widened type, an
+# unused constant, a test that exercises it, a config key and a lockfile bump.
+7 files, 7 hunks (9 GitHub hunks)
+
+files:
+  config/app.yaml  modified · config
+  package-lock.json  modified · generated
+  src/db/ordersRepo.ts  modified · logic
+  src/routes/orders.ts  modified · logic
+  src/services/orders.ts  modified · logic
+  src/types.ts  modified · logic
+  test/orders.test.ts  modified · test
+
+1. refundOrder  [flow]  entry exported API (refundOrder)
+   src/types.ts  @@ -2,5 +2,12 @@  +8 -1 · risk 3 · untested
+   src/services/orders.ts  @@ -1,12 +1,22 @@  +12 -2 · risk 3 · partial · fused 2 · 4 gap lines
+     test test/orders.test.ts › listOrders > returns every order (name-match)
+     test test/orders.test.ts › refundOrder > refunds a recent order (name-match)
+     test test/orders.test.ts › refundOrder > refuses an order past the refund window (name-match)
+   src/db/ordersRepo.ts  @@ -1,10 +1,16 @@  +7 -1 · risk 3 · untested · fused 2 · 2 gap lines
+   test/orders.test.ts  @@ -1,8 +1,18 @@  +11 -1 · risk 0 · n/a
+
+2. GET /orders → route GET /orders  [flow]  entry route GET /orders (route GET /orders)
+   src/routes/orders.ts  @@ -1,8 +1,13 @@  +6 -1 · risk 3 · partial
+     test test/orders.test.ts › refundOrder > refuses an order past the refund window (name-match)
+
+3. Lockfile changes  [lockfiles · collapsed]
+   package-lock.json  @@ -3,6 +3,6 @@  +1 -1 · risk 0 · n/a
+
+4. Config, infra and docs  [config]
+   config/app.yaml  @@ -2,3 +2,5 @@  +2 -0 · risk 0 · n/a
+
+flags:
+  info: lockfile changed without package.json: dependency versions moved within existing ranges
+  missing-tests: 2 risky hunk(s) have no linked test

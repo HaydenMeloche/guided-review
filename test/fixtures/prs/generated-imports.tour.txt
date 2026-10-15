@@ -1,0 +1,17 @@
+# guided-review a37ce7d: Don't treat @generated import paths as a generated-code header
+2 files, 2 hunks (3 GitHub hunks)
+
+files:
+  src/analysis/kinds.ts  modified · logic
+  test/kinds.test.ts  modified · test
+
+1. Hand-written logic (file order)  [flow · low confidence]
+   src/analysis/kinds.ts  @@ -61,7 +61,8 @@  +2 -1 · risk 0 · partial
+     test test/kinds.test.ts › kinds.test.ts (naming)
+   test/kinds.test.ts  @@ -74,18 +74,22 @@  +5 -1 · risk 0 · n/a · fused 2 · 1 gap lines
+
+flags:
+  no-entry-point: No entry point found; logic is shown in file order.
+
+notes:
+  No entry point found: chapters use file order by kind.

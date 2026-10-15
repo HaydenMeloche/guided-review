@@ -1,0 +1,206 @@
+# Made up: a short move next to an edit (loans), a long move within a file (http), and a
+# class moved between files (fines to books).
+=== file src/books.ts
+export interface Book {
+  isbn: string;
+  title: string;
+}
+
+const books: Book[] = [
+  { isbn: '978-0135957059', title: 'The Pragmatic Programmer' },
+  { isbn: '978-1449373320', title: 'Designing Data-Intensive Applications' },
+];
+
+export function listBooks(): Book[] {
+  return [...books];
+}
+
+export function findBook(isbn: string): Book | undefined {
+  return books.find((b) => b.isbn === isbn);
+}
+=== file src/fines.ts
+import { findBook } from './books.js';
+
+export const DAILY_FINE_CENTS = 25;
+
+export class UnknownBookError extends Error {
+  constructor(readonly isbn: string) {
+    super(`Unknown book ${isbn}`);
+  }
+}
+
+export function fineFor(isbn: string, daysLate: number): number {
+  if (!findBook(isbn)) throw new UnknownBookError(isbn);
+  return Math.max(0, daysLate) * DAILY_FINE_CENTS;
+}
+=== file src/http.ts
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { listBooks } from './books.js';
+import { lend, NotAvailableError } from './loans.js';
+import { UnknownBookError } from './fines.js';
+
+function reply(res: ServerResponse, status: number, body: unknown): void {
+  res.writeHead(status, { 'content-type': 'application/json' });
+  res.end(JSON.stringify(body));
+}
+
+async function readBody(req: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) chunks.push(chunk as Buffer);
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+}
+
+export async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const url = new URL(req.url ?? '/', 'http://localhost');
+  try {
+    if (req.method === 'GET' && url.pathname === '/books') {
+      return reply(res, 200, listBooks());
+    }
+    if (req.method === 'POST' && url.pathname === '/loans') {
+      const body = (await readBody(req)) as { member?: string; isbns?: string[] };
+      if (!body.member || !Array.isArray(body.isbns)) return reply(res, 400, { error: 'member and isbns are required' });
+      lend(body.member, body.isbns);
+      return reply(res, 201, { ok: true });
+    }
+    reply(res, 404, { error: 'not found' });
+  } catch (err) {
+    if (err instanceof UnknownBookError) return reply(res, 400, { error: err.message });
+    if (err instanceof NotAvailableError) return reply(res, 409, { error: err.message });
+    reply(res, 500, { error: 'internal error' });
+  }
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  createServer(handle).listen(Number(process.env.PORT ?? 3000));
+}
+=== file src/loans.ts
+const onLoan = new Map<string, string>();
+
+export class NotAvailableError extends Error {
+  constructor(readonly isbn: string) {
+    super(`${isbn} is not available`);
+  }
+}
+
+export function isAvailable(isbn: string): boolean {
+  return !onLoan.has(isbn);
+}
+
+/** Lends every book to the member, or none of them if any is out. */
+export function lend(member: string, isbns: string[]): void {
+  for (const isbn of isbns) {
+    if (!isAvailable(isbn)) throw new NotAvailableError(isbn);
+  }
+  for (const isbn of isbns) onLoan.set(isbn, member);
+}
+
+export function giveBack(isbns: string[]): void {
+  for (const isbn of isbns) {
+    onLoan.delete(isbn);
+  }
+}
+
+export function borrower(isbn: string): string | undefined {
+  return onLoan.get(isbn);
+}
+=== patch
+diff --git a/src/books.ts b/src/books.ts
+index ed7d77d..5044d64 100644
+--- a/src/books.ts
++++ b/src/books.ts
+@@ -15,3 +15,9 @@ export function listBooks(): Book[] {
+ export function findBook(isbn: string): Book | undefined {
+   return books.find((b) => b.isbn === isbn);
+ }
++
++export class UnknownBookError extends Error {
++  constructor(readonly isbn: string) {
++    super(`Unknown book ${isbn}`);
++  }
++}
+diff --git a/src/fines.ts b/src/fines.ts
+index eb02926..52ec6ca 100644
+--- a/src/fines.ts
++++ b/src/fines.ts
+@@ -1,13 +1,7 @@
+-import { findBook } from './books.js';
++import { findBook, UnknownBookError } from './books.js';
+ 
+ export const DAILY_FINE_CENTS = 25;
+ 
+-export class UnknownBookError extends Error {
+-  constructor(readonly isbn: string) {
+-    super(`Unknown book ${isbn}`);
+-  }
+-}
+-
+ export function fineFor(isbn: string, daysLate: number): number {
+   if (!findBook(isbn)) throw new UnknownBookError(isbn);
+   return Math.max(0, daysLate) * DAILY_FINE_CENTS;
+diff --git a/src/http.ts b/src/http.ts
+index f380fc3..2725998 100644
+--- a/src/http.ts
++++ b/src/http.ts
+@@ -1,19 +1,12 @@
+ import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+-import { listBooks } from './books.js';
++import { listBooks, UnknownBookError } from './books.js';
+ import { lend, NotAvailableError } from './loans.js';
+-import { UnknownBookError } from './fines.js';
+ 
+ function reply(res: ServerResponse, status: number, body: unknown): void {
+   res.writeHead(status, { 'content-type': 'application/json' });
+   res.end(JSON.stringify(body));
+ }
+ 
+-async function readBody(req: IncomingMessage): Promise<unknown> {
+-  const chunks: Buffer[] = [];
+-  for await (const chunk of req) chunks.push(chunk as Buffer);
+-  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+-}
+-
+ export async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
+   const url = new URL(req.url ?? '/', 'http://localhost');
+   try {
+@@ -34,6 +27,12 @@ export async function handle(req: IncomingMessage, res: ServerResponse): Promise
+   }
+ }
+ 
++async function readBody(req: IncomingMessage): Promise<unknown> {
++  const chunks: Buffer[] = [];
++  for await (const chunk of req) chunks.push(chunk as Buffer);
++  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
++}
++
+ if (import.meta.url === `file://${process.argv[1]}`) {
+   createServer(handle).listen(Number(process.env.PORT ?? 3000));
+ }
+diff --git a/src/loans.ts b/src/loans.ts
+index 03e11ff..ae1368d 100644
+--- a/src/loans.ts
++++ b/src/loans.ts
+@@ -10,18 +10,18 @@ export function isAvailable(isbn: string): boolean {
+   return !onLoan.has(isbn);
+ }
+ 
+-/** Lends every book to the member, or none of them if any is out. */
+-export function lend(member: string, isbns: string[]): void {
++export function giveBack(isbns: string[]): void {
+   for (const isbn of isbns) {
+-    if (!isAvailable(isbn)) throw new NotAvailableError(isbn);
++    onLoan.delete(isbn);
+   }
+-  for (const isbn of isbns) onLoan.set(isbn, member);
+ }
+ 
+-export function giveBack(isbns: string[]): void {
++/** Lends every book in the request to the member, or none if any is out. */
++export function lend(member: string, isbns: string[]): void {
+   for (const isbn of isbns) {
+-    onLoan.delete(isbn);
++    if (!isAvailable(isbn)) throw new NotAvailableError(isbn);
+   }
++  for (const isbn of isbns) onLoan.set(isbn, member);
+ }
+ 
+ export function borrower(isbn: string): string | undefined {

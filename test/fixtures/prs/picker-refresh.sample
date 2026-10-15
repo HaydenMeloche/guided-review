@@ -1,0 +1,951 @@
+# guided-review 1bde471: Refresh the picker in place, and on its own every two minutes
+=== file docs/usage.md
+# Using Guided Review
+
+How to pick a PR, read a tour, ask questions, draft comments, review again after a push, and preview your own branch. For installation and setup, see the [README](../README.md).
+
+## Pick a PR
+
+The picker groups review requests by repository. Press `/` to filter by repo, title, author, or label; `j`/`k` to move; `Enter` to open; `o` to open the selected PR in a browser; or `r` to refresh. Press `Space` to select PRs, `a` to select all PRs shown by the filter, and `d` to download the selected tours before opening them. With no selection, `d` downloads the highlighted tour. Downloads run one at a time and show progress in the picker; completed tours are cached for later opening. On a wide terminal, the preview shows the description, changed files, checks, review decision, and whether a local tour or drafts already exist.
+
+For a PR, Guided Review fetches metadata, the diff, and existing review threads through `gh`. It checks out the PR head in a detached worktree under `~/.guided-review/worktrees/`. Your own working checkout is left alone. If the current repository is not the PR's repository, it uses a cached clone under `~/.guided-review/repos/`.
+
+Run `gr cleanup` to remove managed PR worktrees and prune old tours. Tours are also pruned as they are saved: each PR keeps the three heads you opened most recently. `gr cleanup` also deletes tours you have not opened in 90 days (`--days <n>` to change it), and for a PR left with no tour, its reading state, position, chapter moves, checklist confirmations, and posted drafts. Unposted drafts and cached repository clones are always kept. Git refuses to remove a worktree with local changes, so the command reports and skips it.
+
+## Read the tour
+
+The **briefing** opens once it is ready; chapter narration may continue in the background. It shows the PR's intent and author description, recent reviewer feedback, flagged gaps, an overview diagram, chapters with risk, and your progress. Press `V` to read all submitted reviews. The chapter heading names the current order. Press `f` to cycle **Guided** (recommended reading path), **Risk first**, **Small first** (fewest changed lines), and **File** (path order). Select a chapter with `j`/`k` and `Enter`, or press `n` to resume where you left off. Press `r` to read the full PR description, `d` for the overview diagram, or `?` to ask about the whole PR in a panel below the briefing.
+
+<p align="center"><img src="images/briefing.webp" alt="The briefing screen: a summary of the PR, the author's description, flagged gaps, an overview diagram, chapters in reading order, and blast radius" width="900"></p>
+
+A **chapter** shows an explanation, code hunk, risk and test status, existing review threads, and linked tests. Wide terminals put code and tests side by side; narrow terminals let `t` toggle between them. Generated, vendored, and mechanical changes start collapsed into summaries. Import-only changes form an optional chapter that normal `n`/`p` navigation skips.
+
+<p align="center"><img src="images/ask.webp" alt="A question about a changed line, answered inline below the code with file and line references" width="900"></p>
+
+Press `?` on a selected line or range to ask about it. The model can read the rest of the repository, so answers cover code outside the diff and cite the files and lines they come from. Above, it finds that cancelling an order twice restocks its items twice, by following `release` into a file the PR does not touch.
+
+Typing `@` in a draft comment or thread reply suggests people with access to the repository, along with the PR author and existing reviewers. Press `Tab` to complete a suggested handle.
+
+Static analysis finds entry points such as routes, commands, and handlers and links changed code through name-matched call references. These links are reading suggestions: the tool does not resolve imports, receivers, and scopes to prove a call target. Ambiguous changed targets are skipped. Shared code appears once and is linked from other chapters. The default Guided order ranks flows by the amount of changed code they reach, then the model can recommend a reading order; supporting and lower-priority changes follow. This is a reading path, not a strict risk ranking. If no entry point is found, the tour uses file order. TypeScript and JavaScript use the TypeScript compiler API; Python, Go, Kotlin, C, C++, Java, Ruby, and Rust use tree-sitter. Other source languages may use a lower-confidence regex fallback. JSON and YAML changes appear as configuration chapters. Test linking recognizes conventional Java, C/C++, and Ruby test cases as well as the existing JavaScript, Python, Go, and Kotlin cases. Press `f` on the briefing or in a chapter to change the order.
+
+The diff viewer also highlights syntax for TypeScript, JavaScript, Python, Go, Kotlin, Java, Scala, Rust, Ruby, C#, Swift, C/C++, Objective-C, PHP, Elixir, Clojure, Dart, Lua, shell, SQL, JSON, YAML, TOML, XML, Markdown, CSS, SCSS, Less, HTML, Vue, Svelte, GraphQL, Protobuf, Terraform/HCL, Dockerfiles, and Makefiles using Shiki. It loads highlighting when a hunk opens and reads the old and new file versions so multiline strings and comments keep their color across hunks. Unknown file types remain readable as plain colored diff lines. Syntax highlighting does not change the language support of flow analysis.
+
+### Change-aware chapters
+
+Some changes are easy to read in a diff but hard to judge from one. These get their own chapters, placed after the flow, supporting, and test chapters. With a model, the explanation for each hunk says what the change means instead of what it edits.
+
+| Chapter | Files | The explanation covers |
+| --- | --- | --- |
+| Database migrations | `migrations/`, `migrate/`, `alembic/versions/`, Flyway `V1__*.sql`, `db/changelog/` | Table locks and rewrites, possible data loss, whether it can be rolled back, backfills, and whether code must deploy before or after it |
+| API contracts | OpenAPI, Swagger, and AsyncAPI specs, `.proto`, GraphQL schemas, Avro `.avsc` | Which changes break existing clients and which are additive, and the clients in the repo that rely on them |
+| Dependencies and runtimes | Dependency lines in `package.json`, `pom.xml`, Gradle, `Cargo.toml`, `go.mod`, `pyproject.toml`, `requirements*.txt`, `Gemfile`, `composer.json`, `.csproj`, and similar manifests; runtime versions such as `.nvmrc`, `.tool-versions`, Docker `FROM` lines, `engines`, the `go` directive, `requires-python`, and the TypeScript `target` | For an upgrade or downgrade, `name old → new` and highlights of what changed between the versions: features, breaking changes, deprecations, security fixes, and end of life for runtimes. For a package that is new or removed, a short overview of what it is and, if new, where the PR uses it |
+| Lockfile changes | `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `Cargo.lock`, `go.sum`, `poetry.lock`, `uv.lock`, `Gemfile.lock`, `composer.lock`, `bun.lock` | One summary of indirect changes: major version jumps, notable packages added or removed, and known security fixes. Starts collapsed |
+| Infrastructure | Terraform, Terragrunt, and YAML under `k8s/`, `helm/`, `charts/`, `deploy/`, `infra/`, and similar; Helm `Chart.yaml` and `values*.yaml`, Kustomize, serverless, CloudFormation, and Pulumi files | Resources created, destroyed, or replaced, in-place edits that force a replacement or restart, and IAM, network, scaling, and secret changes |
+| CI and workflows | `.github/workflows/`, `.github/actions/`, `action.yml`, GitLab CI, CircleCI, Jenkins, Buildkite, Azure Pipelines, Travis, and Bitbucket Pipelines | New triggers, jobs, permissions, and secrets, plus risky patterns such as `pull_request_target` checking out PR code, untrusted input in `run` scripts, and actions not pinned to a commit SHA |
+
+Upgrade highlights and package overviews come from a changelog in the worktree when there is one, and otherwise from the model's own knowledge, because the model has no internet access. Those explanations are marked as inferred. Only hand-written logic and config files are moved into these chapters, so a test under `migrations/` stays with the tests. To move a file out of these chapters, classify it with a [`kinds` rule](repo-config.md#kinds). With `--no-agent` the chapters still appear, with the static file summary instead of an explanation.
+
+### Chapter keys
+
+| Key | Action |
+| --- | --- |
+| `n` / `p` | Next hunk, marking the current one read, or previous hunk. At the end, move to the next chapter. |
+| `j` / `k`, `J` / `K` | Move the code cursor by one line or ten lines. |
+| `v` | Start or end a line-range selection. |
+| `]` / `[` | Next or previous chapter, including optional chapters. |
+| `c` / `C` | Draft a comment on the selected line or range, or on the whole chapter. |
+| `e` | Open review threads on the selected line inline. Scroll with `j`/`k` or `J`/`K`; use `Tab` to select a comment and `a` to add or remove a reaction; press `Esc` to close. |
+| `y` | Reply to a review thread on the selected line in the inline panel. Replies post to GitHub when you press Enter. |
+| `?` | Ask the agent about the selection in a panel below the selected line. Questions form a thread: press `Enter` again to ask a follow-up, and `↑`/`↓` to scroll. Press `Esc` to return to review. |
+| `t` | Focus linked tests; narrow terminals toggle source and tests. Long code lines wrap in both panes. |
+| `U` | Expand or collapse details about possible untested behavior and missing test links. |
+| `d` | Open the chapter diagram. Select a node to jump to its code or comment on it. |
+| `r` | Toggle the raw unified diff. |
+| `w` | Hide or show whitespace-only changes (hidden by default; the choice is saved as `hideWhitespace` in your config). A line that was only reindented shows once, marked `~`. Either way, changed words within a line are highlighted, and a line that only gained words shows once with the additions in green. |
+| `x` / `z` / `u` | Mark a hunk skipped, deferred, or unread. |
+| `m` | Move the current hunk to another chapter. |
+| `f` | Cycle Guided, Risk first, Small first, and File order. Your current hunk stays selected. |
+| `D` | On a re-review, toggle between changed hunks and the whole tour. |
+| `R` | Rebuild the tour on a newer PR head after the author pushes. |
+| `i` | Open the team's checklist for this chapter. |
+| `o` | Open the current review context in Claude Code. |
+| `b` / `s` / `h` / `q` | Return to the briefing (description and overview diagram), open submit, show key help, or quit. `b` also works while the test pane has focus. |
+
+A diagram can also open as SVG in your browser with `b`. Changed nodes are highlighted; selecting a node with `Tab` and pressing `Enter` jumps to its hunk when it has one.
+
+### Tests, risk, and review prompts
+
+Test links use available coverage data, symbol names found in test cases, and naming conventions. A symbol name in a test is a possible link, not proof that the test ran or called that specific declaration. Only execution coverage marks a hunk tested; name matches and filename guesses mark it partial. If a test changes without its subject code changing, the test-only chapter can show that unchanged code beside it.
+
+When a linked test case is new or modified in the PR, the Tests pane shows its diff with `+` and `-` lines and a colored `new` or `modified` badge. An unchanged linked case still shows its current source.
+
+Possible test gaps appear as a short line in the hunk explanation. Press `U` to see the full notes, including branches or behaviors the agent could not link to a test; press it again to collapse them. These are review leads, not proof that a test is absent.
+
+Risk scores call attention to changes involving authentication, payments, migrations, public APIs, concurrency, command execution, error handling, and similar areas. The briefing may flag risky code without linked tests, possible generated-file or lockfile mismatches, and likely missing migrations, changesets, environment examples, translations, documentation, or feature flag checks. These are prompts to inspect, not conclusions that the PR is wrong. The model can raise a hunk's static risk score but never lower it, so text in a PR cannot talk the tour into downplaying a risky change.
+
+Repo checklists are pre-checked by the agent as pass, fail, or unknown; use `i` to confirm each item yourself. Confirmations are saved locally and shown on the submit screen as a reminder; they are not posted to GitHub.
+
+## Draft and submit comments
+
+Select a line or range and press `c`, or press `C` for a chapter-level comment. Diagram nodes can also anchor comments. A comment remains a local draft until you submit a review.
+
+In the comment editor:
+
+| Key | Action |
+| --- | --- |
+| `Tab` / `Shift+Tab` | Complete an `@username` if suggestions appear; otherwise cycle through blocking, question, suggestion, and nit labels. |
+| `Enter` / `Shift+Enter` | Save the draft or insert a newline. |
+| `Ctrl+G` | For a line or range comment, edit a GitHub code suggestion in `$EDITOR`. |
+| `Ctrl+D` | Remove a code suggestion. |
+| `Esc` | Cancel the editor. |
+
+Press `s` to review your drafts in a popup over the current briefing or chapter. It groups them by label, shows unread and deferred work, and proposes **Approve**, **Comment**, or **Request changes** from your drafts and progress. You can edit or delete drafts, change the verdict with `a`/`c`/`r`, and add a review summary with `b`. Press `P`, then confirm, to post all pending drafts as **one GitHub review**. Nothing posts while you are drafting or navigating.
+
+If a draft's original line is no longer in the diff, Guided Review attaches it to the nearest available diff line or places it in the review body, then tells you what moved. Flow-level comments are summarized in the review body as well as anchored to a relevant changed line when one exists.
+
+## Review after a new push
+
+Guided Review checks for a new PR head while you review and offers `R` to rebuild on it. It keeps your drafts and reading state. A new tour can start in **delta-only** mode, showing hunks that are new or changed since the previous head; press `D` to show the whole tour.
+
+The briefing also compares your posted comments and GitHub threads with the new diff. It reports whether the commented lines changed, the file was deleted, or a thread was resolved. A changed line is a reason to re-check the author's update, not proof that the concern is fixed. Drafts whose original hunk disappeared are flagged for review.
+
+## Preview your own branch
+
+Run `gr preview` on your branch before you open a PR to see the tour a reviewer would get. It compares your checkout, including uncommitted changes, with its merge base on the repository's default branch. The commit messages since that merge base stand in for the PR description. Preview works without `gh`.
+
+To find the default branch, `gr preview` tries these in order and uses the first that exists:
+
+1. `origin/HEAD`, which `git clone` records.
+2. The repository's default branch on GitHub.
+3. The branch origin's `HEAD` points to, asked with `git ls-remote`. This covers clones made with `git init` and `git remote add`, and remotes that aren't on GitHub. It gives up after a few seconds and never prompts for credentials.
+4. `origin/main`, `origin/master`, local `main`, then local `master`.
+
+For each name found in steps 1 to 3, origin's copy is preferred over your local branch. Your git `init.defaultBranch` setting is ignored, because it describes new repositories you create, not the repository you contribute to.
+
+If the tour includes changes that aren't yours, your copy of the default branch is probably out of date: run `git fetch` and preview again. To make step 1 work offline, run `git remote set-head origin --auto`.
+=== file src/tui/PickerScreen.tsx
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Box, Text, useInput } from 'ink';
+import { fetchPRPreview, listReviewRequests, type PRPreview, type ReviewRequest } from '../github/gh.js';
+import type { Store } from '../store/db.js';
+import { KeyBar } from './ChapterScreen.js';
+import { TextInput } from './TextInput.js';
+import { pad, truncate, wrap } from './nav.js';
+import { sanitizeTerminal as safe } from '../util/sanitize.js';
+import { openExternal } from '../util/openExternal.js';
+import { MdLineView, line, renderMarkdown } from './markdown.js';
+
+export interface Target {
+  repo: string;
+  number: number;
+}
+
+interface Local {
+  tourHead?: string;
+  drafts: number;
+}
+
+const PREVIEW_DELAY_MS = 120; // wait for j/k to settle before calling gh
+const FRAME_MS = 80;
+const SPIN = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+const BAR_W = 20;
+
+// One PR's tour download, as the app reports it.
+export interface DownloadJob {
+  state: 'queued' | 'running' | 'done' | 'failed';
+  step?: string; // the pipeline step in progress
+  error?: string;
+}
+
+const isActive = (job?: DownloadJob) => job?.state === 'queued' || job?.state === 'running';
+
+// The download progress bar: finished tours fill it, and a comet sweeps the rest
+// so it visibly moves even while a long agent call is running.
+export function progressBar(finished: number, total: number, frame: number, width = BAR_W): { filled: string; rest: string } {
+  const filled = total ? Math.round((finished / total) * width) : 0;
+  const room = width - filled;
+  const head = room ? frame % (room + 3) : -1;
+  const rest = Array.from({ length: room }, (_, i) => (i === head ? '▓' : i === head - 1 ? '▒' : '░')).join('');
+  return { filled: '█'.repeat(filled), rest };
+}
+
+function clock(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+export function age(iso: string, now = Date.now()): string {
+  const s = Math.max(0, (now - Date.parse(iso)) / 1000);
+  if (s < 3600) return `${Math.max(1, Math.round(s / 60))}m ago`;
+  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+  if (s < 86400 * 30) return `${Math.round(s / 86400)}d ago`;
+  if (s < 86400 * 365) return `${Math.round(s / (86400 * 30))}mo ago`;
+  return `${Math.round(s / (86400 * 365))}y ago`;
+}
+
+type Row = { kind: 'repo'; repo: string; count: number } | { kind: 'pr'; pr: ReviewRequest; index: number };
+
+// PRs grouped by repo (repos with the most recent activity first), filtered by text.
+export function pickerRows(prs: ReviewRequest[], filter: string): { rows: Row[]; items: ReviewRequest[] } {
+  const f = filter.trim().toLowerCase();
+  const matching = prs.filter((p) => !f || `${p.repo}#${p.number} ${p.title} ${p.author} ${p.labels.join(' ')}`.toLowerCase().includes(f));
+  const groups = new Map<string, ReviewRequest[]>();
+  for (const p of matching) {
+    const list = groups.get(p.repo);
+    if (list) list.push(p);
+    else groups.set(p.repo, [p]);
+  }
+  const ordered = [...groups.entries()].sort((a, b) => b[1][0].updatedAt.localeCompare(a[1][0].updatedAt));
+  const rows: Row[] = [];
+  const items: ReviewRequest[] = [];
+  for (const [repo, list] of ordered) {
+    rows.push({ kind: 'repo', repo, count: list.length });
+    for (const pr of list) {
+      rows.push({ kind: 'pr', pr, index: items.length });
+      items.push(pr);
+    }
+  }
+  return { rows, items };
+}
+
+interface PickerProps {
+  store: Store;
+  width: number;
+  height: number;
+  notice?: string;
+  onPick: (t: Target) => void;
+  onQuit: () => void;
+  downloads: Record<string, DownloadJob>;
+  onDownload: (targets: Target[]) => void; // queues tours; progress arrives through `downloads`
+}
+
+export function PickerScreen(props: PickerProps) {
+  const { width, height } = props;
+  const [prs, setPrs] = useState<ReviewRequest[] | undefined>();
+  const [err, setErr] = useState('');
+  const [sel, setSel] = useState(0);
+  const [filter, setFilter] = useState('');
+  const [filtering, setFiltering] = useState(false);
+  const [previews, setPreviews] = useState<Record<string, PRPreview | { error: string }>>({});
+  const [loadedAt, setLoadedAt] = useState(Date.now());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [downloadNotice, setDownloadNotice] = useState('');
+  const [hint, setHint] = useState('');
+  const [localVersion, setLocalVersion] = useState(0);
+  const inflight = useRef(new Set<string>());
+
+  const load = () => {
+    setPrs(undefined);
+    setErr('');
+    setSelected(new Set());
+    listReviewRequests().then(
+      (p) => {
+        setPrs(p);
+        setLoadedAt(Date.now());
+      },
+      (e) => setErr((e as Error).message),
+    );
+  };
+  useEffect(load, []);
+
+  const { rows, items } = useMemo(() => pickerRows(prs ?? [], filter), [prs, filter]);
+  // What's already on this machine for each PR: cheap queries, computed once per list.
+  const local = useMemo(() => {
+    const out: Record<string, Local> = {};
+    for (const p of prs ?? []) {
+      // listTours is newest first.
+      const latest = props.store.listTours(p.repo, p.number)[0];
+      out[`${p.repo}#${p.number}`] = { tourHead: latest?.headSha, drafts: props.store.listDrafts(p.repo, p.number).filter((d) => !d.posted).length };
+    }
+    return out;
+    // localVersion is a cache buster: finished downloads write to the store behind this memo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prs, localVersion, props.store]);
+  const current = items[Math.min(sel, items.length - 1)];
+  const key = current ? `${current.repo}#${current.number}` : '';
+
+  // Downloads since the queue was last empty, summarized once they all finish.
+  const { downloads } = props;
+  const activeKeys = Object.keys(downloads).filter((k) => isActive(downloads[k]));
+  const active = activeKeys.length > 0;
+  const wave = useRef({ keys: new Set(activeKeys), startedAt: Date.now() });
+  const wasActive = useRef(false);
+  const [frame, setFrame] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const t = setInterval(() => setFrame((f) => f + 1), FRAME_MS);
+    return () => clearInterval(t);
+  }, [active]);
+  const doneCount = Object.values(downloads).filter((j) => j.state === 'done').length;
+  useEffect(() => setLocalVersion((v) => v + 1), [doneCount]);
+  useEffect(() => {
+    if (active) {
+      wasActive.current = true;
+      return;
+    }
+    if (!wasActive.current) return;
+    wasActive.current = false;
+    const keys = [...wave.current.keys];
+    if (!keys.length) return;
+    const failed = keys.filter((k) => downloads[k]?.state === 'failed');
+    setDownloadNotice(
+      failed.length
+        ? `Downloaded ${keys.length - failed.length}/${keys.length} tours. Failed: ${failed.map((k) => `${k} (${downloads[k].error})`).join('; ')}`
+        : `Downloaded ${keys.length} tour(s). Ready to open.`,
+    );
+  }, [active, downloads]);
+
+  const startDownload = () => {
+    if (!current) return;
+    const picked = selected.size ? (prs ?? []).filter((p) => selected.has(keyFor(p))) : [current];
+    const targets = picked.filter((p) => !isActive(downloads[keyFor(p)]));
+    if (!targets.length) return;
+    if (!active) wave.current = { keys: new Set(), startedAt: Date.now() };
+    for (const t of targets) wave.current.keys.add(keyFor(t));
+    setDownloadNotice('');
+    // Marks are spent on this batch, so the next one can be picked while it runs.
+    setSelected((prev) => new Set([...prev].filter((id) => !targets.some((t) => keyFor(t) === id))));
+    props.onDownload(targets.map(({ repo, number }) => ({ repo, number })));
+  };
+
+  // Fetch the preview for the highlighted PR once j/k settles; `inflight` keeps every key ever
+  // requested, so each PR is fetched at most once.
+  useEffect(() => {
+    if (!current || inflight.current.has(key)) return;
+    const t = setTimeout(() => {
+      inflight.current.add(key);
+      fetchPRPreview(current.repo, current.number).then(
+        (p) => setPreviews((m) => ({ ...m, [key]: p })),
+        (e) => setPreviews((m) => ({ ...m, [key]: { error: (e as Error).message } })),
+      );
+    }, PREVIEW_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [key, current]);
+
+  useInput(
+    (input, key) => {
+      setHint('');
+      if (key.escape || input === 'q') return props.onQuit();
+      if (input === '/') {
+        setDownloadNotice('');
+        return setFiltering(true);
+      }
+      if (input === 'r') return load();
+      if (!items.length) return;
+      if (input === ' ' && current) {
+        const next = new Set(selected);
+        if (next.has(keyFor(current))) next.delete(keyFor(current));
+        else next.add(keyFor(current));
+        setSelected(next);
+      }
+      if (input === 'a') {
+        const visible = items.map(keyFor);
+        const next = new Set(selected);
+        if (visible.every((id) => next.has(id))) visible.forEach((id) => next.delete(id));
+        else visible.forEach((id) => next.add(id));
+        setSelected(next);
+      }
+      if (input === 'd') startDownload();
+      if (input === 'j' || key.downArrow) setSel((s) => Math.min(items.length - 1, s + 1));
+      if (input === 'k' || key.upArrow) setSel((s) => Math.max(0, s - 1));
+      if (input === 'g') setSel(0);
+      if (input === 'G') setSel(items.length - 1);
+      if (key.return && current) {
+        // Opening a PR mid-download would build its tour twice; others open as usual.
+        if (isActive(downloads[keyFor(current)])) return setHint(`${keyFor(current)} is still downloading · it opens instantly once ready`);
+        props.onPick({ repo: current.repo, number: current.number });
+      }
+      if (input === 'o' && current) openExternal(current.url).catch((e: unknown) => setHint(`Could not open ${current.url}: ${(e as Error).message}`));
+    },
+    { isActive: !filtering },
+  );
+  useInput(
+    (_input, key) => {
+      if (key.escape) {
+        setFilter('');
+        setFiltering(false);
+      }
+    },
+    { isActive: filtering },
+  );
+
+  const wide = width >= 110;
+  const listW = wide ? Math.min(70, Math.max(48, Math.floor(width * 0.42))) : width - 2;
+  const previewW = wide ? width - listW - 5 : 0;
+  const bodyH = height - 4; // title, key bar, filter line, spacing
+
+  // Keep the selection in view; each PR takes two rows.
+  const selRow = rows.findIndex((r) => r.kind === 'pr' && r.index === sel);
+  const rowH = (r: Row) => (r.kind === 'repo' ? 1 : 2);
+  let start = 0;
+  let used = rows.slice(0, selRow + 1).reduce((n, r) => n + rowH(r), 0);
+  while (used > bodyH - 1 && start < selRow) used -= rowH(rows[start++]);
+  if (start > 0 && rows[start - 1]?.kind === 'repo') start--; // keep the repo header with its first PR
+  const visible: Row[] = [];
+  let h = 0;
+  for (let i = start; i < rows.length && h + rowH(rows[i]) <= bodyH; i++) {
+    visible.push(rows[i]);
+    h += rowH(rows[i]);
+  }
+
+  return (
+    <Box flexDirection="column" width={width} height={height} paddingX={1}>
+      <Text wrap="truncate">
+        <Text bold>Review requests</Text>
+        <Text dimColor>{prs ? `  ${items.length}${filter ? ` of ${prs.length}` : ''} waiting on you · updated ${age(new Date(loadedAt).toISOString())}` : ''}</Text>
+      </Text>
+      <KeyBar
+        width={width - 2}
+        keys={[
+          ['d', 'download'],
+          ['space', 'select'],
+          ['a', 'select all'],
+          ['enter', 'open tour'],
+          ['j/k', 'move'],
+          ['/', 'filter'],
+          ['o', 'open in browser'],
+          ['r', 'refresh'],
+          ['q', 'quit'],
+        ]}
+      />
+      {filtering ? (
+        <Box>
+          <Text color="cyan">/ </Text>
+          <TextInput
+            value={filter}
+            onChange={(v) => {
+              setFilter(v);
+              setSel(0);
+            }}
+            onSubmit={() => setFiltering(false)}
+            width={listW - 4}
+            active={filtering}
+            placeholder="filter by repo, title, author or label"
+          />
+        </Box>
+      ) : hint ? (
+        <Text color="yellow" wrap="truncate">
+          {safe(hint)}
+        </Text>
+      ) : active ? (
+        <DownloadStatus keys={[...wave.current.keys]} downloads={downloads} frame={frame} startedAt={wave.current.startedAt} />
+      ) : downloadNotice ? (
+        <Text color={downloadNotice.includes('Failed:') || downloadNotice.startsWith('Download failed') ? 'yellow' : 'green'} wrap="truncate">
+          {safe(`${filter ? `/ ${filter} · ` : ''}${downloadNotice}`)}
+        </Text>
+      ) : filter ? (
+        <Box>
+          <Text color="cyan">/ </Text>
+          <TextInput
+            value={filter}
+            onChange={(v) => {
+              setFilter(v);
+              setSel(0);
+            }}
+            onSubmit={() => setFiltering(false)}
+            width={listW - 4}
+            active={filtering}
+            placeholder="filter by repo, title, author or label"
+          />
+        </Box>
+      ) : props.notice ? (
+        <Text color="green" wrap="truncate">
+          {safe(props.notice)}
+        </Text>
+      ) : (
+        <Text> </Text>
+      )}
+      <Box flexDirection="row" height={bodyH}>
+        <Box flexDirection="column" width={listW} flexShrink={0}>
+          {err ? <Text color="red">{safe(err)}</Text> : null}
+          {!prs && !err ? <Text dimColor>Loading your review requests…</Text> : null}
+          {prs && !items.length ? <Text dimColor>{filter ? 'Nothing matches the filter.' : 'Nothing is waiting on you. gr review <number or URL> opens a specific PR.'}</Text> : null}
+          {visible.map((r) =>
+            r.kind === 'repo' ? (
+              <Text key={`repo:${r.repo}`} color="cyan" bold wrap="truncate">
+                {safe(r.repo)} <Text dimColor>({r.count})</Text>
+              </Text>
+            ) : (
+              <PRRow
+                key={r.pr.url}
+                pr={r.pr}
+                selected={r.index === sel}
+                marked={selected.has(keyFor(r.pr))}
+                width={listW}
+                local={local[`${r.pr.repo}#${r.pr.number}`]}
+                job={downloads[keyFor(r.pr)]}
+                // Only rows that are downloading take the frame, so the rest stay memoized.
+                spin={downloads[keyFor(r.pr)]?.state === 'running' ? SPIN[frame % SPIN.length] : undefined}
+              />
+            ),
+          )}
+        </Box>
+        {wide ? (
+          <Box flexDirection="column" width={previewW} marginLeft={2} paddingLeft={1} borderStyle="single" borderTop={false} borderBottom={false} borderRight={false} borderColor="gray" flexShrink={0}>
+            {current ? <Preview pr={current} preview={previews[key]} local={local[key]} width={previewW - 2} height={bodyH} /> : null}
+          </Box>
+        ) : null}
+      </Box>
+    </Box>
+  );
+}
+
+export function keyFor(pr: Target): string {
+  return `${pr.repo}#${pr.number}`;
+}
+
+function DownloadStatus(props: { keys: string[]; downloads: Record<string, DownloadJob>; frame: number; startedAt: number }) {
+  const jobs = props.keys.map((k) => props.downloads[k]).filter(Boolean);
+  const running = jobs.filter((j) => j.state === 'running').length;
+  const queued = jobs.filter((j) => j.state === 'queued').length;
+  const failed = jobs.filter((j) => j.state === 'failed').length;
+  const finished = jobs.length - running - queued;
+  const bar = progressBar(finished, jobs.length, props.frame);
+  return (
+    <Text wrap="truncate">
+      <Text color="cyan">{`${SPIN[props.frame % SPIN.length]}   `}</Text>
+      <Text color="cyan">{bar.filled}</Text>
+      <Text dimColor>{bar.rest}</Text>
+      <Text>
+        {'   '}
+        {finished}/{jobs.length}
+      </Text>
+      <Text dimColor>
+        {` · ${running} downloading${queued ? ` · ${queued} queued` : ''}`}
+        {failed ? <Text color="red">{` · ${failed} failed`}</Text> : null}
+        {` · ${clock(Date.now() - props.startedAt)} · keep browsing`}
+      </Text>
+    </Text>
+  );
+}
+
+const PRRow = React.memo(function PRRow(props: { pr: ReviewRequest; selected: boolean; marked: boolean; width: number; local?: Local; job?: DownloadJob; spin?: string }) {
+  const { pr, selected, marked, width, job } = props;
+  const drafts = props.local?.drafts ?? 0;
+  const toured = !!props.local?.tourHead;
+  const meta = [`@${pr.author}`, age(pr.updatedAt), pr.isDraft ? 'draft' : '', ...pr.labels.slice(0, 2), toured ? 'toured' : '', drafts ? `${drafts} draft comment(s)` : '']
+    .filter(Boolean)
+    .join(' · ');
+  const bar = selected ? <Text color="cyan">▌</Text> : <Text> </Text>;
+  // A mark wins over the download glyph: it's what the next `d` will act on.
+  const glyph = marked
+    ? { text: '☑' }
+    : job?.state === 'running'
+      ? { text: props.spin ?? SPIN[0], color: 'cyan' }
+      : job?.state === 'queued'
+        ? { text: '◌', color: 'gray' }
+        : job?.state === 'done'
+          ? { text: '✓', color: 'green' }
+          : job?.state === 'failed'
+            ? { text: '✗', color: 'red' }
+            : { text: ' ' };
+  const status =
+    job?.state === 'running'
+      ? { text: `${job.step ?? 'Downloading'}…`, color: 'cyan' }
+      : job?.state === 'queued'
+        ? { text: 'queued for download', color: 'gray' }
+        : job?.state === 'failed'
+          ? { text: `download failed: ${job.error ?? 'unknown error'}`, color: 'red' }
+          : undefined;
+  return (
+    <Box flexDirection="column">
+      <Text wrap="truncate">
+        {bar}
+        <Text color={glyph.color}>{glyph.text}</Text>
+        <Text bold={selected} color={selected ? 'cyan' : undefined} dimColor={pr.isDraft && !selected}>
+          {pad(` #${pr.number} ${pr.title}`, width - 2)}
+        </Text>
+      </Text>
+      <Text wrap="truncate">
+        {bar}
+        {status ? <Text color={status.color}>{truncate(`   ${safe(status.text)}`, width - 1)}</Text> : <Text dimColor>{truncate(`   ${meta}`, width - 1)}</Text>}
+      </Text>
+    </Box>
+  );
+});
+
+const DECISION: Record<string, { text: string; color: string }> = {
+  APPROVED: { text: 'approved', color: 'green' },
+  CHANGES_REQUESTED: { text: 'changes requested', color: 'red' },
+  REVIEW_REQUIRED: { text: 'review required', color: 'yellow' },
+};
+
+// Memoized: the description's Markdown is rendered once per PR, not on every j/k.
+const Preview = React.memo(function Preview(props: { pr: ReviewRequest; preview?: PRPreview | { error: string }; local?: Local; width: number; height: number }) {
+  const { pr, preview, width, height } = props;
+  const lines: React.ReactNode[] = [];
+  const push = (n: React.ReactNode) => lines.push(<React.Fragment key={lines.length}>{n}</React.Fragment>);
+
+  for (const l of wrap(safe(pr.title), width).slice(0, 2)) push(<Text bold>{l}</Text>);
+  push(
+    <Text dimColor wrap="truncate">
+      {safe(`${pr.repo}#${pr.number} · @${pr.author}`)} · updated {age(pr.updatedAt)}
+    </Text>,
+  );
+
+  if (!preview) {
+    push(<Text> </Text>);
+    push(<Text dimColor>Loading preview…</Text>);
+  } else if ('error' in preview) {
+    push(<Text> </Text>);
+    push(<Text color="red">{truncate(preview.error, width)}</Text>);
+  } else {
+    const p = preview;
+    push(
+      <Text wrap="truncate">
+        <Text dimColor>{truncate(`${p.headRefName} → ${p.baseRefName}`, width)}</Text>
+      </Text>,
+    );
+    push(<Text> </Text>);
+    const decision = DECISION[p.reviewDecision];
+    push(
+      <Text wrap="truncate">
+        <Text color="green">+{p.additions}</Text> <Text color="red">-{p.deletions}</Text>
+        <Text dimColor> · {p.changedFiles} file(s)</Text>
+        {p.isDraft ? <Text color="gray"> · draft</Text> : null}
+        {decision ? <Text color={decision.color}> · {decision.text}</Text> : null}
+        {p.mergeable === 'CONFLICTING' ? <Text color="red"> · merge conflicts</Text> : null}
+      </Text>,
+    );
+    const c = p.checks;
+    if (c.passed + c.failed + c.pending) {
+      push(
+        <Text wrap="truncate">
+          <Text dimColor>checks </Text>
+          {c.failed ? <Text color="red">✗ {c.failed} failing </Text> : null}
+          {c.pending ? <Text color="yellow">◷ {c.pending} running </Text> : null}
+          {c.passed ? <Text color="green">✓ {c.passed} passed</Text> : null}
+          {c.failedNames.length ? <Text dimColor> ({safe(c.failedNames.slice(0, 3).join(', '))})</Text> : null}
+        </Text>,
+      );
+    }
+    if (p.labels.length) push(<Text wrap="truncate">{safe(p.labels.map((l) => `[${l}]`).join(' '))}</Text>);
+
+    const tourHead = props.local?.tourHead;
+    const drafts = props.local?.drafts ?? 0;
+    if (tourHead) {
+      const fresh = tourHead === p.headSha;
+      push(
+        <Text color={fresh ? 'green' : 'yellow'} wrap="truncate">
+          {fresh ? '● Tour ready: opens instantly' : `◐ The author pushed since your tour (${safe(tourHead.slice(0, 7))}): opens as a re-review`}
+          {drafts ? <Text dimColor>{` · ${drafts} draft comment(s)`}</Text> : null}
+        </Text>,
+      );
+    }
+
+    // The files take what they need (up to 8); the description gets the rest.
+    const fileRows = Math.min(8, p.files.length);
+    const room = height - lines.length - (fileRows ? fileRows + 3 : 0) - 2;
+    if (room >= 3) {
+      push(<Text> </Text>);
+      push(
+        <Text bold dimColor>
+          Description
+        </Text>,
+      );
+      const body = p.body.trim() ? renderMarkdown(p.body, width) : [line('(no description)', { dim: true })];
+      const shown = body.slice(0, room - 2);
+      for (const l of shown) push(<MdLineView line={l} />);
+      if (body.length > shown.length) push(<Text dimColor italic>{`… ${body.length - shown.length} more line(s)`}</Text>);
+    }
+    if (fileRows) {
+      push(<Text> </Text>);
+      push(
+        <Text bold dimColor>
+          Files
+        </Text>,
+      );
+      const numW = 12;
+      const files = [...p.files].sort((a, b) => b.additions + b.deletions - (a.additions + a.deletions)).slice(0, fileRows);
+      for (const f of files) {
+        push(
+          <Text wrap="truncate">
+            <Text color="green">{`+${f.additions}`.padStart(5)}</Text>
+            <Text color="red">{` -${f.deletions}`.padEnd(7)}</Text> {truncate(f.path, width - numW - 1)}
+          </Text>,
+        );
+      }
+      if (p.files.length > fileRows) push(<Text dimColor>{`      … ${p.files.length - fileRows} more`}</Text>);
+    }
+  }
+
+  return (
+    <Box flexDirection="column" height={height} overflow="hidden">
+      {lines.slice(0, height)}
+    </Box>
+  );
+});
+=== patch
+diff --git a/docs/usage.md b/docs/usage.md
+index ebbf46a..8191403 100644
+--- a/docs/usage.md
++++ b/docs/usage.md
+@@ -4,7 +4,7 @@ How to pick a PR, read a tour, ask questions, draft comments, review again after
+ 
+ ## Pick a PR
+ 
+-The picker groups review requests by repository. Press `/` to filter by repo, title, author, or label; `j`/`k` to move; `Enter` to open; `o` to open the selected PR in a browser; or `r` to refresh. Press `Space` to select PRs, `a` to select all PRs shown by the filter, and `d` to download the selected tours before opening them. With no selection, `d` downloads the highlighted tour. Downloads run one at a time and show progress in the picker; completed tours are cached for later opening. On a wide terminal, the preview shows the description, changed files, checks, review decision, and whether a local tour or drafts already exist.
++The picker groups review requests by repository. Press `/` to filter by repo, title, author, or label; `j`/`k` to move; `Enter` to open; `o` to open the selected PR in a browser; or `r` to refresh. The list also refreshes itself every two minutes, keeping your place. Press `Space` to select PRs, `a` to select all PRs shown by the filter, and `d` to download the selected tours before opening them. With no selection, `d` downloads the highlighted tour. Downloads run one at a time and show progress in the picker; completed tours are cached for later opening. On a wide terminal, the preview shows the description, changed files, checks, review decision, and whether a local tour or drafts already exist.
+ 
+ For a PR, Guided Review fetches metadata, the diff, and existing review threads through `gh`. It checks out the PR head in a detached worktree under `~/.guided-review/worktrees/`. Your own working checkout is left alone. If the current repository is not the PR's repository, it uses a cached clone under `~/.guided-review/repos/`.
+ 
+diff --git a/src/tui/PickerScreen.tsx b/src/tui/PickerScreen.tsx
+index e7a08d2..13c14a5 100644
+--- a/src/tui/PickerScreen.tsx
++++ b/src/tui/PickerScreen.tsx
+@@ -1,4 +1,4 @@
+-import React, { useEffect, useMemo, useRef, useState } from 'react';
++import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+ import { Box, Text, useInput } from 'ink';
+ import { fetchPRPreview, listReviewRequests, type PRPreview, type ReviewRequest } from '../github/gh.js';
+ import type { Store } from '../store/db.js';
+@@ -23,6 +23,7 @@ const PREVIEW_DELAY_MS = 120; // wait for j/k to settle before calling gh
+ const FRAME_MS = 80;
+ const SPIN = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+ const BAR_W = 20;
++const REFRESH_MS = 2 * 60 * 1000; // the list refreshes itself this often
+ 
+ // One PR's tour download, as the app reports it.
+ export interface DownloadJob {
+@@ -91,6 +92,7 @@ interface PickerProps {
+   onQuit: () => void;
+   downloads: Record<string, DownloadJob>;
+   onDownload: (targets: Target[]) => void; // queues tours; progress arrives through `downloads`
++  refreshMs?: number;
+ }
+ 
+ export function PickerScreen(props: PickerProps) {
+@@ -106,21 +108,55 @@ export function PickerScreen(props: PickerProps) {
+   const [downloadNotice, setDownloadNotice] = useState('');
+   const [hint, setHint] = useState('');
+   const [localVersion, setLocalVersion] = useState(0);
++  const [refreshing, setRefreshing] = useState(false);
+   const inflight = useRef(new Set<string>());
++  // load() runs from a timer too, so it reads the list and selection through refs.
++  const prsRef = useRef(prs);
++  prsRef.current = prs;
++  const selKey = useRef('');
++  const restoreKey = useRef<string | undefined>(undefined);
++  const loading = useRef(false);
+ 
++  // Refreshing keeps the current list on screen until the new one arrives.
+   const load = () => {
+-    setPrs(undefined);
++    if (loading.current) return;
++    loading.current = true;
++    setRefreshing(true);
+     setErr('');
+-    setSelected(new Set());
+-    listReviewRequests().then(
+-      (p) => {
+-        setPrs(p);
+-        setLoadedAt(Date.now());
+-      },
+-      (e) => setErr((e as Error).message),
+-    );
++    listReviewRequests()
++      .then(
++        (p) => {
++          // PRs updated since the last fetch get a fresh preview.
++          const before = new Map((prsRef.current ?? []).map((x) => [keyFor(x), x.updatedAt]));
++          const stale = p.map(keyFor).filter((k, i) => before.has(k) && before.get(k) !== p[i].updatedAt);
++          if (stale.length) {
++            for (const k of stale) inflight.current.delete(k);
++            setPreviews((m) => Object.fromEntries(Object.entries(m).filter(([k]) => !stale.includes(k))));
++          }
++          const keys = new Set(p.map(keyFor));
++          setSelected((prev) => new Set([...prev].filter((id) => keys.has(id))));
++          restoreKey.current = selKey.current;
++          setPrs(p);
++          setLoadedAt(Date.now());
++        },
++        (e) => {
++          const msg = (e as Error).message;
++          if (prsRef.current) setHint(`Refresh failed: ${msg}`);
++          else setErr(msg);
++        },
++      )
++      .finally(() => {
++        loading.current = false;
++        setRefreshing(false);
++      });
+   };
+   useEffect(load, []);
++  const refreshMs = props.refreshMs ?? REFRESH_MS;
++  useEffect(() => {
++    const t = setInterval(load, refreshMs);
++    // load only touches refs and state setters, so the first one stays good.
++    return () => clearInterval(t);
++  }, [refreshMs]);
+ 
+   const { rows, items } = useMemo(() => pickerRows(prs ?? [], filter), [prs, filter]);
+   // What's already on this machine for each PR: cheap queries, computed once per list.
+@@ -137,6 +173,16 @@ export function PickerScreen(props: PickerProps) {
+   }, [prs, localVersion, props.store]);
+   const current = items[Math.min(sel, items.length - 1)];
+   const key = current ? `${current.repo}#${current.number}` : '';
++  selKey.current = key;
++
++  // After a refresh, stay on the PR that was highlighted, wherever it moved.
++  useLayoutEffect(() => {
++    const k = restoreKey.current;
++    if (k === undefined) return;
++    restoreKey.current = undefined;
++    const i = items.findIndex((p) => keyFor(p) === k);
++    setSel((s) => (i >= 0 ? i : Math.max(0, Math.min(s, items.length - 1))));
++  }, [items]);
+ 
+   // Downloads since the queue was last empty, summarized once they all finish.
+   const { downloads } = props;
+@@ -145,11 +191,12 @@ export function PickerScreen(props: PickerProps) {
+   const wave = useRef({ keys: new Set(activeKeys), startedAt: Date.now() });
+   const wasActive = useRef(false);
+   const [frame, setFrame] = useState(0);
++  const ticking = active || refreshing;
+   useEffect(() => {
+-    if (!active) return;
++    if (!ticking) return;
+     const t = setInterval(() => setFrame((f) => f + 1), FRAME_MS);
+     return () => clearInterval(t);
+-  }, [active]);
++  }, [ticking]);
+   const doneCount = Object.values(downloads).filter((j) => j.state === 'done').length;
+   useEffect(() => setLocalVersion((v) => v + 1), [doneCount]);
+   useEffect(() => {
+@@ -196,6 +243,16 @@ export function PickerScreen(props: PickerProps) {
+     return () => clearTimeout(t);
+   }, [key, current]);
+ 
++  const open = (t: Target) => {
++    // Opening a PR mid-download would build its tour twice; others open as usual.
++    if (isActive(downloads[keyFor(t)])) {
++      setHint(`${keyFor(t)} is still downloading · it opens instantly once ready`);
++      return false;
++    }
++    props.onPick({ repo: t.repo, number: t.number });
++    return true;
++  };
++
+   useInput(
+     (input, key) => {
+       setHint('');
+@@ -224,11 +281,7 @@ export function PickerScreen(props: PickerProps) {
+       if (input === 'k' || key.upArrow) setSel((s) => Math.max(0, s - 1));
+       if (input === 'g') setSel(0);
+       if (input === 'G') setSel(items.length - 1);
+-      if (key.return && current) {
+-        // Opening a PR mid-download would build its tour twice; others open as usual.
+-        if (isActive(downloads[keyFor(current)])) return setHint(`${keyFor(current)} is still downloading · it opens instantly once ready`);
+-        props.onPick({ repo: current.repo, number: current.number });
+-      }
++      if (key.return && current) open(current);
+       if (input === 'o' && current) openExternal(current.url).catch((e: unknown) => setHint(`Could not open ${current.url}: ${(e as Error).message}`));
+     },
+     { isActive: !filtering },
+@@ -266,7 +319,9 @@ export function PickerScreen(props: PickerProps) {
+     <Box flexDirection="column" width={width} height={height} paddingX={1}>
+       <Text wrap="truncate">
+         <Text bold>Review requests</Text>
+-        <Text dimColor>{prs ? `  ${items.length}${filter ? ` of ${prs.length}` : ''} waiting on you · updated ${age(new Date(loadedAt).toISOString())}` : ''}</Text>
++        <Text dimColor>{prs ? `  ${items.length}${filter ? ` of ${prs.length}` : ''} waiting on you · ` : ''}</Text>
++        {prs && refreshing ? <Text color="cyan">{`${SPIN[frame % SPIN.length]} refreshing`}</Text> : null}
++        {prs && !refreshing ? <Text dimColor>{`updated ${age(new Date(loadedAt).toISOString())}`}</Text> : null}
+       </Text>
+       <KeyBar
+         width={width - 2}
+@@ -332,7 +387,11 @@ export function PickerScreen(props: PickerProps) {
+       <Box flexDirection="row" height={bodyH}>
+         <Box flexDirection="column" width={listW} flexShrink={0}>
+           {err ? <Text color="red">{safe(err)}</Text> : null}
+-          {!prs && !err ? <Text dimColor>Loading your review requests…</Text> : null}
++          {!prs && !err ? (
++            <Text dimColor>
++              <Text color="cyan">{SPIN[frame % SPIN.length]}</Text> Loading your review requests…
++            </Text>
++          ) : null}
+           {prs && !items.length ? <Text dimColor>{filter ? 'Nothing matches the filter.' : 'Nothing is waiting on you. gr review <number or URL> opens a specific PR.'}</Text> : null}
+           {visible.map((r) =>
+             r.kind === 'repo' ? (
+diff --git a/test/picker-refresh.test.tsx b/test/picker-refresh.test.tsx
+new file mode 100644
+index 0000000..6b6cfa7
+--- /dev/null
++++ b/test/picker-refresh.test.tsx
+@@ -0,0 +1,77 @@
++import React from 'react';
++import { afterEach, describe, expect, it, vi } from 'vitest';
++import { render } from 'ink-testing-library';
++import { PickerScreen, type Target } from '../src/tui/PickerScreen.js';
++import { listReviewRequests, type ReviewRequest } from '../src/github/gh.js';
++import type { Store } from '../src/store/db.js';
++import { waitFor } from './helpers/waitFor.js';
++
++vi.mock('../src/github/gh.js', () => ({
++  listReviewRequests: vi.fn(),
++  fetchPRPreview: vi.fn(() => new Promise(() => {})),
++}));
++
++const pr = (number: number, title: string): ReviewRequest => ({
++  repo: 'acme/app',
++  number,
++  title,
++  author: 'dev',
++  url: `https://github.com/acme/app/pull/${number}`,
++  updatedAt: '2026-10-08T00:00:00Z',
++  isDraft: false,
++  labels: [],
++});
++
++const store = { listTours: () => [], listDrafts: () => [] } as unknown as Store;
++
++function picker(opts: { onPick?: (t: Target) => void; refreshMs?: number } = {}) {
++  return render(<PickerScreen store={store} width={120} height={25} onPick={opts.onPick ?? (() => {})} onQuit={() => {}} downloads={{}} onDownload={() => {}} refreshMs={opts.refreshMs} />);
++}
++
++afterEach(() => vi.mocked(listReviewRequests).mockReset());
++
++describe('picker refresh', () => {
++  it('keeps the list on screen with a spinner while refreshing, and stays on the same PR', async () => {
++    let resolve: (p: ReviewRequest[]) => void = () => {};
++    vi.mocked(listReviewRequests)
++      .mockResolvedValueOnce([pr(1, 'First'), pr(2, 'Second')])
++      .mockImplementationOnce(() => new Promise((r) => (resolve = r)));
++    const ui = picker();
++    await waitFor(() => expect(ui.lastFrame()).toContain('Second'));
++    ui.stdin.write('j');
++    await waitFor(() => expect(ui.lastFrame()).toMatch(/│ acme\/app#2/));
++
++    ui.stdin.write('r');
++    await waitFor(() => expect(ui.lastFrame()).toContain('refreshing'));
++    expect(ui.lastFrame()).toContain('#1 First');
++    expect(ui.lastFrame()).toContain('#2 Second');
++
++    // A new PR lands above the highlighted one; the highlight follows #2.
++    resolve([pr(3, 'Third'), pr(1, 'First'), pr(2, 'Second')]);
++    await waitFor(() => expect(ui.lastFrame()).toContain('#3 Third'));
++    expect(ui.lastFrame()).not.toContain('refreshing');
++    expect(ui.lastFrame()).toMatch(/│ acme\/app#2/);
++    ui.unmount();
++  });
++
++  it('keeps the old list when a refresh fails', async () => {
++    vi.mocked(listReviewRequests)
++      .mockResolvedValueOnce([pr(1, 'First')])
++      .mockRejectedValueOnce(new Error('network down'));
++    const ui = picker();
++    await waitFor(() => expect(ui.lastFrame()).toContain('#1 First'));
++    ui.stdin.write('r');
++    await waitFor(() => expect(ui.lastFrame()).toContain('Refresh failed: network down'));
++    expect(ui.lastFrame()).toContain('#1 First');
++    ui.unmount();
++  });
++
++  it('refreshes on its own', async () => {
++    vi.mocked(listReviewRequests)
++      .mockResolvedValueOnce([pr(1, 'First')])
++      .mockResolvedValue([pr(1, 'First'), pr(2, 'Second')]);
++    const ui = picker({ refreshMs: 30 });
++    await waitFor(() => expect(ui.lastFrame()).toContain('#2 Second'));
++    ui.unmount();
++  });
++});

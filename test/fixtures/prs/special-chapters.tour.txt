@@ -1,0 +1,35 @@
+# Made up: a migration, dependency bumps, a CI deploy job, a Dockerfile base image bump, an
+# infrastructure change and a small code edit.
+6 files, 6 hunks (6 GitHub hunks)
+
+files:
+  .github/workflows/ci.yml  modified · config
+  Dockerfile  modified · config
+  infra/db.tf  modified · config
+  migrations/20261015_refunds.sql  added · logic
+  package.json  modified · config
+  src/server.ts  modified · logic
+
+1. Hand-written logic (file order)  [flow · low confidence]
+   src/server.ts  @@ -2,6 +2,6 @@  +1 -1 · risk 0 · untested
+
+2. Database migrations  [migrations]
+   migrations/20261015_refunds.sql  @@ -0,0 +1,3 @@  +3 -0 · risk 3 · untested
+
+3. Dependencies and runtimes  [dependencies]
+   Dockerfile  @@ -1,4 +1,4 @@  +1 -1 · risk 0 · n/a
+   package.json  @@ -4,9 +4,9 @@  +2 -2 · risk 0 · n/a
+
+4. Infrastructure  [infra]
+   infra/db.tf  @@ -1,7 +1,7 @@  +2 -2 · risk 0 · n/a
+
+5. CI and workflows  [ci]
+   .github/workflows/ci.yml  @@ -11,3 +11,11 @@  +8 -0 · risk 0 · n/a
+
+flags:
+  generated-out-of-sync: package.json changed but no lockfile changed; if dependencies changed, the lockfile is stale
+  no-entry-point: No entry point found; logic is shown in file order.
+  missing-tests: 1 risky hunk(s) have no linked test
+
+notes:
+  No entry point found: chapters use file order by kind.

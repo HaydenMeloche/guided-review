@@ -1,0 +1,196 @@
+# Made up: a refund endpoint through route, service and repository, a widened type, an
+# unused constant, a test that exercises it, a config key and a lockfile bump.
+=== file config/app.yaml
+server:
+  port: 3000
+orders:
+  pageSize: 50
+=== file package-lock.json
+{
+  "name": "orders-api",
+  "lockfileVersion": 3,
+  "packages": {
+    "node_modules/express": { "version": "4.19.2" },
+    "node_modules/zod": { "version": "3.22.4" }
+  }
+}
+=== file src/db/ordersRepo.ts
+import { db } from './client.js';
+import type { Order } from '../types.js';
+
+export async function findOrders(): Promise<Order[]> {
+  return db.select('orders');
+}
+
+export async function findOrder(id: string): Promise<Order | undefined> {
+  return db.selectOne('orders', { id });
+}
+=== file src/routes/orders.ts
+import { Router } from 'express';
+import { listOrders } from '../services/orders.js';
+
+export const router = Router();
+
+router.get('/orders', async (_req, res) => {
+  res.json(await listOrders());
+});
+=== file src/services/orders.ts
+import { findOrders, findOrder } from '../db/ordersRepo.js';
+import type { Order } from '../types.js';
+
+export async function listOrders(): Promise<Order[]> {
+  return findOrders();
+}
+
+export async function getOrder(id: string): Promise<Order> {
+  const order = await findOrder(id);
+  if (!order) throw new Error(`order ${id} not found`);
+  return order;
+}
+=== file src/types.ts
+export interface Order {
+  id: string;
+  totalCents: number;
+  placedAt: Date;
+  status: 'placed' | 'shipped';
+}
+=== file test/orders.test.ts
+import { describe, expect, it } from 'vitest';
+import { listOrders } from '../src/services/orders.js';
+
+describe('listOrders', () => {
+  it('returns every order', async () => {
+    expect(await listOrders()).toHaveLength(2);
+  });
+});
+=== patch
+diff --git a/config/app.yaml b/config/app.yaml
+index 5397107..addcdcf 100644
+--- a/config/app.yaml
++++ b/config/app.yaml
+@@ -2,3 +2,5 @@ server:
+   port: 3000
+ orders:
+   pageSize: 50
++refunds:
++  notify: finance@example.com
+diff --git a/package-lock.json b/package-lock.json
+index 82037e4..d20c126 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -3,6 +3,6 @@
+   "lockfileVersion": 3,
+   "packages": {
+     "node_modules/express": { "version": "4.19.2" },
+-    "node_modules/zod": { "version": "3.22.4" }
++    "node_modules/zod": { "version": "3.23.8" }
+   }
+ }
+diff --git a/src/db/ordersRepo.ts b/src/db/ordersRepo.ts
+index 6ae396e..b4a1b0e 100644
+--- a/src/db/ordersRepo.ts
++++ b/src/db/ordersRepo.ts
+@@ -1,5 +1,5 @@
+ import { db } from './client.js';
+-import type { Order } from '../types.js';
++import type { Order, Refund } from '../types.js';
+ 
+ export async function findOrders(): Promise<Order[]> {
+   return db.select('orders');
+@@ -8,3 +8,9 @@ export async function findOrders(): Promise<Order[]> {
+ export async function findOrder(id: string): Promise<Order | undefined> {
+   return db.selectOne('orders', { id });
+ }
++
++export async function saveRefund(refund: Omit<Refund, 'id'>): Promise<Refund> {
++  const row = await db.insert('refunds', refund);
++  await db.update('orders', { id: refund.orderId }, { status: 'refunded' });
++  return row;
++}
+diff --git a/src/routes/orders.ts b/src/routes/orders.ts
+index c3621cd..c4a0f80 100644
+--- a/src/routes/orders.ts
++++ b/src/routes/orders.ts
+@@ -1,8 +1,13 @@
+ import { Router } from 'express';
+-import { listOrders } from '../services/orders.js';
++import { listOrders, refundOrder } from '../services/orders.js';
+ 
+ export const router = Router();
+ 
+ router.get('/orders', async (_req, res) => {
+   res.json(await listOrders());
+ });
++
++router.post('/orders/:id/refund', async (req, res) => {
++  const refund = await refundOrder(req.params.id, req.body.reason);
++  res.status(201).json(refund);
++});
+diff --git a/src/services/orders.ts b/src/services/orders.ts
+index 00bc288..6219787 100644
+--- a/src/services/orders.ts
++++ b/src/services/orders.ts
+@@ -1,5 +1,7 @@
+-import { findOrders, findOrder } from '../db/ordersRepo.js';
+-import type { Order } from '../types.js';
++import { findOrders, findOrder, saveRefund } from '../db/ordersRepo.js';
++import type { Order, Refund } from '../types.js';
++
++export const REFUND_WINDOW_DAYS = 30;
+ 
+ export async function listOrders(): Promise<Order[]> {
+   return findOrders();
+@@ -10,3 +12,11 @@ export async function getOrder(id: string): Promise<Order> {
+   if (!order) throw new Error(`order ${id} not found`);
+   return order;
+ }
++
++export async function refundOrder(id: string, reason: string): Promise<Refund> {
++  const order = await getOrder(id);
++  const age = (Date.now() - order.placedAt.getTime()) / 86_400_000;
++  if (age > REFUND_WINDOW_DAYS) throw new Error('refund window closed');
++  if (order.status === 'refunded') throw new Error('already refunded');
++  return saveRefund({ orderId: id, amountCents: order.totalCents, reason });
++}
+diff --git a/src/types.ts b/src/types.ts
+index a9b6064..ca1088d 100644
+--- a/src/types.ts
++++ b/src/types.ts
+@@ -2,5 +2,12 @@ export interface Order {
+   id: string;
+   totalCents: number;
+   placedAt: Date;
+-  status: 'placed' | 'shipped';
++  status: 'placed' | 'shipped' | 'refunded';
++}
++
++export interface Refund {
++  id: string;
++  orderId: string;
++  amountCents: number;
++  reason: string;
+ }
+diff --git a/test/orders.test.ts b/test/orders.test.ts
+index f473609..347259f 100644
+--- a/test/orders.test.ts
++++ b/test/orders.test.ts
+@@ -1,8 +1,18 @@
+ import { describe, expect, it } from 'vitest';
+-import { listOrders } from '../src/services/orders.js';
++import { listOrders, refundOrder } from '../src/services/orders.js';
+ 
+ describe('listOrders', () => {
+   it('returns every order', async () => {
+     expect(await listOrders()).toHaveLength(2);
+   });
+ });
++
++describe('refundOrder', () => {
++  it('refunds a recent order', async () => {
++    expect(await refundOrder('o-1', 'damaged')).toMatchObject({ orderId: 'o-1', reason: 'damaged' });
++  });
++
++  it('refuses an order past the refund window', async () => {
++    await expect(refundOrder('o-old', 'late')).rejects.toThrow('refund window closed');
++  });
++});

@@ -1,0 +1,18 @@
+# guided-review f3b5721: Highlight SQL and other missing languages in the diff viewer
+3 files, 5 hunks (6 GitHub hunks)
+
+files:
+  docs/usage.md  modified · config
+  src/util/language.ts  modified · logic
+  test/highlight.test.ts  modified · test
+
+1. languageOf  [flow]  entry exported API (languageOf)
+   src/util/language.ts  @@ -20,44 +20,74 @@  +38 -8 · risk 0 · untested · fused 2 · 2 gap lines
+
+2. Test-only changes  [tests]
+   test/highlight.test.ts  @@ -12,6 +12,10 @@  +4 -0 · risk 0 · n/a
+   test/highlight.test.ts  @@ -35,6 +39,28 @@  +22 -0 · risk 0 · n/a
+   test/highlight.test.ts  @@ -69,6 +95,13 @@  +7 -0 · risk 0 · n/a
+
+3. Config, infra and docs  [config]
+   docs/usage.md  @@ -26,7 +26,7 @@  +1 -1 · risk 0 · n/a
