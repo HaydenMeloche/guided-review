@@ -1,11 +1,16 @@
 import type { DiffLine, Hunk } from '../types.js';
+import { isLockfile } from '../analysis/lockfile.js';
 
 // A moved block is at least this many lines with this much non-whitespace text, so a lone `}`
 // or a repeated blank line never reads as a move.
 const MIN_MOVED_LINES = 3;
 const MIN_MOVED_CHARS = 20;
-// Matching is quadratic in the worst case; a diff this large is mostly generated code.
+// A diff this large is mostly generated code; lockfiles, never moved code, do not count.
 const MAX_CHANGED_LINES = 20_000;
+// A move starts on a line with this much text, matched in at most this many places. Without
+// both, lines like `}` repeated through a PR make matching quadratic: an author could stall it.
+const MIN_START_CHARS = 4;
+const MAX_START_MATCHES = 50;
 
 interface Ref {
   hunk: Hunk;
@@ -24,6 +29,7 @@ export function markMovedLines(hunks: Hunk[]): void {
   const adds: Ref[][] = [];
   let changed = 0;
   for (const hunk of hunks) {
+    if (isLockfile(hunk.file)) continue;
     for (let i = 0; i < hunk.lines.length;) {
       if (hunk.lines[i].kind === 'ctx') {
         i++;
@@ -45,12 +51,21 @@ export function markMovedLines(hunks: Hunk[]): void {
   if (changed > MAX_CHANGED_LINES) return;
 
   const starts = new Map<string, Ref[]>();
-  for (const run of adds) for (const r of run) if (key(r.line)) starts.set(key(r.line), [...(starts.get(key(r.line)) ?? []), r]);
+  for (const run of adds) {
+    for (const r of run) {
+      const k = key(r.line);
+      if (k.replace(/\s+/g, '').length < MIN_START_CHARS) continue;
+      const at = starts.get(k);
+      if (at) at.push(r);
+      else starts.set(k, [r]);
+    }
+  }
+  for (const [k, at] of starts) if (at.length > MAX_START_MATCHES) starts.delete(k);
 
   for (const run of dels) {
     for (let i = 0; i < run.length;) {
       let best: { at: Ref; length: number } | undefined;
-      for (const at of key(run[i].line) ? (starts.get(key(run[i].line)) ?? []) : []) {
+      for (const at of starts.get(key(run[i].line)) ?? []) {
         if (at.block === run[i].block || at.line.moved) continue;
         const target = adds[at.block];
         let n = 0;

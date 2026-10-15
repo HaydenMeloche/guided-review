@@ -88,6 +88,23 @@ describe('marking moved lines', () => {
     expect(hunks[0].lines.find((l) => l.text === 'line5(changed);')?.moved).toBeUndefined();
   });
 
+  it('stays fast when a PR repeats short lines on both sides', () => {
+    const N = 10_000;
+    const side = (sign: string, tag: string) => Array.from({ length: N }, (_, i) => (i % 20 ? `${sign}}` : `${sign}${tag}${i}();`));
+    const del = hunkFromDiff('src/a.c', ...side('-', 'a'));
+    const add = hunkFromDiff('src/b.c', ...side('+', 'b'));
+    const started = performance.now();
+    markMovedLines([del, add]);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
+  it('leaves lockfiles out', () => {
+    const block = ['  resolved "https://registry.example/pkg-1.0.0.tgz"', '  integrity sha512-abcdef', '  dependencies:'];
+    const hunks = [hunkFromDiff('yarn.lock', ...block.map((l) => `-${l}`)), hunkFromDiff('yarn.lock', ...block.map((l) => `+${l}`))];
+    markMovedLines(hunks);
+    expect(hunks.flatMap((h) => h.lines).some((l) => l.moved)).toBe(false);
+  });
+
   it('does not call a reindent, or a few short lines, a move', () => {
     const reindent = hunkFromDiff('src/a.ts', '-if (a) {', '-  go(everything);', '-}', '+  if (a) {', '+    go(everything);', '+  }');
     const short = [hunkFromDiff('src/b.ts', '-}', '-}', '-}'), hunkFromDiff('src/c.ts', '+}', '+}', '+}')];
