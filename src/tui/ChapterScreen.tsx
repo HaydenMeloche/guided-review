@@ -1048,20 +1048,29 @@ function threadAt(threads: ExistingThread[], file: string, line?: number, side: 
   return threads.filter((t) => t.path === file && (side === 'LEFT' ? t.isOutdated && t.originalLine === line : t.line === line || (t.line === undefined && !t.isOutdated && t.originalLine === line)));
 }
 
-// Under the last line of a block moved within the PR: where the block was, or went.
+// Under the last line of a block moved within the PR: where the block was, or went, and how.
 function movedNote(hunk: Hunk, j: number): string | undefined {
   const l = hunk.lines[j];
-  // Lines k and k + 1 are one block when both moved to consecutive lines of one file.
+  // Lines k and k + 1 are one block when both moved, alike, to consecutive lines of one file.
   const joined = (k: number) => {
     const [a, b] = [hunk.lines[k]?.moved, hunk.lines[k + 1]?.moved];
-    return !!a && !!b && hunk.lines[k].kind === hunk.lines[k + 1].kind && a.file === b.file && b.line === a.line + 1;
+    return !!a && !!b && hunk.lines[k].kind === hunk.lines[k + 1].kind && a.file === b.file && b.line === a.line + 1 && a.kind === b.kind && a.indent === b.indent;
   };
   if (!l.moved || joined(j)) return undefined;
   let first = j;
   while (joined(first - 1)) first--;
   const at = hunk.lines[first].moved!;
-  const where = at.file === hunk.file ? `line ${at.line}` : `${safe(at.file)}:${at.line}`;
-  return `↕ ${j - first + 1} line${j === first ? '' : 's'} moved ${l.kind === 'del' ? 'to' : 'from'} ${where}`;
+  const where = (p: { file: string; line: number }) => (p.file === hunk.file ? `line ${p.line}` : `${safe(p.file)}:${p.line}`);
+  const lines = `${j - first + 1} line${j === first ? '' : 's'}`;
+  const indent = at.indent ? `indent ${at.indent > 0 ? '+' : '−'}${Math.abs(at.indent)}` : '';
+  if (at.kind === 'reindented') return `↔ ${lines} re-indented in place${indent ? ` (${indent})` : ''}, ${l.kind === 'del' ? 'now' : 'was'} ${where(at)}`;
+  const also = (side: 'add' | 'del') => {
+    const places = at.also.filter((p) => p.side === side);
+    if (!places.length) return '';
+    const shown = places.slice(0, 2).map(where).join(', ');
+    return `; also ${side === 'add' ? 'added' : 'removed'} at ${shown}${places.length > 2 ? ` and ${places.length - 2} more` : ''}`;
+  };
+  return `↕ ${lines} ${at.kind} ${l.kind === 'del' ? 'to' : 'from'} ${where(at)}${indent ? `, ${indent}` : ''}${also('add')}${also('del')}`;
 }
 
 function draftsAt(drafts: Draft[], hunk: Hunk, line?: number, side: 'LEFT' | 'RIGHT' = 'RIGHT') {

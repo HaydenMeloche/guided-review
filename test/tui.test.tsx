@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'ink-testing-library';
-import type { ChapterOrder, Draft, ExistingThread, Hunk, ReadState, Tour } from '../src/types.js';
+import type { ChapterOrder, Draft, ExistingThread, Hunk, MovedTo, ReadState, Tour } from '../src/types.js';
 import { buildFixture, ctx, head } from './fixtures/invoiceFlow.js';
 import { buildSymbolIndex } from '../src/analysis/symbols.js';
 import { buildChapters } from '../src/analysis/flows.js';
@@ -1325,7 +1325,7 @@ describe('split view, test pane toggle and expanded context', () => {
 
   it('gives two blocks moved to different places a note each', async () => {
     const h = hunkFromDiff('src/a.ts', ' a();', '-one(block);', '-two(block);', '-three(block);', '-four(block);', '-five(block);', '-six(block);', ' b();');
-    h.lines.forEach((l, i) => l.kind === 'del' && (l.moved = i <= 3 ? { file: 'src/x.ts', line: 10 + i } : { file: 'src/y.ts', line: 50 + i }));
+    h.lines.forEach((l, i) => l.kind === 'del' && (l.moved = i <= 3 ? movedTo('src/x.ts', 10 + i) : movedTo('src/y.ts', 50 + i)));
     const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
     const ui = render(screen(t));
     await waitFor(() => expect(ui.lastFrame()).toContain('3 lines moved to src/x.ts:11'));
@@ -1361,10 +1361,29 @@ describe('split view, test pane toggle and expanded context', () => {
 
   it('says where a moved block went', async () => {
     const h = hunkFromDiff('src/a.ts', ' a();', '-first(block);', '-second(block);', '-third(block);', ' b();');
-    h.lines.forEach((l, i) => l.kind === 'del' && (l.moved = { file: 'src/a.ts', line: 40 + i }));
+    h.lines.forEach((l, i) => l.kind === 'del' && (l.moved = movedTo('src/a.ts', 40 + i)));
     const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
     const ui = render(screen(t));
     await waitFor(() => expect(ui.lastFrame()).toContain('3 lines moved to line 41'));
     ui.unmount();
   });
+
+  it('says how a moved block changed: its indent, a reindent in place, or a copy', async () => {
+    const lines = (file: string) => hunkFromDiff(file, ' a();', '-first(block);', '-second(block);', '-third(block);', ' b();');
+    const cases: [Hunk, (i: number) => MovedTo, string][] = [
+      [lines('src/a.ts'), (i) => ({ ...movedTo('src/b.ts', 40 + i), indent: -4 }), '3 lines moved to src/b.ts:41, indent −4'],
+      [lines('src/c.ts'), (i) => ({ ...movedTo('src/c.ts', 2 + i), kind: 'reindented', indent: 2 }), '3 lines re-indented in place (indent +2), now line 3'],
+      [lines('src/d.ts'), (i) => ({ ...movedTo('src/e.ts', 10 + i), kind: 'copied', also: [{ file: 'src/f.ts', line: 20, side: 'add' }] }), '3 lines copied to src/e.ts:11; also added at src/f.ts:20'],
+    ];
+    for (const [h, at, note] of cases) {
+      h.lines.forEach((l, i) => l.kind === 'del' && (l.moved = at(i)));
+      const ui = render(screen(makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) })));
+      await waitFor(() => expect(ui.lastFrame()).toContain(note));
+      ui.unmount();
+    }
+  });
 });
+
+function movedTo(file: string, line: number): MovedTo {
+  return { file, line, kind: 'moved', indent: 0, also: [] };
+}

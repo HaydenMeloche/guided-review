@@ -74,6 +74,6 @@ export function fuseNearbyHunks(files: DiffFile[], hunks: Hunk[], readHead: (pat
 export function parseTourDiff(diff: string, readHead: (path: string) => string | undefined): { files: DiffFile[]; hunks: Hunk[] } {
   const { files, hunks } = parseUnifiedDiff(diff);
   const fused = fuseNearbyHunks(files, hunks, readHead);
-  markMovedLines(fused);
+  markMovedLines(fused, readHead);
   return { files, hunks: fused };
 }

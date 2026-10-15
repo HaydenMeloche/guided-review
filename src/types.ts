@@ -19,7 +19,17 @@ export interface DiffLine {
   expanded?: boolean;
   // Part of a block moved within the PR: for a removed line, where it now is in the head; for an
   // added line, where it was in the base.
-  moved?: { file: string; line: number };
+  moved?: MovedTo;
+}
+
+export interface MovedTo {
+  file: string;
+  line: number;
+  // reindented: it stayed put and code around it changed its indent; copied: the same lines were
+  // also added or removed elsewhere (`also`).
+  kind: 'moved' | 'reindented' | 'copied';
+  indent: number; // columns the block shifted right (negative: left), a tab counting as four
+  also: { file: string; line: number; side: 'add' | 'del' }[];
 }
 
 export type LinkSource = 'coverage' | 'name-match' | 'naming';
