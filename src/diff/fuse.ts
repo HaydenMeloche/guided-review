@@ -1,7 +1,7 @@
 import type { DiffFile, DiffLine, Hunk } from '../types.js';
 import { makeContentHash, makeHunkId, parseUnifiedDiff } from './parse.js';
 import { markMovedLines } from './moves.js';
-import { fileLines, headMatches } from './context.js';
+import { fileLines, headFor, headMatches } from './context.js';
 
 // GitHub's diff keeps three lines of context, so changes more than six lines apart land in
 // separate hunks, and code moved a short way reads as an unrelated add and remove. Hunks of one
@@ -43,7 +43,9 @@ export function fuseNearbyHunks(files: DiffFile[], hunks: Hunk[], readHead: (pat
     const own = f.hunkIds.map((id) => byId.get(id)!);
     const text = own.length > 1 && f.status !== 'added' && f.status !== 'deleted' && !f.binary ? readHead(f.path) : undefined;
     if (text === undefined) continue;
-    const head = fileLines(text);
+    // Line endings as the diff writes them, judged on the file's first hunk.
+    const lines = fileLines(text);
+    const head = headFor(own[0], lines) ?? lines;
     const out: Hunk[] = [own[0]];
     for (const h of own.slice(1)) {
       const prev = out[out.length - 1];

@@ -68,6 +68,12 @@ describe('fusing nearby hunks', () => {
     expect(h.lines.filter((l) => l.kind === 'del')).toHaveLength(4);
   });
 
+  it('fuses against a checkout with CRLF line endings, keeping the diff’s LF text', () => {
+    const { hunks } = parseTourDiff(MOVE_DIFF, () => HEAD.replace(/\n/g, '\r\n') + '\r\n');
+    expect(hunks).toHaveLength(1);
+    expect(hunks[0].lines.filter((l) => l.expanded).map((l) => l.text)).toEqual(['line9();', 'line10();']);
+  });
+
   it('keeps hunks apart when they are far apart, or the head cannot be read or has changed', () => {
     const far = MOVE_DIFF.replace('@@ -11,9 +14,6 @@', `@@ -${11 + FUSE_GAP},9 +${14 + FUSE_GAP},6 @@`);
     expect(parseTourDiff(far, () => undefined).hunks).toHaveLength(2);

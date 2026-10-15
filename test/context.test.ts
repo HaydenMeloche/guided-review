@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fileLines, withContext } from '../src/diff/context.js';
+import { fileLines, headFor, withContext } from '../src/diff/context.js';
 import { hunkFromDiff } from './fixtures/tour.js';
 
 describe('expanding context', () => {
@@ -28,5 +28,17 @@ describe('expanding context', () => {
     expect(withContext(h, head, 100, 100).below).toBe(28);
     const bounded = withContext(h, head, 100, 100, { prevEnd: 5, nextStart: 20 });
     expect([bounded.above, bounded.below]).toEqual([4, 7]);
+  });
+
+  it('reads a CRLF checkout as the diff writes it, and refuses a head that changed', () => {
+    const crlf = head.map((l) => `${l}\r`);
+    expect(headFor(h, crlf)).toEqual(head);
+    expect(headFor(h, head)).toBe(head);
+    expect(
+      headFor(
+        h,
+        head.map((l) => (l === 'l12' ? 'edited' : l)),
+      ),
+    ).toBeUndefined();
   });
 });

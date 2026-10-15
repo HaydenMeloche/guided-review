@@ -17,7 +17,7 @@ import { sanitizeTerminal } from '../util/sanitize.js';
 import { foldedLines, pairChangedLines, wordDiff, type CharRange, type Fold } from '../diff/lines.js';
 import { isSpecialKind } from '../analysis/special.js';
 import { safeReadFile } from '../analysis/safeRead.js';
-import { fileLines, headMatches, withContext } from '../diff/context.js';
+import { fileLines, headFor, withContext } from '../diff/context.js';
 
 export type AgentCtx = AgentContext;
 
@@ -46,8 +46,7 @@ function headOf(hunk: Hunk, files: DiffFile[], root?: string): string[] | undefi
   const file = files.find((f) => f.path === hunk.file);
   if (!root || !file || file.binary || file.status === 'added' || file.status === 'deleted') return undefined;
   const text = safeReadFile(root, hunk.file);
-  const lines = text === undefined ? undefined : fileLines(text);
-  return lines && headMatches(hunk, lines) ? lines : undefined;
+  return text === undefined ? undefined : headFor(hunk, fileLines(text));
 }
 
 const CONTEXT_STEP = 10; // lines + and - add or remove on each side of a hunk

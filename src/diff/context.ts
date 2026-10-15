@@ -14,6 +14,15 @@ export function headMatches(hunk: Hunk, head: string[]): boolean {
   return hunk.lines.every((l) => l.kind === 'del' || (l.newLine !== undefined && head[l.newLine - 1] === l.text));
 }
 
+// The head's lines as the diff writes them, or undefined when the head is not the file this
+// hunk came from. A checkout with core.autocrlf has CRLF where the diff, made from the blobs,
+// has LF: those lines match, and expanded context then reads the same as the diff.
+export function headFor(hunk: Hunk, head: string[]): string[] | undefined {
+  if (headMatches(hunk, head)) return head;
+  const lf = head.map((l) => l.replace(/\r$/, ''));
+  return headMatches(hunk, lf) ? lf : undefined;
+}
+
 // The hunk with up to `above` and `below` more lines of the head around it, marked expanded.
 // Context stops at the file's edges and at its neighbouring hunks: `prevEnd` is the last head line
 // of the hunk before it in the file and `nextStart` the first of the one after. It only grows at an
