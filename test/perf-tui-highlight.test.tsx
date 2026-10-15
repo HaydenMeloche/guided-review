@@ -141,3 +141,22 @@ describe('SourcePane highlighting', () => {
     ui.unmount();
   });
 });
+
+describe('highlighting a very large file', () => {
+  it('highlights the hunk from its own lines instead of tokenizing the whole file', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gr-big-'));
+    try {
+      fs.mkdirSync(path.join(root, 'src'));
+      const lines = Array.from({ length: 30_000 }, (_, i) => `export const value${i} = ${i}; // padding padding`);
+      fs.writeFileSync(path.join(root, 'src/app.ts'), lines.join('\n') + '\n'); // about 1.4 MB
+      const h = tsHunk('big', 2, lines[1]);
+      const started = performance.now();
+      const result = await highlightHunkCached({ hunk: h, root, headSha: 'head-big', baseSha: 'base-big' });
+      expect(performance.now() - started).toBeLessThan(1000);
+      expect(result?.[0].length).toBeGreaterThan(0);
+      expect(highlightCacheKeys().files.some((k) => k.endsWith('src/app.ts'))).toBe(true);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+});

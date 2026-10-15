@@ -1252,8 +1252,7 @@ describe('split view, test pane toggle and expanded context', () => {
   it('says when a file is too large to read more of', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gr-ctx-'));
     fs.mkdirSync(path.join(root, 'src'));
-    // Just over 1 MB. Plain text, so the screen does not highlight it: tokenizing a file this size
-    // would run on after the test and starve the next one.
+    // Just over 1 MB, the read limit for context. Plain text keeps highlighting out of the test.
     fs.writeFileSync(path.join(root, 'src/big.txt'), 'x();\n'.repeat(210_000));
     const h = hunkFromDiff('src/big.txt', ' x();', '+y();', ' x();');
     const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });

@@ -111,9 +111,21 @@ export function hunkHighlightKey(req: HighlightRequest): string {
   return [HIGHLIGHT_THEME, req.root ?? '', hunk.id, span, hunk.file, hunk.oldFile ?? '', req.headSha, req.baseSha].join('\0');
 }
 
+// Whole-file highlighting gives tokens that span lines (a comment opened above the hunk) their
+// context, but tokenizing a very large file, usually a generated one, takes seconds and stalls
+// the screen. Past this size a hunk is highlighted from its own lines.
+export const MAX_HIGHLIGHT_FILE_BYTES = 512 * 1024;
+
+async function readCapped(file: string): Promise<string | undefined> {
+  const stat = await fs.stat(file).catch(() => undefined);
+  if (!stat?.isFile() || stat.size > MAX_HIGHLIGHT_FILE_BYTES) return undefined;
+  return fs.readFile(file, 'utf8').catch(() => undefined);
+}
+
 function spansFor(file: string, sha: string, read: () => Promise<string | undefined>): Promise<FileTokens | undefined> {
   return fileSpans.get(fileHighlightKey(file, sha), async () => {
-    const source = await read();
+    const text = await read();
+    const source = text !== undefined && Buffer.byteLength(text) <= MAX_HIGHLIGHT_FILE_BYTES ? text : undefined;
     const spans = source === undefined ? undefined : await highlightFileLines(file, source);
     return spans && { lines: source!.split('\n'), spans };
   });
@@ -141,7 +153,7 @@ async function compute(req: HighlightRequest): Promise<HunkHighlights | undefine
   if (language === 'yaml' || !root) return highlightHunk(hunk);
   const basePath = hunk.oldFile ?? hunk.file;
   const [head, base] = await Promise.all([
-    spansFor(hunk.file, req.headSha, () => fs.readFile(path.join(root, hunk.file), 'utf8').catch(() => undefined)).catch(() => undefined),
+    spansFor(hunk.file, req.headSha, () => readCapped(path.join(root, hunk.file))).catch(() => undefined),
     spansFor(basePath, req.baseSha, () => readBase(root, req.baseSha, basePath)).catch(() => undefined), // readBase is cached and batched in src/git/blobs
   ]);
   return highlightDiffFromFiles(hunk.file, hunk.lines, { head: spansIfMatching(head, hunk.lines, 'head'), base: spansIfMatching(base, hunk.lines, 'base') });
