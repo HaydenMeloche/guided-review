@@ -1003,10 +1003,14 @@ function threadAt(threads: ExistingThread[], file: string, line?: number, side: 
 // Under the last line of a block moved within the PR: where the block was, or went.
 function movedNote(hunk: Hunk, j: number): string | undefined {
   const l = hunk.lines[j];
-  const same = (k: number) => !!hunk.lines[k]?.moved && hunk.lines[k].kind === l.kind;
-  if (!l.moved || same(j + 1)) return undefined;
+  // Lines k and k + 1 are one block when both moved to consecutive lines of one file.
+  const joined = (k: number) => {
+    const [a, b] = [hunk.lines[k]?.moved, hunk.lines[k + 1]?.moved];
+    return !!a && !!b && hunk.lines[k].kind === hunk.lines[k + 1].kind && a.file === b.file && b.line === a.line + 1;
+  };
+  if (!l.moved || joined(j)) return undefined;
   let first = j;
-  while (same(first - 1)) first--;
+  while (joined(first - 1)) first--;
   const at = hunk.lines[first].moved!;
   const where = at.file === hunk.file ? `line ${at.line}` : `${safe(at.file)}:${at.line}`;
   return `↕ ${j - first + 1} line${j === first ? '' : 's'} moved ${l.kind === 'del' ? 'to' : 'from'} ${where}`;

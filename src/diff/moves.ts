@@ -81,7 +81,8 @@ export function markMovedLines(hunks: Hunk[]): void {
       moved.forEach((from, k) => {
         const to = adds[at.block][at.pos + k];
         from.line.moved = { file: to.hunk.file, line: to.line.newLine! };
-        to.line.moved = { file: from.hunk.file, line: from.line.oldLine! };
+        // An old line number goes with the old path, for a block moved out of a renamed file.
+        to.line.moved = { file: from.hunk.oldFile ?? from.hunk.file, line: from.line.oldLine! };
       });
       i += moved.length;
     }

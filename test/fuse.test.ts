@@ -105,6 +105,16 @@ describe('marking moved lines', () => {
     expect(hunks.flatMap((h) => h.lines).some((l) => l.moved)).toBe(false);
   });
 
+  it('points a block moved out of a renamed file at its old path', () => {
+    const block = ['export function total(items) {', '  return items.reduce(sum, 0);', '}'];
+    const from = hunkFromDiff('src/new-name.ts', ...block.map((l) => `-${l}`));
+    from.oldFile = 'src/old-name.ts';
+    const to = hunkFromDiff('src/other.ts', ...block.map((l) => `+${l}`));
+    markMovedLines([from, to]);
+    expect(to.lines[0].moved).toEqual({ file: 'src/old-name.ts', line: 1 });
+    expect(from.lines[0].moved).toEqual({ file: 'src/other.ts', line: 1 });
+  });
+
   it('does not call a reindent, or a few short lines, a move', () => {
     const reindent = hunkFromDiff('src/a.ts', '-if (a) {', '-  go(everything);', '-}', '+  if (a) {', '+    go(everything);', '+  }');
     const short = [hunkFromDiff('src/b.ts', '-}', '-}', '-}'), hunkFromDiff('src/c.ts', '+}', '+}', '+}')];

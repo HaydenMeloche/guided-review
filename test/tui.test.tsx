@@ -1239,6 +1239,16 @@ describe('split view, test pane toggle and expanded context', () => {
     ui.unmount();
   });
 
+  it('gives two blocks moved to different places a note each', async () => {
+    const h = hunkFromDiff('src/a.ts', ' a();', '-one(block);', '-two(block);', '-three(block);', '-four(block);', '-five(block);', '-six(block);', ' b();');
+    h.lines.forEach((l, i) => l.kind === 'del' && (l.moved = i <= 3 ? { file: 'src/x.ts', line: 10 + i } : { file: 'src/y.ts', line: 50 + i }));
+    const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
+    const ui = render(screen(t));
+    await waitFor(() => expect(ui.lastFrame()).toContain('3 lines moved to src/x.ts:11'));
+    expect(ui.lastFrame()).toContain('3 lines moved to src/y.ts:54');
+    ui.unmount();
+  });
+
   it('says where a moved block went', async () => {
     const h = hunkFromDiff('src/a.ts', ' a();', '-first(block);', '-second(block);', '-third(block);', ' b();');
     h.lines.forEach((l, i) => l.kind === 'del' && (l.moved = { file: 'src/a.ts', line: 40 + i }));
