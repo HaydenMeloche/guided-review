@@ -9,7 +9,8 @@ import { runPipeline } from '../pipeline.js';
 import type { AgentRole, AgentRouting } from '../agent/types.js';
 import type { ViewSetting } from '../config.js';
 import { fileOrderChapters } from '../analysis/flows.js';
-import { applyMoves, ORDER_SEQUENCE, positionAfterOrderChange, sortChapters, type States } from './nav.js';
+import { applyMoves, ORDER_SEQUENCE, positionAfterOrderChange, sortChapters, stateOf, type States } from './nav.js';
+import { hunkKeys } from '../review/hunkState.js';
 import { ChapterScreen, type Services } from './ChapterScreen.js';
 import { BriefingScreen } from './BriefingScreen.js';
 import { SubmitScreen } from './SubmitScreen.js';
@@ -315,7 +316,7 @@ export function App(opts: AppOptions) {
       let found = false;
       for (let c = 0; c < chapters.length && !found; c++) {
         if (chapters[c].optional) continue;
-        const i = chapters[c].hunkIds.findIndex((id) => !tour.hunks[id]?.importOnly && (!states[tour.hunks[id]?.contentHash] || states[tour.hunks[id].contentHash] === 'unread'));
+        const i = chapters[c].hunkIds.findIndex((id) => tour.hunks[id] && !tour.hunks[id].importOnly && stateOf(states, tour.hunks[id]) === 'unread');
         if (i >= 0) {
           setPos(c, chapters[c].collapsed ? -1 : i);
           found = true;
@@ -328,8 +329,9 @@ export function App(opts: AppOptions) {
 
   const setHunkState = (h: Hunk, s: ReadState) => {
     if (!tour) return;
-    store.setReadState(tour.repo, tour.pr, h.contentHash, s);
-    setStates((prev) => ({ ...prev, [h.contentHash]: s }));
+    const keys = hunkKeys(h);
+    for (const k of keys) store.setReadState(tour.repo, tour.pr, k, s);
+    setStates((prev) => ({ ...prev, ...Object.fromEntries(keys.map((k) => [k, s])) }));
   };
 
   const saveDraft = (d: Draft) => {
@@ -552,7 +554,7 @@ export function App(opts: AppOptions) {
       replyToThread={opts.preview ? undefined : sendThreadReply}
       reactToComment={opts.preview ? undefined : reactToComment}
       moveHunk={(h, chapterId) => {
-        store.setMove(tour.repo, tour.pr, h.contentHash, chapterId);
+        for (const k of hunkKeys(h)) store.setMove(tour.repo, tour.pr, k, chapterId);
         setMoves(store.getMoves(tour.repo, tour.pr));
       }}
       toggleOrder={cycleOrder}

@@ -1,5 +1,6 @@
 import type { CommentStatus, Draft, ExistingThread, Hunk, ReReview, Tour } from '../types.js';
 import { parseUnifiedDiff } from '../diff/parse.js';
+import { hunkKeys } from './hunkState.js';
 
 interface Span {
   start: number;
@@ -34,9 +35,10 @@ function fmtSpan(s: Span): string {
 }
 
 export function computeReReview(prev: Tour, next: Tour, ctx: { postedDrafts: Draft[]; threads: ExistingThread[]; diffPrevToNext: string; viewer?: string }): ReReview {
-  const prevHashes = new Set(Object.values(prev.hunks).map((h) => h.contentHash));
+  // New when any GitHub hunk it is made of is new: fusing alone never makes a hunk new.
+  const prevHashes = new Set(Object.values(prev.hunks).flatMap(hunkKeys));
   const newHunkIds = Object.values(next.hunks)
-    .filter((h) => !prevHashes.has(h.contentHash))
+    .filter((h) => hunkKeys(h).some((k) => !prevHashes.has(k)))
     .map((h) => h.id);
 
   const delta = parseUnifiedDiff(ctx.diffPrevToNext);

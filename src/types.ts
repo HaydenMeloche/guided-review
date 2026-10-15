@@ -41,6 +41,9 @@ export type Coverage = 'tested' | 'partial' | 'untested' | 'n/a';
 export interface Hunk {
   id: string; // stable for (path, header) within a head commit
   contentHash: string; // path + changed lines only, no line numbers; used for re-review delta
+  // A fused hunk: the content hash of each GitHub hunk it joins. Read state, moves and re-review
+  // go by these (see hunkKeys), so they hold when the hunks fuse differently on another head.
+  parts?: string[];
   file: string;
   oldFile?: string;
   header: string; // the @@ ... @@ line

@@ -84,7 +84,7 @@ export function matchesDiff(tour: Tour, diff: string, readHead: (path: string) =
     const s = tour.hunks[h.id];
     // The content hash keys read state, and a moved note tells the reader a block is old code:
     // neither may be the CI's word alone.
-    if (!s || s.file !== h.file || s.header !== h.header || s.contentHash !== h.contentHash || s.lines.length !== h.lines.length) return false;
+    if (!s || s.file !== h.file || s.header !== h.header || s.contentHash !== h.contentHash || s.parts?.join() !== h.parts?.join() || s.lines.length !== h.lines.length) return false;
     for (let i = 0; i < h.lines.length; i++) {
       const a = h.lines[i];
       const b = s.lines[i];

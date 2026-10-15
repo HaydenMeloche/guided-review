@@ -31,7 +31,8 @@ function fuse(a: Hunk, gap: DiffLine[], b: Hunk): Hunk {
   const oldLines = lines.filter((l) => l.kind !== 'add').length;
   const newLines = lines.filter((l) => l.kind !== 'del').length;
   const header = `@@ -${a.oldStart},${oldLines} +${a.newStart},${newLines} @@${a.header.replace(HEADER_RE, '')}`;
-  return { ...a, id: makeHunkId(a.file, header), contentHash: makeContentHash(a.file, lines), header, oldLines, newLines, lines };
+  const parts = [...(a.parts ?? [a.contentHash]), ...(b.parts ?? [b.contentHash])];
+  return { ...a, id: makeHunkId(a.file, header), contentHash: makeContentHash(a.file, lines), parts, header, oldLines, newLines, lines };
 }
 
 // Joins nearby hunks of each file (see FUSE_GAP), filling the lines between from the head.

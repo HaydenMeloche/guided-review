@@ -1,5 +1,6 @@
 import type { Chapter, ChapterOrder, Hunk, ReadState, Tour } from '../types.js';
 import { sanitizeTerminal } from '../util/sanitize.js';
+import { hunkKeys, stateOf, type States } from '../review/hunkState.js';
 
 export const ORDER_SEQUENCE: ChapterOrder[] = ['flow', 'risk', 'size', 'file'];
 export const ORDER_LABEL: Record<ChapterOrder, string> = { flow: 'Guided', risk: 'Risk first', size: 'Small first', file: 'File' };
@@ -26,7 +27,7 @@ export function positionAfterOrderChange(previous: Chapter[], position: { ci: nu
   return { ci, hi };
 }
 
-export type States = Record<string, ReadState>; // contentHash -> state
+export { stateOf, type States };
 
 export function changedLineCount(h: Hunk): number {
   let n = 0;
@@ -34,17 +35,13 @@ export function changedLineCount(h: Hunk): number {
   return n;
 }
 
-export function stateOf(states: States, h: Hunk | undefined): ReadState {
-  return (h && states[h.contentHash]) || 'unread';
-}
-
-// Hunks the reviewer dragged to another chapter. Moves are keyed by contentHash so
-// they survive a re-analysis of the same change.
+// Hunks the reviewer dragged to another chapter. Moves are keyed by content hash (each part
+// of a fused hunk) so they survive a re-analysis of the same change.
 export function applyMoves(chapters: Chapter[], tour: Tour, moves: Record<string, string>): Chapter[] {
   if (!Object.keys(moves).length) return chapters;
   const out = chapters.map((c) => ({ ...c, hunkIds: [...c.hunkIds] }));
   for (const [hash, target] of Object.entries(moves)) {
-    const hunk = Object.values(tour.hunks).find((h) => h.contentHash === hash);
+    const hunk = Object.values(tour.hunks).find((h) => hunkKeys(h).includes(hash));
     const dest = out.find((c) => c.id === target);
     if (!hunk || !dest) continue;
     for (const c of out) c.hunkIds = c.hunkIds.filter((id) => id !== hunk.id);

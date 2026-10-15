@@ -1,5 +1,6 @@
 import type { CommentLabel, DiffLine, Draft, Hunk, ReadState, Tour } from '../types.js';
 import type { ReviewPayload } from '../github/gh.js';
+import { stateOf } from './hunkState.js';
 
 type Side = 'LEFT' | 'RIGHT';
 type ReviewComment = ReviewPayload['comments'][number];
@@ -164,7 +165,7 @@ export function suggestVerdict(tour: Tour, drafts: Draft[], readStates: Record<s
   const logicHunks = tour.chapters.filter((c) => LOGIC_CHAPTERS.has(c.kind)).flatMap((c) => c.hunkIds);
   const unread = [...new Set(logicHunks)].filter((id) => {
     const h = tour.hunks[id];
-    return h && !h.importOnly && (readStates[h.contentHash] ?? 'unread') !== 'read';
+    return h && !h.importOnly && stateOf(readStates, h) !== 'read';
   });
   if (unread.length > 0) reasons.push(`${plural(unread.length, 'hand-written hunk')} not marked read.`);
 

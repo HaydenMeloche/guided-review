@@ -4,6 +4,9 @@ import { FUSE_GAP, parseTourDiff } from '../src/diff/fuse.js';
 import { markMovedLines } from '../src/diff/moves.js';
 import { buildReviewPayload } from '../src/review/submit.js';
 import type { Draft } from '../src/types.js';
+import { hunkKeys, stateOf } from '../src/review/hunkState.js';
+import { computeReReview } from '../src/review/rereview.js';
+import { applyMoves } from '../src/tui/nav.js';
 import { hunkFromDiff, tour } from './fixtures/tour.js';
 
 // A block moved up the file next to an unrelated edit, as GitHub diffs it: the add and the edit
@@ -159,5 +162,54 @@ describe('review comments on fused hunks', () => {
     // A suggestion moved to the nearest line would replace the wrong code, too.
     const gone = buildReviewPayload(t, [{ ...draft({ type: 'line', hunkId: hunks[0].id, file: 'src/fees.tsx', line: 12, side: 'RIGHT' }), suggestion: 'x' }], 'COMMENT', '');
     expect(gone.payload.comments[0].body).not.toContain('```suggestion');
+  });
+});
+
+describe('progress on fused hunks', () => {
+  // The same two edits, 3 unchanged lines apart (fused), then 8 apart after the base gained
+  // five lines between them (a rebase): two hunks.
+  const lines = (n: number, edit: Record<number, string> = {}) => Array.from({ length: n }, (_, i) => edit[i + 1] ?? `l${i + 1}`);
+  const ctx = (from: number, to: number, name = (n: number) => `l${n}`) => Array.from({ length: to - from + 1 }, (_, i) => ` ${name(from + i)}`);
+  const file = (hunks: string[][]) => `diff --git a/f.ts b/f.ts\n--- a/f.ts\n+++ b/f.ts\n${hunks.map((h) => h.join('\n')).join('\n')}\n`;
+  const near = file([
+    ['@@ -7,7 +7,7 @@', ...ctx(7, 9), '-l10', '+L10', ...ctx(11, 13)],
+    ['@@ -17,7 +17,7 @@', ...ctx(17, 19), '-l20', '+L20', ...ctx(21, 23)],
+  ]);
+  const nearHead = lines(30, { 10: 'L10', 20: 'L20' }).join('\n') + '\n';
+  // l1..l15, five new lines, l16..l30: l20 is now line 25.
+  const farName = (n: number) => (n <= 15 ? `l${n}` : n <= 20 ? `x${n - 15}` : `l${n - 5}`);
+  const far = file([
+    ['@@ -7,7 +7,7 @@', ...ctx(7, 9), '-l10', '+L10', ...ctx(11, 13)],
+    ['@@ -22,7 +22,7 @@', ...ctx(22, 24, farName), '-l20', '+L20', ...ctx(26, 28, farName)],
+  ]);
+  const farHead = Array.from({ length: 35 }, (_, i) => (i + 1 === 10 ? 'L10' : i + 1 === 25 ? 'L20' : farName(i + 1))).join('\n') + '\n';
+  const fused = parseTourDiff(near, () => nearHead).hunks;
+  const apart = parseTourDiff(far, () => farHead).hunks;
+
+  it('keys a fused hunk by the GitHub hunks it joins', () => {
+    expect(fused).toHaveLength(1);
+    expect(apart).toHaveLength(2);
+    expect(fused[0].parts).toEqual(apart.map((h) => h.contentHash));
+  });
+
+  it('keeps read state when the same changes fuse, or stop fusing, on another head', () => {
+    const states = Object.fromEntries(hunkKeys(fused[0]).map((k) => [k, 'read' as const]));
+    expect(apart.map((h) => stateOf(states, h))).toEqual(['read', 'read']);
+    const one = { [apart[0].contentHash]: 'read' as const };
+    expect(stateOf(one, fused[0])).toBe('unread');
+    expect(stateOf({ ...one, [apart[1].contentHash]: 'skipped' }, fused[0])).toBe('skipped');
+  });
+
+  it('does not call a hunk new on re-review just because it fused differently', () => {
+    const ctxNone = { postedDrafts: [], threads: [], diffPrevToNext: '' };
+    expect(computeReReview(tour(fused), tour(apart), ctxNone).newHunkIds).toEqual([]);
+    expect(computeReReview(tour(apart), tour(fused), ctxNone).newHunkIds).toEqual([]);
+    expect(computeReReview(tour(apart.slice(0, 1)), tour(fused), ctxNone).newHunkIds).toEqual([fused[0].id]);
+  });
+
+  it('applies a move saved for one part to the fused hunk', () => {
+    const t = tour(fused, [{ id: 'a', hunkIds: [fused[0].id] }, { id: 'b' }]);
+    const moved = applyMoves(t.chapters, t, { [apart[1].contentHash]: 'b' });
+    expect(moved.find((c) => c.id === 'b')?.hunkIds).toEqual([fused[0].id]);
   });
 });
