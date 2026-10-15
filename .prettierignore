@@ -11,4 +11,5 @@ pnpm-lock.yaml
 .idea/
 .vscode/
 .scratch/
+.gr-dev/
 *.log

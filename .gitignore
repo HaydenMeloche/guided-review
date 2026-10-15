@@ -3,6 +3,7 @@ dist/
 *.log
 .DS_Store
 .scratch/
+.gr-dev/
 .idea/
 .vscode/
 *.tgz

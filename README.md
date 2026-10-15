@@ -158,7 +158,7 @@ Guided Review has no telemetry and runs no server of its own. PR content and any
 Issues and pull requests are welcome. For anything larger than a small fix, open an issue first so we can agree on the approach.
 
 ```sh
-pnpm dev review 1234   # run TypeScript directly
+pnpm dev review 1234   # run TypeScript directly, with its own config and db in .gr-dev/ (pnpm reset:db clears it)
 pnpm lint
 pnpm format      # prettier --write
 pnpm typecheck   # src and tests
