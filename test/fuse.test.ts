@@ -112,4 +112,19 @@ describe('review comments on fused hunks', () => {
     const within = buildReviewPayload(t, [draft({ type: 'range', hunkId: id, file: 'src/fees.tsx', startLine: 4, line: 8, side: 'RIGHT' })], 'COMMENT', '');
     expect(within.payload.comments[0]).toMatchObject({ start_line: 4, line: 8 });
   });
+
+  it('says so when a range is cut to one line, and never posts its suggestion as one GitHub can apply', () => {
+    const { hunks } = parseTourDiff(MOVE_DIFF, readHead);
+    const t = tour(hunks, [{ hunkIds: [hunks[0].id] }]);
+    const d = { ...draft({ type: 'range', hunkId: hunks[0].id, file: 'src/fees.tsx', startLine: 8, line: 15, side: 'RIGHT' }), suggestion: 'a\nb\nc' };
+    const { payload, moved } = buildReviewPayload(t, [d], 'COMMENT', '');
+    expect(payload.comments[0].start_line).toBeUndefined();
+    expect(payload.comments[0].body).not.toContain('```suggestion');
+    expect(payload.comments[0].body).toContain('```\na\nb\nc\n```');
+    expect(payload.comments[0].body).toContain('Originally on lines 8-15');
+    expect(moved).toEqual([expect.objectContaining({ draftId: 'd', note: expect.stringContaining('with the suggestion as plain code') })]);
+    // A suggestion moved to the nearest line would replace the wrong code, too.
+    const gone = buildReviewPayload(t, [{ ...draft({ type: 'line', hunkId: hunks[0].id, file: 'src/fees.tsx', line: 12, side: 'RIGHT' }), suggestion: 'x' }], 'COMMENT', '');
+    expect(gone.payload.comments[0].body).not.toContain('```suggestion');
+  });
 });

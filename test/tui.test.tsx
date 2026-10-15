@@ -1223,6 +1223,22 @@ describe('split view, test pane toggle and expanded context', () => {
     ui.unmount();
   });
 
+  it('refuses a comment range that crosses dimmed lines between fused hunks', async () => {
+    const h = hunkFromDiff('src/a.ts', ' a();', '-b();', '+B();', ' c();', ' gap();', ' d();', '-e();', '+E();', ' f();');
+    h.lines[4].expanded = true;
+    const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
+    const ui = render(screen(t));
+    await waitFor(() => expect(ui.lastFrame()).toContain('+B();'));
+    ui.stdin.write('v');
+    await tick();
+    for (let i = 0; i < 5; i++) ui.stdin.write('j');
+    await tick();
+    ui.stdin.write('c');
+    await waitFor(() => expect(ui.lastFrame()).toContain('crosses dimmed lines'));
+    expect(ui.lastFrame()).not.toContain('Comment on');
+    ui.unmount();
+  });
+
   it('says where a moved block went', async () => {
     const h = hunkFromDiff('src/a.ts', ' a();', '-first(block);', '-second(block);', '-third(block);', ' b();');
     h.lines.forEach((l, i) => l.kind === 'del' && (l.moved = { file: 'src/a.ts', line: 40 + i }));

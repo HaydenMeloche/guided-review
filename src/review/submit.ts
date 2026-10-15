@@ -12,9 +12,11 @@ export function groupByLabel(drafts: Draft[]): Record<CommentLabel, Draft[]> {
   return groups;
 }
 
-function formatBody(d: Draft, note?: string): string {
+// `applicable`: the suggestion is offered as one GitHub can apply. It is not when the comment
+// landed on fewer lines than the suggestion was written for: applying it would duplicate code.
+function formatBody(d: Draft, note?: string, applicable = true): string {
   let body = `**[${d.label}]** ${d.body.trim()}`;
-  if (d.suggestion !== undefined) body += `\n\n\`\`\`suggestion\n${d.suggestion.replace(/\n$/, '')}\n\`\`\``;
+  if (d.suggestion !== undefined) body += `\n\n\`\`\`${applicable ? 'suggestion' : ''}\n${d.suggestion.replace(/\n$/, '')}\n\`\`\``;
   if (note) body += `\n\n${note}`;
   return body;
 }
@@ -70,21 +72,28 @@ export function buildReviewPayload(tour: Tour, drafts: Draft[], event: ReviewPay
     if (a.type === 'line' || a.type === 'range') {
       const lines = diffLines(tour, a.file, a.side);
       if (lines.includes(a.line)) {
-        const c: ReviewComment = { path: a.file, body: formatBody(d), line: a.line, side: a.side };
-        // A range must start inside the same hunk to be accepted by GitHub.
-        if (a.type === 'range' && a.startLine < a.line) {
-          if (sameDiffHunk(tour, a.file, a.startLine, a.line, a.side)) {
-            c.start_line = a.startLine;
-            c.start_side = a.side;
-          }
+        // A range must start inside the same hunk to be accepted by GitHub; one that cannot keeps
+        // only its last line, and its suggestion becomes plain code.
+        const start = a.type === 'range' && a.startLine < a.line ? a.startLine : undefined;
+        const keepsRange = start !== undefined && sameDiffHunk(tour, a.file, start, a.line, a.side);
+        const note = start !== undefined && !keepsRange ? `_Originally on lines ${start}-${a.line}, which GitHub cannot take as one range._` : undefined;
+        const c: ReviewComment = { path: a.file, body: formatBody(d, note, !note), line: a.line, side: a.side };
+        if (keepsRange) {
+          c.start_line = start;
+          c.start_side = a.side;
         }
+        if (note)
+          moved.push({
+            draftId: d.id,
+            note: `lines ${start}-${a.line} in ${a.file} span more than one GitHub hunk; posted on line ${a.line}${d.suggestion !== undefined ? ', with the suggestion as plain code' : ''}`,
+          });
         comments.push(c);
         continue;
       }
       if (lines.length > 0) {
         const nearest = lines.reduce((best, l) => (Math.abs(l - a.line) < Math.abs(best - a.line) ? l : best));
         const note = `_Originally on line ${a.line}, which is no longer in the diff._`;
-        comments.push({ path: a.file, body: formatBody(d, note), line: nearest, side: a.side });
+        comments.push({ path: a.file, body: formatBody(d, note, false), line: nearest, side: a.side });
         moved.push({ draftId: d.id, note: `moved from line ${a.line} to nearest diff line ${nearest} in ${a.file}` });
       } else {
         outside.push({ draft: d, where: `${a.file}:${a.line}` });

@@ -315,9 +315,33 @@ export function ChapterScreen(props: {
     createdAt: new Date().toISOString(),
   });
 
-  const lineAnchor = (h: Hunk): DraftAnchor | undefined => {
+  // The selected lines a comment can attach to: expanded context at the ends is left out.
+  const anchorLines = (h: Hunk): DiffLine[] => {
     const [a, b] = selRange();
-    const lines = h.lines.slice(a, b + 1).filter((l) => !l.expanded);
+    return h.lines.slice(a, b + 1).filter((l) => !l.expanded);
+  };
+  // A selection with expanded context between commentable lines spans two of GitHub's hunks,
+  // which GitHub will not take one comment across.
+  const crossesContext = (h: Hunk): boolean => {
+    const [a, b] = selRange();
+    const sel = h.lines.slice(a, b + 1);
+    const first = sel.findIndex((l) => !l.expanded);
+    const last = sel.findLastIndex((l) => !l.expanded);
+    return first >= 0 && sel.slice(first, last + 1).some((l) => l.expanded);
+  };
+  // The code under the selection, prefilled as a suggestion: exactly the lines it replaces.
+  const selectedCode = (): string | undefined =>
+    testFocus
+      ? testCodeLines[testCursor]?.text
+      : hunk
+        ? anchorLines(hunk)
+            .filter((l) => l.kind !== 'del')
+            .map((l) => l.text)
+            .join('\n')
+        : undefined;
+
+  const lineAnchor = (h: Hunk): DraftAnchor | undefined => {
+    const lines = anchorLines(h);
     const right = lines.filter((l) => l.newLine !== undefined && l.kind !== 'del');
     const side: 'LEFT' | 'RIGHT' = right.length ? 'RIGHT' : 'LEFT';
     const nums = side === 'RIGHT' ? right.map((l) => l.newLine!) : lines.map((l) => l.oldLine!).filter((n) => n !== undefined);
@@ -417,9 +441,9 @@ export function ChapterScreen(props: {
         return setTestFocus(true);
       }
       if (input === 'c' && hunk) {
+        if (crossesContext(hunk)) return setFlash('This range crosses dimmed lines outside the PR’s diff: GitHub can’t take one comment across them. Select one side.');
         const a = lineAnchor(hunk);
-        const [from, to] = selRange();
-        if (!a && hunk.lines.slice(from, to + 1).every((l) => l.expanded)) return setFlash('This is context outside the PR’s diff: GitHub can’t take a comment on it.');
+        if (!a && anchorLines(hunk).length === 0) return setFlash('This is context outside the PR’s diff: GitHub can’t take a comment on it.');
         if (!a) return setFlash('Nothing to anchor a comment to here.');
         setPending(newDraft(a));
         return setOverlay('comment');
@@ -604,14 +628,7 @@ export function ChapterScreen(props: {
       );
     }
     if (overlay === 'comment' && pending && !inlineSourceComment && !inlineTestComment) {
-      const [a, b] = selRange();
-      const selText = testFocus
-        ? testCodeLines[testCursor]?.text
-        : hunk?.lines
-            .slice(a, b + 1)
-            .filter((l) => l.kind !== 'del')
-            .map((l) => l.text)
-            .join('\n');
+      const selText = selectedCode();
       return (
         <CommentEditor
           draft={pending}
@@ -651,14 +668,7 @@ export function ChapterScreen(props: {
 
   const commentEditor = (w: number) => {
     if (!pending) return null;
-    const [a, b] = selRange();
-    const selText = testFocus
-      ? testCodeLines[testCursor]?.text
-      : hunk?.lines
-          .slice(a, b + 1)
-          .filter((l) => l.kind !== 'del')
-          .map((l) => l.text)
-          .join('\n');
+    const selText = selectedCode();
     return (
       <CommentEditor
         draft={pending}
