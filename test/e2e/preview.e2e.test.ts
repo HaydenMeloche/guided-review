@@ -38,7 +38,8 @@ describe('gr preview --no-agent', () => {
     await gr.waitFor('Chapters · Guided order');
     gr.press('n');
     const chapter = await gr.waitFor('Chapter 1/1');
-    expect(chapter).toContain('src/invoice.ts:1 total');
+    expect(chapter).toContain('Chapter 1/1: [total]');
+    expect(chapter).toContain('src/invoice.ts:1');
     expect(chapter).toContain('return sum - sum * discount;');
     expect(chapter).toContain('0/1 hunks');
     gr.press('n');
