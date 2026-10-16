@@ -70,12 +70,11 @@ function slots(limit: number) {
 
 function chaptersForOrder(tour: Tour, order: ChapterOrder, moves: Record<string, string>, deltaOnly: boolean): Chapter[] {
   const base = order === 'file' ? fileOrderChapters(tour.files, tour.hunks) : tour.chapters;
-  let chapters = applyMoves(base, tour, moves);
-  if (deltaOnly && tour.rereview) {
-    const delta = new Set(tour.rereview.newHunkIds);
-    chapters = chapters.map((c) => ({ ...c, hunkIds: c.hunkIds.filter((id) => delta.has(id)) })).filter((c) => c.hunkIds.length);
-  }
-  return sortChapters(chapters, tour, order);
+  // Sorted before the delta filter, so a re-review lists chapters in the same order as the whole tour.
+  const chapters = sortChapters(applyMoves(base, tour, moves), tour, order);
+  if (!deltaOnly || !tour.rereview) return chapters;
+  const delta = new Set(tour.rereview.newHunkIds);
+  return chapters.map((c) => ({ ...c, hunkIds: c.hunkIds.filter((id) => delta.has(id)) })).filter((c) => c.hunkIds.length);
 }
 
 export function App(opts: AppOptions) {
@@ -281,6 +280,19 @@ export function App(opts: AppOptions) {
     if (!tour) return [];
     return chaptersForOrder(tour, order, moves, deltaOnly);
   }, [tour, order, moves, deltaOnly]);
+  // The whole tour, so a re-review can show the chapters it leaves out, greyed.
+  const allChapters: Chapter[] = useMemo(() => {
+    if (!tour) return [];
+    return deltaOnly ? chaptersForOrder(tour, order, moves, false) : chapters;
+  }, [tour, order, moves, deltaOnly, chapters]);
+
+  // Switch between the new or changed hunks and the whole tour, keeping the current hunk when it is in both.
+  const toggleDelta = () => {
+    if (!tour?.rereview) return;
+    const nextChapters = chaptersForOrder(tour, order, moves, !deltaOnly);
+    setDeltaOnly(!deltaOnly);
+    setPosState(positionAfterOrderChange(chapters, pos, nextChapters));
+  };
 
   const cycleOrder = () => {
     if (!tour) return;
@@ -572,8 +584,11 @@ export function App(opts: AppOptions) {
     <BriefingScreen
       tour={tour}
       chapters={chapters}
+      allChapters={allChapters}
       order={order}
       cycleOrder={cycleOrder}
+      deltaOnly={deltaOnly}
+      toggleDelta={toggleDelta}
       states={states}
       analyzing={analyzing}
       agent={agent}
@@ -595,6 +610,7 @@ export function App(opts: AppOptions) {
       services={services}
       references={references}
       chapters={chapters}
+      allChapters={allChapters}
       states={states}
       drafts={drafts}
       ci={Math.min(pos.ci, Math.max(0, chapters.length - 1))}
@@ -626,10 +642,7 @@ export function App(opts: AppOptions) {
       toggleSplit={() => toggleView('splitDiff', splitDiff, setSplitDiff)}
       hideTestPane={hideTestPane}
       toggleTestPane={() => setHideTestPane((h) => !h)}
-      toggleDelta={() => {
-        setDeltaOnly((d) => !d);
-        setPosState({ ci: 0, hi: 0 });
-      }}
+      toggleDelta={toggleDelta}
       openSubmit={() => {
         setSubmitFrom('chapter');
         setPhase('submit');

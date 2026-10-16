@@ -1,13 +1,24 @@
 import { Box, Text } from 'ink';
 
+// A key named in a hint, lightly accented so it stands out from the dim text around it. Keep
+// it out of a dimColor parent: Ink dims nested text too.
+export function Key(props: { k: string }) {
+  return (
+    <Text color="cyan" bold>
+      {props.k}
+    </Text>
+  );
+}
+
 // Key hints, kept left to right while they fit. `status` (modes that are on) and the `end`
 // hints sit at the right edge and are never dropped, so help stays reachable on any width.
-export function KeyBar(props: { keys: [string, string][]; end?: [string, string][]; status?: string; width: number }) {
+// `accent` colours the keys the way `Key` does.
+export function KeyBar(props: { keys: [string, string][]; end?: [string, string][]; status?: string; width: number; accent?: boolean }) {
   const GAP = '   ';
   const size = ([k, label]: [string, string]) => k.length + 1 + label.length + GAP.length;
   const hint = ([k, label]: [string, string]) => (
     <Text key={k}>
-      <Text bold>{k}</Text>
+      {props.accent ? <Key k={k} /> : <Text bold>{k}</Text>}
       <Text dimColor>{` ${label}`}</Text>
       {GAP}
     </Text>

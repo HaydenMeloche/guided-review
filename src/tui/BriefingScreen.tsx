@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import type { Chapter, ChapterOrder, Tour } from '../types.js';
 import { chapterState, ORDER_LABEL, pad, progress, stateMark, type States } from './nav.js';
@@ -8,11 +8,11 @@ import { MdLineView, renderMarkdown } from './markdown.js';
 import { Reader } from './Panels.js';
 import { AskOverlay } from './AskOverlay.js';
 import { KeyBar, type AgentCtx } from './ChapterScreen.js';
+import { Key } from './KeyBar.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
 
 const FLAG_COLOR: Record<string, string> = {
   'scope-creep': 'magenta',
-  'missing-tests': 'red',
   'generated-out-of-sync': 'yellow',
   'large-pr': 'yellow',
   'no-entry-point': 'yellow',
@@ -26,8 +26,11 @@ const FLAG_COLOR: Record<string, string> = {
 export function BriefingScreen(props: {
   tour: Tour;
   chapters: Chapter[];
+  allChapters?: Chapter[]; // the whole tour; a re-review greys the chapters `chapters` leaves out
   order: ChapterOrder;
   cycleOrder: () => void;
+  deltaOnly?: boolean;
+  toggleDelta?: () => void;
   states: States;
   analyzing?: string; // progress line while chapters are still being narrated
   agent?: AgentCtx;
@@ -43,6 +46,18 @@ export function BriefingScreen(props: {
   const [sel, setSel] = useState(0);
   const [overlay, setOverlay] = useState<'none' | 'diagram' | 'ask' | 'read' | 'reviews'>('none');
   useEffect(() => setSel(0), [props.order]);
+  // D keeps the selected chapter when it is in both lists.
+  const keepSel = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (keepSel.current === undefined) return;
+    setSel(
+      Math.max(
+        0,
+        chapters.findIndex((c) => c.id === keepSel.current),
+      ),
+    );
+    keepSel.current = undefined;
+  }, [chapters]);
 
   // Per-render work over the whole tour is memoized, so j/k only re-renders the list.
   const prog = useMemo(() => progress(tour, states), [tour, states]);
@@ -62,6 +77,10 @@ export function BriefingScreen(props: {
       if (input === 'd' && tour.overview) return setOverlay('diagram');
       if (input === '?') return setOverlay('ask');
       if (input === 'f') return props.cycleOrder();
+      if (input === 'D' && tour.rereview && props.toggleDelta) {
+        keepSel.current = chapters[sel]?.id ?? '';
+        return props.toggleDelta();
+      }
       if (input === 's') return props.onSubmit();
       if (input === 'r' && tour.description?.trim()) return setOverlay('read');
       if (input === 'V' && tour.existingReviews?.some((r) => r.author !== tour.author && r.author !== tour.viewer)) return setOverlay('reviews');
@@ -103,16 +122,28 @@ export function BriefingScreen(props: {
   const askHeight = overlay === 'ask' ? Math.min(14, Math.max(5, height - 10)) : 0;
   const bodyH = height - 4 - askHeight; // title, margin, status line, key bar
 
-  const flags = tour.flags.slice(0, 6);
+  // Missing tests show on each hunk in the chapters, so the briefing leaves that flag out.
+  const flags = tour.flags.filter((f) => f.kind !== 'missing-tests').slice(0, 6);
   const otherReviews = (tour.existingReviews ?? []).filter((r) => r.author !== tour.author && r.author !== tour.viewer);
   const reviews = otherReviews.slice(-3).reverse();
   const rrRows = rr ? 1 + Math.min(5, rr.comments.length) + 1 : 0;
+  // On a re-review showing only changes, every chapter is listed and the unchanged ones are greyed.
+  const delta = !!rr && !!props.deltaOnly;
+  const fullCount = (id: string) => (props.allChapters ?? chapters).find((c) => c.id === id)?.hunkIds.length ?? 0;
+  const rows =
+    delta && props.allChapters
+      ? props.allChapters.map((c) => ({ chapter: chapters.find((d) => d.id === c.id) ?? c, ci: chapters.findIndex((d) => d.id === c.id) }))
+      : chapters.map((chapter, ci) => ({ chapter, ci }));
+  const selRow = Math.max(
+    0,
+    rows.findIndex((r) => r.ci === sel),
+  );
   const otherRows = intent.length + 1 + rrRows + (reviews.length ? reviews.length + 2 : 0) + (flags.length ? flags.length + 1 : 0) + tour.notes.length + (blast.length ? blast.length + 2 : 0);
   // Long chapter lists show a window around the selection instead of every chapter.
   const chapterRoom = Math.max(5, bodyH - otherRows - 3 - 4);
-  const windowed = chapters.length > chapterRoom;
-  const shownCount = windowed ? chapterRoom - 1 : chapters.length;
-  const chStart = windowed ? Math.max(0, Math.min(sel - Math.floor(shownCount / 2), chapters.length - shownCount)) : 0;
+  const windowed = rows.length > chapterRoom;
+  const shownCount = windowed ? chapterRoom - 1 : rows.length;
+  const chStart = windowed ? Math.max(0, Math.min(selRow - Math.floor(shownCount / 2), rows.length - shownCount)) : 0;
   const fixedRows = otherRows + shownCount + (windowed ? 1 : 0) + 3;
   const diagramBelowH = wide ? 0 : Math.max(0, Math.min(16, bodyH - fixedRows - 8));
   // heading + margin + the '… more' line
@@ -132,27 +163,27 @@ export function BriefingScreen(props: {
           {desc.map((l, i) => (
             <MdLineView key={i} line={l} />
           ))}
-          {descAll.length > desc.length ? <Text dimColor italic>{`… ${descAll.length - desc.length} more line(s): r to read it all`}</Text> : null}
-        </Box>
-      ) : null}
-      {rr ? (
-        <Box flexDirection="column" marginTop={1} flexShrink={0}>
-          <Text color="cyan" bold>
-            Re-review since {safe(rr.previousHead.slice(0, 8))}: {rr.newHunkIds.length} new or changed hunk(s)
-          </Text>
-          {rr.comments.slice(0, 5).map((c, i) => (
-            <Text key={i} wrap="truncate">
-              <Text color={c.addressed ? 'green' : 'yellow'}>{c.addressed ? '✓ addressed ' : '○ open      '}</Text>
-              {safe(`${c.path ? `${c.path}:${c.line ?? ''} ` : ''}${c.body.replace(/\s+/g, ' ')}`)}
-              <Text dimColor> — {safe(c.reason)}</Text>
+          {descAll.length > desc.length ? (
+            <Text>
+              <Text dimColor italic>{`… ${descAll.length - desc.length} more line(s): `}</Text>
+              <Key k="r" />
+              <Text dimColor italic>
+                {' '}
+                to read it all
+              </Text>
             </Text>
-          ))}
+          ) : null}
         </Box>
       ) : null}
       {reviews.length ? (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
-          <Text bold color="cyan">
-            Other reviewers · V to read all {otherReviews.length} review(s)
+          <Text>
+            <Text bold color="cyan">
+              Other reviewers
+            </Text>
+            <Text dimColor> · </Text>
+            <Key k="V" />
+            <Text dimColor> to read all {otherReviews.length} review(s)</Text>
           </Text>
           {reviews.map((r) => (
             <Text key={r.id} wrap="truncate">
@@ -182,6 +213,46 @@ export function BriefingScreen(props: {
           {safe(`ℹ ${n}`)}
         </Text>
       ))}
+      {rr ? (
+        <Box flexDirection="column" marginTop={1} flexShrink={0}>
+          <Text wrap="truncate">
+            {delta ? (
+              <>
+                <Text color="yellow" bold>
+                  Changes only:
+                </Text>
+                <Text>
+                  {' '}
+                  {rr.newHunkIds.length} new or changed hunk(s) since {safe(rr.previousHead.slice(0, 8))}, in {chapters.length} of {rows.length} chapters
+                </Text>
+                <Text dimColor> · </Text>
+                <Key k="D" />
+                <Text dimColor> for the full review</Text>
+              </>
+            ) : (
+              <>
+                <Text color="cyan" bold>
+                  Full review:
+                </Text>
+                <Text>
+                  {' '}
+                  every hunk · {rr.newHunkIds.length} new or changed since {safe(rr.previousHead.slice(0, 8))}
+                </Text>
+                <Text dimColor> · </Text>
+                <Key k="D" />
+                <Text dimColor> for changes only</Text>
+              </>
+            )}
+          </Text>
+          {rr.comments.slice(0, 5).map((c, i) => (
+            <Text key={i} wrap="truncate">
+              <Text color={c.addressed ? 'green' : 'yellow'}>{c.addressed ? '✓ addressed ' : '○ open      '}</Text>
+              {safe(`${c.path ? `${c.path}:${c.line ?? ''} ` : ''}${c.body.replace(/\s+/g, ' ')}`)}
+              <Text dimColor> — {safe(c.reason)}</Text>
+            </Text>
+          ))}
+        </Box>
+      ) : null}
       <Box flexDirection="column" marginTop={1} flexShrink={0}>
         <Text bold>
           Chapters <Text color="cyan">· {ORDER_LABEL[props.order]} order</Text>
@@ -190,28 +261,34 @@ export function BriefingScreen(props: {
             · {prog.read + prog.skipped}/{prog.total} hunks done
           </Text>
         </Text>
-        <Text dimColor>
-          {props.order === 'flow'
-            ? 'Recommended reading path through the changed flows'
-            : props.order === 'risk'
-              ? 'Highest-risk chapters first'
-              : props.order === 'size'
-                ? 'Fewest changed lines first'
-                : 'Files in path order'}{' '}
-          · f to change
+        <Text>
+          <Text dimColor>
+            {props.order === 'flow'
+              ? 'Recommended reading path through the changed flows'
+              : props.order === 'risk'
+                ? 'Highest-risk chapters first'
+                : props.order === 'size'
+                  ? 'Fewest changed lines first'
+                  : 'Files in path order'}
+            {' · '}
+          </Text>
+          <Key k="f" />
+          <Text dimColor> to change</Text>
         </Text>
-        {chapters.slice(chStart, chStart + shownCount).map((c, k) => {
-          const i = chStart + k;
+        {rows.slice(chStart, chStart + shownCount).map(({ chapter: c, ci }) => {
+          const unchanged = ci < 0;
           const st = stateMark(chapterState(tour, c, states));
-          const meta = ` ${c.hunkIds.length} hunk(s)${c.optional ? ' · optional' : c.kind !== 'flow' ? ` · ${c.kind}` : ''}`;
+          const count = !delta ? `${c.hunkIds.length} hunk(s)` : unchanged ? `${c.hunkIds.length} hunk(s) · unchanged` : `${c.hunkIds.length} of ${fullCount(c.id)} hunk(s) changed`;
+          const meta = ` ${count}${c.optional ? ' · optional' : c.kind !== 'flow' ? ` · ${c.kind}` : ''}`;
+          const selected = !unchanged && ci === sel;
           return (
-            <Text key={c.id} inverse={i === sel} dimColor={c.collapsed && i !== sel} wrap="truncate">
-              <Text color={st.color}>{st.mark}</Text> {pad(safe(c.title), Math.max(20, leftW - meta.length - 3))}
+            <Text key={c.id} inverse={selected} dimColor={unchanged || (c.collapsed && !selected)} wrap="truncate">
+              <Text color={unchanged ? undefined : st.color}>{st.mark}</Text> {pad(safe(c.title), Math.max(20, leftW - meta.length - 3))}
               <Text dimColor>{meta}</Text>
             </Text>
           );
         })}
-        {windowed ? <Text dimColor>{`  ${chStart ? `… ${chStart} above · ` : ''}${chapters.length - chStart - shownCount} more below`}</Text> : null}
+        {windowed ? <Text dimColor>{`  ${chStart ? `… ${chStart} above · ` : ''}${rows.length - chStart - shownCount} more below`}</Text> : null}
       </Box>
       {blast.length ? (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
@@ -255,8 +332,13 @@ export function BriefingScreen(props: {
         {left}
         {wide && tour.overview ? (
           <Box flexDirection="column" marginLeft={2} width={rightW} borderStyle="single" borderTop={false} borderBottom={false} borderRight={false} borderColor="gray" paddingLeft={1}>
-            <Text bold dimColor>
-              Overview <Text dimColor>· d to explore</Text>
+            <Text>
+              <Text bold dimColor>
+                Overview
+              </Text>
+              <Text dimColor> · </Text>
+              <Key k="d" />
+              <Text dimColor> to explore</Text>
             </Text>
             <DiagramView graph={tour.overview} width={rightW - 2} height={bodyH - 2} interactive={false} />
           </Box>
@@ -266,14 +348,15 @@ export function BriefingScreen(props: {
       {props.analyzing ? <Text color="yellow">⟳ {safe(props.analyzing)} (you can start reading now)</Text> : <Text> </Text>}
       <KeyBar
         width={width}
+        accent
+        // Keys hinted where they apply on screen (D, f, d beside the overview, r under a cut-off
+        // description) stay off the bar.
         keys={[
           ['n', 'start / resume'],
           ['enter', 'open chapter'],
           ['j/k', 'select'],
-          ['f', 'change order'],
-          ['r', 'read description'],
-          ['V', 'other reviews'],
-          ['d', 'overview diagram'],
+          ...((descAll.length > desc.length ? [] : [['r', 'read description']]) as [string, string][]),
+          ...((wide && tour.overview ? [] : [['d', 'overview diagram']]) as [string, string][]),
           ['?', 'ask about the PR'],
           ['s', 'submit'],
           ...((props.onBack

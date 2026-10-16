@@ -73,6 +73,7 @@ const LINK_TEXT = { coverage: 'coverage run', 'name-match': 'name match', naming
 export function ChapterScreen(props: {
   tour: Tour;
   chapters: Chapter[];
+  allChapters?: Chapter[]; // the whole tour; a re-review greys the chapters `chapters` leaves out
   states: States;
   drafts: Draft[];
   ci: number;
@@ -282,7 +283,21 @@ export function ChapterScreen(props: {
   const prog = useMemo(() => progress(tour, states), [tour, states]);
   const delta = useMemo(() => new Set(tour.rereview?.newHunkIds ?? []), [tour.rereview]);
   const filesByPath = useMemo(() => new Map(tour.files.map((f) => [f.path, f])), [tour.files]);
-  const chapterStrip = useMemo(() => (wide ? '' : chapters.map((c, i) => (i === ci ? `[${c.title}]` : stateMark(chapterState(tour, c, states)).mark)).join(' ')), [wide, chapters, ci, tour, states]);
+  // On a re-review showing only changes, the chapter list keeps the whole tour and greys what it leaves out.
+  const listed = props.deltaOnly && props.allChapters ? props.allChapters : chapters;
+  const unchangedHunks = props.deltaOnly && chapter ? (props.allChapters?.find((c) => c.id === chapter.id)?.hunkIds.length ?? 0) - chapter.hunkIds.length : 0;
+  const chapterStrip = useMemo(
+    () =>
+      wide
+        ? ''
+        : listed
+            .map((c) => {
+              const shown = chapters.find((d) => d.id === c.id);
+              return c.id === chapter?.id ? `[${c.title}]` : shown ? stateMark(chapterState(tour, shown, states)).mark : '·';
+            })
+            .join(' '),
+    [wide, listed, chapters, chapter?.id, tour, states],
+  );
 
   // ---------- navigation ----------
   const firstHunk = (c: number) => (chapters[c]?.collapsed ? -1 : 0);
@@ -654,8 +669,6 @@ export function ChapterScreen(props: {
     const open = chapter.checklist.filter((c) => !svc?.confirms[c.id]).length;
     if (open) chapterNotes.push(`Team checklist: ${open} item(s) to confirm (i). ${chapter.checklist.filter((c) => c.status === 'fail').length} flagged by the agent.`);
   }
-  // The hunk row leaves this out; it reads here, in full.
-  if (hunk && chapter.orphanReasons[hunk.id]) chapterNotes.push(`Why it is here: ${chapter.orphanReasons[hunk.id]}`);
 
   // Linked tests that are not beside the code (a narrow terminal, T, or a split diff) get a tab
   // saying they are there and how to open them.
@@ -825,12 +838,12 @@ export function ChapterScreen(props: {
         </Text>
       ) : null}
       <Box flexDirection="row">
-        {wide ? <ChapterList tour={tour} chapters={chapters} states={states} ci={ci} width={listWidth} height={height - headerRows - footerRows} /> : null}
+        {wide ? <ChapterList tour={tour} chapters={chapters} listed={listed} states={states} current={chapter.id} width={listWidth} height={height - headerRows - footerRows} /> : null}
         {wide ? <Box width={1} /> : null}
         <Box flexDirection="column" width={mainWidth}>
           {overlayNode ?? (
             <>
-              <ChapterTitle chapter={chapter} hunk={hunk} hi={hi} isNew={!!hunk && delta.has(hunk.id)} width={mainWidth} states={states} drawer={testDrawer} />
+              <ChapterTitle chapter={chapter} hunk={hunk} hi={hi} isNew={!!hunk && delta.has(hunk.id)} unchanged={unchangedHunks} width={mainWidth} states={states} drawer={testDrawer} />
               {explainLines.length ? (
                 <Box flexDirection="column" flexShrink={0} borderStyle="round" borderColor={hunk?.narrationInferred ? 'gray' : 'blue'} paddingX={1} width={mainWidth}>
                   <Text bold color={hunk?.narrationInferred ? 'gray' : 'blue'}>
@@ -963,10 +976,7 @@ export function ChapterScreen(props: {
                   ['t/esc', 'back to code'],
                   ['b', 'briefing'],
                 ]
-              : [
-                  ['b', 'briefing'],
-                  ['h', 'all keys'],
-                ]
+              : [...((tour.rereview ? [['D', props.deltaOnly ? 'full review' : 'changes only']] : []) as [string, string][]), ['b', 'briefing'], ['h', 'all keys']]
         }
         keys={overlay !== 'none' ? [] : barKeys()}
       />
@@ -989,7 +999,9 @@ const Header = React.memo(function Header(props: { tour: Tour; prog: ReturnType<
   const barW = 16;
   const filled = prog.totalLines ? Math.round((prog.readLines / prog.totalLines) * barW) : barW;
   const meter = '█'.repeat(filled) + '░'.repeat(barW - filled);
-  const right = `${meter} ${prog.readLines}/${prog.totalLines} lines · ${prog.read + prog.skipped}/${prog.total} hunks${props.deltaOnly ? ' · delta' : ''} · ${ORDER_LABEL[props.order]} order`;
+  const right = `${meter} ${prog.readLines}/${prog.totalLines} lines · ${prog.read + prog.skipped}/${prog.total} hunks · ${ORDER_LABEL[props.order]} order`;
+  // A re-review says which hunks it is showing, so the hidden ones are never a surprise.
+  const badge = !tour.rereview ? '' : props.deltaOnly ? 'changes only' : 'full review';
   const repo = `${safe(tour.repo)} `;
   const left = `#${tour.pr} ${safe(tour.title)}`;
   return (
@@ -997,26 +1009,39 @@ const Header = React.memo(function Header(props: { tour: Tour; prog: ReturnType<
       <Text color="cyan" bold>
         {repo}
       </Text>
-      <Text bold>{pad(left, Math.max(10, width - right.length - repo.length - 1))}</Text> <Text color="green">{meter}</Text>
+      <Text bold>{pad(left, Math.max(10, width - right.length - repo.length - (badge ? badge.length + 1 : 0) - 1))}</Text>{' '}
+      {badge ? (
+        <>
+          <Text color={props.deltaOnly ? 'yellow' : 'cyan'} bold>
+            {badge}
+          </Text>{' '}
+        </>
+      ) : null}
+      <Text color="green">{meter}</Text>
       <Text dimColor>{right.slice(barW)}</Text>
     </Text>
   );
 });
 
-const ChapterList = React.memo(function ChapterList(props: { tour: Tour; chapters: Chapter[]; states: States; ci: number; width: number; height: number }) {
-  const { tour, chapters, states, ci, width } = props;
-  const start = Math.max(0, Math.min(ci - Math.floor(props.height / 2), chapters.length - props.height));
+// `listed` is every chapter to show; one not in `chapters` (left out of a re-review) is greyed.
+const ChapterList = React.memo(function ChapterList(props: { tour: Tour; chapters: Chapter[]; listed: Chapter[]; states: States; current: string; width: number; height: number }) {
+  const { tour, chapters, listed, states, current, width } = props;
+  const at = listed.findIndex((c) => c.id === current);
+  const start = Math.max(0, Math.min(at - Math.floor(props.height / 2), listed.length - props.height));
   return (
     <Box flexDirection="column" width={width}>
-      {chapters.slice(start, start + props.height).map((c, k) => {
-        const i = start + k;
+      {listed.slice(start, start + props.height).map((full) => {
+        const shown = chapters.find((d) => d.id === full.id);
+        const unchanged = !shown;
+        const c = shown ?? full;
+        const here = c.id === current;
         const st = stateMark(chapterState(tour, c, states));
         const rk = riskMark(Math.max(0, ...c.hunkIds.map((id) => tour.hunks[id]?.risk ?? 0)));
         const p = progress(tour, states, c.hunkIds);
         return (
-          <Text key={c.id} inverse={i === ci} dimColor={c.collapsed && i !== ci}>
-            <Text color={st.color}>{st.mark}</Text>
-            <Text color={rk.color}>{rk.mark}</Text> {pad(safe(c.title), width - 9)}
+          <Text key={c.id} inverse={here} dimColor={unchanged || (c.collapsed && !here)}>
+            <Text color={unchanged ? undefined : st.color}>{st.mark}</Text>
+            <Text color={unchanged ? undefined : rk.color}>{rk.mark}</Text> {pad(safe(c.title), width - 9)}
             <Text dimColor>{c.optional ? ' opt ' : `${String(p.read + p.skipped).padStart(2)}/${String(p.total).padEnd(2)}`}</Text>
           </Text>
         );
@@ -1026,7 +1051,7 @@ const ChapterList = React.memo(function ChapterList(props: { tour: Tour; chapter
 });
 
 // `drawer`: a hint at the right end of the title row for linked tests that are not on screen.
-const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: Chapter; hunk?: Hunk; hi: number; isNew: boolean; width: number; states: States; drawer?: string }) {
+const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: Chapter; hunk?: Hunk; hi: number; isNew: boolean; unchanged?: number; width: number; states: States; drawer?: string }) {
   const { chapter, hunk, hi } = props;
   const cov = hunk ? COVERAGE[hunk.coverage] : undefined;
   const st = hunk ? stateMark(stateOf(props.states, hunk)) : undefined;
@@ -1047,6 +1072,7 @@ const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: Chapter;
                 · hunk {hi + 1}/{chapter.hunkIds.length}
               </Text>
             ) : null}
+            {props.unchanged ? <Text dimColor> · {props.unchanged} unchanged hidden</Text> : null}
           </Text>
         </Box>
         {props.drawer ? (
@@ -1647,7 +1673,7 @@ const HELP_ROWS: [string, string][] = [
   ['x / z / u', 'Mark the hunk skipped / deferred / unread'],
   ['m', 'Move the hunk to another chapter'],
   ['f', 'Cycle Guided, Risk first, Small first, and File order'],
-  ['D', 'Re-review: toggle delta-only (new and changed hunks)'],
+  ['D', 'Re-review: switch between only new and changed hunks and the full review'],
   ['o', 'Open the hunk in Claude Code'],
   ['i', 'Team checklist for this chapter'],
   ['b / s', 'Briefing / submit screen'],

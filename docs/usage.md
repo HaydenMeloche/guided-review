@@ -12,7 +12,7 @@ Run `gr cleanup` to remove managed PR worktrees and prune old tours. Tours are a
 
 ## Read the tour
 
-The **briefing** opens once it is ready; chapter narration may continue in the background. It shows the PR's intent and author description, recent reviewer feedback, flagged gaps, an overview diagram, chapters with risk, and your progress. Press `V` to read all submitted reviews. The chapter heading names the current order. Press `f` to cycle **Guided** (recommended reading path), **Risk first**, **Small first** (fewest changed lines), and **File** (path order). Select a chapter with `j`/`k` and `Enter`, or press `n` to resume where you left off. Press `r` to read the full PR description, `d` for the overview diagram, or `?` to ask about the whole PR in a panel below the briefing.
+The **briefing** opens once it is ready; chapter narration may continue in the background. It shows the PR's intent and author description, recent reviewer feedback, flagged gaps, an overview diagram, chapters with risk, and your progress. Press `V` to read all submitted reviews. The chapter heading names the current order. Press `f` to cycle **Guided** (recommended reading path), **Risk first**, **Small first** (fewest changed lines), and **File** (path order). Select a chapter with `j`/`k` and `Enter`, or press `n` to resume where you left off. Press `r` to read the full PR description, `d` for the overview diagram, or `?` to ask about the whole PR in a panel below the briefing. On a re-review, press `D` to switch between only the changes and the full review.
 
 <p align="center"><img src="images/briefing.webp" alt="The briefing screen: a summary of the PR, the author's description, flagged gaps, an overview diagram, chapters in reading order, and blast radius" width="900"></p>
 
@@ -67,7 +67,7 @@ Upgrade highlights and package overviews come from a changelog in the worktree w
 | `x` / `z` / `u` | Mark a hunk skipped, deferred, or unread. |
 | `m` | Move the current hunk to another chapter. |
 | `f` | Cycle Guided, Risk first, Small first, and File order. Your current hunk stays selected. |
-| `D` | On a re-review, toggle between changed hunks and the whole tour. |
+| `D` | On a re-review, switch between only the new and changed hunks and the full review. The header shows which one you are in. |
 | `R` | Rebuild the tour on a newer PR head after the author pushes. |
 | `i` | Open the team's checklist for this chapter. |
 | `o` | Open the current review context in Claude Code. |
@@ -86,7 +86,7 @@ When a linked test case is new or modified in the PR, the Tests pane shows its d
 
 Possible test gaps appear as a short line in the hunk explanation. Press `U` to see the full notes, including branches or behaviors the agent could not link to a test; press it again to collapse them. These are review leads, not proof that a test is absent.
 
-Risk scores call attention to changes involving authentication, payments, migrations, public APIs, concurrency, command execution, error handling, and similar areas. The briefing may flag risky code without linked tests, possible generated-file or lockfile mismatches, and likely missing migrations, changesets, environment examples, translations, documentation, or feature flag checks. These are prompts to inspect, not conclusions that the PR is wrong. The model can raise a hunk's static risk score but never lower it, so text in a PR cannot talk the tour into downplaying a risky change.
+Risk scores call attention to changes involving authentication, payments, migrations, public APIs, concurrency, command execution, error handling, and similar areas. Risky code without a linked test is marked on its hunk in the chapter. The briefing may flag possible generated-file or lockfile mismatches, and likely missing migrations, changesets, environment examples, translations, documentation, or feature flag checks. These are prompts to inspect, not conclusions that the PR is wrong. The model can raise a hunk's static risk score but never lower it, so text in a PR cannot talk the tour into downplaying a risky change.
 
 Repo checklists are pre-checked by the agent as pass, fail, or unknown; use `i` to confirm each item yourself. Confirmations are saved locally and shown on the submit screen as a reminder; they are not posted to GitHub.
 
@@ -155,7 +155,7 @@ If a draft's original line is no longer in the diff, Guided Review attaches it t
 
 ## Review after a new push
 
-Guided Review checks for a new PR head while you review and offers `R` to rebuild on it. It keeps your drafts and reading state. A new tour can start in **delta-only** mode, showing hunks that are new or changed since the previous head; press `D` to show the whole tour.
+Guided Review checks for a new PR head while you review and offers `R` to rebuild on it. It keeps your drafts and reading state. A new tour starts in **changes only** mode, showing hunks that are new or changed since the previous head. The briefing says so just above the chapter list, which still shows every chapter: the unchanged ones are greyed, and each changed one says how many of its hunks changed. In a chapter, the header says `changes only`, the chapter list greys unchanged chapters, and the title says how many unchanged hunks are hidden. Press `D` on the briefing or in a chapter to switch to the full review and back.
 
 The briefing also compares your posted comments and GitHub threads with the new diff. It reports whether the commented lines changed, the file was deleted, or a thread was resolved. A changed line is a reason to re-check the author's update, not proof that the concern is fixed. Drafts whose original hunk disappeared are flagged for review.
 

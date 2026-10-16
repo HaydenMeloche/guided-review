@@ -715,6 +715,92 @@ describe('BriefingScreen and SubmitScreen', () => {
     ui.unmount();
   });
 
+  it('on a re-review, lists unchanged chapters greyed under the changes and D shows the full review', async () => {
+    const tour = fixtureTour();
+    expect(tour.chapters.length).toBeGreaterThan(1);
+    const changed = tour.chapters[0];
+    const unchanged = tour.chapters[1];
+    tour.rereview = { previousHead: 'c'.repeat(40), newHunkIds: [changed.hunkIds[0]], comments: [] };
+    const deltaChapters = tour.chapters.map((c) => ({ ...c, hunkIds: c.hunkIds.filter((id) => tour.rereview!.newHunkIds.includes(id)) })).filter((c) => c.hunkIds.length);
+    const toggles: boolean[] = [];
+    function ReReviewBriefing() {
+      const [deltaOnly, setDeltaOnly] = useState(true);
+      return (
+        <BriefingScreen
+          tour={tour}
+          chapters={deltaOnly ? deltaChapters : tour.chapters}
+          allChapters={tour.chapters}
+          deltaOnly={deltaOnly}
+          toggleDelta={() => setDeltaOnly((d) => (toggles.push(!d), !d))}
+          order="flow"
+          cycleOrder={() => {}}
+          states={{}}
+          width={140}
+          height={45}
+          onStart={() => {}}
+          onSubmit={() => {}}
+          onQuit={() => {}}
+        />
+      );
+    }
+    const ui = render(<ReReviewBriefing />);
+    await waitFor(() => expect(ui.lastFrame()).toContain('Changes only:'));
+    const frame = ui.lastFrame()!;
+    expect(frame).toContain(`1 of ${changed.hunkIds.length} hunk(s) changed`);
+    expect(frame).toContain(unchanged.title);
+    expect(frame).toContain('unchanged');
+    // The re-review note sits just above the chapter list, not under the description.
+    expect(frame.indexOf('Changes only:')).toBeLessThan(frame.indexOf('Chapters'));
+    expect(frame.indexOf('Changes only:')).toBeGreaterThan(frame.indexOf('Adds POST /invoices.'));
+    ui.stdin.write('D');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Full review:'));
+    expect(toggles).toEqual([false]);
+    expect(ui.lastFrame()).not.toContain('· unchanged');
+    ui.unmount();
+  });
+
+  it('on a re-review, the chapter screen badges the header, greys unchanged chapters, and offers D', async () => {
+    const tour = fixtureTour();
+    const changed = tour.chapters.find((c) => c.hunkIds.length > 1)!;
+    const unchanged = tour.chapters.find((c) => c !== changed)!;
+    tour.rereview = { previousHead: 'c'.repeat(40), newHunkIds: [changed.hunkIds[0]], comments: [] };
+    const deltaChapters = [{ ...changed, hunkIds: [changed.hunkIds[0]] }];
+    let toggled = 0;
+    const ui = render(
+      <ChapterScreen
+        tour={tour}
+        chapters={deltaChapters}
+        allChapters={tour.chapters}
+        states={{}}
+        drafts={[]}
+        ci={0}
+        hi={0}
+        order="flow"
+        deltaOnly
+        width={190}
+        height={40}
+        setPos={() => {}}
+        setState={() => {}}
+        saveDraft={() => {}}
+        deleteDraft={() => {}}
+        moveHunk={() => {}}
+        toggleOrder={() => {}}
+        toggleDelta={() => toggled++}
+        openSubmit={() => {}}
+        openBriefing={() => {}}
+        openInClaude={() => {}}
+        quit={() => {}}
+      />,
+    );
+    await waitFor(() => expect(ui.lastFrame()).toContain('changes only'));
+    expect(ui.lastFrame()).toContain(unchanged.title.slice(0, 15));
+    expect(ui.lastFrame()).toContain(`${changed.hunkIds.length - 1} unchanged hidden`);
+    expect(ui.lastFrame()).toContain('full review');
+    ui.stdin.write('D');
+    await waitFor(() => expect(toggled).toBe(1));
+    ui.unmount();
+  });
+
   it('shows PR questions alongside the briefing', async () => {
     const tour = fixtureTour();
     const ui = render(
