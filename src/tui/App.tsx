@@ -468,6 +468,21 @@ export function App(opts: AppOptions) {
     exit();
   };
 
+  // q while reviewing: drop the open tour and return to the PR list. A preview has no list,
+  // so there q quits.
+  const back = opts.preview
+    ? undefined
+    : () => {
+        loadGen.current++;
+        loadAbort.current?.abort();
+        setTour(undefined);
+        setSteps([]);
+        setBanner(undefined);
+        setNewHead(undefined);
+        setAnalyzing(undefined);
+        setPhase('pick');
+      };
+
   // ---------- screens ----------
   const width = columns;
   const height = rows;
@@ -491,7 +506,7 @@ export function App(opts: AppOptions) {
     );
   }
   if (phase === 'error') {
-    return <ErrorScreen message={error} onRetry={() => target && void load(target, true)} onQuit={quit} />;
+    return <ErrorScreen message={error} onRetry={() => target && void load(target, true)} onBack={back} onQuit={quit} />;
   }
   const introLines = (spinner: string): IntroLine[] => {
     const shown: IntroLine[] = steps
@@ -504,11 +519,11 @@ export function App(opts: AppOptions) {
       ...shown,
       ...Array.from({ length: INTRO_STEPS - shown.length }, () => ' '),
       ' ',
-      [{ text: 'The briefing opens as soon as it is written · q to quit', dim: true }],
+      [{ text: `The briefing opens as soon as it is written · ${back ? 'q for the PR list · Q to quit' : 'q to quit'}`, dim: true }],
     ];
   };
   if (phase === 'load' || !tour) {
-    return <TourIntro width={width} height={height} lines={introLines} onQuit={quit} />;
+    return <TourIntro width={width} height={height} lines={introLines} onBack={back} onQuit={quit} />;
   }
   const agent =
     tour.mode === 'agent' && worktree
@@ -570,6 +585,7 @@ export function App(opts: AppOptions) {
         setSubmitFrom('briefing');
         setPhase('submit');
       }}
+      onBack={back}
       onQuit={quit}
     />
   );
@@ -621,6 +637,7 @@ export function App(opts: AppOptions) {
       openBriefing={() => setPhase('briefing')}
       openInClaude={(h, c) => void openInClaude(h, c)}
       rebase={newHead && target ? () => void load(target, false) : undefined}
+      back={back}
       quit={quit}
     />
   );
@@ -697,10 +714,11 @@ export function App(opts: AppOptions) {
 
 const INTRO_STEPS = 6;
 
-function ErrorScreen(props: { message: string; onRetry: () => void; onQuit: () => void }) {
+function ErrorScreen(props: { message: string; onRetry: () => void; onBack?: () => void; onQuit: () => void }) {
   useInput((input) => {
     if (input === 'r') props.onRetry();
-    if (input === 'q') props.onQuit();
+    if (input === 'q') (props.onBack ?? props.onQuit)();
+    if (input === 'Q') props.onQuit();
   });
   return (
     <Box flexDirection="column" paddingX={1}>
@@ -708,7 +726,7 @@ function ErrorScreen(props: { message: string; onRetry: () => void; onQuit: () =
         Could not open the tour
       </Text>
       <Text>{props.message}</Text>
-      <Text dimColor>r: retry · q: quit</Text>
+      <Text dimColor>r: retry · {props.onBack ? 'q: PR list · Q: quit' : 'q: quit'}</Text>
     </Box>
   );
 }

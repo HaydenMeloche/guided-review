@@ -78,6 +78,7 @@ export function TourIntro(props: {
   width: number;
   height: number;
   lines: (spinner: string) => IntroLine[]; // spinner frame for in-progress steps
+  onBack?: () => void; // q: back to the PR list; unset, q quits
   onQuit: () => void;
 }) {
   const [elapsed, setElapsed] = useState(0);
@@ -86,7 +87,10 @@ export function TourIntro(props: {
     const t = setInterval(() => setElapsed(Date.now() - start), FRAME_MS);
     return () => clearInterval(t);
   }, []);
-  useInput((input) => input === 'q' && props.onQuit());
+  useInput((input) => {
+    if (input === 'q') (props.onBack ?? props.onQuit)();
+    if (input === 'Q') props.onQuit();
+  });
 
   const rows = introFrame(props.width, props.height, props.lines(SPIN[Math.floor(elapsed / 90) % SPIN.length]), elapsed);
   return (

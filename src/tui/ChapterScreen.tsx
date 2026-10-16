@@ -105,6 +105,7 @@ export function ChapterScreen(props: {
   rebase?: () => void;
   services?: Services;
   references?: ReferenceServices; // recent locations, repo index; tests may leave it out
+  back?: () => void; // q: back to the PR list; unset, q quits
   quit: () => void;
 }) {
   const { tour, chapters, states, ci, hi, width, height } = props;
@@ -455,7 +456,8 @@ export function ChapterScreen(props: {
           return openComposer(newDraft({ type: 'line', hunkId: target.id, file: testFile, line: lineNo, side }));
         }
         if (input === '?') return setOverlay('ask');
-        if (input === 'q') return props.quit();
+        if (input === 'q') return (props.back ?? props.quit)();
+        if (input === 'Q') return props.quit();
         return;
       }
       if (collapsedView) {
@@ -547,7 +549,8 @@ export function ChapterScreen(props: {
         if (!chapter?.checklist?.length) return setFlash('No team checklist applies to this chapter (.guided-review.json → checklists).');
         return svc ? setOverlay('checklist') : setFlash('The checklist opens once the checkout is ready.');
       }
-      if (input === 'q') return props.quit();
+      if (input === 'q') return (props.back ?? props.quit)();
+      if (input === 'Q') return props.quit();
     },
     { isActive: props.active !== false && overlay === 'none' },
   );
@@ -591,7 +594,12 @@ export function ChapterScreen(props: {
             ['D', 'whole tour'],
             ['s', 'submit'],
             ['b', 'briefing'],
-            ['q', 'quit'],
+            ...((props.back
+              ? [
+                  ['q', 'PR list'],
+                  ['Q', 'quit'],
+                ]
+              : [['q', 'quit']]) as [string, string][]),
           ]}
         />
       </Box>
@@ -646,7 +654,9 @@ export function ChapterScreen(props: {
     const open = chapter.checklist.filter((c) => !svc?.confirms[c.id]).length;
     if (open) chapterNotes.push(`Team checklist: ${open} item(s) to confirm (i). ${chapter.checklist.filter((c) => c.status === 'fail').length} flagged by the agent.`);
   }
-  if (hunk && hunk.risk >= 2 && hunk.riskReasons.length > 1) chapterNotes.push(`Risk: ${hunk.riskReasons.join('; ')}`);
+  // The hunk row shows only marks; the reasons behind them read here, in full.
+  if (hunk && hunk.risk >= 2 && hunk.riskReasons.length) chapterNotes.push(`Risk: ${hunk.riskReasons.join('; ')}`);
+  if (hunk && chapter.orphanReasons[hunk.id]) chapterNotes.push(`Why it is here: ${chapter.orphanReasons[hunk.id]}`);
 
   // Linked tests that are not beside the code (a narrow terminal, T, or a split diff) get a tab
   // saying they are there and how to open them.
@@ -981,10 +991,14 @@ const Header = React.memo(function Header(props: { tour: Tour; prog: ReturnType<
   const filled = prog.totalLines ? Math.round((prog.readLines / prog.totalLines) * barW) : barW;
   const meter = '█'.repeat(filled) + '░'.repeat(barW - filled);
   const right = `${meter} ${prog.readLines}/${prog.totalLines} lines · ${prog.read + prog.skipped}/${prog.total} hunks${props.deltaOnly ? ' · delta' : ''} · ${ORDER_LABEL[props.order]} order`;
+  const repo = `${safe(tour.repo)} `;
   const left = `#${tour.pr} ${safe(tour.title)}`;
   return (
     <Text wrap="truncate">
-      <Text bold>{pad(left, Math.max(10, width - right.length - 1))}</Text> <Text color="green">{meter}</Text>
+      <Text color="cyan" bold>
+        {repo}
+      </Text>
+      <Text bold>{pad(left, Math.max(10, width - right.length - repo.length - 1))}</Text> <Text color="green">{meter}</Text>
       <Text dimColor>{right.slice(barW)}</Text>
     </Text>
   );
@@ -1015,10 +1029,10 @@ const ChapterList = React.memo(function ChapterList(props: { tour: Tour; chapter
 // `drawer`: a hint at the right end of the title row for linked tests that are not on screen.
 const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: Chapter; hunk?: Hunk; hi: number; isNew: boolean; width: number; states: States; drawer?: string }) {
   const { chapter, hunk, hi } = props;
-  const rk = riskMark(hunk ? hunk.risk : chapter.risk);
   const cov = hunk ? COVERAGE[hunk.coverage] : undefined;
   const st = hunk ? stateMark(stateOf(props.states, hunk)) : undefined;
-  const orphan = hunk ? chapter.orphanReasons[hunk.id] : undefined;
+  // A deleted file's hunk has no new lines: point at where it was.
+  const location = hunk ? `${hunk.file}:${hunk.newStart || hunk.oldStart}` : '';
   return (
     <Box flexDirection="column" flexShrink={0}>
       <Box width={props.width}>
@@ -1054,22 +1068,14 @@ const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: Chapter;
               NEW{' '}
             </Text>
           ) : null}
-          <Text>{truncate(` ${hunk.file}:${hunk.newStart}`, 60)}</Text>
-          {hunk.symbols.length ? <Text dimColor> {truncate(hunk.symbols.join(', '), 30)}</Text> : null}
+          <Text> {safe(location)}</Text>
           {cov && cov.text ? (
             <Text color={cov.color}>
               {'  '}
               {cov.mark} {cov.text}
             </Text>
           ) : null}
-          {hunk.risk >= 2 ? (
-            <Text color={rk.color}>
-              {'  '}
-              {rk.mark} {truncate(hunk.riskReasons[0] ?? 'risky', 40)}
-            </Text>
-          ) : null}
-          {hunk.importOnly ? <Text dimColor> imports only · optional</Text> : null}
-          {orphan ? <Text dimColor> — {safe(orphan)}</Text> : null}
+          {hunk.importOnly ? <Text dimColor> · imports only · optional</Text> : null}
         </Text>
       ) : (
         <Text dimColor>{chapter.collapsed ? `${chapter.hunkIds.length} hunk(s), collapsed${chapter.optional ? ' · optional: not counted toward progress' : ''}` : ''}</Text>
@@ -1609,7 +1615,8 @@ const HELP_ROWS: [string, string][] = [
   ['D', 'Re-review: toggle delta-only (new and changed hunks)'],
   ['o', 'Open the hunk in Claude Code'],
   ['i', 'Team checklist for this chapter'],
-  ['b / s / q', 'Briefing / submit screen / quit (progress is saved)'],
+  ['b / s', 'Briefing / submit screen'],
+  ['q / Q', 'Back to the PR list / quit (progress is saved)'],
 ];
 const HELP_KEY_WIDTH = 15;
 const HELP_WIDTH = 2 + 2 + HELP_KEY_WIDTH + Math.max(...HELP_ROWS.map(([, v]) => v.length)); // border, padding, key column

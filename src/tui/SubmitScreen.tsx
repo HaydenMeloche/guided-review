@@ -121,8 +121,8 @@ export function SubmitScreen(props: {
 
   return (
     <Box flexDirection="column" width={width} height={props.height} paddingX={1}>
-      <Text bold>
-        Submit review · #{tour.pr} {truncate(tour.title, width - 30)}
+      <Text bold wrap="truncate">
+        Submit review · <Text color="cyan">{safe(tour.repo)}</Text> #{tour.pr} {truncate(tour.title, width - 30)}
       </Text>
       <Box marginTop={1} flexDirection="column">
         <Text>

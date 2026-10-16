@@ -36,6 +36,7 @@ export function BriefingScreen(props: {
   active?: boolean;
   onStart: (ci?: number) => void;
   onSubmit: () => void;
+  onBack?: () => void; // q: back to the PR list; unset, q quits
   onQuit: () => void;
 }) {
   const { tour, chapters, states, width, height } = props;
@@ -64,7 +65,8 @@ export function BriefingScreen(props: {
       if (input === 's') return props.onSubmit();
       if (input === 'r' && tour.description?.trim()) return setOverlay('read');
       if (input === 'V' && tour.existingReviews?.some((r) => r.author !== tour.author && r.author !== tour.viewer)) return setOverlay('reviews');
-      if (input === 'q') return props.onQuit();
+      if (input === 'q') return (props.onBack ?? props.onQuit)();
+      if (input === 'Q') return props.onQuit();
     },
     { isActive: props.active !== false && overlay === 'none' },
   );
@@ -238,7 +240,11 @@ export function BriefingScreen(props: {
   return (
     <Box flexDirection="column" width={width} height={height} paddingX={1}>
       <Text wrap="truncate">
+        <Text color="cyan" bold>
+          {safe(tour.repo)}
+        </Text>
         <Text bold>
+          {' '}
           #{tour.pr} {safe(tour.title)}
         </Text>
         <Text dimColor>
@@ -270,7 +276,12 @@ export function BriefingScreen(props: {
           ['d', 'overview diagram'],
           ['?', 'ask about the PR'],
           ['s', 'submit'],
-          ['q', 'quit'],
+          ...((props.onBack
+            ? [
+                ['q', 'PR list'],
+                ['Q', 'quit'],
+              ]
+            : [['q', 'quit']]) as [string, string][]),
         ]}
       />
     </Box>

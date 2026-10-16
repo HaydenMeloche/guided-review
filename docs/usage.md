@@ -71,7 +71,8 @@ Upgrade highlights and package overviews come from a changelog in the worktree w
 | `R` | Rebuild the tour on a newer PR head after the author pushes. |
 | `i` | Open the team's checklist for this chapter. |
 | `o` | Open the current review context in Claude Code. |
-| `b` / `s` / `h` / `q` | Return to the briefing (description and overview diagram), open submit, show key help, or quit. `b` also works while the test pane has focus. |
+| `b` / `s` / `h` | Return to the briefing (description and overview diagram), open submit, or show key help. `b` also works while the test pane has focus. |
+| `q` / `Q` | Go back to the PR list (progress is saved), or quit Guided Review. In an author preview of a local branch there is no list, so `q` quits. |
 
 Hunks in a file that are at most six unchanged lines apart are shown as one hunk, with the lines between them read from the PR head and dimmed. GitHub's diff splits them, so code moved a short distance would otherwise appear as an unrelated addition and removal. A block of three or more lines removed in one place and added unchanged in another (indentation aside) is marked with where its other half is, for example `↕ 7 lines moved from line 66`.
 
