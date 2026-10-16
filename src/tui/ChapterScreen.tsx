@@ -1088,29 +1088,65 @@ function threadAt(threads: ExistingThread[], file: string, line?: number, side: 
   return threads.filter((t) => t.path === file && (side === 'LEFT' ? t.isOutdated && t.originalLine === line : t.line === line || (t.line === undefined && !t.isOutdated && t.originalLine === line)));
 }
 
+// Two moved blocks at most this many lines apart on both sides, going to the same place in the
+// same way, are one move split by a small edit and share one note.
+const SPLIT_GAP = 4;
+
+const movedNotes = new WeakMap<Hunk, Map<number, string>>();
+
 // Under the last line of a block moved within the PR: where the block was, or went, and how.
 function movedNote(hunk: Hunk, j: number): string | undefined {
-  const l = hunk.lines[j];
-  // Lines k and k + 1 are one block when both moved, alike, to consecutive lines of one file.
-  const joined = (k: number) => {
-    const [a, b] = [hunk.lines[k]?.moved, hunk.lines[k + 1]?.moved];
-    return !!a && !!b && hunk.lines[k].kind === hunk.lines[k + 1].kind && a.file === b.file && b.line === a.line + 1 && a.kind === b.kind && a.indent === b.indent;
-  };
-  if (!l.moved || joined(j)) return undefined;
-  let first = j;
-  while (joined(first - 1)) first--;
-  const at = hunk.lines[first].moved!;
-  const where = (p: { file: string; line: number }) => (p.file === hunk.file ? `line ${p.line}` : `${safe(p.file)}:${p.line}`);
-  const lines = `${j - first + 1} line${j === first ? '' : 's'}`;
-  const indent = at.indent ? `indent ${at.indent > 0 ? '+' : '−'}${Math.abs(at.indent)}` : '';
-  if (at.kind === 'reindented') return `↔ ${lines} re-indented in place${indent ? ` (${indent})` : ''}, ${l.kind === 'del' ? 'now' : 'was'} ${where(at)}`;
-  const also = (side: 'add' | 'del') => {
-    const places = at.also.filter((p) => p.side === side);
-    if (!places.length) return '';
-    const shown = places.slice(0, 2).map(where).join(', ');
-    return `; also ${side === 'add' ? 'added' : 'removed'} at ${shown}${places.length > 2 ? ` and ${places.length - 2} more` : ''}`;
-  };
-  return `↕ ${lines} ${at.kind} ${l.kind === 'del' ? 'to' : 'from'} ${where(at)}${indent ? `, ${indent}` : ''}${also('add')}${also('del')}`;
+  let notes = movedNotes.get(hunk);
+  if (!notes) movedNotes.set(hunk, (notes = notesFor(hunk)));
+  return notes.get(j);
+}
+
+// The move notes of a hunk, by the index of the line each goes under.
+function notesFor(hunk: Hunk): Map<number, string> {
+  const ls = hunk.lines;
+  const alike = (a: DiffLine, b: DiffLine) => a.kind === b.kind && a.moved!.file === b.moved!.file && a.moved!.kind === b.moved!.kind && a.moved!.indent === b.moved!.indent;
+  // Runs of lines moved alike to consecutive lines of one file.
+  const blocks: [number, number][] = [];
+  ls.forEach((l, k) => {
+    const last = blocks.at(-1);
+    if (!l.moved) return;
+    if (last && last[1] === k - 1 && alike(ls[k - 1], l) && l.moved.line === ls[k - 1].moved!.line + 1) last[1] = k;
+    else blocks.push([k, k]);
+  });
+  // Blocks a small edit apart, landing in order a few lines apart, as one note.
+  const groups: [number, number][][] = [];
+  for (const b of blocks) {
+    const prev = groups.at(-1)?.at(-1);
+    const between = prev ? ls.slice(prev[1] + 1, b[0]) : [];
+    const [p, q] = prev ? [ls[prev[1]], ls[b[0]]] : [];
+    const split = prev && between.length <= SPLIT_GAP && alike(p!, q!) && q!.moved!.line > p!.moved!.line && q!.moved!.line - p!.moved!.line - 1 <= SPLIT_GAP;
+    if (split) groups.at(-1)!.push(b);
+    else groups.push([b]);
+  }
+  const notes = new Map<number, string>();
+  for (const g of groups) {
+    const [first, last] = [g[0][0], g.at(-1)![1]];
+    const l = ls[last];
+    const at = ls[first].moved!;
+    const n = g.reduce((t, [a, b]) => t + b - a + 1, 0);
+    const other = last - first + 1 - n;
+    const where = (p: { file: string; line: number }) => (p.file === hunk.file ? `line ${p.line}` : `${safe(p.file)}:${p.line}`);
+    const lines = `${n} line${n === 1 ? '' : 's'}`;
+    const gap = other ? `, split by ${other} other line${other === 1 ? '' : 's'}` : '';
+    const indent = at.indent ? `indent ${at.indent > 0 ? '+' : '−'}${Math.abs(at.indent)}` : '';
+    if (at.kind === 'reindented') {
+      notes.set(last, `↔ ${lines} re-indented in place${indent ? ` (${indent})` : ''}, ${l.kind === 'del' ? 'now' : 'was'} ${where(at)}${gap}`);
+      continue;
+    }
+    const also = (side: 'add' | 'del') => {
+      const places = at.also.filter((p) => p.side === side);
+      if (!places.length) return '';
+      const shown = places.slice(0, 2).map(where).join(', ');
+      return `; also ${side === 'add' ? 'added' : 'removed'} at ${shown}${places.length > 2 ? ` and ${places.length - 2} more` : ''}`;
+    };
+    notes.set(last, `↕ ${lines} ${at.kind} ${l.kind === 'del' ? (at.kind === 'merged' ? 'into' : 'to') : 'from'} ${where(at)}${indent ? `, ${indent}` : ''}${gap}${also('add')}${also('del')}`);
+  }
+  return notes;
 }
 
 function draftsAt(drafts: Draft[], hunk: Hunk, line?: number, side: 'LEFT' | 'RIGHT' = 'RIGHT') {

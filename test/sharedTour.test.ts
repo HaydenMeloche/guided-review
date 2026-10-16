@@ -111,11 +111,11 @@ describe('shared tours', () => {
   });
 
   it('marks moved code on the restored lines, leaving out files the tour classified as generated', () => {
-    const steps = ['charge(order.card, order.total);', 'sendReceipt(order.customer);', 'markPaid(order.id);'];
-    // The three lines leave src/a.ts and arrive in src/b.ts.
+    const steps = ['charge(order.card, order.total);', 'sendReceipt(order.customer);', 'markPaid(order.id);', "notify(order.customer, 'paid');", "audit.log('order', order.id);", 'return order;'];
+    // The six lines leave src/a.ts and arrive in src/b.ts.
     const file = (p: string, header: string, sign: string) =>
       `diff --git a/${p} b/${p}\nindex 1111111..2222222 100644\n--- a/${p}\n+++ b/${p}\n${header}\n ok();\n${steps.map((l) => `${sign}${l}\n`).join('')}`;
-    const moveDiff = file('src/a.ts', '@@ -1,4 +1,1 @@', '-') + file('src/b.ts', '@@ -1,1 +1,4 @@', '+');
+    const moveDiff = file('src/a.ts', '@@ -1,7 +1,1 @@', '-') + file('src/b.ts', '@@ -1,1 +1,7 @@', '+');
     for (const [kind, marked] of [
       ['logic', true],
       ['generated', false],

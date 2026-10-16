@@ -1368,12 +1368,27 @@ describe('split view, test pane toggle and expanded context', () => {
     ui.unmount();
   });
 
-  it('says how a moved block changed: its indent, a reindent in place, or a copy', async () => {
+  it('gives one note to a move split by a small edit', async () => {
+    const h = hunkFromDiff('src/loans.go', '-open(path);', '-check(err);', '-defer close();', '-rows := read(file);', '-check(rows);', '-guard(empty);', '-index := -1');
+    // Lines 1-3 went to 27-29 and lines 5-7 to 32-34; line 4 was rewritten in between.
+    h.lines.forEach((l, i) => i !== 3 && (l.moved = { ...movedTo('src/loanids.go', i < 3 ? 27 + i : 28 + i), kind: 'merged', also: [{ file: 'src/ratios.go', line: 9, side: 'del' }] }));
+    const ui = render(screen(makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) })));
+    await waitFor(() => expect(ui.lastFrame()).toContain('6 lines merged into src/loanids.go:27, split by 1 other line; also removed at src/ratios.go:9'));
+    expect(ui.lastFrame()).not.toContain('3 lines merged');
+    ui.unmount();
+  });
+
+  it('says how a moved block changed: its indent, a reindent in place, a copy, or a merge', async () => {
     const lines = (file: string) => hunkFromDiff(file, ' a();', '-first(block);', '-second(block);', '-third(block);', ' b();');
     const cases: [Hunk, (i: number) => MovedTo, string][] = [
       [lines('src/a.ts'), (i) => ({ ...movedTo('src/b.ts', 40 + i), indent: -4 }), '3 lines moved to src/b.ts:41, indent −4'],
       [lines('src/c.ts'), (i) => ({ ...movedTo('src/c.ts', 2 + i), kind: 'reindented', indent: 2 }), '3 lines re-indented in place (indent +2), now line 3'],
       [lines('src/d.ts'), (i) => ({ ...movedTo('src/e.ts', 10 + i), kind: 'copied', also: [{ file: 'src/f.ts', line: 20, side: 'add' }] }), '3 lines copied to src/e.ts:11; also added at src/f.ts:20'],
+      [
+        lines('src/g.ts'),
+        (i) => ({ ...movedTo('src/h.ts', 10 + i), kind: 'merged', also: [{ file: 'src/i.ts', line: 30, side: 'del' }] }),
+        '3 lines merged into src/h.ts:11; also removed at src/i.ts:30',
+      ],
     ];
     for (const [h, at, note] of cases) {
       h.lines.forEach((l, i) => l.kind === 'del' && (l.moved = at(i)));

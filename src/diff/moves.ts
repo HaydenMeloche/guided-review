@@ -8,9 +8,32 @@ export function unmovedFiles(files: DiffFile[]): Set<string> {
 }
 
 // A moved block is at least this many lines with this much non-whitespace text, so a lone `}`
-// or a repeated blank line never reads as a move.
+// or a repeated blank line never reads as a move. It gets a note of its own only with this many
+// lines with a word in them: one statement and the brackets closing it say nothing, though they
+// still count toward the move they belong to.
 const MIN_MOVED_LINES = 3;
 const MIN_MOVED_CHARS = 20;
+const MIN_WORD_LINES = 2;
+// A move is better missed than made up. Each block holds an anchor: a line with this much text
+// removed, or added, just once (in its file, for a move within one), so common lines alone never
+// pair.
+const MIN_ANCHOR_CHARS = 15;
+// Between files a few lines in common happen by chance, so a move there needs to be whole
+// declarations of at least MIN_DECLARATION_LINES non-blank lines, or at least
+// MIN_CROSS_FILE_LINES non-blank lines with MIN_CROSS_FILE_CHARS of text, counting blocks moved
+// alongside it: ones between the same two files at most CROSS_FILE_GAP lines apart on both
+// sides, split by a small edit. Once one move between two files clears that bar, smaller ones
+// between them are more of the same move and pass, as does a piece with no anchor of its own
+// right beside one.
+const MIN_DECLARATION_LINES = 4;
+const MIN_CROSS_FILE_LINES = 6;
+const MIN_CROSS_FILE_CHARS = 100;
+const CROSS_FILE_GAP = 5;
+// How far up to look for the `/*` of a comment a block may sit in, in languages with such comments.
+const COMMENT_REACH = 500;
+const BLOCK_COMMENTS = /\.(?:c|h|cc|cpp|cxx|hpp|cs|java|kt|kts|scala|groovy|go|rs|swift|dart|php|js|jsx|mjs|cjs|ts|tsx|mts|cts|css|scss|less|m|mm)$/i;
+// A block shifted exactly as one at most this many lines away that stayed in place stayed too.
+const NEAR_IN_PLACE = 50;
 // A diff this large is mostly generated code; skipped files do not count.
 const MAX_CHANGED_LINES = 20_000;
 // A move starts on a line with this much text, matched in at most this many places. Without
@@ -46,6 +69,50 @@ function indentOf(text: string): number {
   return w;
 }
 
+// A line that starts a declaration: a keyword that declares, or a method's signature opening its
+// body. Control flow (`if (x) {`) is neither.
+const DECLARES =
+  /^(?:(?:export|default|public|private|protected|internal|static|final|abstract|async|override|pub(?:\([^)]*\))?|unsafe|virtual|sealed|data|open|suspend|inline)\s+)*(?:function\*?|func|def|fn|fun|class|struct|interface|type|enum|trait|impl|module|object|record|const|let|var|val)\b/;
+const SIGNATURE = /^[\w$<>[\],.?\s]*?\b([A-Za-z_$][\w$]*)\s*\([^;]*\)\s*(?::\s*[^{=;]+)?\{\s*$/;
+const CONTROL = new Set(['if', 'for', 'while', 'switch', 'catch', 'with', 'foreach', 'elseif', 'until', 'unless']);
+const CLOSER = /^(?:[)\]}]+[;,)]*|end)$/;
+
+// A file's preamble: its license header and other comments, the package line, and imports. Only
+// imports, or comments at the top of both files, that turn up elsewhere followed a file being
+// replaced or split, and say nothing about the code; a comment moved with code in the middle of a
+// file belongs to it. Prose files are left out, where `#` starts a heading.
+const IMPORT = /^(?:package\b|import\b|from\s+\S+\s+import\b|use\s|require\b|#include\b|using\s|(?:[\w.]+\s+)?"[^"]*"$)/;
+const PREAMBLE = /^(?:\/\/|\/\*|\*|#(?:\s|!|$)|--|\)$)/;
+const PROSE = /\.(?:md|mdx|markdown|rst|txt|adoc)$/i;
+const TOP_LINES = 5;
+function preambleOnly(file: string, seq: string[], oldLine: number, newLine: number): boolean {
+  if (PROSE.test(file) || !seq.every((k) => !k || IMPORT.test(k) || PREAMBLE.test(k))) return false;
+  return seq.some((k) => IMPORT.test(k)) || (oldLine <= TOP_LINES && newLine <= TOP_LINES);
+}
+
+// Whether `lines` are whole declarations, each from its signature to its closing line: every
+// line past a start is deeper than it, or closes it at its indent, and brackets balance.
+function wholeDeclarations(lines: DiffLine[]): boolean {
+  const body = lines.filter((l) => key(l));
+  let open: number | undefined; // indent of the declaration being read
+  let depth = 0;
+  for (const l of body) {
+    const [k, indent] = [key(l), indentOf(l.text)];
+    if (open === undefined || indent <= open) {
+      if (open !== undefined && indent === open && CLOSER.test(k)) {
+        open = undefined;
+      } else {
+        if (depth !== 0 || (open !== undefined && indent < open)) return false;
+        const sig = SIGNATURE.exec(k);
+        if (!DECLARES.test(k) && !(sig && !CONTROL.has(sig[1]))) return false;
+        open = indent;
+      }
+    }
+    for (const c of k) depth += '([{'.includes(c) ? 1 : ')]}'.includes(c) ? -1 : 0;
+  }
+  return body.length > 0 && depth === 0;
+}
+
 // How many of `xs` (sorted) are below `x`.
 function below(xs: number[], x: number): number {
   let [lo, hi] = [0, xs.length];
@@ -63,6 +130,7 @@ class FileView {
   private ups: number[] = []; // an add after old line t moves every later old line down one
   private downs: number[] = []; // a del of old line t moves every later old line up one
   private added: number[] = []; // new line numbers of added lines
+  private kept: string[] | undefined; // the head's kept lines, trimmed
   private texts = new Map<'head' | 'base', { lines: string[]; at: Map<string, number[]> } | undefined>();
 
   constructor(
@@ -89,18 +157,52 @@ class FileView {
     return oldLine + below(this.ups, oldLine) - below(this.downs, oldLine);
   }
 
-  // Unchanged head lines from `a` up to `b`.
-  unchangedBetween(a: number, b: number): number {
-    return Math.max(0, b - a - (below(this.added, b) - below(this.added, a)));
+  // How many lines the PR kept come before old line `oldLine`, or before new line `newLine`. Kept
+  // lines keep their order, so a block with as many before it on both sides did not move past any.
+  keptBeforeOld(oldLine: number): number {
+    return oldLine - 1 - below(this.downs, oldLine);
+  }
+  keptBeforeNew(newLine: number): number {
+    return newLine - 1 - below(this.added, newLine);
   }
 
-  // How many times the trimmed lines `seq` (at least MIN_MOVED_LINES of them) appear in a row in
-  // the file's head or base.
-  occurrences(side: 'head' | 'base', seq: string[]): number {
+  // Whether line `line` of the file's head or base is inside a `/* */` comment opened above it,
+  // looking at most COMMENT_REACH lines up. False without the text.
+  inComment(side: 'head' | 'base', line: number): boolean {
     if (!this.texts.has(side)) this.texts.set(side, this.index(side));
     const text = this.texts.get(side);
-    if (!text) return 0;
-    return (text.at.get(seq.slice(0, MIN_MOVED_LINES).join('\n')) ?? []).filter((s) => seq.every((k, j) => text.lines[s + j] === k)).length;
+    for (let k = line - 2; text && k >= 0 && k >= line - 1 - COMMENT_REACH; k--) {
+      // A `/*` right after a `*` is a glob such as `src/**/*.ts`, not a comment.
+      const line = text.lines[k].replaceAll('**/*', '');
+      const [open, close] = [line.lastIndexOf('/*'), line.lastIndexOf('*/')];
+      if (open >= 0 || close >= 0) return open > close;
+    }
+    return false;
+  }
+
+  // How many of the kept lines from index `a` up to `b` hold a word: blank lines and lone brackets
+  // are layout a diff aligns as it likes. Undefined without the head.
+  keptWithWords(a: number, b: number): number | undefined {
+    if (!this.texts.has('head')) this.texts.set('head', this.index('head'));
+    const text = this.texts.get('head');
+    if (!text) return undefined;
+    if (!this.kept) {
+      const added = new Set(this.added);
+      this.kept = text.lines.filter((_, i) => !added.has(i + 1));
+    }
+    return this.kept.slice(a, b).filter((k) => /\w/.test(k)).length;
+  }
+
+  // Whether the trimmed lines `seq` (at least MIN_MOVED_LINES of them) appear in a row in the
+  // file's head or base somewhere other than lines the PR added (head) or removed (base).
+  holdsUnchanged(side: 'head' | 'base', seq: string[]): boolean {
+    if (!this.texts.has(side)) this.texts.set(side, this.index(side));
+    const text = this.texts.get(side);
+    if (!text) return false;
+    const changed = side === 'head' ? this.added : this.downs;
+    return (text.at.get(seq.slice(0, MIN_MOVED_LINES).join('\n')) ?? []).some(
+      (s) => seq.every((k, j) => text.lines[s + j] === k) && below(changed, s + seq.length + 1) - below(changed, s + 1) < seq.length,
+    );
   }
 
   private lines(side: 'head' | 'base'): string[] | undefined {
@@ -113,6 +215,7 @@ class FileView {
     let at = 1;
     for (const h of [...this.hunks].sort((x, y) => x.newStart - y.newStart)) {
       const start = h.lines.find((l) => l.newLine !== undefined)?.newLine ?? h.newStart + 1;
+      if (start - 1 > head.length) return undefined; // a hunk past the head's end: not this file
       while (at < start) base.push(head[at++ - 1]);
       for (const l of h.lines) {
         if (l.kind !== 'add') base.push(l.text);
@@ -142,8 +245,8 @@ class FileView {
 // Marks lines removed in one place and added in another (anywhere in the PR) with where the
 // other side is, comparing lines with their indentation stripped but requiring the whole block
 // to shift by one amount. A line removed and added again in the same run of changes is a
-// rewrite or a reindent, not a move. Text still in the file it was removed from, or already in
-// the file it was added to, is matching boilerplate, not a move. Files in `skip` are left out.
+// rewrite or a reindent, not a move. Text a changed file holds outside the PR's changes is
+// matching boilerplate, not a move. Files in `skip` are left out.
 export function markMovedLines(hunks: Hunk[], readHead: (path: string) => string | undefined, skip: ReadonlySet<string>): void {
   const byFile = new Map<string, Hunk[]>();
   for (const hunk of hunks) byFile.set(hunk.file, [...(byFile.get(hunk.file) ?? []), hunk]);
@@ -199,6 +302,19 @@ export function markMovedLines(hunks: Hunk[], readHead: (path: string) => string
   };
   const addStarts = startsOf(adds);
   const delStarts = startsOf(dels);
+  // How many times each line is removed, and added, in the PR and in each file.
+  const counts = (runs: Ref[][]) => {
+    const all = new Map<string, number>();
+    for (const run of runs) for (const r of run) for (const k of [key(r.line), `${r.hunk.file}\0${key(r.line)}`]) all.set(k, (all.get(k) ?? 0) + 1);
+    return all;
+  };
+  const [delCount, addCount] = [counts(dels), counts(adds)];
+  const anchored = (moved: Ref[], file: string | undefined) =>
+    moved.some((r) => {
+      const k = key(r.line);
+      const scoped = file === undefined ? k : `${file}\0${k}`;
+      return chars(k) >= MIN_ANCHOR_CHARS && (delCount.get(scoped) === 1 || addCount.get(scoped) === 1);
+    });
   const paired = new Set<DiffLine>();
 
   // How many lines from run[i] match the added lines from `at` on, each shifted by one indent.
@@ -217,8 +333,15 @@ export function markMovedLines(hunks: Hunk[], readHead: (path: string) => string
     return { n, indent: indent ?? 0 };
   };
 
+  // Text some changed file holds outside the PR's changes, before or after it, is boilerplate.
+  // Checking every changed file, not just the two ends of the move, catches it when one end is a
+  // new or deleted file.
+  const unskipped = [...byFile.keys()].filter((p) => !skip.has(p));
+  const boilerplate = (seq: string[]) => unskipped.some((p) => view(p).holdsUnchanged('head', seq) || view(p).holdsUnchanged('base', seq));
+
   // Same-file pairs first, so text edited alike in two files pairs within each file.
   const blocks: Block[] = [];
+  const loose: Block[] = []; // cross-file matches with no anchor, kept in case they sit by a move
   for (const sameFileOnly of [true, false]) {
     for (const run of dels) {
       for (let i = 0; i < run.length;) {
@@ -243,9 +366,14 @@ export function markMovedLines(hunks: Hunk[], readHead: (path: string) => string
           continue;
         }
         const to = adds[best.at.block].slice(best.at.pos, best.at.pos + best.n);
-        const [src, dst] = [from.hunk.file, best.at.hunk.file];
-        const own = src === dst ? 1 : 0; // a move within a file leaves the block in its head and base once
-        if (view(src).occurrences('head', seq) > own || view(dst).occurrences('base', seq) > own) {
+        if (preambleOnly(from.hunk.file, seq, from.line.oldLine!, to[0].line.newLine!)) {
+          i += moved.length; // its tail is preamble too
+          continue;
+        }
+        const between = to[0].hunk.file !== from.hunk.file;
+        const isAnchored = anchored(moved, between ? undefined : from.hunk.file);
+        if (!isAnchored || boilerplate(seq)) {
+          if (!isAnchored && between && !boilerplate(seq)) loose.push({ from: moved, to, indent: best.indent, seq });
           i++;
           continue;
         }
@@ -253,6 +381,67 @@ export function markMovedLines(hunks: Hunk[], readHead: (path: string) => string
         blocks.push({ from: moved, to, indent: best.indent, seq });
         i += moved.length;
       }
+    }
+  }
+
+  // Cross-file blocks too small, with their neighbours, to tell from chance are let go.
+  const crossFile = new Map<string, Block[]>();
+  for (const b of blocks) {
+    const [src, dst] = [b.from[0].hunk.file, b.to[0].hunk.file];
+    if (src === dst) continue;
+    const k = `${src}\0${dst}`;
+    crossFile.set(k, [...(crossFile.get(k) ?? []), b]);
+  }
+  // Whether blocks moved together are enough to tell from chance between files.
+  const lines = (seq: string[]) => seq.filter((k) => k).length;
+  const clears = (g: Block[]) => {
+    const seq = g.flatMap((b) => b.seq);
+    const declares = g.some((b) => lines(b.seq) >= MIN_DECLARATION_LINES && wholeDeclarations(b.from.map((r) => r.line)));
+    return declares || (lines(seq) >= MIN_CROSS_FILE_LINES && seq.reduce((n, k) => n + chars(k), 0) >= MIN_CROSS_FILE_CHARS);
+  };
+  const small = new Set<Block>();
+  const cleared = new Set<Block>(); // in a group that clears the bar itself
+  const passed = new Set<Block>(); // let through between its two files, cleared or not
+  for (const list of crossFile.values()) {
+    list.sort((x, y) => x.from[0].line.oldLine! - y.from[0].line.oldLine!);
+    const groups: Block[][] = [];
+    for (const b of list) {
+      const prev = groups.at(-1)?.at(-1);
+      const gap = (a: number, z: number) => z - a - 1 >= 0 && z - a - 1 <= CROSS_FILE_GAP;
+      const near = prev && gap(prev.from.at(-1)!.line.oldLine!, b.from[0].line.oldLine!) && gap(prev.to.at(-1)!.line.newLine!, b.to[0].line.newLine!);
+      if (near) groups.at(-1)!.push(b);
+      else groups.push([b]);
+    }
+    // A small group is let through when a group between the same two files clears the bar: the
+    // PR is moving code from one to the other, and this is more of it.
+    const corroborated = groups.some(clears);
+    for (const g of groups) for (const b of g) (corroborated ? passed : small).add(b);
+    for (const g of groups.filter(clears)) for (const b of g) cleared.add(b);
+  }
+  for (const b of small) for (const r of [...b.from, ...b.to]) paired.delete(r.line);
+  blocks.splice(0, blocks.length, ...blocks.filter((b) => !small.has(b)));
+
+  // A match with no anchor of its own is let through beside an accepted move between the same two
+  // files, at most CROSS_FILE_GAP lines from it on both sides: a piece of that move split off by
+  // an edit, like a method's tail past a changed line. Each piece let in can bring in the next.
+  const near = (a: Ref[], b: Ref[], at: (r: Ref) => number) => {
+    const [a0, a1, b0, b1] = [at(a[0]), at(a.at(-1)!), at(b[0]), at(b.at(-1)!)];
+    return Math.max(a0, b0) - Math.min(a1, b1) - 1 <= CROSS_FILE_GAP;
+  };
+  const [oldAt, newAt] = [(r: Ref) => r.line.oldLine!, (r: Ref) => r.line.newLine!];
+  // From each accepted move, its pair's candidates beside it, longest first; each one let in is
+  // checked in turn, so a chain of pieces costs one pass per piece.
+  const pairOf = (b: Block) => `${b.from[0].hunk.file}\0${b.to[0].hunk.file}`;
+  const candidates = new Map<string, Block[]>();
+  for (const c of [...loose].sort((x, y) => y.from.length - x.from.length)) candidates.set(pairOf(c), [...(candidates.get(pairOf(c)) ?? []), c]);
+  const todo = blocks.filter((b) => passed.has(b));
+  for (let b = todo.pop(); b; b = todo.pop()) {
+    for (const c of candidates.get(pairOf(b)) ?? []) {
+      if (!near(b.from, c.from, oldAt) || !near(b.to, c.to, newAt) || [...c.from, ...c.to].some((r) => paired.has(r.line))) continue;
+      for (const r of [...c.from, ...c.to]) paired.add(r.line);
+      blocks.push(c);
+      passed.add(c);
+      todo.push(c);
     }
   }
 
@@ -266,27 +455,76 @@ export function markMovedLines(hunks: Hunk[], readHead: (path: string) => string
     }
     return [...found.values()];
   };
-  for (const b of blocks) {
-    // The same lines added or removed somewhere else too: copied, or copies merged.
-    const also = [
-      ...unpaired(addStarts, adds, b.seq).map((r) => ({ file: r.hunk.file, line: r.line.newLine!, side: 'add' as const })),
-      ...unpaired(delStarts, dels, b.seq).map((r) => ({ file: r.hunk.oldFile ?? r.hunk.file, line: r.line.oldLine!, side: 'del' as const })),
-    ];
-    // A block that skipped at most one unchanged line stayed put and was re-indented around.
-    const [first, dest] = [b.from[0], b.to[0]];
-    let reindented = false;
-    if (first.hunk.file === dest.hunk.file) {
-      const v = view(first.hunk.file);
-      const was = v.newLineOf(first.line.oldLine!);
-      const now = dest.line.newLine!;
-      reindented = (was <= now ? v.unchangedBetween(was, now) : v.unchangedBetween(now + b.to.length, was)) <= 1;
-    }
-    const extra: Omit<MovedTo, 'file' | 'line'> = { kind: also.length ? 'copied' : reindented ? 'reindented' : 'moved', indent: b.indent, also };
-    b.from.forEach((f, k) => {
-      const t = b.to[k];
-      f.line.moved = { file: t.hunk.file, line: t.line.newLine!, ...extra };
-      // An old line number goes with the old path, for a block moved out of a renamed file.
-      t.line.moved = { file: f.hunk.oldFile ?? f.hunk.file, line: f.line.oldLine!, ...extra };
+  // Where a run of lines is, as `also` names it: an old line number goes with the old path, for a
+  // block moved out of a renamed file.
+  const placeOf = (side: 'add' | 'del', lines: Ref[]) => {
+    const r = lines[0];
+    return side === 'add' ? { file: r.hunk.file, line: r.line.newLine!, side } : { file: r.hunk.oldFile ?? r.hunk.file, line: r.line.oldLine!, side };
+  };
+  // Columns `added` sits right of `removed`, from their first non-blank line.
+  const shiftOf = (removed: Ref[], added: Ref[]) => {
+    const k = removed.findIndex((r) => key(r.line));
+    return k < 0 ? 0 : indentOf(added[k].line.text) - indentOf(removed[k].line.text);
+  };
+  // Marks `lines` as the `side` of a block whose other side is `other`.
+  const mark = (side: 'add' | 'del', lines: Ref[], other: Ref[], extra: Omit<MovedTo, 'file' | 'line' | 'indent'>) => {
+    const indent = side === 'del' ? shiftOf(lines, other) : shiftOf(other, lines);
+    lines.forEach((r, k) => {
+      const { file, line } = placeOf(side === 'del' ? 'add' : 'del', [other[k]]);
+      r.line.moved = { file, line, indent, ...extra };
     });
+  };
+  // A block that passed no kept line with a word, only blank lines and brackets, is where it was:
+  // re-indented if code around it changed its indent, and otherwise not moved at all, just diffed
+  // that way. So is one shifted exactly as a block near it that stayed: it kept its place beside
+  // that block, though a line the diff kept between them says otherwise.
+  const lineShift = (b: Block) => b.to[0].line.newLine! - b.from[0].line.oldLine!;
+  const stayed = blocks.filter((b) => {
+    if (b.from[0].hunk.file !== b.to[0].hunk.file) return false;
+    const v = view(b.from[0].hunk.file);
+    const [was, now] = [v.keptBeforeOld(b.from[0].line.oldLine!), v.keptBeforeNew(b.to[0].line.newLine!)];
+    return (v.keptWithWords(Math.min(was, now), Math.max(was, now)) ?? Math.abs(was - now)) === 0;
+  });
+  const inPlaceOf = (b: Block) =>
+    stayed.includes(b) ||
+    stayed.some(
+      (s) =>
+        s.from[0].hunk.file === b.from[0].hunk.file &&
+        b.to[0].hunk.file === b.from[0].hunk.file &&
+        lineShift(s) === lineShift(b) &&
+        s.indent === b.indent &&
+        Math.abs(s.from[0].line.oldLine! - b.from[0].line.oldLine!) <= NEAR_IN_PLACE,
+    );
+  for (const b of blocks) {
+    const inPlace = inPlaceOf(b);
+    if ((inPlace && !b.indent) || b.seq.filter((k) => /\w/.test(k)).length < MIN_WORD_LINES) continue;
+    // Code put in a `/* */` comment, or taken out of one, was disabled or enabled, not moved.
+    const [src, dst] = [b.from[0], b.to[0]];
+    if (
+      BLOCK_COMMENTS.test(src.hunk.file) &&
+      BLOCK_COMMENTS.test(dst.hunk.file) &&
+      view(src.hunk.file).inComment('base', src.line.oldLine!) !== view(dst.hunk.file).inComment('head', dst.line.newLine!)
+    )
+      continue;
+    // The same lines added or removed somewhere else too: copied, or copies merged. Each such
+    // place is marked as part of the block, so a reader of any of its files sees where it went.
+    const sites = [
+      ...unpaired(addStarts, adds, b.seq).map((r) => ({ side: 'add' as const, lines: adds[r.block].slice(r.pos, r.pos + b.seq.length) })),
+      ...unpaired(delStarts, dels, b.seq).map((r) => ({ side: 'del' as const, lines: dels[r.block].slice(r.pos, r.pos + b.seq.length) })),
+    ];
+    // A place in a third file is held to the bar between files, which a block let through only by
+    // the moves beside it has not met.
+    const ends = new Set([b.from[0].hunk.file, b.to[0].hunk.file]);
+    const strong = cleared.has(b) || clears([b]);
+    sites.splice(0, sites.length, ...sites.filter((s) => strong || ends.has(s.lines[0].hunk.file)));
+    for (const s of sites) for (const r of s.lines) paired.add(r.line);
+    const kind = sites.some((s) => s.side === 'add') ? 'copied' : sites.length ? 'merged' : inPlace ? 'reindented' : 'moved';
+    // Every place holding the block, each naming the one it pairs with and the rest as `also`.
+    const places = [{ side: 'del' as const, lines: b.from }, { side: 'add' as const, lines: b.to }, ...sites];
+    for (const p of places) {
+      const other = p.side === 'del' ? b.to : b.from;
+      const also = places.filter((q) => q !== p && q.lines !== other).map((q) => placeOf(q.side, q.lines));
+      mark(p.side, p.lines, other, { kind, also });
+    }
   }
 }

@@ -26,8 +26,9 @@ export interface MovedTo {
   file: string;
   line: number;
   // reindented: it stayed put and code around it changed its indent; copied: the same lines were
-  // also added or removed elsewhere (`also`).
-  kind: 'moved' | 'reindented' | 'copied';
+  // also added elsewhere (`also`); merged: they were only removed elsewhere too, copies folded
+  // into one.
+  kind: 'moved' | 'reindented' | 'copied' | 'merged';
   indent: number; // columns the block shifted right (negative: left), a tab counting as four
   also: { file: string; line: number; side: 'add' | 'del' }[];
 }
