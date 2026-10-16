@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { highlightDiffLines, highlightHunk, highlightLanguage, highlightSourceLines, type SyntaxSpan } from '../src/tui/highlight.js';
+import { highlightDiffLines, highlightFileLines, highlightHunk, highlightLanguage, highlightSourceLines, type SyntaxSpan } from '../src/tui/highlight.js';
 import { hunk } from './fixtures/tour.js';
 
 function coloredText(text: string, spans: SyntaxSpan[]) {
@@ -139,5 +139,12 @@ describe('test pane syntax highlighting', () => {
     const spans = await highlightSourceLines('test/store.test.ts', lines);
     expect(coloredText(lines[1], spans![1])).toContain('saves');
     expect(spans![1].every((span) => span.start >= 0 && span.end <= lines[1].length)).toBe(true);
+  });
+
+  it('offsets a tab-indented file line on the line as shown, tabs as two spaces (the reference preview)', async () => {
+    const spans = await highlightFileLines('src/a.ts', 'function f() {\n\treturn x;\n}');
+    const shown = '  return x;';
+    const words = spans![1].map((s) => shown.slice(s.start, s.end));
+    expect(words).toContain('return');
   });
 });

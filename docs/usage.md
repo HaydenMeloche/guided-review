@@ -97,13 +97,58 @@ In the comment editor:
 
 | Key | Action |
 | --- | --- |
-| `Tab` / `Shift+Tab` | Complete an `@username` if suggestions appear; otherwise cycle through blocking, question, suggestion, and nit labels. |
+| `Tab` / `Shift+Tab` | Complete a mention or code reference if suggestions appear; otherwise cycle through blocking, question, suggestion, and nit labels. |
 | `Enter` / `Shift+Enter` | Save the draft or insert a newline. |
+| `@` | Mention someone or reference code. One list shows **People** (matching usernames, at once) and then **Code** (matching symbols, then files, with a preview of the highlighted one). With nothing typed yet, it lists a few people, then places you recently visited, then declarations in the PR's changed files. Filters such as `@callers:` and `@tests:` narrow the list (see [References](#reference-code-in-a-comment)), and `@path:84-96` refers to lines of a file directly. A path (`@src/stock.ts`) or a name ending in a file extension (`@stock.ts`) lists files only; `@Owner.method` still finds symbols. A mention of someone the list knows (the author, a reviewer or commenter, or a collaborator) is drawn in blue in comments and thread replies; an `@name` it does not know stays plain, a hint that it may not be a real user, and nothing inside code is highlighted. See [References](#reference-code-in-a-comment). |
+| `Ctrl+T` | Have AI propose a code change for the selected lines, shown as a GitHub suggestion you can accept, refine, or discard. The composer lists it as `ctrl+t suggest a code change with AI` (`ctrl+t suggest a fix with AI` when narrow). Works on line or range comments on new code; off with `--no-agent`. See [AI code suggestions](#ai-code-suggestions). |
 | `Ctrl+G` | For a line or range comment, edit a GitHub code suggestion in `$EDITOR`. |
 | `Ctrl+D` | Remove a code suggestion. |
-| `Esc` | Cancel the editor. |
+| `Esc` | Close the innermost layer: a suggestion list, the AI line, then the editor itself. |
 
-Press `s` to review your drafts in a popup over the current briefing or chapter. It groups them by label, shows unread and deferred work, and proposes **Approve**, **Comment**, or **Request changes** from your drafts and progress. You can edit or delete drafts, change the verdict with `a`/`c`/`r`, and add a review summary with `b`. Press `P`, then confirm, to post all pending drafts as **one GitHub review**. Nothing posts while you are drafting or navigating.
+A comment without references or a suggestion is stored and posted exactly as before.
+
+### Reference code in a comment
+
+A reference is an inline code span in your comment's text, such as `` `releaseInventory()` `` or `` `stock.ts:84-96` ``, that names a place you picked. It is drawn in cyan and points at a function, a declaration, a file, a range of lines, or an earlier review thread, pinned to the commit you saw, so the link keeps showing that code after the author pushes again. When the review is posted, each one becomes an inline link, for example ``[`releaseInventory()`](https://github.com/o/r/blob/<sha>/src/inventory/stock.ts#L84-L96)``; a thread reference links to its discussion. Nothing else is added to the comment. Other inline code, and anything in a fenced code block, is ordinary code and posts as you typed it. When the cursor is in or just after a reference, the line under the text says where it points (`→ src/inventory/stock.ts:84-96 @a1b2c3d`, `→ discussion on src/x.ts:12`). Delete the code span, or change its text, and the reference goes with it.
+
+A reference's name depends on what it points at:
+
+| Points at | Name |
+| --- | --- |
+| A function or method | `name()`, such as `releaseInventory()` |
+| A class, type, interface, enum, or other declaration | `file#Name`, such as `stock.ts#RetryPolicy` |
+| A file | its name, such as `stock.ts` |
+| Lines of a file | `file:84-96`, or `file:84` for one line |
+| A review thread | `thread:file:12` |
+
+When two references in one comment would get the same name, the second names its file, then its full path, then a number: `stock.ts#releaseInventory()`, `src/legacy/stock.ts#releaseInventory()`, `src/legacy/stock.ts#releaseInventory()~2`. Names never contain spaces or backticks.
+
+- **Type `@`** and part of a name. People come first and show at once; code results follow under **Code** as soon as the search returns (`searching…` until then). Code from files in the PR comes first, and a name that several declarations share is told apart by its kind, class, and path. While the list is open the comment takes the full width of the screen and most of its height (the tests pane steps aside until the list closes), so a highlighted code row shows a large preview beside the list (under it in a narrow terminal); a person shows none. `Tab` or `Enter` inserts `@username ` for a person, or the code span for the whole symbol or file. While the list is open, `←` and `→` belong to it rather than moving the text cursor: on a code row, `→` moves into the preview, where `j`/`k` (or `↑`/`↓`) and `J`/`K` move a line cursor, `v` starts or ends a range, and `Enter` inserts a reference to just those lines, such as `` `stock.ts:88-91` ``. `←` or `Esc` returns to the list; `Esc` again closes the list, and once more cancels the comment. Moving the text cursor onto an existing `@word` does not reopen the list. `@` opens the list only at the start of the text or after a space or `(`, so an email address does not.
+- **Filters** narrow the list to one kind of place. A filter holds a colon, which no username can, so it never lists people:
+
+  | Type | Lists |
+  | --- | --- |
+  | `@f:` or `@files:` | Files, matching the text after the colon. |
+  | `@s:` or `@symbols:` | Declarations, matching the text after the colon. |
+  | `@callers:` | Possible callers of the code you are commenting on: the call sites the tour found for the hunk's functions, or, when it found none, call sites of the declaration around the commented line. `@callers:name` lists call sites of `name`. Callers are found by name, not by resolving calls, so each is labelled "possible caller". |
+  | `@tests:` | Tests linked to the commented change (name guesses last), and for a test, the code it covers. Text after the colon filters them. |
+  | `@threads:` | Review threads already on the PR; text after the colon matches the path, author, or comments. A thread's comments show beside the list, and picking one references its discussion. |
+  | `@recent:` | Places you stayed on for a second, commented on, asked about, or previewed during this session. |
+
+  You don't need to remember them: typing the first two or more letters of a filter's name (`@thr`, `@ca`, `@te`) shows it in a **Filters** group at the top of the list, above people and code. `Tab` or `Enter` on it turns the query into the filter (`@threads:`) and keeps the list open on its results.
+- **Under the list**, two dim lines say what you can do. The first lists the keys that work now: `tab insert · ↑↓ choose · → pick lines · esc close`, with `→ pick lines` only on a code row (and the `j`/`k`, `v`, `Enter`, `←` keys while you choose lines). The second lists the filters (`narrow with  f: files  s: symbols  callers:  tests:  threads:  recent:`, the filter names in cyan) until one is on, and then says what it shows, such as `possible callers of cancelOrder() · matched by name · backspace to clear filter`. A thread reply's `@` list mentions people only and shows just the first line.
+
+### AI code suggestions
+
+`Ctrl+T` asks the Q&A model to propose replacement code for the comment's lines. A `✦` line opens under the comment body, and the code above stays in view. Type an optional instruction and press `Enter`; while the model works the line shows its progress, and `Esc` stops it and returns to your instruction. The model sees the selected lines, the enclosing declaration, up to two linked tests, up to five possible callers, and the code your comment references.
+
+The proposal appears in the composer as the anchored lines (`-`) and the replacement (`+`), marked **proposal · not verified**, with one line on why and a count of any assumptions, citations, and notes. It is checked for shape (no fences or diff markers, no surrounding lines, cited paths and lines exist in the checkout), but it is never compiled or run. Press `Enter` or `a` to accept it as the comment's suggestion, `r` to refine it (the instruction comes back for you to change, and the model sees its previous proposal), `e` to edit it in `$EDITOR` and accept, or `Esc` to discard it and keep whatever suggestion the comment had. After you accept, typing continues where your cursor was. The composer grows to show the proposal, up to most of the pane; a long one ends with how many more lines it has.
+
+GitHub can apply a suggestion only to new-side lines within one diff hunk, so `Ctrl+T` explains on the same line why when the comment is on removed lines or a flow. Errors show there too: `Enter` retries and `Esc` returns to your instruction. With `--no-agent` or a plain tour, AI suggestions are off; `Ctrl+G` still lets you write one by hand.
+
+Press `s` to review your drafts in a popup over the current briefing or chapter. It groups them by label, shows unread and deferred work, and proposes **Approve**, **Comment**, or **Request changes** from your drafts and progress. You can edit or delete drafts, change the verdict with `a`/`c`/`r`, add a review summary with `b`, and preview a draft exactly as it will be posted with `p`. Press `P`, then confirm, to post all pending drafts as **one GitHub review**. Nothing posts while you are drafting or navigating.
+
+A draft that posting will change carries a dim note on its row in the submit screen: `moves to line 91` when its line is no longer in the diff, `posts on line 91 only` when its range spans more than one GitHub hunk, `suggestion posts as plain code` when GitHub could not apply it there (removed lines, a moved or split comment, or lines that changed since a new push), and `posts in the review body` when no line in the diff can take it. The note is computed the way posting builds the review, needs no key press, and never blocks posting. A suggestion written against an earlier head stays a suggestion when its lines read the same at the new head.
 
 If a draft's original line is no longer in the diff, Guided Review attaches it to the nearest available diff line or places it in the review body, then tells you what moved. Flow-level comments are summarized in the review body as well as anchored to a relevant changed line when one exists.
 

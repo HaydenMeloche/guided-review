@@ -280,6 +280,9 @@ const FALLBACK_DECL: { langs: string[]; re: RegExp; kind: DeclKind }[] = [
   { langs: ['c', 'cpp'], re: /^()[\w*\s]+?\b([A-Za-z_]\w*)\s*\([^;]*\)\s*\{?\s*$/, kind: 'function' },
 ];
 
+// Languages parseFallbackSymbols has rules for.
+export const FALLBACK_LANGUAGES: ReadonlySet<string> = new Set(FALLBACK_DECL.flatMap((r) => r.langs));
+
 const KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'return', 'catch', 'func', 'def', 'fn', 'new', 'else', 'sizeof', 'print', 'super']);
 
 export function parseFallbackSymbols(path: string, text: string, side: 'head' | 'base'): FileSymbols {

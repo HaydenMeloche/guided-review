@@ -16,6 +16,12 @@ import { BriefingScreen } from './BriefingScreen.js';
 import { SubmitScreen } from './SubmitScreen.js';
 import { ReviewPopup } from './ReviewPopup.js';
 import { CommentEditor } from './CommentEditor.js';
+import { aiChromeRows } from './AiSuggestion.js';
+import { initComposer, type ComposerEnv, type ComposerState, type ReferenceServices } from './composer.js';
+import { pushRecent, type RecentLocation } from './references.js';
+import { RepoIndex } from '../analysis/repoIndex.js';
+import { githubWebHost } from '../github/auth.js';
+import { generateSuggestion } from '../agent/suggest.js';
 import { PickerScreen, keyFor, type DownloadJob, type Target as PickTarget } from './PickerScreen.js';
 import { TourIntro, type IntroLine } from './TourIntro.js';
 
@@ -97,6 +103,11 @@ export function App(opts: AppOptions) {
   const [pickerNotice, setPickerNotice] = useState<string | undefined>();
   const [newHead, setNewHead] = useState<string | undefined>();
   const [editing, setEditing] = useState<Draft | undefined>();
+  const [editState, setEditState] = useState<ComposerState>();
+  // Recent locations for this PR's session feed @ completion and its recent: filter. A ref:
+  // noting a place must not re-render.
+  const recent = useRef<RecentLocation[]>([]);
+  const repoIndex = useRef<{ key: string; index: RepoIndex } | undefined>(undefined);
   const [confirms, setConfirms] = useState<Record<string, boolean>>({});
   const [prTitle, setPrTitle] = useState<string | undefined>();
   const loadGen = useRef(0);
@@ -160,6 +171,7 @@ export function App(opts: AppOptions) {
       loadAbort.current = abort;
       const { signal } = abort;
       agentSessions.current = {};
+      recent.current = [];
       setPhase('load');
       setPrTitle(undefined);
       setSteps([]);
@@ -512,6 +524,35 @@ export function App(opts: AppOptions) {
         }
       : undefined;
 
+  // One index per checkout and head; its caches never invalidate, so preview mode, where the
+  // working tree changes under it, gets a fresh one for each composer.
+  const indexFor = (): RepoIndex | undefined => {
+    if (!worktree) return undefined;
+    const make = () => new RepoIndex({ root: worktree, headSha: tour.headSha, changedFiles: tour.files.map((f) => f.path) });
+    if (opts.preview) return make();
+    const key = `${worktree}\0${tour.headSha}`;
+    if (repoIndex.current?.key !== key) repoIndex.current = { key, index: make() };
+    return repoIndex.current.index;
+  };
+  const references: ReferenceServices = {
+    host: githubWebHost(),
+    repoIndex: indexFor,
+    recent: () => recent.current,
+    noteRecent: (loc) => {
+      recent.current = pushRecent(recent.current, loc);
+    },
+  };
+  const composerEnv: ComposerEnv = {
+    tour,
+    root: worktree || undefined,
+    host: references.host,
+    agent,
+    generate: generateSuggestion,
+    recent: references.recent,
+    noteRecent: references.noteRecent,
+    repoIndex: indexFor,
+  };
+
   const briefingScreen = (active: boolean) => (
     <BriefingScreen
       tour={tour}
@@ -536,6 +577,7 @@ export function App(opts: AppOptions) {
     <ChapterScreen
       tour={tour}
       services={services}
+      references={references}
       chapters={chapters}
       states={states}
       drafts={drafts}
@@ -584,15 +626,19 @@ export function App(opts: AppOptions) {
   );
   const submitBackground = () => (submitFrom === 'briefing' ? briefingScreen(false) : chapterScreen(false));
   if (phase === 'briefing') return <ReviewPopup background={briefingScreen(true)} width={width} height={height} maxWidth={104} maxHeight={34} />;
-  if (phase === 'edit' && editing) {
+  if (phase === 'edit' && editing && editState) {
     return (
-      <ReviewPopup background={submitBackground()} width={width} height={height} maxWidth={96} maxHeight={16}>
-        {(dialogWidth) => (
+      <ReviewPopup background={submitBackground()} width={width} height={height} maxWidth={96} maxHeight={editState.ai ? 30 : 16}>
+        {(dialogWidth, dialogHeight) => (
           <CommentEditor
             draft={editing}
             target={editing.anchor.type === 'line' || editing.anchor.type === 'range' ? `${editing.anchor.file}:${editing.anchor.line}` : 'flow'}
             hunk={editing.anchor.type === 'line' || editing.anchor.type === 'range' ? tour.hunks[editing.anchor.hunkId] : undefined}
             width={dialogWidth}
+            aiRows={editState.ai ? Math.max(4, dialogHeight - aiChromeRows(editState, dialogWidth)) : undefined}
+            env={composerEnv}
+            state={editState}
+            setState={(f) => setEditState((s) => (s ? f(s) : s))}
             onCancel={() => setPhase('submit')}
             onSave={(d) => {
               saveDraft(d);
@@ -625,6 +671,7 @@ export function App(opts: AppOptions) {
             height={dialogHeight}
             onEdit={(d) => {
               setEditing(d);
+              setEditState(initComposer(d, { index: indexFor() }));
               setPhase('edit');
             }}
             onDelete={(d) => {

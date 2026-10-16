@@ -1,8 +1,9 @@
 import type { CommentLabel, DiffLine, Draft, Hunk, ReadState, Tour } from '../types.js';
 import type { ReviewPayload } from '../github/gh.js';
 import { stateOf } from './hunkState.js';
+import { linkRefs } from './refs.js';
 
-type Side = 'LEFT' | 'RIGHT';
+export type Side = 'LEFT' | 'RIGHT';
 type ReviewComment = ReviewPayload['comments'][number];
 
 export const LABELS: CommentLabel[] = ['blocking', 'question', 'suggestion', 'nit'];
@@ -13,17 +14,36 @@ export function groupByLabel(drafts: Draft[]): Record<CommentLabel, Draft[]> {
   return groups;
 }
 
+export interface PayloadOptions {
+  host?: string; // web host for reference permalinks; callers pass githubWebHost()
+  // Whether a suggestion written against an earlier head still replaces the same lines. By
+  // default it applies only when written at the tour's head (or carries no meta).
+  suggestionStillApplies?: (d: Draft) => boolean;
+}
+
+// Why a suggestion posts as plain code: its range was split, it moved to another line, it is on
+// removed code (GitHub cannot apply those), or it was written against an earlier head.
+export type DemotedReason = 'range-split' | 'moved' | 'left-side' | 'head-changed';
+
+const defaultStillApplies = (headSha: string) => (d: Draft) => !d.suggestionMeta || d.suggestionMeta.headSha === headSha;
+
+// The prose with each code span that names a ref as a link to it. A draft naming no ref comes out
+// as typed, so its comment is byte for byte what it was before references existed.
+function proseOf(d: Draft, host: string, repo: string): string {
+  return linkRefs(d.body.trim(), d.refs ?? [], host, repo);
+}
+
 // `applicable`: the suggestion is offered as one GitHub can apply. It is not when the comment
 // landed on fewer lines than the suggestion was written for: applying it would duplicate code.
-function formatBody(d: Draft, note?: string, applicable = true): string {
-  let body = `**[${d.label}]** ${d.body.trim()}`;
+function formatBody(d: Draft, ctx: { host: string; repo: string }, note?: string, applicable = true): string {
+  let body = `**[${d.label}]** ${proseOf(d, ctx.host, ctx.repo)}`;
   if (d.suggestion !== undefined) body += `\n\n\`\`\`${applicable ? 'suggestion' : ''}\n${d.suggestion.replace(/\n$/, '')}\n\`\`\``;
   if (note) body += `\n\n${note}`;
   return body;
 }
 
 // The line number of `l` on `side`, when GitHub's diff has it there. Expanded context is not in it.
-const lineOn = (l: DiffLine, side: Side) => (l.expanded ? undefined : side === 'RIGHT' ? (l.kind !== 'del' ? l.newLine : undefined) : l.kind !== 'add' ? l.oldLine : undefined);
+export const lineOn = (l: DiffLine, side: Side) => (l.expanded ? undefined : side === 'RIGHT' ? (l.kind !== 'del' ? l.newLine : undefined) : l.kind !== 'add' ? l.oldLine : undefined);
 
 // Every line a review comment may attach to in this file, per side.
 function diffLines(tour: Tour, file: string, side: Side): number[] {
@@ -40,7 +60,7 @@ function diffLines(tour: Tour, file: string, side: Side): number[] {
 
 // Whether GitHub takes a comment over startLine..line: both ends in one of its hunks. A fused hunk
 // is several of GitHub's, joined by expanded context, so the range must not cross that context.
-function sameDiffHunk(tour: Tour, file: string, startLine: number, line: number, side: Side): boolean {
+export function sameDiffHunk(tour: Tour, file: string, startLine: number, line: number, side: Side): boolean {
   return Object.values(tour.hunks).some((h) => {
     if (h.file !== file) return false;
     const start = h.lines.findIndex((l) => lineOn(l, side) === startLine);
@@ -61,9 +81,26 @@ function anchorLineForHunk(h: Hunk): { line: number; side: Side } | undefined {
   return undefined;
 }
 
-export function buildReviewPayload(tour: Tour, drafts: Draft[], event: ReviewPayload['event'], summary: string): { payload: ReviewPayload; moved: { draftId: string; note: string }[] } {
+export function buildReviewPayload(
+  tour: Tour,
+  drafts: Draft[],
+  event: ReviewPayload['event'],
+  summary: string,
+  opts: PayloadOptions = {},
+): { payload: ReviewPayload; moved: { draftId: string; note: string }[]; demoted: { draftId: string; reason: DemotedReason }[] } {
+  const ctx = { host: opts.host ?? 'github.com', repo: tour.repo };
+  const stillApplies = opts.suggestionStillApplies ?? defaultStillApplies(tour.headSha);
   const comments: ReviewComment[] = [];
   const moved: { draftId: string; note: string }[] = [];
+  const demoted: { draftId: string; reason: DemotedReason }[] = [];
+  // Whether d's suggestion posts as one GitHub can apply; records why not when it has one.
+  const applies = (d: Draft, blocked?: DemotedReason): boolean => {
+    if (d.suggestion === undefined) return true;
+    const side = d.anchor.type === 'line' || d.anchor.type === 'range' ? d.anchor.side : undefined;
+    const reason = blocked ?? (side === 'LEFT' ? 'left-side' : !stillApplies(d) ? 'head-changed' : undefined);
+    if (reason) demoted.push({ draftId: d.id, reason });
+    return !reason;
+  };
   const outside: { draft: Draft; where: string }[] = [];
   const flowLevel: { draft: Draft; where: string }[] = [];
   const chapterTitle = (id: string) => tour.chapters.find((c) => c.id === id)?.title ?? id;
@@ -78,7 +115,7 @@ export function buildReviewPayload(tour: Tour, drafts: Draft[], event: ReviewPay
         const start = a.type === 'range' && a.startLine < a.line ? a.startLine : undefined;
         const keepsRange = start !== undefined && sameDiffHunk(tour, a.file, start, a.line, a.side);
         const note = start !== undefined && !keepsRange ? `_Originally on lines ${start}-${a.line}, which GitHub cannot take as one range._` : undefined;
-        const c: ReviewComment = { path: a.file, body: formatBody(d, note, !note), line: a.line, side: a.side };
+        const c: ReviewComment = { path: a.file, body: formatBody(d, ctx, note, applies(d, note ? 'range-split' : undefined)), line: a.line, side: a.side };
         if (keepsRange) {
           c.start_line = start;
           c.start_side = a.side;
@@ -94,7 +131,7 @@ export function buildReviewPayload(tour: Tour, drafts: Draft[], event: ReviewPay
       if (lines.length > 0) {
         const nearest = lines.reduce((best, l) => (Math.abs(l - a.line) < Math.abs(best - a.line) ? l : best));
         const note = `_Originally on line ${a.line}, which is no longer in the diff._`;
-        comments.push({ path: a.file, body: formatBody(d, note, false), line: nearest, side: a.side });
+        comments.push({ path: a.file, body: formatBody(d, ctx, note, applies(d, 'moved')), line: nearest, side: a.side });
         moved.push({ draftId: d.id, note: `moved from line ${a.line} to nearest diff line ${nearest} in ${a.file}` });
       } else {
         outside.push({ draft: d, where: `${a.file}:${a.line}` });
@@ -117,7 +154,7 @@ export function buildReviewPayload(tour: Tour, drafts: Draft[], event: ReviewPay
     const target = hunk ? anchorLineForHunk(hunk) : undefined;
     flowLevel.push({ draft: d, where });
     if (hunk && target) {
-      comments.push({ path: hunk.file, body: formatBody(d, `_On flow: ${chapterTitle(a.chapterId)}_`), ...target });
+      comments.push({ path: hunk.file, body: formatBody(d, ctx, `_On flow: ${chapterTitle(a.chapterId)}_`, applies(d)), ...target });
     } else {
       outside.push({ draft: d, where });
       moved.push({ draftId: d.id, note: `no line found for ${where}; posted in the review body` });
@@ -131,21 +168,37 @@ export function buildReviewPayload(tour: Tour, drafts: Draft[], event: ReviewPay
     for (const label of LABELS) {
       for (const d of groups[label]) {
         const f = flowLevel.find((x) => x.draft === d)!;
-        lines.push(`- **[${label}]** ${f.where}: ${d.body.trim().split('\n')[0]}`);
+        lines.push(`- **[${label}]** ${f.where}: ${proseOf(d, ctx.host, ctx.repo).split('\n')[0]}`);
       }
     }
     parts.push(lines.join('\n'));
   }
   if (outside.length > 0) {
     const lines = ['### Comments on lines outside the diff'];
-    for (const o of outside) lines.push(`- \`${o.where}\`\n\n  ${formatBody(o.draft).replace(/\n/g, '\n  ')}`);
+    for (const o of outside) lines.push(`- \`${o.where}\`\n\n  ${formatBody(o.draft, ctx).replace(/\n/g, '\n  ')}`);
     parts.push(lines.join('\n'));
   }
 
   return {
     payload: { commit_id: tour.headSha, body: parts.join('\n\n'), event, comments },
     moved,
+    demoted,
   };
+}
+
+// What posting changes about `d`, from a dry run of buildReviewPayload with the options posting
+// uses: "moves to line 91", "suggestion posts as plain code", "posts in the review body". A
+// submit-screen hint only; it never blocks posting. Undefined when d posts where it was written.
+export function postingNote(tour: Tour, d: Draft, opts: PayloadOptions = {}): string | undefined {
+  const { payload, demoted } = buildReviewPayload(tour, [d], 'COMMENT', '', opts);
+  const c = payload.comments[0];
+  const a = d.anchor;
+  const notes: string[] = [];
+  if (!c) notes.push('posts in the review body');
+  else if ((a.type === 'line' || a.type === 'range') && c.line !== a.line) notes.push(`moves to line ${c.line}`);
+  else if (a.type === 'range' && a.startLine < a.line && c.start_line === undefined) notes.push(`posts on line ${c.line} only`);
+  if (c && demoted.length) notes.push('suggestion posts as plain code');
+  return notes.length ? notes.join(' · ') : undefined;
 }
 
 const LOGIC_CHAPTERS = new Set(['flow', 'supporting']);

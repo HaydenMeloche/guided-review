@@ -64,4 +64,33 @@ describe('Store', () => {
     store.deleteDraft('d1');
     expect(store.listDrafts('o/r', 1)).toEqual([]);
   });
+
+  it('loads legacy drafts unchanged and drops malformed refs instead of failing', () => {
+    const base = { repo: 'o/r', pr: 1, headSha: 'h', label: 'nit', body: 'x', posted: false, anchor: { type: 'chapter', chapterId: 'c0' } };
+    const good = { id: 'r1', kind: 'range', path: 'src/a.ts', commitSha: 'abc', startLine: 1, endLine: 2, label: 'a.ts:1-2' };
+    // An older build's evidence fields load fine and are dropped.
+    const older = { ...good, role: 'test', note: 'why', title: 'a test' };
+    const rows: [string, object][] = [
+      ['legacy', { ...base }],
+      ['mixed', { ...base, refs: [older, { ...good, id: '' }, { ...good, label: 'has space' }, { id: 'r4', path: 'p', label: 'l' }, null, 'junk'] }],
+      ['notArray', { ...base, refs: 'oops' }],
+      ['badMeta', { ...base, suggestion: 's', suggestionMeta: { source: 'ai' } }],
+      ['goodMeta', { ...base, suggestion: 's', suggestionMeta: { source: 'manual', headSha: 'h', originalHash: 'o' } }],
+      // Moving a comment once could keep its suggestion as plain code; that flag is dropped.
+      ['plainMeta', { ...base, suggestion: 's', suggestionMeta: { source: 'manual', headSha: 'h', originalHash: 'o', plain: true } }],
+      // An earlier build of this branch wrote `@@label` tokens; such a draft loads as it was.
+      ['atTokens', { ...base, body: 'see @@a.ts:1-2', refs: [good] }],
+    ];
+    rows.forEach(([id, json], i) => store.saveDraft({ ...(json as Draft), id, createdAt: `2026-01-0${i + 1}T00:00:00Z` }));
+    const byId = Object.fromEntries(store.listDrafts('o/r', 1).map((d) => [d.id, d]));
+    expect(byId.legacy).toEqual({ ...base, id: 'legacy', createdAt: '2026-01-01T00:00:00Z' });
+    expect('refs' in byId.legacy).toBe(false);
+    expect(byId.mixed.refs).toEqual([good]);
+    expect(byId.notArray.refs).toEqual([]);
+    expect('suggestionMeta' in byId.badMeta).toBe(false);
+    expect(byId.badMeta.suggestion).toBe('s');
+    expect(byId.goodMeta.suggestionMeta).toEqual({ source: 'manual', headSha: 'h', originalHash: 'o' });
+    expect(byId.plainMeta.suggestionMeta).toEqual({ source: 'manual', headSha: 'h', originalHash: 'o' });
+    expect(byId.atTokens).toMatchObject({ body: 'see @@a.ts:1-2', refs: [good] });
+  });
 });

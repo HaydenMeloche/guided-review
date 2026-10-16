@@ -315,7 +315,7 @@ describe('ChapterScreen', () => {
     expect(ui.lastFrame()).toContain('Could this fail?');
     expect(ui.lastFrame()).toContain(line.text.trim().slice(0, 20));
     ui.stdin.write('Agreed @al');
-    await waitFor(() => expect(ui.lastFrame()).toContain('Tab to complete'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('tab insert · ↑↓ choose'));
     expect(ui.lastFrame()).toContain('@alice');
     ui.stdin.write('\t');
     await tick();
@@ -337,7 +337,7 @@ describe('ChapterScreen', () => {
     ui.stdin.write('@zo');
     await waitFor(() => expect(ui.lastFrame()).toContain('@zoe'));
     ui.stdin.write('\t');
-    await waitFor(() => expect(ui.lastFrame()).not.toContain('Tab to complete'));
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('tab insert · ↑↓ choose'));
     expect(ui.lastFrame()).toContain('@zoe ');
     ui.unmount();
   });

@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import type { DatabaseSync as DatabaseSyncType, StatementSync } from 'node:sqlite';
 import type { AgentRole } from '../agent/types.js';
-import type { ChapterOrder, Draft, ReadState, Tour } from '../types.js';
+import type { ChapterOrder, CodeRef, Draft, ReadState, SuggestionMeta, Tour } from '../types.js';
 import { grHome } from '../paths.js';
 import { KEEP_TOURS_PER_PR, TOUR_MAX_AGE_DAYS } from './retention.js';
 
@@ -95,6 +95,46 @@ const PR_STATE_TABLES = ['read_states', 'positions', 'moves', 'checklist_confirm
 
 const packTour = (t: Tour): Uint8Array => gzipSync(JSON.stringify(t), { level: 1 });
 const unpackTour = (blob: unknown): Tour => JSON.parse(gunzipSync(blob as Uint8Array).toString('utf8')) as Tour;
+
+const nonEmpty = (v: unknown): v is string => typeof v === 'string' && v.length > 0;
+
+// Drafts are JSON, so a row from an older or newer build may hold refs this one cannot use.
+// Those refs are dropped rather than failing the whole list; a draft without refs is untouched.
+export function normalizeDraft(d: Draft): Draft {
+  const raw = d as unknown as Record<string, unknown>;
+  if ('refs' in raw && raw.refs !== undefined) {
+    const refs = Array.isArray(raw.refs) ? (raw.refs as unknown[]) : [];
+    const ok = refs.filter((r): r is CodeRef => {
+      if (typeof r !== 'object' || r === null) return false;
+      const x = r as Record<string, unknown>;
+      return nonEmpty(x.id) && nonEmpty(x.path) && nonEmpty(x.commitSha) && nonEmpty(x.label) && !/\s/.test(x.label);
+    });
+    // Earlier builds kept a role, note and title on each ref for an evidence list; a ref is now
+    // only a code reference's target, so those fields are dropped.
+    const STALE = ['role', 'note', 'title'];
+    const stale = ok.some((r) => STALE.some((k) => k in r));
+    const clean = stale
+      ? ok.map((r) => {
+          const rest: Record<string, unknown> = { ...r };
+          for (const k of STALE) delete rest[k];
+          return rest as unknown as CodeRef;
+        })
+      : ok;
+    if (stale || ok.length !== refs.length || !Array.isArray(raw.refs)) d = { ...d, refs: clean };
+  }
+  const meta = raw.suggestionMeta;
+  if (meta !== undefined && (typeof meta !== 'object' || meta === null || !nonEmpty((meta as Record<string, unknown>).headSha))) {
+    d = { ...d };
+    delete d.suggestionMeta;
+  } else if (meta !== undefined && 'plain' in meta) {
+    // Earlier builds marked a suggestion kept as plain code after moving the comment; that move
+    // is gone, so the normal rules decide how it posts.
+    const rest: Record<string, unknown> = { ...meta };
+    delete rest.plain;
+    d = { ...d, suggestionMeta: rest as unknown as SuggestionMeta };
+  }
+  return d;
+}
 
 export class Store {
   private db: DatabaseSyncType;
@@ -260,7 +300,7 @@ export class Store {
 
   listDrafts(repo: string, pr: number): Draft[] {
     const rows = this.stmt('SELECT json FROM drafts WHERE repo = ? AND pr = ? ORDER BY created_at').all(repo, pr) as Row[];
-    return rows.map((r) => JSON.parse(r.json as string) as Draft);
+    return rows.map((r) => normalizeDraft(JSON.parse(r.json as string) as Draft));
   }
 
   saveDraft(d: Draft): void {

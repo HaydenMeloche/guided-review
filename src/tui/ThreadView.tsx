@@ -3,6 +3,7 @@ import { Box, Text, useInput } from 'ink';
 import type { ExistingThread, ReactionContent, ThreadComment } from '../types.js';
 import { MdLineView, renderMarkdown, type MdLine } from './markdown.js';
 import { TextInput } from './TextInput.js';
+import { mentionHighlight } from './completion.js';
 import { sanitizeTerminal } from '../util/sanitize.js';
 
 const safe = sanitizeTerminal;
@@ -34,8 +35,11 @@ export function ThreadView(props: {
   const [reactionMenu, setReactionMenu] = useState(false);
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
+  const [completing, setCompleting] = useState(false); // the mention list owns Esc while open
   const [error, setError] = useState('');
   const thread = props.threads[selected];
+  // Known @mentions in the reply read as usernames.
+  const mentionRules = useMemo(() => [mentionHighlight(props.mentions)].filter((r) => r !== undefined), [props.mentions]);
   const { lines, commentStarts } = useMemo(() => {
     const out: MdLine[] = [];
     const starts: number[] = [];
@@ -75,7 +79,7 @@ export function ThreadView(props: {
 
   useInput((input, key) => {
     if (composing) {
-      if (key.escape && !busy) setComposing(false);
+      if (key.escape && !busy && !completing) setComposing(false);
       if (key.pageDown) setScroll((n) => Math.min(maxScroll, n + visible));
       if (key.pageUp) setScroll((n) => Math.max(0, n - visible));
       return;
@@ -129,7 +133,18 @@ export function ThreadView(props: {
       {composing ? (
         <>
           <Box marginTop={1} height={inputRows} overflow="hidden">
-            <TextInput value={body} onChange={setBody} onSubmit={() => void send()} width={props.width - 4} maxRows={inputRows} mentions={props.mentions} placeholder="Write a reply…" active={!busy} />
+            <TextInput
+              value={body}
+              onChange={setBody}
+              onSubmit={() => void send()}
+              width={props.width - 4}
+              maxRows={inputRows}
+              mentions={props.mentions}
+              highlightTokens={mentionRules}
+              onCompleting={setCompleting}
+              placeholder="Write a reply…"
+              active={!busy}
+            />
           </Box>
           <Text dimColor wrap="truncate">
             Enter: post · Shift+Enter: newline · PgUp/PgDn: read · Esc: cancel

@@ -1,6 +1,6 @@
 import { setMaxListeners } from 'node:events';
 import { readOnlyGuard, readOnlyHook } from './guard.js';
-import type { Chapter, Graph, Hunk, PRInfo, Tour } from '../types.js';
+import type { Chapter, DiffLine, Graph, Hunk, PRInfo, Tour } from '../types.js';
 import { briefingPrompt, chapterPrompt, SYSTEM_PROMPT } from './prompts.js';
 import { runCompatible } from './openaiCompatible.js';
 import { runOpenAI } from './openaiResponses.js';
@@ -57,18 +57,21 @@ export async function run<T>(prompt: string, options: ProviderRunConfig, opts: M
   }
 }
 
-export async function runRole<T>(role: AgentRole, prompt: string, context: AgentContext, opts: ModelOpts & { maxTurns?: number } = {}): Promise<RunResult<T>> {
+// `session: false` runs a one-off call on the role's routing that neither resumes nor replaces
+// its session (a suggestion uses Q&A routing without touching the Q&A thread).
+export async function runRole<T>(role: AgentRole, prompt: string, context: AgentContext, opts: ModelOpts & { maxTurns?: number; session?: boolean } = {}): Promise<RunResult<T>> {
   const { cwd, sessions, rememberSession, ...routing } = context;
   const chosen = configForRole(routing, role);
   const fallback = configForRole({ ...routing, roles: undefined }, role);
   // Only Q&A sessions are ever resumed, so other roles' conversations are not kept.
+  const keep = role === 'qa' && opts.session !== false;
   const execute = async (config: AgentConfig, resume?: string) => {
-    const result = await run<T>(prompt, { cwd, ...config, resume, maxTurns: opts.maxTurns, keepSession: role === 'qa' }, opts);
-    if (result.sessionId && role === 'qa') rememberSession?.(role, result.sessionId);
+    const result = await run<T>(prompt, { cwd, ...config, resume, maxTurns: opts.maxTurns, keepSession: keep }, opts);
+    if (result.sessionId && keep) rememberSession?.(role, result.sessionId);
     return result;
   };
   try {
-    const result = await execute(chosen, role === 'qa' ? sessions?.qa : undefined);
+    const result = await execute(chosen, keep ? sessions?.qa : undefined);
     return { ...result, modelUsed: { provider: chosen.provider ?? 'claude-code', model: chosen.model, baseUrl: chosen.baseUrl } };
   } catch (error) {
     if (!routing.roles?.[role] || JSON.stringify(chosen) === JSON.stringify(fallback) || opts.signal?.aborted) throw error;
@@ -287,15 +290,19 @@ export async function analyzeChapter(tour: Tour, chapter: Chapter, cwd: string, 
 
 // ---------- Live Q&A ----------
 
-function selectionContext(hunk: Hunk, lineIdx?: number, endIdx?: number): string {
+// `selected` overrides the index range, for a selection that skips lines inside it.
+export function selectionContext(hunk: Hunk, lineIdx?: number, endIdx?: number, selected?: (line: DiffLine, index: number) => boolean): string {
   const lines = hunk.lines.map((l, i) => {
-    const mark = lineIdx !== undefined && i >= lineIdx && i <= (endIdx ?? lineIdx) ? '>>' : '  ';
+    const mark = (selected ? selected(l, i) : lineIdx !== undefined && i >= lineIdx && i <= (endIdx ?? lineIdx)) ? '>>' : '  ';
     const no = l.newLine ?? l.oldLine ?? '';
     const sign = l.kind === 'add' ? '+' : l.kind === 'del' ? '-' : ' ';
     return `${mark}${String(no).padStart(5)} ${sign}${l.text}`;
   });
   return `File: ${hunk.file}\n${hunk.header}\n${lines.join('\n')}`;
 }
+
+// API providers can run without tool calling; the model then sees only what the prompt gives it.
+export const withoutTools = (config: AgentConfig) => (config.provider === 'openai-compatible' || config.provider === 'openai' || config.provider === 'anthropic') && config.toolCalling === false;
 
 export interface AskTurn {
   question: string;
@@ -320,11 +327,9 @@ export async function ask(
   const selection = opts.hunk && !resumed ? `The reviewer has selected (>> marks the selection):\n\n${selectionContext(opts.hunk, opts.lineIdx, opts.endIdx)}\n\n` : '';
   const thread = history.length && !resumed ? `Earlier in this thread:\n\n${history.map((t) => `Q: ${t.question}\nA: ${t.answer}`).join('\n\n')}\n\n` : '';
   const label = history.length ? 'Follow-up question' : 'Question';
-  const selected = configForRole(opts, 'qa');
-  const access =
-    (selected.provider === 'openai-compatible' || selected.provider === 'openai' || selected.provider === 'anthropic') && selected.toolCalling === false
-      ? 'Answer using the selected code above. If that is insufficient, say so.'
-      : 'Answer from the repository (use the available read-only tools when needed).';
+  const access = withoutTools(configForRole(opts, 'qa'))
+    ? 'Answer using the selected code above. If that is insufficient, say so.'
+    : 'Answer from the repository (use the available read-only tools when needed).';
   const prompt = `${selection}${thread}${label}: ${opts.question}\n\n${access} Be brief: a few sentences, cite file:line for every claim, and say plainly when something is your inference.`;
   return runRole<string>('qa', prompt, opts, { onText: opts.onText, signal: opts.signal, maxTurns: 10 });
 }

@@ -198,6 +198,33 @@ export type DraftAnchor =
   | { type: 'chapter'; chapterId: string }
   | { type: 'node'; chapterId: string; nodeId: string };
 
+// The target of a code reference in a draft's body, an inline code span holding exactly its
+// label: a place in the code pinned to a commit, so its permalink never breaks; after a new head
+// it may only be outdated. The review payload turns each such span into an inline link; the label
+// never contains whitespace or a backtick. A ref whose span leaves the body is dropped when the
+// draft is saved.
+export interface CodeRef {
+  id: string;
+  kind: 'symbol' | 'file' | 'range' | 'thread';
+  path: string; // repo-relative
+  commitSha: string; // the head SHA, or the base SHA for code the PR deletes
+  startLine?: number;
+  endLine?: number;
+  symbol?: string; // qualified name, e.g. "InventoryService.releaseInventory"
+  label: string; // unique within the draft, no whitespace: "releaseInventory()", "stock.ts:84-96"
+  linesHash?: string; // hash of the referenced lines when inserted, for stale detection
+  threadUrl?: string; // kind 'thread': the discussion's URL on the PR
+}
+
+export interface SuggestionMeta {
+  source: 'manual' | 'ai';
+  headSha: string; // the head the suggestion was written against
+  originalHash: string; // hash of the anchored lines it replaces, at headSha
+  model?: import('./agent/types.js').ModelStamp;
+  explanation?: string;
+  assumptions?: string[];
+}
+
 export interface Draft {
   id: string;
   repo: string;
@@ -207,6 +234,8 @@ export interface Draft {
   label: CommentLabel;
   body: string;
   suggestion?: string; // replacement code for the anchored line(s)
+  suggestionMeta?: SuggestionMeta;
+  refs?: CodeRef[]; // the targets of the body's code references, linked only when the review is built
   posted: boolean;
   createdAt: string;
   note?: string; // e.g. "moved to nearest line: original line left the diff"

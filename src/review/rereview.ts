@@ -34,6 +34,24 @@ function fmtSpan(s: Span): string {
   return s.start === s.end ? `line ${s.start}` : `lines ${s.start}–${s.end}`;
 }
 
+// Draft and thread bodies compared as GitHub shows them: posting turns a code span that names a
+// ref into a link with the span as its text, so a link around a lone code span reads as that span,
+// and whitespace is collapsed.
+const unlink = (s: string) => s.replace(/\[(`[^`\n]+`)\]\([^)\s]*\)/g, '$1');
+const normalize = (s: string) => unlink(s).replace(/\s+/g, ' ').trim();
+// Shorter keys only match a thread's start: "See" must not match any thread mentioning it.
+const MIN_INCLUDES_KEY = 20;
+
+// The thread a posted draft started: its comment reads as the draft's whole body after the label
+// (a note or suggestion may follow), or, for a long enough body, holds it somewhere.
+function findThread(d: Draft, file: string, threads: ExistingThread[], taken: Set<string>): ExistingThread | undefined {
+  const key = normalize(d.body);
+  if (!key) return undefined;
+  const candidates = threads.filter((t) => t.path === file && !taken.has(t.id) && t.comments[0]);
+  const text = (t: ExistingThread) => normalize(t.comments[0].body).replace(/^\*\*\[[a-z]+\]\*\* /, '');
+  return candidates.find((t) => text(t) === key || text(t).startsWith(`${key} `)) ?? (key.length >= MIN_INCLUDES_KEY ? candidates.find((t) => text(t).includes(key)) : undefined);
+}
+
 export function computeReReview(prev: Tour, next: Tour, ctx: { postedDrafts: Draft[]; threads: ExistingThread[]; diffPrevToNext: string; viewer?: string }): ReReview {
   // New when any GitHub hunk it is made of is new: fusing alone never makes a hunk new.
   const prevHashes = new Set(Object.values(prev.hunks).flatMap(hunkKeys));
@@ -66,7 +84,7 @@ export function computeReReview(prev: Tour, next: Tour, ctx: { postedDrafts: Dra
       comments.push({ body: d.body, addressed: false, reason: 'flow-level comment; check the flow again' });
       continue;
     }
-    const thread = ctx.threads.find((t) => t.path === a.file && t.comments[0]?.body.includes(d.body.trim().slice(0, 80)));
+    const thread = findThread(d, a.file, ctx.threads, matched);
     if (thread) matched.add(thread.id);
     if (a.side === 'LEFT') {
       comments.push({

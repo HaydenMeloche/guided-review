@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildReviewPayload, suggestVerdict } from '../src/review/submit.js';
-import type { Draft } from '../src/types.js';
+import type { CodeRef, Draft } from '../src/types.js';
 import { hunk, tour } from './fixtures/tour.js';
 
 const h1 = hunk('h1', 'src/a.ts', [
@@ -83,5 +83,140 @@ describe('suggestVerdict', () => {
   });
   it('approves when all read and nothing open', () => {
     expect(suggestVerdict(t, [], { 'hash-h1': 'read', 'hash-h2': 'read' }).event).toBe('APPROVE');
+  });
+});
+
+describe('buildReviewPayload with references', () => {
+  const SHA = 'a1b2c3d4e5f60718293a4b5c6d7e8f9012345678';
+  const legacy = (): Draft[] => [
+    draft({ type: 'line', hunkId: 'h1', file: 'src/a.ts', line: 11, side: 'RIGHT' }, { id: 'l1', label: 'blocking', body: '  why?\n', suggestion: 'a\nb\n' }),
+    draft({ type: 'range', hunkId: 'h1', file: 'src/a.ts', startLine: 10, line: 12, side: 'RIGHT' }, { id: 'l2', body: 'pasted @@ -1,2 +1,3 @@ and `@@x` and @@stray' }),
+    draft({ type: 'range', hunkId: 'h1', file: 'src/a.ts', startLine: 12, line: 50, side: 'RIGHT' }, { id: 'l3', suggestion: 'x' }),
+    draft({ type: 'line', hunkId: 'h1', file: 'src/a.ts', line: 45, side: 'RIGHT' }, { id: 'l4', suggestion: 'y' }),
+    draft({ type: 'chapter', chapterId: 'c0' }, { id: 'l5', label: 'nit', body: 'naming\nmore' }),
+    draft({ type: 'line', hunkId: 'h1', file: 'src/other.ts', line: 3, side: 'RIGHT' }, { id: 'l6', body: 'outside\nsecond' }),
+  ];
+
+  // Captured from the builder before refs existed: drafts without refs must post exactly as they did.
+  it('posts drafts without refs exactly as before', () => {
+    const { payload, moved } = buildReviewPayload(t, legacy(), 'COMMENT', 'Sum');
+    expect(JSON.stringify({ payload, moved }, null, 1)).toMatchInlineSnapshot(`
+      "{
+       "payload": {
+        "commit_id": "head",
+        "body": "Sum\\n\\n### Flow-level comments\\n- **[nit]** flow \\"Checkout flow\\": naming\\n\\n### Comments on lines outside the diff\\n- \`src/other.ts:3\`\\n\\n  **[question]** outside\\n  second",
+        "event": "COMMENT",
+        "comments": [
+         {
+          "path": "src/a.ts",
+          "body": "**[blocking]** why?\\n\\n\`\`\`suggestion\\na\\nb\\n\`\`\`",
+          "line": 11,
+          "side": "RIGHT"
+         },
+         {
+          "path": "src/a.ts",
+          "body": "**[question]** pasted @@ -1,2 +1,3 @@ and \`@@x\` and @@stray",
+          "line": 12,
+          "side": "RIGHT",
+          "start_line": 10,
+          "start_side": "RIGHT"
+         },
+         {
+          "path": "src/a.ts",
+          "body": "**[question]** why?\\n\\n\`\`\`\\nx\\n\`\`\`\\n\\n_Originally on lines 12-50, which GitHub cannot take as one range._",
+          "line": 50,
+          "side": "RIGHT"
+         },
+         {
+          "path": "src/a.ts",
+          "body": "**[question]** why?\\n\\n\`\`\`\\ny\\n\`\`\`\\n\\n_Originally on line 45, which is no longer in the diff._",
+          "line": 50,
+          "side": "RIGHT"
+         },
+         {
+          "path": "src/a.ts",
+          "body": "**[nit]** naming\\nmore\\n\\n_On flow: Checkout flow_",
+          "line": 50,
+          "side": "RIGHT"
+         }
+        ]
+       },
+       "moved": [
+        {
+         "draftId": "l3",
+         "note": "lines 12-50 in src/a.ts span more than one GitHub hunk; posted on line 50, with the suggestion as plain code"
+        },
+        {
+         "draftId": "l4",
+         "note": "moved from line 45 to nearest diff line 50 in src/a.ts"
+        },
+        {
+         "draftId": "l6",
+         "note": "src/other.ts has no lines in the diff; posted in the review body"
+        }
+       ]
+      }"
+    `);
+  });
+
+  const refs: CodeRef[] = [
+    { id: 'r1', kind: 'symbol', path: 'src/inventory/stock.ts', commitSha: SHA, startLine: 84, endLine: 96, symbol: 'releaseInventory', label: 'releaseInventory()' },
+    { id: 'r2', kind: 'range', path: 'src/jobs/retries.ts', commitSha: SHA, startLine: 60, endLine: 66, label: 'retries.ts:60-66' },
+    { id: 'r3', kind: 'thread', path: 'src/cart.ts', commitSha: SHA, startLine: 17, label: 'thread:cart.ts:17', threadUrl: 'https://ghe.example.com/o/r/pull/1#discussion_r99' },
+  ];
+  const at = (f: string, l: string) => `https://ghe.example.com/o/r/blob/${SHA}/${f}#${l}`;
+
+  it('links every reference inline and appends nothing after the prose, before the suggestion', () => {
+    const d = draft(
+      { type: 'line', hunkId: 'h1', file: 'src/a.ts', line: 11, side: 'RIGHT' },
+      {
+        label: 'blocking',
+        body: 'Calls `releaseInventory()`; see `retries.ts:60-66`, as in `thread:cart.ts:17`.',
+        suggestion: 'fixed();',
+        refs,
+        suggestionMeta: { source: 'manual', headSha: 'head', originalHash: 'h' },
+      },
+    );
+    const { payload, demoted } = buildReviewPayload(t, [d], 'COMMENT', '', { host: 'ghe.example.com' });
+    expect(demoted).toEqual([]);
+    expect(payload.comments[0].body).toBe(
+      [
+        `**[blocking]** Calls [\`releaseInventory()\`](${at('src/inventory/stock.ts', 'L84-L96')}); see [\`retries.ts:60-66\`](${at('src/jobs/retries.ts', 'L60-L66')}), as in [\`thread:cart.ts:17\`](https://ghe.example.com/o/r/pull/1#discussion_r99).`,
+        '',
+        '```suggestion',
+        'fixed();',
+        '```',
+      ].join('\n'),
+    );
+    expect(payload.comments[0].body).not.toContain('Evidence');
+  });
+
+  it('adds nothing for refs the body does not mention', () => {
+    const d = draft({ type: 'line', hunkId: 'h1', file: 'src/a.ts', line: 11, side: 'RIGHT' }, { body: 'plain `code` and `retries.ts`', refs });
+    expect(buildReviewPayload(t, [d], 'COMMENT', '').payload.comments[0].body).toBe('**[question]** plain `code` and `retries.ts`');
+  });
+
+  it('defaults to github.com and links references in flow-level summaries', () => {
+    const d = draft({ type: 'chapter', chapterId: 'c0' }, { body: 'See `retries.ts:60-66`\nmore', refs });
+    const { payload } = buildReviewPayload(t, [d], 'COMMENT', '');
+    expect(payload.body).toContain(`: See [\`retries.ts:60-66\`](https://github.com/o/r/blob/${SHA}/src/jobs/retries.ts#L60-L66)`);
+    expect(payload.comments[0].body).toBe(`**[question]** See [\`retries.ts:60-66\`](https://github.com/o/r/blob/${SHA}/src/jobs/retries.ts#L60-L66)\nmore\n\n_On flow: Checkout flow_`);
+  });
+
+  it('posts a suggestion written on an earlier head as plain code unless the caller says it still applies', () => {
+    const d = draft({ type: 'line', hunkId: 'h1', file: 'src/a.ts', line: 11, side: 'RIGHT' }, { suggestion: 'x', suggestionMeta: { source: 'ai', headSha: 'old', originalHash: 'h' } });
+    const stale = buildReviewPayload(t, [d], 'COMMENT', '');
+    expect(stale.payload.comments[0].body).toBe('**[question]** why?\n\n```\nx\n```');
+    expect(stale.demoted).toEqual([{ draftId: d.id, reason: 'head-changed' }]);
+    const kept = buildReviewPayload(t, [d], 'COMMENT', '', { suggestionStillApplies: () => true });
+    expect(kept.payload.comments[0].body).toContain('```suggestion');
+    expect(kept.demoted).toEqual([]);
+  });
+
+  it('never offers a suggestion on removed lines', () => {
+    const d = draft({ type: 'line', hunkId: 'h1', file: 'src/a.ts', line: 11, side: 'LEFT' }, { suggestion: 'x' });
+    const { payload, demoted } = buildReviewPayload(t, [d], 'COMMENT', '');
+    expect(payload.comments[0]).toMatchObject({ side: 'LEFT', body: '**[question]** why?\n\n```\nx\n```' });
+    expect(demoted).toEqual([{ draftId: d.id, reason: 'left-side' }]);
   });
 });

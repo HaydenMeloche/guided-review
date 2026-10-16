@@ -81,7 +81,7 @@ function changesSignature(h: Hunk, d: Decl): boolean {
   return h.lines.some((l) => (l.kind === 'add' && near(l.newLine)) || (l.kind === 'del' && near(l.oldLine)));
 }
 
-function isDefinition(text: string, name: string): boolean {
+export function isDefinition(text: string, name: string): boolean {
   const n = name.replace(/[$]/g, '\\$');
   return new RegExp(`\\b(function|class|interface|type|enum|def|func|fn)\\s+${n}\\b|\\b(const|let|var)\\s+${n}\\s*=`).test(text);
 }
