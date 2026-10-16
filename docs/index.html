@@ -190,6 +190,18 @@
       button.copy:hover {
         border-color: var(--accent);
       }
+      .release {
+        margin: 14px 0 0;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .release a {
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .release a:hover {
+        text-decoration: underline;
+      }
 
       .term {
         background: var(--term-bg);
@@ -343,6 +355,7 @@
           <a class="hide-sm" href="#start">Get started</a>
           <a class="hide-sm" href="#team">Team config</a>
           <a class="hide-sm" href="#ci">CI</a>
+          <a class="hide-sm" href="https://github.com/HaydenMeloche/guided-review/releases">Releases</a>
           <a href="https://github.com/HaydenMeloche/guided-review#readme">Docs</a>
           <a href="https://github.com/HaydenMeloche/guided-review">GitHub</a>
         </nav>
@@ -359,6 +372,9 @@
           <code><span class="prompt">$ </span><span id="cmd">npm install -g @haydenmeloche/guided-review</span></code>
           <button class="copy" type="button" data-copy="cmd">Copy</button>
         </div>
+        <p class="release">
+          <a id="release" href="https://github.com/HaydenMeloche/guided-review/releases">See what's new in the latest release <span aria-hidden="true">→</span></a>
+        </p>
 
         <div class="term" aria-label="Example commands">
           <pre><span class="p">$ </span>gr                    <span class="c"># pick a PR waiting for your review</span>
@@ -580,12 +596,23 @@
           <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/configuration.md">Configuration</a> ·
           <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/repo-config.md">Team config</a> ·
           <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/ci.md">CI</a> · <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/security.md">Security</a> ·
-          <a href="https://github.com/HaydenMeloche/guided-review/blob/master/ARCHITECTURE.md">Architecture</a> ·
+          <a href="https://github.com/HaydenMeloche/guided-review/blob/master/ARCHITECTURE.md">Architecture</a> · <a href="https://github.com/HaydenMeloche/guided-review/releases">Releases</a> ·
           <a href="https://www.npmjs.com/package/@haydenmeloche/guided-review">npm</a>
         </span>
       </footer>
     </div>
     <script>
+      // Name the version when GitHub answers; the link works the same without it.
+      fetch('https://api.github.com/repos/HaydenMeloche/guided-review/releases/latest')
+        .then(function (res) {
+          return res.ok ? res.json() : null;
+        })
+        .then(function (release) {
+          if (!release || !release.tag_name) return;
+          document.getElementById('release').firstChild.textContent = "See what's new in " + release.tag_name + ' ';
+        })
+        .catch(function () {});
+
       document.querySelectorAll('button.copy').forEach(function (btn) {
         btn.addEventListener('click', function () {
           var text = document.getElementById(btn.dataset.copy).textContent;
