@@ -654,8 +654,7 @@ export function ChapterScreen(props: {
     const open = chapter.checklist.filter((c) => !svc?.confirms[c.id]).length;
     if (open) chapterNotes.push(`Team checklist: ${open} item(s) to confirm (i). ${chapter.checklist.filter((c) => c.status === 'fail').length} flagged by the agent.`);
   }
-  // The hunk row shows only marks; the reasons behind them read here, in full.
-  if (hunk && hunk.risk >= 2 && hunk.riskReasons.length) chapterNotes.push(`Risk: ${hunk.riskReasons.join('; ')}`);
+  // The hunk row leaves this out; it reads here, in full.
   if (hunk && chapter.orphanReasons[hunk.id]) chapterNotes.push(`Why it is here: ${chapter.orphanReasons[hunk.id]}`);
 
   // Linked tests that are not beside the code (a narrow terminal, T, or a split diff) get a tab
