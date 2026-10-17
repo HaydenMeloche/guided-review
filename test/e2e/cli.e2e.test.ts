@@ -15,7 +15,7 @@ describe('gr commands that print and exit', () => {
     const result = await runGr(box, ['--help']);
     expect(result.code).toBe(0);
     const { version } = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '../../package.json'), 'utf8')) as { version: string };
-    expect(result.stdout).toContain(`Guided Review ${version}: an AI-guided terminal walkthrough`);
+    expect(result.stdout).toContain(`Guided Review ${version}: Review GitHub pull requests as a guided tour`);
     expect(result.stdout).toContain('$ gr review <number|URL>');
     expect(result.stdout).toContain('--no-agent');
   });
@@ -106,7 +106,7 @@ describe('gr commands that print and exit', () => {
 describe('gr with a terminal', () => {
   it('opens setup on the first run, and q leaves without saving', async () => {
     const session = startGr(box, ['review', '12'], { cwd: box.root });
-    await session.waitFor('turns a pull request into a tour');
+    await session.waitFor('turns a pull request into a guided tour');
     session.press('q');
     await session.waitFor('no config saved');
     expect(session.screen()).toContain('--no-agent');
@@ -116,7 +116,7 @@ describe('gr with a terminal', () => {
 
   it('saves the first-run setup and carries on with the command', async () => {
     const session = startGr(box, ['review', '12'], { cwd: box.root });
-    await session.waitFor('turns a pull request into a tour');
+    await session.waitFor('turns a pull request into a guided tour');
     session.press(KEY.enter);
     await session.waitFor('Color theme');
     session.press(KEY.enter);

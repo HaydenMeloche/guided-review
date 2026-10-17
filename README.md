@@ -6,9 +6,11 @@
 
 > **Status:** Guided Review is early (0.x). Expect small bugs, and breaking changes between minor versions. 
 
-Guided Review (`gr`) is a full-screen terminal app for reviewing GitHub pull requests. It turns a diff into a tour: a briefing explains the change, chapters follow the code's execution flows, and linked tests appear beside the hunks they exercise. You can track what you have read, draft comments, and submit them as one GitHub review.
+Review pull requests as a guided tour, in your terminal.
 
-It is also a way to learn a codebase. Each PR becomes a guided walk through real code, from entry point to the functions it reaches, with the tests that pin the behavior down and a model you can ask about any line. That works for new team members and for anyone reading an unfamiliar repo.
+A diff lists files alphabetically, but code runs from an entry point through the functions it calls. Guided Review (`gr`) reorders a PR to match: a briefing explains what the change is for, chapters follow each route, command, or handler through the changed code, and the tests for each hunk sit beside it. Migrations, API contracts, and dependency upgrades get chapters that explain their impact, not just the lines that changed. You mark what you've read, ask a model about any line, and submit your comments as one GitHub review.
+
+The same tour works for learning a codebase: every PR becomes a walk through real code, with the tests that pin it down and answers that cite files and lines.
 
 <p align="center"><img src="docs/images/chapter.webp" alt="A Guided Review chapter showing an explanation, the changed code, and linked tests side by side" width="900"></p>
 

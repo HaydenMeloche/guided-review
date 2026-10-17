@@ -1,7 +1,7 @@
 {
   "name": "@haydenmeloche/guided-review",
   "version": "0.2.0",
-  "description": "Guided Review: an AI-guided terminal walkthrough of pull requests",
+  "description": "Review GitHub pull requests as a guided tour in your terminal: chapters that follow the code's flow, tests beside each change, and one review to submit.",
   "keywords": [
     "code-review",
     "pull-request",

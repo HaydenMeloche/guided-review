@@ -30,13 +30,13 @@ process.emitWarning = function (warning: string | Error, ...rest: unknown[]) {
 // so help and errors use whichever name the user typed.
 const NAME = path.basename(process.argv[1] ?? '').replace(/\.js$/, '') === 'guided-review' ? 'guided-review' : 'gr';
 const PKG = packageInfo();
-// The package description with the version after the name, "Guided Review 0.2.0: …", or appended
-// if the description no longer starts with the name.
+// The package description headed by the name and version, "Guided Review 0.2.0: …". A description
+// that already starts with the name gets the version inserted after it.
 function describeGr(): string | undefined {
   const { version, description } = PKG;
   if (!version || !description) return description;
   const named = description.replace(/^Guided Review\b/, `Guided Review ${version}`);
-  return named === description ? `${description} (${version})` : named;
+  return named === description ? `Guided Review ${version}: ${description}` : named;
 }
 const usage = (args: string, what: string) => `    $ ${`${NAME}${args && ` ${args}`}`.padEnd(NAME.length + 26)}${what}`;
 

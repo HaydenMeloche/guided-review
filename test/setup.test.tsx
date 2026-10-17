@@ -328,7 +328,7 @@ describe('setup wizard', () => {
 
   it('takes a first run from the welcome card to a saved config in a few Enters', async () => {
     const { ui, onDone, checkModelsFn } = await wizard(codexFound, {});
-    await waitFor(() => expect(ui.lastFrame()).toContain('turns a pull request into a tour'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('turns a pull request into a guided tour'));
     ui.stdin.write(ENTER);
     await waitFor(() => expect(ui.lastFrame()).toContain('Color theme'));
     ui.stdin.write(ENTER);
@@ -646,7 +646,7 @@ describe('setup wizard', () => {
     const current = presetUserConfig('codex', { fast: 'gpt-6-luna', strong: 'gpt-6.1-sol' });
     const { ui, onDone } = await wizard(codexFound, {}, current);
     await waitFor(() => expect(ui.lastFrame()).toContain('Provider: codex'));
-    expect(ui.lastFrame()).not.toContain('turns a pull request into a tour');
+    expect(ui.lastFrame()).not.toContain('turns a pull request into a guided tour');
     ui.stdin.write('q');
     await waitFor(() => expect(onDone).toHaveBeenCalledWith({ kind: 'cancelled' }));
     ui.unmount();

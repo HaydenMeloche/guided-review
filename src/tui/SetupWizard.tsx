@@ -281,8 +281,8 @@ function Welcome(props: WizardProps & { width: number; height: number; onStart: 
           <>
             <Box width={textW}>
               <Text>
-                Guided Review turns a pull request into a tour: chapters in reading order, risk flags, linked tests, and diagrams, with an AI briefing and narration when you connect a model. Nothing
-                is posted to GitHub until you submit a review.
+                Guided Review turns a pull request into a guided tour: chapters that follow the code's flow, tests beside each change, and risk flags, with a briefing and narration from a model if you
+                connect one. Nothing posts to GitHub until you submit your review.
               </Text>
             </Box>
             <Text> </Text>
