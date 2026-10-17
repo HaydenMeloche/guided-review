@@ -4,13 +4,16 @@ import { spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline/promises';
 import { openInEditor } from './util/editor.js';
 import {
+  agentRouting,
   DEFAULT_CHAPTER_ORDER,
+  keptRouting,
   defaultUserConfig,
   githubApiUrlProblem,
   KINDS,
   parseRepoConfig,
   repoConfigProblems,
   loadUserConfig,
+  NO_PROVIDER,
   PRESET_MODELS,
   presetUserConfig,
   saveUserConfig,
@@ -22,7 +25,7 @@ import {
 import { DEFAULT_API_URL, restJson } from './github/api.js';
 import { isTheme, TERMINAL_THEME } from './tui/theme.js';
 import { expandHome, resolveGitHubAuth } from './github/auth.js';
-import { configForRole, defaultApiKeyEnv, type AgentConfig, type Provider } from './agent/types.js';
+import { configForRole, defaultApiKeyEnv, type AgentConfig, type AgentRouting, type Provider } from './agent/types.js';
 
 async function ask(question: string, fallback = ''): Promise<string> {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -130,6 +133,16 @@ function describeKey(config: AgentConfig): string {
 }
 
 export function describeUserConfig(config: UserConfig): string[] {
+  const routing = agentRouting(config);
+  const lines = routing ? describeRouting(routing) : ['Provider: none (no AI: static analysis only, AI features are off)'];
+  if (config.lastProvider) lines.push(`Kept for later: your ${config.lastProvider} settings`);
+  lines.push(`Chapter order: ${config.chapterOrder ?? DEFAULT_CHAPTER_ORDER}`);
+  lines.push(`Theme: ${config.theme ?? `${TERMINAL_THEME} (your terminal's colors)`}`);
+  lines.push(`GitHub: ${describeGitHub(config.github)}`);
+  return lines;
+}
+
+function describeRouting(config: AgentRouting): string[] {
   const briefing = configForRole(config, 'briefing');
   const narration = configForRole(config, 'narration');
   const qa = configForRole(config, 'qa');
@@ -139,9 +152,6 @@ export function describeUserConfig(config: UserConfig): string[] {
   lines.push(`Q&A: ${qa.model ?? 'default'}${qa.provider !== config.provider ? ` (${qa.provider})` : ''}`);
   lines.push(`API key: ${describeKey(config)}`);
   if (config.toolCalling === false) lines.push('Tool calling: off');
-  lines.push(`Chapter order: ${config.chapterOrder ?? DEFAULT_CHAPTER_ORDER}`);
-  lines.push(`Theme: ${config.theme ?? `${TERMINAL_THEME} (your terminal's colors)`}`);
-  lines.push(`GitHub: ${describeGitHub(config.github)}`);
   return lines;
 }
 
@@ -247,7 +257,7 @@ async function checkGitHubToken(github: GitHubConfig): Promise<void> {
   }
 }
 
-const PROVIDER_CHOICES: { value: Provider | 'edit'; label: string; unavailable?: string }[] = [
+const PROVIDER_CHOICES: { value: Provider | typeof NO_PROVIDER | 'edit'; label: string; unavailable?: string }[] = [
   { value: 'claude-code', label: 'Claude Code: uses your Claude Code login (Claude plan)', unavailable: 'temporarily disabled because of performance issues' },
   { value: 'anthropic', label: 'Anthropic API: API key required' },
   { value: 'codex', label: 'Codex: uses your Codex CLI login (ChatGPT plan or API key)' },
@@ -256,6 +266,7 @@ const PROVIDER_CHOICES: { value: Provider | 'edit'; label: string; unavailable?:
   { value: 'openai-compatible', label: 'OpenAI-compatible endpoint: Ollama, vLLM, LM Studio, a proxy, ...' },
   { value: 'bedrock', label: 'Claude on Amazon Bedrock: uses your AWS credentials' },
   { value: 'vertex', label: 'Claude on Google Vertex AI: uses your Google Cloud credentials' },
+  { value: NO_PROVIDER, label: 'No AI model: static analysis only; AI briefings, narration, Q&A, and suggestions are off' },
   { value: 'edit', label: 'Open config.json in your editor' },
 ];
 
@@ -297,9 +308,9 @@ async function askApiKey(provider: Provider, current: AgentConfig | undefined): 
   return {};
 }
 
-async function configureProvider(provider: Provider, current: UserConfig | undefined): Promise<UserConfig> {
+async function configureProvider(provider: Provider, previous: AgentRouting | undefined): Promise<UserConfig> {
   // Reuse the existing answers as defaults when the provider is unchanged.
-  const same = current?.provider === provider ? current : undefined;
+  const same = previous?.provider === provider ? previous : undefined;
   const preset = PRESET_MODELS[provider];
   const connection: Omit<AgentConfig, 'provider' | 'model'> = {};
 
@@ -353,13 +364,17 @@ export async function setup(opts: { edit?: boolean } = {}): Promise<void> {
     process.stdout.write(`Let's set up a model provider. Settings are saved to ${file}.\n`);
   }
 
+  // The model settings in use, or the ones a config with no model kept for later.
+  const previous = current && (agentRouting(current) ?? keptRouting(current));
   const choice = await choose('Choose a model provider:', PROVIDER_CHOICES, current?.provider ?? 'codex');
   if (choice === 'edit') {
     await setup({ edit: true });
     return;
   }
 
-  const config = await configureProvider(choice, current);
+  // No model keeps the model settings, so choosing a provider again starts from them.
+  const config: UserConfig =
+    choice === NO_PROVIDER ? { ...previous, provider: NO_PROVIDER, ...(previous?.provider ? { lastProvider: previous.provider } : {}) } : await configureProvider(choice, previous);
   config.chapterOrder = await choose('Default chapter order (press f during a tour to switch):', CHAPTER_ORDER_CHOICES, current?.chapterOrder ?? DEFAULT_CHAPTER_ORDER);
   if (current?.hideWhitespace !== undefined) config.hideWhitespace = current.hideWhitespace; // set by w during a tour
   if (current?.splitDiff !== undefined) config.splitDiff = current.splitDiff; // set by S during a tour
@@ -367,7 +382,7 @@ export async function setup(opts: { edit?: boolean } = {}): Promise<void> {
   if (theme && theme !== TERMINAL_THEME) config.theme = theme;
   const github = await configureGitHub(current?.github);
   if (github) config.github = github;
-  if (current?.roles && Object.values(current.roles).some((r) => r?.provider || r?.baseUrl || r?.apiKey || r?.apiKeyEnv)) {
+  if (choice !== NO_PROVIDER && previous?.roles && Object.values(previous.roles).some((r) => r?.provider || r?.baseUrl || r?.apiKey || r?.apiKeyEnv)) {
     process.stdout.write('\nYour current config has per-task provider overrides; saving replaces them.\n');
   }
   process.stdout.write(

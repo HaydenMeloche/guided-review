@@ -34,6 +34,18 @@ describe('gr commands that print and exit', () => {
     expect(box.ghCalls()).toEqual([]);
   });
 
+  it('refuses to build a tour without a model', async () => {
+    const flagged = await runGr(box, ['build', 'o/r#1', '--no-agent']);
+    expect(flagged.code).toBe(1);
+    expect(flagged.stderr).toContain('--no-agent turns the model off');
+    fs.mkdirSync(box.env.GR_HOME!, { recursive: true });
+    fs.writeFileSync(path.join(box.env.GR_HOME!, 'config.json'), '{ "provider": "none" }\n');
+    const configured = await runGr(box, ['build', 'o/r#1']);
+    expect(configured.code).toBe(1);
+    expect(configured.stderr).toContain('your config chooses no model');
+    expect(box.ghCalls()).toEqual([]);
+  });
+
   it('prints help under the guided-review name', async () => {
     const alias = path.join(box.root, 'bin', 'guided-review');
     fs.symlinkSync(path.resolve(import.meta.dirname, '../../bin/gr.js'), alias);

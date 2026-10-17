@@ -84,6 +84,7 @@ export function ChapterScreen(props: {
   deltaOnly: boolean;
   banner?: string;
   agent?: AgentCtx;
+  aiOff?: string; // why the agent is absent
   width: number;
   height: number;
   active?: boolean;
@@ -627,12 +628,8 @@ export function ChapterScreen(props: {
 
   // The key bar shows only keys that do something here, most useful first; the rest are under h.
   const barKeys = (): [string, string][] => {
-    if (testFocus)
-      return [
-        ['n/p', 'test'],
-        ['c', 'comment'],
-        ['?', 'ask'],
-      ];
+    const ask: [string, string][] = props.agent ? [['?', 'ask']] : [];
+    if (testFocus) return [['n/p', 'test'], ['c', 'comment'], ...ask];
     const submit: [string, string][] = prog.read + prog.skipped === prog.total ? [['s', 'submit']] : [];
     if (collapsedView) return [...submit, ['enter', 'expand'], ['n/p', 'next/prev'], ['C', 'comment on flow'], ['x', 'skip chapter'], [']/[', 'chapter']];
     const selecting = anchor !== null;
@@ -647,7 +644,7 @@ export function ChapterScreen(props: {
             ['X', 'delete draft'],
           ] as [string, string][])
         : []),
-      ['?', 'ask'],
+      ...ask,
       ['v', selecting ? 'end range' : 'range'],
       [']/[', 'chapter'],
       ...(showTests ? ([['t', 'tests']] as [string, string][]) : []),
@@ -807,6 +804,7 @@ export function ChapterScreen(props: {
               : `chapter "${chapter.title}"`
         }
         agent={props.agent}
+        aiOff={props.aiOff}
         width={testFocus ? testWidth - (sideBySide ? 3 : 1) : hunk ? codeWidth - 1 : mainWidth}
         height={askHeight}
         onClose={() => setOverlay('none')}
@@ -990,7 +988,7 @@ export function ChapterScreen(props: {
   if (overlay === 'help')
     return (
       <ReviewPopup background={screen} width={width} height={height} maxWidth={HELP_WIDTH} maxHeight={HELP_ROWS.length + 4}>
-        {(w, h) => <Help width={w} height={h} />}
+        {(w, h) => <Help width={w} height={h} ai={!!props.agent} />}
       </ReviewPopup>
     );
   return screen;
@@ -1697,10 +1695,14 @@ const HELP_ROWS: [string, string][] = [
 const HELP_KEY_WIDTH = 15;
 const HELP_WIDTH = 2 + 2 + HELP_KEY_WIDTH + Math.max(...HELP_ROWS.map(([, v]) => v.length)); // border, padding, key column
 
+// Rows for keys that need the agent; left out when it is absent.
+const AI_HELP_KEYS = new Set(['  ^T', '?']);
+
 // The key reference, sized to the popup: descriptions truncate, and rows past its height are cut.
-function Help(props: { width: number; height: number }) {
+function Help(props: { width: number; height: number; ai: boolean }) {
   const inner = props.width - 2;
-  const rows = HELP_ROWS.slice(0, Math.max(0, props.height - 2));
+  const all = props.ai ? HELP_ROWS : HELP_ROWS.filter(([k]) => !AI_HELP_KEYS.has(k)).map(([k, v]): [string, string] => [k, v.replace(' · ? ask', '')]);
+  const rows = all.slice(0, Math.max(0, props.height - 2));
   return (
     <Box flexDirection="column" paddingX={1}>
       <Text bold>Keys</Text>
@@ -1712,7 +1714,7 @@ function Help(props: { width: number; height: number }) {
           {truncate(v, Math.max(1, inner - HELP_KEY_WIDTH))}
         </Text>
       ))}
-      <Text dimColor>{rows.length < HELP_ROWS.length ? `${HELP_ROWS.length - rows.length} more on a taller terminal · ` : ''}any key to close</Text>
+      <Text dimColor>{rows.length < all.length ? `${all.length - rows.length} more on a taller terminal · ` : ''}any key to close</Text>
     </Box>
   );
 }

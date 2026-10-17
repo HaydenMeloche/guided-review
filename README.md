@@ -22,7 +22,7 @@ It is also a way to learn a codebase. Each PR becomes a guided walk through real
 - **Re-review after a push.** See only the hunks that changed since your last pass, and check whether your earlier comments were addressed. See [Review after a new push](docs/usage.md#review-after-a-new-push).
 - **Ask questions.** Ask the model about a selected line, a chapter, or the whole PR without leaving the review. Follow-ups keep the thread, which makes it useful for learning as well as reviewing: "what calls this?", "why a mutex here?", "where is this tested?".
 - **Author preview.** Tour your own branch before you open a PR, to see your change the way a reviewer will.
-- **Bring your own model.** Claude Code (with your Claude Code login), the Anthropic API, Codex, Cursor, OpenAI, any OpenAI-compatible endpoint, Bedrock, or Vertex. Use `--no-agent` for a static-analysis-only tour with no model calls. See [Configuration](docs/configuration.md).
+- **Bring your own model.** Claude Code (with your Claude Code login), the Anthropic API, Codex, Cursor, OpenAI, any OpenAI-compatible endpoint, Bedrock, or Vertex. Choose no model in `gr config` (or pass `--no-agent`) for a static-analysis-only tour with no model calls. See [Configuration](docs/configuration.md).
 - **Color themes.** Keep your terminal's colors or choose from 65 themes, dark and light, that color the whole interface. `gr config` and `L` preview them live. See [Color themes](docs/configuration.md#color-themes).
 - **Share tours from CI.** A GitHub Action builds the tour once and posts it to the PR, so reviewers open it without their own model calls. See [Share tours from CI](docs/ci.md).
 
@@ -31,7 +31,7 @@ It is also a way to learn a codebase. Each PR becomes a guided walk through real
 
 ```sh
 npm install -g @haydenmeloche/guided-review
-gr config            # choose a model provider, color theme, and GitHub access
+gr config            # choose a model provider (or none), color theme, and GitHub access
 gr                   # pick a PR that's waiting for your review
 ```
 
@@ -71,7 +71,7 @@ If pnpm's global binary directory is not on your `PATH`, run `pnpm setup` once a
 
 ### Configure a model
 
-Before your first review, run `gr config` to choose a model provider, the models for each task, and where your API key comes from. Until a config exists, `gr` stops and asks you to run `gr config`. The Claude Code choice uses your Claude Code login, and the Codex choice uses your Codex CLI login, so neither needs a key. See [Configuration](docs/configuration.md) for the Anthropic and OpenAI APIs, compatible endpoints, Bedrock, Vertex, and GitHub tokens. To review without model calls (and without a config), pass `--no-agent`.
+Before your first review, run `gr config` to choose a model provider, the models for each task, and where your API key comes from. Until a config exists, `gr` stops and asks you to run `gr config`. The Claude Code choice uses your Claude Code login, and the Codex choice uses your Codex CLI login, so neither needs a key. See [Configuration](docs/configuration.md) for the Anthropic and OpenAI APIs, compatible endpoints, Bedrock, Vertex, and GitHub tokens. To review without AI, choose **No AI model** in `gr config`: every feature but the briefing text, narration, Q&A, and AI suggestions still works. To skip model calls for one review (even without a config), pass `--no-agent`.
 
 ### Use from Claude Code or Codex
 
@@ -100,7 +100,7 @@ Guided Review checks out the PR head in a detached worktree under `~/.guided-rev
 
 | Option | Purpose |
 | --- | --- |
-| `--no-agent` | Build a plain tour from static analysis, without model calls. |
+| `--no-agent` | Build a plain tour from static analysis, without model calls. Not for `build`, which needs a model. To always review without AI, choose **No AI model** in `gr config` instead. |
 | `--fresh` | Rebuild the tour even if this head commit has a completed cached tour or a tour shared on the PR. |
 | `--comment` | With `build`, post the tour to the PR as a comment. See [Share tours from CI](docs/ci.md). |
 | `--out <file>` | With `build`, write the tour JSON to a file, or `-` for stdout (the default without `--comment`). |
@@ -145,7 +145,7 @@ Run `gr config --repo` inside a repository to create or edit `.guided-review.jso
 
 ## Privacy and security
 
-Guided Review has no telemetry and runs no server of its own. PR content and any files the agent reads go only to the model provider in your config (nothing, with `--no-agent`), and it writes to GitHub only when you post a review, reply, or react. PR content is treated as untrusted: agent tools are read-only and confined to the PR worktree. See [Data, privacy, and security](docs/security.md) for the details, and [SECURITY.md](SECURITY.md) to report a vulnerability.
+Guided Review has no telemetry and runs no server of its own. PR content and any files the agent reads go only to the model provider in your config (nothing, with no model configured or `--no-agent`), and it writes to GitHub only when you post a review, reply, or react. PR content is treated as untrusted: agent tools are read-only and confined to the PR worktree. See [Data, privacy, and security](docs/security.md) for the details, and [SECURITY.md](SECURITY.md) to report a vulnerability.
 
 ## Documentation
 

@@ -36,7 +36,7 @@ export function useAiSuggestion(o: { st: ComposerState; set: SetComposer; env?: 
   const open = () => {
     const tour = env?.tour;
     if (!env || !tour) return;
-    if (!env.agent || !env.generate || tour.mode !== 'agent') return refuse('AI is off for this tour (plain mode or --no-agent); ctrl+g to write a suggestion by hand.');
+    if (!env.agent || !env.generate || tour.mode !== 'agent') return refuse('AI is off for this tour; ctrl+g to write a suggestion by hand.');
     const applies = suggestionApplicability(tour, st.anchor);
     if (!applies.ok) return refuse(`No AI suggestion here: ${applies.reason}`);
     if (!isLineAnchor(st.anchor) || !tour.hunks[st.anchor.hunkId]) return refuse('The anchored hunk is no longer in the tour.');

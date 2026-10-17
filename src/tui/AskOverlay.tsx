@@ -15,7 +15,8 @@ export const ASK_FLUSH_MS = 33;
 
 // Ask the agent beside the current review context. Answers stream in place, and each
 // question joins a thread so follow-ups keep the earlier questions and answers in view.
-export function AskOverlay(props: { hunk?: Hunk; lineIdx?: number; endIdx?: number; target: string; agent?: AgentContext; width: number; height: number; onClose: () => void }) {
+// Without an agent it says why (aiOff) and takes no question.
+export function AskOverlay(props: { hunk?: Hunk; lineIdx?: number; endIdx?: number; target: string; agent?: AgentContext; aiOff?: string; width: number; height: number; onClose: () => void }) {
   const [q, setQ] = useState('');
   const [turns, setTurns] = useState<AskTurn[]>([]);
   const [busy, setBusy] = useState(false);
@@ -54,7 +55,7 @@ export function AskOverlay(props: { hunk?: Hunk; lineIdx?: number; endIdx?: numb
     setTurns([...history, { question, answer: '' }]);
     setQ('');
     setScroll(0);
-    if (!props.agent) return setAnswer(() => 'The agent is unavailable (plain mode), so questions are off for this tour.');
+    if (!props.agent) return;
     setBusy(true);
     abort.current = new AbortController();
     try {
@@ -109,7 +110,9 @@ export function AskOverlay(props: { hunk?: Hunk; lineIdx?: number; endIdx?: numb
       {lines.slice(top, top + room).map((l, i) => (
         <MdLineView key={i} line={l} />
       ))}
-      {busy ? null : (
+      {!props.agent ? (
+        <Text wrap="wrap">{props.aiOff ?? 'AI is unavailable for this tour, so questions are off.'}</Text>
+      ) : busy ? null : (
         <TextInput
           value={q}
           onChange={setQ}
@@ -119,7 +122,7 @@ export function AskOverlay(props: { hunk?: Hunk; lineIdx?: number; endIdx?: numb
           placeholder={turns.length ? 'ask a follow-up…' : 'e.g. "why is this nullable?" or "what calls this?"'}
         />
       )}
-      <Text dimColor>{busy ? 'thinking… (esc to stop)' : turns.length ? 'enter: follow up · ↑/↓: scroll · esc: close' : 'enter: ask · esc: close'}</Text>
+      <Text dimColor>{!props.agent ? 'esc: close' : busy ? 'thinking… (esc to stop)' : turns.length ? 'enter: follow up · ↑/↓: scroll · esc: close' : 'enter: ask · esc: close'}</Text>
     </Box>
   );
 }

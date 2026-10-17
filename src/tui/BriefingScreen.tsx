@@ -36,6 +36,7 @@ export function BriefingScreen(props: {
   states: States;
   analyzing?: string; // progress line while chapters are still being narrated
   agent?: AgentCtx;
+  aiOff?: string; // why the agent is absent
   width: number;
   height: number;
   active?: boolean;
@@ -348,7 +349,7 @@ export function BriefingScreen(props: {
           </Box>
         ) : null}
       </Box>
-      {overlay === 'ask' ? <AskOverlay target="the whole PR" agent={props.agent} width={width - 2} height={askHeight} onClose={() => setOverlay('none')} /> : null}
+      {overlay === 'ask' ? <AskOverlay target="the whole PR" agent={props.agent} aiOff={props.aiOff} width={width - 2} height={askHeight} onClose={() => setOverlay('none')} /> : null}
       {props.analyzing ? <Text color="yellow">⟳ {safe(props.analyzing)} (you can start reading now)</Text> : <Text> </Text>}
       <KeyBar
         width={width}
@@ -361,7 +362,7 @@ export function BriefingScreen(props: {
           ['j/k', 'select'],
           ...((descAll.length > desc.length ? [] : [['r', 'read description']]) as [string, string][]),
           ...((wide && tour.overview ? [] : [['d', 'overview diagram']]) as [string, string][]),
-          ['?', 'ask about the PR'],
+          ...((props.agent ? [['?', 'ask about the PR']] : []) as [string, string][]),
           ['s', 'submit'],
           ...((props.onTheme ? [['L', 'theme']] : []) as [string, string][]),
           ...((props.onBack

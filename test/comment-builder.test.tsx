@@ -397,7 +397,7 @@ describe('comment composer', () => {
     await tick(60);
     expect(ui.lastFrame()).toBe(before);
     ui.stdin.write('h');
-    await waitFor(() => expect(ui.lastFrame()).toContain('Ask the agent'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('Focus the test pane'));
     expect(ui.lastFrame()).not.toMatch(/pin/i);
     ui.unmount();
   });

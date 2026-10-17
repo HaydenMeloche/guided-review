@@ -21,6 +21,7 @@ import { waitFor } from './helpers/waitFor.js';
 import { filesFor, hunkFromDiff, tour as makeTour } from './fixtures/tour.js';
 
 // Never reach GitHub from a test: confirming the submit screen posts through this.
+vi.mock('../src/agent/agent.js', async (orig) => ({ ...(await orig<typeof import('../src/agent/agent.js')>()), ask: vi.fn(async () => ({ value: 'An answer.' })) }));
 vi.mock('../src/github/gh.js', async (orig) => ({ ...(await orig<typeof import('../src/github/gh.js')>()), postReview: vi.fn(async () => ({ id: 1, url: 'https://example.test/review/1' })) }));
 
 // A short settle for keypresses that change no output but must land before the next key
@@ -60,6 +61,7 @@ function Harness(props: {
   onReply?: (body: string) => Promise<void>;
   onDelete?: (d: Draft) => void;
   onTheme?: () => void;
+  agent?: { cwd: string };
 }) {
   const { tour } = props;
   const [pos, setPos] = useState({ ci: props.startCi ?? 0, hi: 0 });
@@ -75,6 +77,7 @@ function Harness(props: {
       hi={pos.hi}
       order="flow"
       deltaOnly={false}
+      agent={props.agent}
       width={props.width ?? 150}
       height={40}
       setPos={(ci, hi) => setPos({ ci, hi })}
@@ -394,7 +397,7 @@ describe('ChapterScreen', () => {
     const tour = fixtureTour();
     const chapter = tour.chapters[0];
     const hunk = tour.hunks[chapter.hunkIds[0]];
-    const ui = render(<Harness tour={tour} onDraft={() => {}} onState={() => {}} />);
+    const ui = render(<Harness tour={tour} onDraft={() => {}} onState={() => {}} agent={{ cwd: '/tmp' }} />);
     await tick();
     ui.stdin.write('?');
     await waitFor(() => expect(ui.lastFrame()).toContain('Ask about'));
@@ -411,7 +414,19 @@ describe('ChapterScreen', () => {
   it('keeps earlier questions in the thread when asking a follow-up', async () => {
     const tour = fixtureTour();
     const ui = render(
-      <BriefingScreen tour={tour} chapters={tour.chapters} order="flow" cycleOrder={() => {}} states={{}} width={140} height={45} onStart={() => {}} onSubmit={() => {}} onQuit={() => {}} />,
+      <BriefingScreen
+        tour={tour}
+        chapters={tour.chapters}
+        order="flow"
+        cycleOrder={() => {}}
+        states={{}}
+        agent={{ cwd: '/tmp' }}
+        width={140}
+        height={45}
+        onStart={() => {}}
+        onSubmit={() => {}}
+        onQuit={() => {}}
+      />,
     );
     await tick();
     ui.stdin.write('?');

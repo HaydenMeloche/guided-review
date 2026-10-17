@@ -4,7 +4,7 @@ import type { AppOptions } from './tui/App.js';
 import { currentBranchPR, currentRepo, parsePRArg } from './github/gh.js';
 import { cleanupWorktrees, defaultBaseRef, localRepoRoot, mergeBaseOf, prDiff } from './git/worktree.js';
 import { git } from './git/git.js';
-import { loadChapterOrder, loadThemeSetting, loadUserConfig, loadViewSetting, readUserConfigFile, saveThemeSetting, saveViewSetting, UserConfigError } from './config.js';
+import { agentRouting, loadChapterOrder, loadThemeSetting, loadUserConfig, loadViewSetting, readUserConfigFile, saveThemeSetting, saveViewSetting, UserConfigError } from './config.js';
 import { editRepoConfig, setup } from './setup.js';
 import { installClaudeCommand, installCodexSkill, type SkillInstallResult } from './codexSkill.js';
 import { planOpen, runOpen, targetArg } from './open.js';
@@ -41,7 +41,7 @@ ${[
   usage('open --preview', 'Open the preview of your current branch in a new terminal window'),
   usage('build [number|URL]', 'Build a tour without the TUI (for CI); share it with --comment or --out'),
   usage('cleanup [--days n]', 'Remove local PR worktrees (skip worktrees with changes) and old tours'),
-  usage('config', 'Choose a model provider, models, API key, and GitHub access'),
+  usage('config', 'Choose a model provider (or none), models, API key, and GitHub access'),
   usage('config --edit', 'Open ~/.guided-review/config.json in your editor'),
   usage('config --repo', "Edit this repo's .guided-review.json (file kinds, test globs, checklists)"),
   usage('install-claude-command', 'Add /guided-review to Claude Code'),
@@ -140,16 +140,18 @@ async function previewInfo(cwd: string): Promise<{ pr: PRInfo; diff: string; wor
   };
 }
 
-// The model routing for a tour, or undefined with --no-agent. Exits with a hint when the config is unusable.
+// The model routing for a tour, or undefined with --no-agent or when the config chooses no model.
+// Exits with a hint when the config is unusable.
 function loadAgent(noAgent: boolean): AppOptions['agent'] {
   if (noAgent) return undefined;
   let agent: AppOptions['agent'];
   try {
-    agent = loadUserConfig();
+    agent = agentRouting(loadUserConfig());
   } catch (error) {
     if (!(error instanceof UserConfigError)) throw error;
-    fail(`${error.message}.\n\n  Run \`gr config\` to choose a model provider, or pass --no-agent to review without one.`);
+    fail(`${error.message}.\n\n  Run \`gr config\` to choose a model provider (or no model), or pass --no-agent to review without one.`);
   }
+  if (!agent) return undefined;
   try {
     validateRouting(agent);
   } catch (error) {
@@ -159,6 +161,12 @@ function loadAgent(noAgent: boolean): AppOptions['agent'] {
   if (claudeProvider === 'bedrock') process.env.CLAUDE_CODE_USE_BEDROCK ??= '1';
   if (claudeProvider === 'vertex') process.env.CLAUDE_CODE_USE_VERTEX ??= '1';
   return agent;
+}
+
+// A config with no model works like --no-agent.
+function agentOptions(): { agent: AppOptions['agent']; noAgent: boolean } {
+  const agent = loadAgent(!cli.flags.agent);
+  return { agent, noAgent: !agent };
 }
 
 async function main() {
@@ -232,12 +240,17 @@ async function main() {
     // Headless: runs in CI, so no terminal check.
     const target = arg ? (/^#?\d+$/.test(arg.trim()) ? parsePRArg(arg, await currentRepo(cwd)) : parsePRArg(arg)) : await currentBranchPR(cwd);
     if (!target) fail(`no PR given and the current branch has no open PR. Usage: ${NAME} build <number|URL>`);
+    // A tour without a model is what every reader's gr builds for itself, so there is nothing to share.
+    const { agent } = agentOptions();
+    if (!agent)
+      fail(
+        `${NAME} build shares a tour written by a model, and ${cli.flags.agent ? 'your config chooses no model' : '--no-agent turns the model off'}. Without one, \`${NAME} review\` builds the same tour for each reviewer.`,
+      );
     const out = cli.flags.out ?? (cli.flags.comment ? undefined : '-');
     const { buildTour } = await import('./build.js');
     await buildTour({
       target,
-      agent: loadAgent(!cli.flags.agent),
-      noAgent: !cli.flags.agent,
+      agent,
       fresh: cli.flags.fresh,
       localRepo: await localRepoRoot(cwd),
       out,
@@ -266,8 +279,7 @@ async function main() {
   const needsRepo = cmd === 'review' ? !!arg : !!cmd && cmd !== 'preview';
   const cwdRepoP = needsRepo && /^#?\d+$/.test((cmd === 'review' ? arg : cmd).trim()) ? currentRepo(cwd) : Promise.resolve(undefined);
 
-  const noAgent = !cli.flags.agent;
-  const agent = loadAgent(noAgent);
+  const { agent, noAgent } = agentOptions();
   let chapterOrder: AppOptions['chapterOrder'];
   let hideWhitespace: boolean;
   let splitDiff: boolean;

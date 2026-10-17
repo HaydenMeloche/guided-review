@@ -6,7 +6,7 @@ What Guided Review sends where, what it stores locally, and how it limits what a
 
 Guided Review has no telemetry and runs no server of its own. It sends data to these places only:
 
-- **Your model provider.** The PR description, diff, review threads, linked issues from the PR's own repository, and any repository files the agent reads go to the provider in your config (Anthropic, OpenAI, Codex, Cursor, Bedrock, Vertex, or your compatible endpoint). With `--no-agent`, nothing goes to a model.
+- **Your model provider.** The PR description, diff, review threads, linked issues from the PR's own repository, and any repository files the agent reads go to the provider in your config (Anthropic, OpenAI, Codex, Cursor, Bedrock, Vertex, or your compatible endpoint). With no AI model chosen in `gr config`, or with `--no-agent`, nothing goes to a model.
 - **GitHub, through `gh` or your personal access token.** It reads PR data, and it writes only when you act: posting a review (`P` on the submit popup), replying to a thread, or adding a reaction.
 - **Your `origin` remote, for `gr preview` only.** When your clone doesn't already record origin's default branch, `gr preview` asks origin for it with `git ls-remote`, using your usual git credentials. It never prompts for a password or passphrase, and it sends nothing else (see [Preview your own branch](usage.md#preview-your-own-branch)).
 

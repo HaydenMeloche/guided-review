@@ -52,7 +52,7 @@ To use Cursor, set `provider: cursor` and pass a Cursor API key (Cursor Dashboar
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
 ```
 
-For any other setup, pass the `config` input (the contents of a `config.json`), which overrides `provider` and `model`. Claude Code and Codex logins aren't available in CI, so use an API-key provider, Bedrock, or Vertex there. Outside GitHub Actions, run `gr build <pr> --comment` with `GH_TOKEN` set and a config under `$GR_HOME`.
+For any other setup, pass the `config` input (the contents of a `config.json`), which overrides `provider` and `model`. Claude Code and Codex logins aren't available in CI, so use an API-key provider, Bedrock, or Vertex there. Outside GitHub Actions, run `gr build <pr> --comment` with `GH_TOKEN` set and a config under `$GR_HOME`. `gr build` needs a model: with `--no-agent` or `"provider": "none"` it stops, because a tour without AI is the one each reviewer's `gr` builds for itself.
 
 The tour travels gzipped inside a hidden part of one comment, which the job updates on each push. The comment leaves out the code: the reader fills in the diff lines from its own diff, and test and covered-code snippets from its own checkout of the head. A tour whose encoded size exceeds GitHub's 65,536-character comment limit is not posted: the job logs a warning and still succeeds, and reviewers build the tour locally as usual. A reader uses a shared tour only when all of these hold:
 

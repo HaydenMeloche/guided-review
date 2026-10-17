@@ -3,7 +3,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
+  agentRouting,
   defaultUserConfig,
+  keptRouting,
   loadChapterOrder,
   loadUserConfig,
   loadThemeSetting,
@@ -18,6 +20,7 @@ import {
   UserConfigError,
 } from '../src/config.js';
 import { configForRole, resolveApiKey, validateRouting } from '../src/agent/types.js';
+import { describeUserConfig } from '../src/setup.js';
 
 const originalHome = process.env.GR_HOME;
 const originalKey = process.env.GR_TEST_KEY;
@@ -64,6 +67,31 @@ describe('user config', () => {
     fs.writeFileSync(file, custom);
     expect(loadUserConfig()).toEqual({ provider: 'openai', model: 'example', apiKeyEnv: 'MY_KEY' });
     expect(fs.readFileSync(file, 'utf8')).toBe(custom);
+  });
+
+  it('loads a config that chooses no model, keeping its model settings for later', () => {
+    const file = configFile();
+    fs.writeFileSync(file, '{"provider":"none","lastProvider":"openai","model":"m","apiKeyEnv":"K","roles":{"qa":{"model":"q"}},"chapterOrder":"risk","theme":"nord"}\n');
+    const config = loadUserConfig();
+    expect(config).toEqual({ provider: 'none', lastProvider: 'openai', model: 'm', apiKeyEnv: 'K', roles: { qa: { model: 'q' } }, chapterOrder: 'risk', theme: 'nord' });
+    expect(agentRouting(config)).toBeUndefined();
+    expect(keptRouting(config)).toEqual({ provider: 'openai', model: 'm', apiKeyEnv: 'K', roles: { qa: { model: 'q' } } });
+    expect(loadChapterOrder()).toBe('risk');
+    expect(describeUserConfig(config)[0]).toMatch(/^Provider: none \(no AI/);
+    expect(describeUserConfig(config).join('\n')).not.toMatch(/Q&A|API key/);
+    expect(describeUserConfig(config)).toContain('Kept for later: your openai settings');
+    // Kept settings are still checked.
+    fs.writeFileSync(file, '{"provider":"none","roles":{"qa":{"provider":"nope"}}}\n');
+    expect(() => loadUserConfig()).toThrow(/roles.qa: unknown provider/);
+  });
+
+  it('routes only the model settings', () => {
+    const config = { ...presetUserConfig('openai', PRESET_MODELS.openai!), chapterOrder: 'risk' as const, theme: 'nord', github: { tokenEnv: 'T' } };
+    const routing = agentRouting(config)!;
+    expect(routing).not.toHaveProperty('theme');
+    expect(routing).not.toHaveProperty('github');
+    expect(routing).not.toHaveProperty('chapterOrder');
+    expect(configForRole(routing, 'qa').model).toBe('gpt-6.1-sol');
   });
 
   it('defaults to Codex with Luna briefing and narration, Sol Q&A', () => {

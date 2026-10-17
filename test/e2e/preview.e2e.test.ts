@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { fixtureRepo, KEY, sandbox, startGr, type Sandbox, type Session } from './harness.js';
 
 let box: Sandbox;
@@ -14,8 +16,8 @@ afterEach(() => {
   box.cleanup();
 });
 
-function preview(): Session {
-  const session = startGr(box, ['preview', '--no-agent'], { cwd: repo });
+function preview(args = ['--no-agent']): Session {
+  const session = startGr(box, ['preview', ...args], { cwd: repo });
   sessions.push(session);
   return session;
 }
@@ -81,5 +83,17 @@ describe('gr preview --no-agent', () => {
     await second.waitFor('Chapters · Guided order');
     second.press('n');
     await second.waitFor('✎ [question] Should the discount be clamped to 0..1?');
+  });
+});
+
+describe('gr preview with no AI model configured', () => {
+  it('builds a plain tour without --no-agent and hides the ask key', async () => {
+    fs.mkdirSync(box.env.GR_HOME!, { recursive: true });
+    fs.writeFileSync(path.join(box.env.GR_HOME!, 'config.json'), '{ "provider": "none" }\n');
+    const gr = preview([]);
+    const screen = await gr.waitFor('Chapters · Guided order');
+    expect(screen).toContain('plain mode');
+    expect(screen).not.toContain('ask about the PR');
+    expect(screen).not.toContain('Agent disabled');
   });
 });

@@ -6,7 +6,7 @@ Model providers, GitHub access, and `~/.guided-review/config.json`. For per-repo
 
 `gr config` walks you through setup in an interactive terminal:
 
-1. **Provider:** Claude Code, the Anthropic API, Codex, Cursor, the OpenAI API, an OpenAI-compatible endpoint, Claude on Amazon Bedrock, or Claude on Google Vertex AI. You can instead open `config.json` in your editor.
+1. **Provider:** Claude Code, the Anthropic API, Codex, Cursor, the OpenAI API, an OpenAI-compatible endpoint, Claude on Amazon Bedrock, Claude on Google Vertex AI, or no AI model. You can instead open `config.json` in your editor. With no AI model, `gr config` skips the model and key questions; see [Reviewing without AI](#reviewing-without-ai).
 2. **Endpoint:** for a compatible endpoint, its API base URL including `/v1`, and whether it supports function calling.
 3. **Models:** one for the briefing and chapter narration, and one for Q&A. Claude Code, Bedrock, and Vertex default to `haiku` and `opus`. The Anthropic API defaults to `claude-haiku-5-5` and `claude-opus-5-5`. Codex and OpenAI default to `gpt-6-luna` and `gpt-6.1-sol`. Cursor defaults to `composer-2.5` for both.
 4. **API key:** read it from an environment variable (you choose the name), or save it in `config.json`. A local compatible server can use no key. When you type a key, it is hidden. Claude Code and Codex use their own logins, and Bedrock and Vertex use your AWS or Google Cloud credentials, so none of them asks for a key.
@@ -16,6 +16,12 @@ Model providers, GitHub access, and `~/.guided-review/config.json`. For per-repo
 Run `gr config` again to change your setup. With an existing config, it shows your current settings and offers them as defaults. Run `gr config --edit` to open the file in `$VISUAL`, `$EDITOR`, or `vi`, for example to set per-task overrides. `gr setup` is an alias for `gr config`.
 
 Before a review starts, `gr` checks the config. If the file is missing or invalid, it names the problem and tells you to run `gr config`. It also stops when a key it needs is missing, such as an unset variable named in `apiKeyEnv`.
+
+## Reviewing without AI
+
+Choose **No AI model** in `gr config` (it saves `"provider": "none"`) to review with static analysis only, without passing `--no-agent` each time. Every tour is a plain tour: files are classified, flows and chapters come from the code, tests are paired, risk and missing changes are flagged, and diagrams, comments, threads, re-review, and submitting all work as usual. Only the AI features are off: the briefing's written intent, chapter narration, Q&A (`?`), and AI code suggestions (`Ctrl+T`). Their keys are left out of the key bars and the help. Nothing is sent to a model. [`gr build`](ci.md) needs a model, so it stops with an error.
+
+Your model, key, and per-task settings stay in `config.json`, with the provider they were for in `lastProvider`. To turn AI on again, run `gr config` and choose a provider: choosing the one you had starts from those settings.
 
 ## GitHub access
 
@@ -73,7 +79,8 @@ Without a config file, a theme chosen with `L` lasts until you quit. Themes need
 
 | Field | Purpose |
 | --- | --- |
-| `provider` | Required: `claude-code`, `anthropic`, `codex`, `cursor`, `openai`, `openai-compatible`, `bedrock`, or `vertex`. |
+| `provider` | Required: `claude-code`, `anthropic`, `codex`, `cursor`, `openai`, `openai-compatible`, `bedrock`, `vertex`, or `none` for [no AI model](#reviewing-without-ai). With `none`, the model, key, and role fields are kept for later but not used. |
+| `lastProvider` | With `"provider": "none"`, the provider the kept model fields are for. `gr config` sets it. |
 | `model` | The fallback model, used when a role sets none or a role override fails. |
 | `baseUrl` | API base URL for `openai-compatible` (including `/v1`) or `anthropic`. Remote endpoints must use HTTPS; HTTP is allowed on localhost. |
 | `apiKeyEnv` | Name of the environment variable holding the key. Defaults: `OPENAI_API_KEY` for OpenAI and compatible endpoints, `ANTHROPIC_API_KEY` for the Anthropic API. |
@@ -126,7 +133,7 @@ A role override can set just a model, or another provider with its own connectio
 }
 ```
 
-If a role override fails, that task falls back to the top-level provider and model. If you change the effective model or endpoint, the cached tour is rebuilt. Claude Code, Bedrock, and Vertex can't be mixed with one another in one run; each can be combined with the Anthropic API, Codex, Cursor, OpenAI, or a compatible endpoint. Agent repository tools are read-only. If the model is unavailable, the app falls back to a plain tour; `--no-agent` requests one directly.
+If a role override fails, that task falls back to the top-level provider and model. If you change the effective model or endpoint, the cached tour is rebuilt. Claude Code, Bedrock, and Vertex can't be mixed with one another in one run; each can be combined with the Anthropic API, Codex, Cursor, OpenAI, or a compatible endpoint. Agent repository tools are read-only. If the model is unavailable, the app falls back to a plain tour; `--no-agent` requests one directly, and `"provider": "none"` requests one every time.
 
 ## Cost
 

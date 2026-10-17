@@ -617,6 +617,12 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
           },
         }
       : undefined;
+  // Why AI features are off, said in their place.
+  const aiOff = agent
+    ? undefined
+    : opts.noAgent
+      ? 'AI is off for this review (no model in gr config, or --no-agent), so questions are off.'
+      : 'The model is unavailable for this tour, so questions are off. The briefing says why.';
 
   // One index per checkout and head; its caches never invalidate, so preview mode, where the
   // working tree changes under it, gets a fresh one for each composer.
@@ -659,6 +665,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       states={states}
       analyzing={analyzing}
       agent={agent}
+      aiOff={aiOff}
       width={width}
       height={height}
       active={active}
@@ -687,6 +694,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       deltaOnly={deltaOnly}
       banner={banner ?? (analyzing ? `⟳ ${analyzing}` : undefined)}
       agent={agent}
+      aiOff={aiOff}
       width={width}
       height={height}
       active={active}

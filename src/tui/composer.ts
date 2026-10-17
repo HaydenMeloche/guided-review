@@ -48,7 +48,7 @@ export interface ComposerEnv {
   tour: Tour;
   root?: string;
   host: string;
-  agent?: AgentContext; // absent: AI suggestions are off (plain tour, --no-agent)
+  agent?: AgentContext; // absent: AI suggestions are off (plain tour, no model, or --no-agent)
   generate?: (o: SuggestOptions) => Promise<SuggestionResult>;
   recent?: () => RecentLocation[];
   noteRecent?: (loc: Omit<RecentLocation, 'at'>) => void;

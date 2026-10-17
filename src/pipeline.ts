@@ -616,8 +616,6 @@ export async function runPipeline(opts: PipelineOptions): Promise<Tour> {
         onProgress('Narrating chapters', true);
       }
     }
-  } else if (!tour.flags.some((f) => f.kind === 'model-unavailable')) {
-    tour = { ...tour, flags: [{ kind: 'model-unavailable', message: 'Agent disabled (--no-agent): plain diff mode with kind sorting and test pairing by name.' }, ...tour.flags] };
   }
 
   signal?.throwIfAborted();

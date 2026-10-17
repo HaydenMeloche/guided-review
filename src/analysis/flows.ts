@@ -69,10 +69,18 @@ function orphanReason(h: Hunk, file: DiffFile | undefined, decls: Decl[]): strin
   return 'helper not called by changed code';
 }
 
-function titleFor(reason: string, symbol: string): string {
+// An entry point with no declaration in its hunk is named after its reason (`file#route GET /x`);
+// that name adds nothing to a title.
+function entryName(reason: string, symbol: string): string | undefined {
   const name = shortName(symbol);
+  return name === reason ? undefined : name;
+}
+
+function titleFor(reason: string, symbol: string): string {
+  const name = entryName(reason, symbol);
   const route = /^route (.+)$/.exec(reason);
-  if (route) return route[1].includes(name) ? route[1] : `${route[1]} → ${name}`;
+  if (route) return !name || route[1].includes(name) ? route[1] : `${route[1]} → ${name}`;
+  if (!name) return reason;
   if (reason === 'exported API') return name;
   if (reason === 'React component') return `<${name}>`;
   return `${reason} → ${name}`;
@@ -453,7 +461,8 @@ export function buildChapters(files: DiffFile[], hunks: Record<string, Hunk>, in
     // Hunks this flow calls directly that another chapter shows.
     const linked = r.hunks.filter((h) => !g.has(h) && (r.dist.get(h) ?? Infinity) <= 1);
     const ch = newChapter(id, 'flow', titleFor(e.reason, e.symbol), ordered, hunks);
-    ch.entryPoint = `${e.reason} (${shortName(e.symbol)})`;
+    const name = entryName(e.reason, e.symbol);
+    ch.entryPoint = name ? `${e.reason} (${name})` : e.reason;
     entryHunkOf.set(id, e.hunkId);
     ch.linkedHunkIds = linked;
     ch.untestedBranches = untestedBranches(ordered, hunks);

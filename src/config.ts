@@ -103,7 +103,20 @@ export function githubApiUrlProblem(value: string): string | undefined {
   return url.protocol === 'https:' ? undefined : 'the GitHub API URL must use https';
 }
 
-export type UserConfig = AgentRouting & { chapterOrder?: ChapterOrderSetting; hideWhitespace?: boolean; splitDiff?: boolean; theme?: string; github?: GitHubConfig };
+// "provider": "none" chooses no model: every tour is built by static analysis alone, as with --no-agent.
+// The model settings stay in the file, with the provider they were for in "lastProvider", so turning
+// AI back on in gr config starts from them.
+export const NO_PROVIDER = 'none';
+
+export type UserConfig = Omit<AgentRouting, 'provider'> & {
+  provider?: Provider | typeof NO_PROVIDER;
+  lastProvider?: Provider;
+  chapterOrder?: ChapterOrderSetting;
+  hideWhitespace?: boolean;
+  splitDiff?: boolean;
+  theme?: string;
+  github?: GitHubConfig;
+};
 
 export class UserConfigError extends Error {}
 
@@ -118,7 +131,7 @@ export const PRESET_MODELS: Partial<Record<Provider, { fast: string; strong: str
   openai: { fast: 'gpt-6-luna', strong: 'gpt-6.1-sol' },
 };
 
-export function presetUserConfig(provider: Provider, models: { fast: string; strong: string }, connection: Omit<AgentConfig, 'provider' | 'model'> = {}): UserConfig {
+export function presetUserConfig(provider: Provider, models: { fast: string; strong: string }, connection: Omit<AgentConfig, 'provider' | 'model'> = {}): UserConfig & AgentRouting {
   return {
     provider,
     model: models.strong,
@@ -132,7 +145,7 @@ export function presetUserConfig(provider: Provider, models: { fast: string; str
   };
 }
 
-export function defaultUserConfig(): UserConfig {
+export function defaultUserConfig(): UserConfig & AgentRouting {
   return presetUserConfig('codex', PRESET_MODELS.codex!);
 }
 
@@ -259,13 +272,33 @@ export function loadGitHubConfig(): GitHubConfig | undefined {
   return raw && parseGitHubConfig(raw, userConfigPath());
 }
 
+function routingOf(config: UserConfig, provider: Provider | undefined): AgentRouting {
+  const { model, baseUrl, apiKey, apiKeyEnv, toolCalling, maxOutputTokens, roles } = config;
+  const routing: AgentRouting = { provider, model, baseUrl, apiKey, apiKeyEnv, toolCalling, maxOutputTokens, roles };
+  return Object.fromEntries(Object.entries(routing).filter(([, v]) => v !== undefined));
+}
+
+// The model routing of a config, or undefined when it chooses no model.
+export function agentRouting(config: UserConfig): AgentRouting | undefined {
+  if (config.provider === NO_PROVIDER) return undefined;
+  return routingOf(config, config.provider);
+}
+
+// The model settings a config with no model keeps for later, or undefined when it keeps none.
+export function keptRouting(config: UserConfig): AgentRouting | undefined {
+  return config.provider === NO_PROVIDER && config.lastProvider ? routingOf(config, config.lastProvider) : undefined;
+}
+
 // Throws UserConfigError when the config is missing or unusable; nothing is written implicitly.
 export function loadUserConfig(): UserConfig {
   const file = userConfigPath();
   const raw = readUserConfigFile();
   if (!raw) throw new UserConfigError(`no model provider is configured (${file} does not exist)`);
   if (raw.provider === undefined) throw new UserConfigError(`${file} does not set a "provider"`);
-  const out: UserConfig = parseAgentConfig(raw, file);
+  // With no model, the settings kept for later are checked as settings for lastProvider.
+  const noModel = raw.provider === NO_PROVIDER;
+  const parsed = parseAgentConfig(noModel ? { ...raw, provider: raw.lastProvider } : raw, file);
+  const out: UserConfig = noModel ? { ...parsed, provider: NO_PROVIDER, ...(parsed.provider ? { lastProvider: parsed.provider } : {}) } : parsed;
   const chapterOrder = parseChapterOrder(raw, file);
   if (chapterOrder) out.chapterOrder = chapterOrder;
   for (const key of ['hideWhitespace', 'splitDiff'] as const) {

@@ -83,3 +83,17 @@ describe('Ask streaming', () => {
     ui.unmount();
   }, 30_000);
 });
+
+describe('Ask without an agent', () => {
+  it('says why AI is off and takes no question', async () => {
+    vi.mocked(ask).mockClear();
+    const ui = render(<AskOverlay target="x" aiOff="AI is off for this review." width={200} height={40} onClose={() => {}} />);
+    await waitFor(() => expect(ui.lastFrame()).toContain('AI is off for this review.'));
+    expect(ui.lastFrame()).toContain('esc: close');
+    expect(ui.lastFrame()).not.toContain('enter: ask');
+    ui.stdin.write('why?\r');
+    await new Promise((r) => setImmediate(r));
+    expect(ask).not.toHaveBeenCalled();
+    ui.unmount();
+  });
+});

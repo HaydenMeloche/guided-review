@@ -8,8 +8,7 @@ import type { PRInfo, Tour } from './types.js';
 
 export interface BuildOptions {
   target: { repo: string; number: number };
-  agent?: AgentRouting;
-  noAgent: boolean;
+  agent: AgentRouting;
   fresh: boolean;
   localRepo?: string;
   out?: string; // write the tour JSON here ("-" for stdout)
@@ -33,7 +32,6 @@ export async function buildTour(opts: BuildOptions): Promise<Tour> {
       worktree,
       store,
       agent: opts.agent,
-      noAgent: opts.noAgent,
       fresh: opts.fresh,
       shared: false, // this is the build that produces the shared tour
       onProgress: (step, done) => {
