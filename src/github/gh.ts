@@ -29,6 +29,12 @@ export interface ReviewRequest {
   updatedAt: string;
   isDraft: boolean;
   labels: string[];
+  // Set when the request went to one of the viewer's teams rather than to them by name: the
+  // team's org/slug.
+  team?: string;
+  // Others who reviewed since the request. A teammate's review clears a team request on
+  // GitHub; the PR stays listed here until the viewer reviews it too.
+  reviewedBy?: string[];
 }
 
 export interface PRPreview {
@@ -601,7 +607,7 @@ async function searchReviewRequests(auth: TokenAuth): Promise<ReviewRequest[]> {
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
-export async function listReviewRequests(): Promise<ReviewRequest[]> {
+async function searchRequests(): Promise<ReviewRequest[]> {
   const auth = githubAuth();
   if (auth) return searchReviewRequests(auth);
   const out = await gh(['search', 'prs', '--review-requested=@me', '--state=open', '--limit', '50', '--json', 'number,title,url,updatedAt,author,repository,isDraft,labels']);
@@ -627,6 +633,203 @@ export async function listReviewRequests(): Promise<ReviewRequest[]> {
       labels: (r.labels ?? []).map((l) => l.name),
     }))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+// How far back the notifications inbox is searched for review requests the search has lost.
+// A PR's notification thread is bumped by any activity, so only PRs quiet this long drop out.
+const NOTIFICATION_DAYS = 14;
+
+// PRs with a notification thread in the last NOTIFICATION_DAYS, whatever the thread's reason:
+// the reason follows the latest notification, so a mention can hide a review request.
+// Fine-grained tokens can't read notifications; then there are none.
+async function notifiedPRs(): Promise<{ repo: string; number: number }[]> {
+  const since = new Date(Date.now() - NOTIFICATION_DAYS * 86_400_000).toISOString();
+  try {
+    const pages = await apiPages<{ subject: { type: string; url: string | null } }>(`notifications?all=true&since=${since}&per_page=100`);
+    const out: { repo: string; number: number }[] = [];
+    for (const n of pages.flat()) {
+      const m = n.subject.type === 'PullRequest' ? /\/repos\/([^/]+\/[^/]+)\/pulls\/(\d+)$/.exec(n.subject.url ?? '') : null;
+      if (m && isValidRepoSlug(m[1])) out.push({ repo: m[1], number: Number(m[2]) });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+// The viewer's teams as lowercase org/slug. Empty without read:org.
+async function viewerTeams(): Promise<Set<string>> {
+  try {
+    const pages = await apiPages<{ slug: string; organization: { login: string } }>('user/teams?per_page=100');
+    return new Set(pages.flat().map((t) => `${t.organization.login}/${t.slug}`.toLowerCase()));
+  } catch {
+    return new Set();
+  }
+}
+
+export type RequestEvent = { kind: 'requested' | 'removed'; at: string; user?: string; team?: string } | { kind: 'review'; at: string; author: string };
+
+// Whether a PR still waits on the viewer, from its review requests and reviews in time order:
+// the latest request to them by name or to one of their teams stands, and they haven't
+// reviewed since. A teammate's review clears a team request on GitHub without a removal event,
+// so here it leaves the request standing and is reported in reviewedBy.
+export function openRequest(events: RequestEvent[], viewer: string, teams: Set<string>): { team?: string; reviewedBy: string[] } | undefined {
+  const me = viewer.toLowerCase();
+  let direct: string | undefined;
+  const teamAt = new Map<string, string>();
+  const reviews: { at: string; author: string }[] = [];
+  for (const e of [...events].sort((a, b) => a.at.localeCompare(b.at))) {
+    if (e.kind === 'review') {
+      if (e.author.toLowerCase() === me) {
+        direct = undefined;
+        teamAt.clear();
+      } else reviews.push(e);
+    } else if (e.user?.toLowerCase() === me) {
+      direct = e.kind === 'requested' ? e.at : undefined;
+    } else if (e.team && teams.has(e.team.toLowerCase())) {
+      if (e.kind === 'requested') teamAt.set(e.team, e.at);
+      else teamAt.delete(e.team);
+    }
+  }
+  const latestTeam = [...teamAt].sort((a, b) => b[1].localeCompare(a[1]))[0];
+  const since = direct ?? latestTeam?.[1];
+  if (!since) return undefined;
+  const reviewedBy = [...new Set(reviews.filter((r) => r.at >= since).map((r) => r.author))];
+  return direct ? { reviewedBy } : { team: latestTeam[0], reviewedBy };
+}
+
+const REVIEWER = '__typename ... on User { login } ... on Team { combinedSlug }';
+const REQUEST_FIELDS = `
+  number title url updatedAt isDraft state
+  author { login }
+  labels(first: 10) { nodes { name } }
+  timelineItems(last: 50, itemTypes: [REVIEW_REQUESTED_EVENT, REVIEW_REQUEST_REMOVED_EVENT, PULL_REQUEST_REVIEW]) {
+    nodes {
+      __typename
+      ... on ReviewRequestedEvent { createdAt requestedReviewer { ${REVIEWER} } }
+      ... on ReviewRequestRemovedEvent { createdAt requestedReviewer { ${REVIEWER} } }
+      ... on PullRequestReview { submittedAt state author { login } }
+    }
+  }`;
+
+interface RequestPR {
+  number: number;
+  title: string;
+  url: string;
+  updatedAt: string;
+  isDraft: boolean;
+  state: string;
+  author: { login: string } | null;
+  labels: { nodes: { name: string }[] };
+  timelineItems: {
+    nodes: {
+      __typename: string;
+      createdAt?: string;
+      submittedAt?: string | null;
+      state?: string;
+      author?: { login: string } | null;
+      requestedReviewer?: { __typename: string; login?: string; combinedSlug?: string } | null;
+    }[];
+  };
+}
+
+function requestEvents(pr: RequestPR): RequestEvent[] {
+  const out: RequestEvent[] = [];
+  for (const n of pr.timelineItems.nodes) {
+    if (n.__typename === 'PullRequestReview') {
+      if (n.submittedAt && n.state !== 'PENDING') out.push({ kind: 'review', at: n.submittedAt, author: n.author?.login ?? 'ghost' });
+    } else if (n.createdAt && n.requestedReviewer) {
+      const r = n.requestedReviewer;
+      out.push({ kind: n.__typename === 'ReviewRequestedEvent' ? 'requested' : 'removed', at: n.createdAt, user: r.login, team: r.combinedSlug });
+    }
+  }
+  return out;
+}
+
+// The given fields of each PR, by repo#number, in GraphQL batches. A batch that fails (one PR
+// in an org that blocks the token, say) is retried a PR at a time, and the PRs that still fail
+// are left out.
+async function fetchPRFields<T>(prs: { repo: string; number: number }[], fields: string, batchSize: number): Promise<Map<string, T>> {
+  const query = (batch: { repo: string; number: number }[]) =>
+    `{ ${batch
+      .map(({ repo, number }, i) => {
+        const { owner, name } = splitRepo(repo);
+        return `p${i}: repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(name)}) { pullRequest(number: ${number}) { ${fields} } }`;
+      })
+      .join('\n')} }`;
+  const fetchBatch = async (batch: { repo: string; number: number }[]) => {
+    const data = await graphql<Record<string, { pullRequest: T | null } | null>>(query(batch), {});
+    return batch.map((pr, i) => [`${pr.repo}#${pr.number}`, data[`p${i}`]?.pullRequest] as const);
+  };
+  const batches: { repo: string; number: number }[][] = [];
+  for (let i = 0; i < prs.length; i += batchSize) batches.push(prs.slice(i, i + batchSize));
+  const results = await mapConcurrent(batches, ISSUE_CONCURRENCY, (batch) =>
+    fetchBatch(batch).catch(async (e: unknown) => {
+      const unavailable = ghUnavailable(e);
+      if (unavailable) throw unavailable;
+      if (batch.length === 1) return [];
+      return (await mapConcurrent(batch, ISSUE_CONCURRENCY, (pr) => fetchBatch([pr]).catch(() => []))).flat();
+    }),
+  );
+  const out = new Map<string, T>();
+  for (const [key, pr] of results.flat()) if (pr) out.set(key, pr);
+  return out;
+}
+
+// Open PRs waiting on the viewer's review: GitHub's review-requested search, plus PRs from the
+// notifications inbox whose request to the viewer or one of their teams still stands after a
+// teammate reviewed. Each is labeled with the team it came through and who else reviewed.
+// The search answers first; onSearch gets its results while the inbox is still being checked.
+export async function listReviewRequests(onSearch?: (prs: ReviewRequest[]) => void): Promise<ReviewRequest[]> {
+  const rest = Promise.all([notifiedPRs(), viewerTeams(), viewerLogin().catch(() => '')]);
+  const searched = await searchRequests();
+  onSearch?.(searched);
+  const [notified, teams, viewer] = await rest;
+  const key = (pr: { repo: string; number: number }) => `${pr.repo}#${pr.number}`;
+  if (!viewer) return searched;
+  const known = new Set(searched.map(key));
+  const notifiedOnly = [...new Map(notified.filter((pr) => !known.has(key(pr))).map((pr) => [key(pr), pr])).values()];
+  const me = viewer.toLowerCase();
+  let extra: { repo: string; number: number }[];
+  let details: Map<string, RequestPR>;
+  try {
+    // Most of the inbox is merged or the viewer's own: a cheap pass rules those out before the
+    // timelines are read.
+    const states = await fetchPRFields<{ state: string; author: { login: string } | null }>(notifiedOnly, 'state author { login }', 100);
+    extra = notifiedOnly.filter((pr) => {
+      const s = states.get(key(pr));
+      return s?.state === 'OPEN' && s.author?.login.toLowerCase() !== me;
+    });
+    details = await fetchPRFields<RequestPR>([...searched, ...extra], REQUEST_FIELDS, 25);
+  } catch (e) {
+    const unavailable = ghUnavailable(e);
+    if (unavailable) throw unavailable;
+    return searched;
+  }
+  const out: ReviewRequest[] = [];
+  for (const pr of searched) {
+    const d = details.get(key(pr));
+    const open = d && openRequest(requestEvents(d), viewer, teams);
+    out.push(open ? { ...pr, ...open } : pr);
+  }
+  for (const pr of extra) {
+    const d = details.get(key(pr));
+    if (!d || d.state !== 'OPEN' || d.author?.login.toLowerCase() === me) continue;
+    const open = openRequest(requestEvents(d), viewer, teams);
+    if (!open) continue;
+    out.push({
+      repo: pr.repo,
+      number: d.number,
+      title: d.title,
+      author: d.author?.login ?? 'ghost',
+      url: d.url,
+      updatedAt: d.updatedAt,
+      isDraft: d.isDraft,
+      labels: d.labels.nodes.map((l) => l.name),
+      ...open,
+    });
+  }
+  return out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 // The PR for the checked-out branch, as `gh pr view` finds it: by the branch it pushes to, open

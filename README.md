@@ -81,7 +81,7 @@ The first time you run `gr`, it introduces itself and walks you through setup: a
 ## Start a review
 
 ```sh
-gr                            # choose from PRs awaiting your review
+gr                            # choose from PRs awaiting you or your teams
 gr review 1234               # PR number in the current repository
 gr review https://github.com/owner/repo/pull/1234
 gr review owner/repo#1234

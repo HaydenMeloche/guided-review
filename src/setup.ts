@@ -82,8 +82,9 @@ function describeGitHub(github: GitHubConfig | undefined): string {
 export const TOKEN_HELP = [
   'Create a token at https://github.com/settings/personal-access-tokens. A fine-grained token needs read',
   'access to Contents and Metadata, and read and write access to Pull requests and Issues; a classic',
-  'token needs the repo scope (and read:org for private orgs). gr reads the token each time it runs;',
-  'it is not copied into config.json.',
+  'token needs the repo scope (and read:org for private orgs). Prefer classic: gr finds team review',
+  'requests a teammate already reviewed in your notifications, which fine-grained tokens cannot read.',
+  'gr reads the token each time it runs; it is not copied into config.json.',
 ];
 
 // Signs in once with the token so a typo shows up now rather than on the first review.

@@ -145,7 +145,10 @@ export function PickerScreen(props: PickerProps) {
     loading.current = true;
     setRefreshing(true);
     setErr('');
-    listReviewRequests()
+    // The first load shows the search's results while team requests are still being checked.
+    listReviewRequests((p) => {
+      if (!prsRef.current) setPrs(p);
+    })
       .then(
         (p) => {
           // PRs updated since the last fetch get a fresh preview.
@@ -558,7 +561,16 @@ const PRRow = React.memo(function PRRow(props: { pr: ReviewRequest; selected: bo
   const { pr, selected, marked, width, job } = props;
   const drafts = props.local?.drafts ?? 0;
   const toured = !!props.local?.tourHead;
-  const meta = [`@${pr.author}`, age(pr.updatedAt), pr.isDraft ? 'draft' : '', ...pr.labels.slice(0, 2), toured ? 'toured' : '', drafts ? `${drafts} draft comment(s)` : '']
+  const meta = [
+    `@${pr.author}`,
+    age(pr.updatedAt),
+    pr.team ? `${pr.team.split('/').pop()} team` : '',
+    pr.reviewedBy?.length ? `reviewed by ${pr.reviewedBy.map((r) => `@${r}`).join(', ')}` : '',
+    pr.isDraft ? 'draft' : '',
+    ...pr.labels.slice(0, 2),
+    toured ? 'toured' : '',
+    drafts ? `${drafts} draft comment(s)` : '',
+  ]
     .filter(Boolean)
     .join(' · ');
   const bar = selected ? <Text color="cyan">▌</Text> : <Text> </Text>;
@@ -588,12 +600,12 @@ const PRRow = React.memo(function PRRow(props: { pr: ReviewRequest; selected: bo
         {bar}
         <Text color={glyph.color}>{glyph.text}</Text>
         <Text bold={selected} color={selected ? 'cyan' : undefined} dimColor={pr.isDraft && !selected}>
-          {pad(` #${pr.number} ${pr.title}`, width - 2)}
+          {pad(safe(` #${pr.number} ${pr.title}`), width - 2)}
         </Text>
       </Text>
       <Text wrap="truncate">
         {bar}
-        {status ? <Text color={status.color}>{truncate(`   ${safe(status.text)}`, width - 1)}</Text> : <Text dimColor>{truncate(`   ${meta}`, width - 1)}</Text>}
+        {status ? <Text color={status.color}>{truncate(`   ${safe(status.text)}`, width - 1)}</Text> : <Text dimColor>{truncate(`   ${safe(meta)}`, width - 1)}</Text>}
       </Text>
     </Box>
   );

@@ -140,8 +140,9 @@ describe('with a token', () => {
   });
 
   it('lists review requests through the search API', async () => {
-    fetchMock.mockResolvedValueOnce(
-      json({
+    fetchMock.mockImplementation(async (input) => {
+      if (!(input as string).includes('/search/issues')) return json({ message: 'Not Found' }, { status: 404 });
+      return json({
         items: [
           {
             number: 1,
@@ -155,14 +156,83 @@ describe('with a token', () => {
           },
           { number: 2, title: 'new', html_url: 'u2', updated_at: '2026-02-01T00:00:00Z', user: null, repository_url: 'https://api.github.com/repos/o/s' },
         ],
-      }),
-    );
+      });
+    });
     const rows = await listReviewRequests();
-    expect(decodeURIComponent(call(0).url)).toContain('review-requested:@me');
+    expect(fetchMock.mock.calls.some(([u]) => decodeURIComponent(u as string).includes('review-requested:@me'))).toBe(true);
     expect(rows.map((r) => [r.repo, r.number, r.author, r.isDraft])).toEqual([
       ['o/s', 2, 'ghost', false],
       ['o/r', 1, 'a', true],
     ]);
+  });
+
+  it('adds team requests a teammate already reviewed, from the notifications inbox', async () => {
+    const searchItem = { number: 1, title: 'asked', html_url: 'u1', updated_at: '2026-10-01T00:00:00Z', user: { login: 'a' }, repository_url: 'https://api.github.com/repos/o/r' };
+    const thread = (n: number) => ({ subject: { type: 'PullRequest', url: `https://api.github.com/repos/o/r/pulls/${n}` } });
+    const requested = (team: string) => ({ __typename: 'ReviewRequestedEvent', createdAt: '2026-10-02T00:00:00Z', requestedReviewer: { __typename: 'Team', combinedSlug: team } });
+    const pr = (number: number, state: string, nodes: unknown[]) => ({
+      pullRequest: {
+        number,
+        title: `pr ${number}`,
+        url: `u${number}`,
+        updatedAt: `2026-10-0${number}T00:00:00Z`,
+        isDraft: false,
+        state,
+        author: { login: 'b' },
+        labels: { nodes: [] },
+        timelineItems: { nodes },
+      },
+    });
+    const review = { __typename: 'PullRequestReview', submittedAt: '2026-10-03T00:00:00Z', state: 'APPROVED', author: { login: 'alice' } };
+    const prs: Record<number, ReturnType<typeof pr>> = {
+      1: pr(1, 'OPEN', [requested('o/backend')]),
+      2: pr(2, 'OPEN', [requested('o/backend'), review]),
+      3: pr(3, 'MERGED', [requested('o/backend'), review]),
+      4: pr(4, 'OPEN', [requested('o/frontend'), review]),
+    };
+    const queried: number[][] = [];
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = decodeURIComponent(input as string);
+      if (url.includes('/search/issues')) return json({ items: [searchItem] });
+      if (url.includes('/notifications?all=true')) return json([thread(1), thread(2), thread(3), thread(4), thread(2), { subject: { type: 'Issue', url: 'x' } }]);
+      if (url.includes('/user/teams')) return json([{ slug: 'backend', organization: { login: 'o' } }]);
+      if (url.endsWith('/user')) return json({ login: 'me' });
+      if (url.endsWith('/graphql')) {
+        const { query } = JSON.parse(init?.body as string) as { query: string };
+        const numbers = [...query.matchAll(/(p\d+): repository\(.*?pullRequest\(number: (\d+)\)/g)].map((m) => [m[1], Number(m[2])] as const);
+        queried.push(numbers.map(([, n]) => n));
+        return json({ data: Object.fromEntries(numbers.map(([alias, n]) => [alias, prs[n]])) });
+      }
+      throw new Error(`unexpected ${url}`);
+    });
+    const early: number[] = [];
+    const rows = await listReviewRequests((p) => early.push(...p.map((r) => r.number)));
+    expect(early).toEqual([1]);
+    expect(rows.map((r) => [r.number, r.team, r.reviewedBy])).toEqual([
+      [2, 'o/backend', ['alice']],
+      [1, 'o/backend', []],
+    ]);
+    // States first for the inbox's PRs, then timelines only for the open ones.
+    expect(queried).toEqual([
+      [2, 3, 4],
+      [1, 2, 4],
+    ]);
+    const notifications = fetchMock.mock.calls.map(([u]) => decodeURIComponent(u as string)).find((u) => u.includes('/notifications'));
+    expect(notifications).toMatch(/since=\d{4}-\d\d-\d\dT/);
+  });
+
+  it('lists only the search results when notifications are off limits', async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = input as string;
+      if (url.includes('/search/issues'))
+        return json({ items: [{ number: 1, title: 't', html_url: 'u1', updated_at: '2026-10-01T00:00:00Z', user: { login: 'a' }, repository_url: 'https://api.github.com/repos/o/r' }] });
+      if (url.includes('/notifications')) return json({ message: 'Resource not accessible by personal access token' }, { status: 403 });
+      if (url.includes('/user/teams')) return json({ message: 'nope' }, { status: 403 });
+      if (url.endsWith('/user')) return json({ login: 'me' });
+      if (url.endsWith('/graphql')) return json({ data: { p0: null } });
+      throw new Error(`unexpected ${url}`);
+    });
+    expect((await listReviewRequests()).map((r) => [r.number, r.team])).toEqual([[1, undefined]]);
   });
 
   it('finds the current branch PR by its pushed branch, preferring an open one', async () => {
