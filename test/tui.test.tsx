@@ -59,6 +59,7 @@ function Harness(props: {
   onBriefing?: () => void;
   onReply?: (body: string) => Promise<void>;
   onDelete?: (d: Draft) => void;
+  onTheme?: () => void;
 }) {
   const { tour } = props;
   const [pos, setPos] = useState({ ci: props.startCi ?? 0, hi: 0 });
@@ -99,12 +100,22 @@ function Harness(props: {
       openSubmit={() => {}}
       openBriefing={() => props.onBriefing?.()}
       openInClaude={() => {}}
+      onTheme={props.onTheme}
       quit={() => {}}
     />
   );
 }
 
 describe('ChapterScreen', () => {
+  it('opens the color theme picker on L', async () => {
+    const onTheme = vi.fn();
+    const ui = render(<Harness tour={fixtureTour()} onDraft={() => {}} onState={() => {}} onTheme={onTheme} />);
+    await tick();
+    ui.stdin.write('L');
+    await waitFor(() => expect(onTheme).toHaveBeenCalledTimes(1));
+    ui.unmount();
+  });
+
   it('keeps the keyboard alive when an overlay would have nothing to show', async () => {
     const tour = fixtureTour();
     // A chapter emptied by moves, with a checklist but no checkout yet (no services).

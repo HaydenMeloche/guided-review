@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { useInput } from 'ink';
+import { Box, Text, usePreviewing, useTheme } from './themed.js';
+import { SURFACES } from './theme.js';
 import type { Chapter, ChapterOrder, DiffFile, DiffLine, Draft, DraftAnchor, ExistingThread, Hunk, ReactionContent, ReadState, TestLink, ThreadComment, Tour } from '../types.js';
 import { MdLineView, line, renderMarkdown, restyle, type MdLine } from './markdown.js';
 import { ChecklistPanel } from './Panels.js';
@@ -104,6 +106,7 @@ export function ChapterScreen(props: {
   openBriefing: () => void;
   openInClaude: (h: Hunk | undefined, chapter: Chapter) => void;
   rebase?: () => void;
+  onTheme?: () => void; // L: the color theme picker
   services?: Services;
   references?: ReferenceServices; // recent locations, repo index; tests may leave it out
   back?: () => void; // q: back to the PR list; unset, q quits
@@ -564,6 +567,7 @@ export function ChapterScreen(props: {
         if (!chapter?.checklist?.length) return setFlash('No team checklist applies to this chapter (.guided-review.json → checklists).');
         return svc ? setOverlay('checklist') : setFlash('The checklist opens once the checkout is ready.');
       }
+      if (input === 'L' && props.onTheme) return props.onTheme();
       if (input === 'q') return (props.back ?? props.quit)();
       if (input === 'Q') return props.quit();
     },
@@ -1203,8 +1207,8 @@ function SyntaxText(props: { text: string; spans?: SyntaxSpan[]; column?: number
   return <Text>{parts}</Text>;
 }
 
-const DIFF_BACKGROUND = { add: '#173B2A', del: '#42262C', ctx: undefined } as const;
-const WORD_BACKGROUND = { add: '#2B6B47', del: '#7A3442', ctx: undefined } as const;
+const DIFF_BACKGROUND = { add: SURFACES.lineAdd, del: SURFACES.lineDel, ctx: undefined } as const;
+const WORD_BACKGROUND = { add: SURFACES.wordAdd, del: SURFACES.wordDel, ctx: undefined } as const;
 
 const SourcePane = React.memo(function SourcePane(props: {
   inline?: { afterIdx: number; node: React.ReactNode; height: number }; // comment editor under the selected line
@@ -1230,25 +1234,28 @@ const SourcePane = React.memo(function SourcePane(props: {
   // Highlights depend on the hunk's identity and the shas, not on the hunk object: a tour
   // update hands every hunk a new object, and that must not re-read and re-tokenize the file.
   const request = { hunk, root: props.root, headSha: props.headSha, baseSha: props.baseSha };
-  const key = hunkHighlightKey(request);
-  const [state, setState] = useState<{ key: string; value?: HunkHighlights }>(() => ({ key, value: peekHunkHighlights(request)?.value }));
-  const cached = state.key === key ? undefined : peekHunkHighlights(request);
-  if (cached && state.key !== key) setState({ key, value: cached.value });
-  const highlights = state.key === key ? state.value : undefined;
-  const latest = React.useRef(request);
-  latest.current = request;
+  const { syntax } = useTheme(); // a theme change re-renders with a new key
+  const previewing = usePreviewing();
+  const key = hunkHighlightKey(request, syntax);
+  const hunkKey = hunkHighlightKey(request, ''); // the same hunk in any theme
+  const [state, setState] = useState<{ key: string; hunkKey: string; value?: HunkHighlights }>(() => ({ key, hunkKey, value: peekHunkHighlights(request, syntax, previewing)?.value }));
+  const cached = state.key === key ? undefined : peekHunkHighlights(request, syntax, previewing);
+  if (cached && state.key !== key) setState({ key, hunkKey, value: cached.value });
+  // Another theme's colors for this hunk stay on screen until this theme's arrive.
+  const highlights = state.key === key || state.hunkKey === hunkKey ? state.value : undefined;
+  const latest = React.useRef({ request, syntax, previewing });
+  latest.current = { request, syntax, previewing };
   useEffect(() => {
     let active = true;
-    // The previous highlight stays on screen until the new one arrives.
-    void highlightHunkCached(latest.current)
+    void highlightHunkCached(latest.current.request, latest.current.syntax, latest.current.previewing)
       .catch(() => undefined)
       .then((value) => {
-        if (active) setState((s) => (s.key === key && s.value === value ? s : { key, value }));
+        if (active) setState((s) => (s.key === key && s.value === value ? s : { key, hunkKey, value }));
       });
     return () => {
       active = false;
     };
-  }, [key]);
+  }, [key, hunkKey]);
   // The changed words of each paired line, as ranges into its displayed (cleaned) text.
   const words = useMemo(() => {
     const out: (CharRange[] | undefined)[] = [];
@@ -1450,23 +1457,30 @@ function TestPane(props: {
   const [diffHighlights, setDiffHighlights] = useState<(HunkHighlights | undefined)[]>();
   // Keyed on the test's file and text, so a tour update with the same test code keeps its highlight.
   const testFileName = covers?.file ?? props.tests[props.idx]?.testFile;
-  const highlightKey = selected
+  const { syntax } = useTheme();
+  const testKey = selected
     ? `${testFileName}\0${'diffHunks' in selected && selected.diffHunks?.length ? selected.diffHunks.map((d) => d.lines.map((l) => l.kind + l.text).join('\n')).join('\0') : selected.lines.join('\n')}`
     : '';
-  const latest = React.useRef({ selected, file: testFileName });
-  latest.current = { selected, file: testFileName };
+  const highlightKey = `${syntax}\0${testKey}`;
+  const latest = React.useRef({ selected, file: testFileName, syntax, testKey });
+  latest.current = { selected, file: testFileName, syntax, testKey };
+  const shownTest = React.useRef('');
   useEffect(() => {
     let active = true;
-    setHighlights(undefined);
-    setDiffHighlights(undefined);
-    const { selected, file } = latest.current;
+    // Another test clears its colors; another theme keeps the old ones until the new arrive.
+    if (shownTest.current !== latest.current.testKey) {
+      setHighlights(undefined);
+      setDiffHighlights(undefined);
+    }
+    shownTest.current = latest.current.testKey;
+    const { selected, file, syntax } = latest.current;
     if (selected && file) {
       if ('diffHunks' in selected && selected.diffHunks?.length) {
-        void Promise.all(selected.diffHunks.map((diff) => highlightDiffLines(file, diff.lines))).then((result) => {
+        void Promise.all(selected.diffHunks.map((diff) => highlightDiffLines(file, diff.lines, undefined, syntax))).then((result) => {
           if (active) setDiffHighlights(result);
         });
       } else {
-        void highlightSourceLines(file, selected.lines).then((result) => {
+        void highlightSourceLines(file, selected.lines, syntax).then((result) => {
           if (active) setHighlights(result);
         });
       }
@@ -1677,6 +1691,7 @@ const HELP_ROWS: [string, string][] = [
   ['o', 'Open the hunk in Claude Code'],
   ['i', 'Team checklist for this chapter'],
   ['b / s', 'Briefing / submit screen'],
+  ['L', 'Color theme (previews as you move through the list)'],
   ['q / Q', 'Back to the PR list / quit (progress is saved)'],
 ];
 const HELP_KEY_WIDTH = 15;

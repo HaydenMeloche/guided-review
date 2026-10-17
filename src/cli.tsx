@@ -4,7 +4,7 @@ import type { AppOptions } from './tui/App.js';
 import { currentBranchPR, currentRepo, parsePRArg } from './github/gh.js';
 import { cleanupWorktrees, defaultBaseRef, localRepoRoot, mergeBaseOf, prDiff } from './git/worktree.js';
 import { git } from './git/git.js';
-import { loadChapterOrder, loadUserConfig, loadViewSetting, saveViewSetting, UserConfigError } from './config.js';
+import { loadChapterOrder, loadThemeSetting, loadUserConfig, loadViewSetting, readUserConfigFile, saveThemeSetting, saveViewSetting, UserConfigError } from './config.js';
 import { editRepoConfig, setup } from './setup.js';
 import { installClaudeCommand, installCodexSkill, type SkillInstallResult } from './codexSkill.js';
 import { planOpen, runOpen, targetArg } from './open.js';
@@ -271,20 +271,33 @@ async function main() {
   let chapterOrder: AppOptions['chapterOrder'];
   let hideWhitespace: boolean;
   let splitDiff: boolean;
+  let themeName: string | undefined;
   try {
     chapterOrder = loadChapterOrder();
     hideWhitespace = loadViewSetting('hideWhitespace');
     splitDiff = loadViewSetting('splitDiff');
+    themeName = loadThemeSetting();
   } catch (error) {
     if (!(error instanceof UserConfigError)) throw error;
     fail(`${error.message}.\n\n  Run \`gr config --edit\` to fix it.`);
   }
+  // Loaded while the PR is resolved below. Only a name shiki doesn't have is the config's fault;
+  // any other failure is reported as it is.
+  const name = themeName;
+  const paletteP = name
+    ? import('./tui/theme.js').then(async ({ isTheme, loadPalette }) => {
+        if (!(await isTheme(name))) fail(`unknown theme ${JSON.stringify(name)} in your config.\n\n  Run \`gr config\` to pick one.`);
+        return loadPalette(name);
+      })
+    : Promise.resolve(undefined);
+  paletteP.catch(() => undefined); // awaited below; a failure surfaces there
   const base: AppOptions = {
     agent,
     chapterOrder,
     hideWhitespace,
     splitDiff,
     saveViewSetting,
+    saveTheme: readUserConfigFile() ? saveThemeSetting : undefined,
     noAgent,
     fresh: cli.flags.fresh,
     localRepo: await localRepoP,
@@ -302,6 +315,7 @@ async function main() {
   }
 
   const [{ render }, { App }] = await tui;
+  opts = { ...opts, palette: await paletteP };
   const app = render(<App {...opts} />, { alternateScreen: true, exitOnCtrlC: true });
   await app.waitUntilExit();
   // Backstop: stray timers, sockets, or child processes must not keep gr alive

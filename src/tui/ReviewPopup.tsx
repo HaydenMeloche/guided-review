@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Box } from 'ink';
+import { Box } from './themed.js';
+import { SURFACES } from './theme.js';
 
 export function ReviewPopup(props: { background: ReactNode; width: number; height: number; maxWidth: number; maxHeight: number; children?: (width: number, height: number) => ReactNode }) {
   const popupWidth = Math.min(props.maxWidth, Math.max(4, props.width - 2));
@@ -18,7 +19,7 @@ export function ReviewPopup(props: { background: ReactNode; width: number; heigh
           overflow="hidden"
           borderStyle="round"
           borderColor="cyan"
-          backgroundColor="#1E1E2E"
+          backgroundColor={SURFACES.popup}
         >
           {props.children(popupWidth - 2, popupHeight - 2)}
         </Box>

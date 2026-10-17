@@ -56,7 +56,22 @@ function layoutColumn(g: Graph, offsetX: number): { boxes: Box[]; width: number;
   return { boxes, width: width + MARGIN * 2, height: y - GAP_Y + MARGIN };
 }
 
-export function graphToSvg(g: Graph): string {
+// Fixed colors for a diagram, such as the interface theme's; without them it follows the
+// browser's light or dark setting.
+export interface SvgColors {
+  scheme: 'light' | 'dark';
+  bg: string;
+  fg: string;
+  muted: string;
+  line: string;
+  box: string;
+  hl: string;
+  hlLine: string;
+}
+
+const svgVars = (c: SvgColors) => `--fg: ${c.fg}; --muted: ${c.muted}; --line: ${c.line}; --box: ${c.box}; --hl: ${c.hl}; --hl-line: ${c.hlLine};`;
+
+export function graphToSvg(g: Graph, colors?: SvgColors): string {
   const groups = g.kind === 'before-after' ? ['before', 'after'] : [undefined];
   const boxes: Box[] = [];
   let width = 0;
@@ -99,8 +114,12 @@ export function graphToSvg(g: Graph): string {
     .join('\n');
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Math.ceil(width)} ${Math.ceil(height)}" width="${Math.ceil(width)}" height="${Math.ceil(height)}" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">
 <style>
-  :root { --fg: #1f2328; --muted: #59636e; --line: #8c959f; --box: #ffffff; --hl: #fff8c5; --hl-line: #bf8700; }
-  @media (prefers-color-scheme: dark) { :root { --fg: #e6edf3; --muted: #9198a1; --line: #6e7681; --box: #161b22; --hl: #3b2e00; --hl-line: #d29922; } }
+${
+  colors
+    ? `  :root { ${svgVars(colors)} }`
+    : `  :root { --fg: #1f2328; --muted: #59636e; --line: #8c959f; --box: #ffffff; --hl: #fff8c5; --hl-line: #bf8700; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #e6edf3; --muted: #9198a1; --line: #6e7681; --box: #161b22; --hl: #3b2e00; --hl-line: #d29922; } }`
+}
   .node rect { fill: var(--box); stroke: var(--line); stroke-width: 1; }
   .node.changed rect { fill: var(--hl); stroke: var(--hl-line); stroke-width: 2; }
   .node text { fill: var(--fg); }
@@ -116,7 +135,7 @@ ${nodes}
 </svg>`;
 }
 
-export async function openGraphInBrowser(g: Graph): Promise<string> {
+export async function openGraphInBrowser(g: Graph, colors?: SvgColors): Promise<string> {
   const dir = path.join(grHome(), 'diagrams');
   fs.mkdirSync(dir, { recursive: true });
   const slug =
@@ -130,14 +149,18 @@ export async function openGraphInBrowser(g: Graph): Promise<string> {
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(g.title)}</title>
 <style>
-  :root { color-scheme: light dark; --bg: #f6f8fa; --fg: #1f2328; }
-  @media (prefers-color-scheme: dark) { :root { --bg: #0d1117; --fg: #e6edf3; } }
+${
+  colors
+    ? `  :root { color-scheme: ${colors.scheme}; --bg: ${colors.bg}; --fg: ${colors.fg}; }`
+    : `  :root { color-scheme: light dark; --bg: #f6f8fa; --fg: #1f2328; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0d1117; --fg: #e6edf3; } }`
+}
   body { margin: 0; padding: 24px 16px; background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; }
   h1 { font-size: 16px; font-weight: 600; margin: 0 0 16px; }
   .wrap { overflow-x: auto; }
   svg { max-width: none; }
 </style></head>
-<body><h1>${esc(g.title)}</h1><div class="wrap">${graphToSvg(g)}</div></body></html>`;
+<body><h1>${esc(g.title)}</h1><div class="wrap">${graphToSvg(g, colors)}</div></body></html>`;
   fs.writeFileSync(file, html);
   await openExternal(file);
   return file;

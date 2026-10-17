@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { useInput } from 'ink';
+import { Box, Text } from './themed.js';
 import type { ChecklistItem } from '../types.js';
 import { MdLineView, renderMarkdown } from './markdown.js';
 import { truncate } from './nav.js';

@@ -10,7 +10,8 @@ Model providers, GitHub access, and `~/.guided-review/config.json`. For per-repo
 2. **Endpoint:** for a compatible endpoint, its API base URL including `/v1`, and whether it supports function calling.
 3. **Models:** one for the briefing and chapter narration, and one for Q&A. Claude Code, Bedrock, and Vertex default to `haiku` and `opus`. The Anthropic API defaults to `claude-haiku-5-5` and `claude-opus-5-5`. Codex and OpenAI default to `gpt-6-luna` and `gpt-6.1-sol`. Cursor defaults to `composer-2.5` for both.
 4. **API key:** read it from an environment variable (you choose the name), or save it in `config.json`. A local compatible server can use no key. When you type a key, it is hidden. Claude Code and Codex use their own logins, and Bedrock and Vertex use your AWS or Google Cloud credentials, so none of them asks for a key.
-5. **GitHub access:** asked only when `gh` is not installed, or when your config already uses a token. See [GitHub access](#github-access).
+5. **Color theme:** keep your terminal's colors or pick one of 65 themes, with a live preview. See [Color themes](#color-themes).
+6. **GitHub access:** asked only when `gh` is not installed, or when your config already uses a token. See [GitHub access](#github-access).
 
 Run `gr config` again to change your setup. With an existing config, it shows your current settings and offers them as defaults. Run `gr config --edit` to open the file in `$VISUAL`, `$EDITOR`, or `vi`, for example to set per-task overrides. `gr setup` is an alias for `gr config`.
 
@@ -39,6 +40,19 @@ Each run uses a Codex permission profile that can read only the PR worktree and 
 The `cursor` provider runs a local agent through the [Cursor TypeScript SDK](https://cursor.com/docs/sdk/typescript): the agent loop runs inside `gr` against the PR worktree, and the models are Cursor's hosted ones. It needs a Cursor API key (Cursor Dashboard → API Keys), read from `$CURSOR_API_KEY` by default; without one, it falls back to a login stored by the Cursor SDK. Model IDs are the ones your Cursor account offers, such as `composer-2.5` or `auto`.
 
 All of Cursor's built-in tools (shell, edit, web, subagents) are turned off. The agent gets only `read_file`, `search_repo`, and `git_history`, the same worktree-confined tools as the API providers, and none of your `.cursor` rules, hooks, or MCP servers load. Q&A follow-ups resume the same Cursor agent.
+
+## Color themes
+
+By default `gr` uses your terminal's own colors, with the `rose-pine-moon` theme for code. It also offers every theme that ships with [shiki](https://shiki.style/themes), 65 in all, 21 of them light. A theme colors the whole interface, not only the code. It paints its own background behind the screen, so a light theme looks right in a dark terminal, and the other way round. Accents such as risk marks, the test status, and the added and removed line backgrounds take the theme's own code colors: a red mark uses the theme's red, from its keywords or wherever it uses one. Where the theme has no code color of that hue, the accent falls back to its terminal colors. Secondary text uses the theme's comment color. Section headings use its heading color, PR and chapter titles its function-name color, and a selected row its selection background. Diagrams follow the same colors. A box the PR changes is bold, with its frame in the heading color and its name in the title color. Unchanged boxes and arrows use the comment color. A diagram opened in the browser with `b` uses the theme too. With your terminal's colors it follows the browser's light or dark setting. All of them are adjusted where needed so they stay readable against the background.
+
+Pick a theme in either of these places. Both show the list beside a sample of the briefing and a chapter with highlighted code, in the theme the cursor is on:
+
+- **`gr config`:** after the chapter order, it offers a full-screen list.
+- **`L` during a tour:** on the PR list, the briefing, or a chapter, as a popup. The real screen around it changes too. `Enter` saves your choice to `config.json`, and `Esc` restores the theme you had.
+
+In the list, `j`/`k` (or the arrow keys) move and preview, and `Enter` chooses. Press `/` or `i` to search: typing filters the list by name, and `light` or `dark` keeps only those themes. Every word you type must match, so `git light` finds GitHub Light. While searching, `Esc` stops the search; otherwise it cancels.
+
+Without a config file, a theme chosen with `L` lasts until you quit. Themes need a terminal with 24-bit color for the best match; on other terminals the colors are approximated.
 
 ## Config file
 
@@ -69,6 +83,7 @@ All of Cursor's built-in tools (shell, edit, web, subagents) are turned off. The
 | `chapterOrder` | The chapter order a tour opens in: `guide` (default), `risk`, `size` (small first), or `file`. Also read with `--no-agent`. `gr config` asks for it. Press `f` during a tour to switch; a PR you have already opened reopens in the order you last used there. |
 | `hideWhitespace` | Whether diffs hide whitespace-only changes (default `true`). Pressing `w` during a tour switches it and saves the choice here, so the next tour opens the same way. Also read with `--no-agent`. |
 | `splitDiff` | Whether diffs show old and new code side by side (default `false`). Pressing `S` during a tour switches it and saves the choice here. Also read with `--no-agent`. |
+| `theme` | The color theme: `terminal` (default, your terminal's own colors) or the name of one of [shiki's themes](https://shiki.style/themes), such as `nord`, `github-light`, or `catppuccin-mocha`. `gr config` and `L` during a tour pick it with a live preview. Also read with `--no-agent`. |
 | `github` | Use a personal access token instead of `gh`: `{ "tokenEnv": "GITHUB_TOKEN" }` or `{ "tokenFile": "~/.config/guided-review/github-token" }`, plus an optional `"apiUrl"` (default `https://api.github.com`). Leave it out to use `gh`. See [GitHub access](#github-access). |
 | `roles` | Per-task overrides for `briefing` (PR summary, chapter titles, overview), `narration` (each chapter's hunks), and `qa`. |
 

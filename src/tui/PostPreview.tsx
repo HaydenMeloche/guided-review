@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { useInput } from 'ink';
+import { Box, Text } from './themed.js';
 import type { Draft, Tour } from '../types.js';
 import { buildReviewPayload } from '../review/submit.js';
 import { KeyBar } from './KeyBar.js';

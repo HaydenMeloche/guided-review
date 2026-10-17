@@ -1,4 +1,5 @@
-import { Text } from 'ink';
+import { Text } from './themed.js';
+import { ROLES } from './theme.js';
 import { lexer, type Token, type Tokens } from 'marked';
 import { sanitizeTerminal } from '../util/sanitize.js';
 
@@ -25,7 +26,7 @@ export type MdLine = Span[];
 type Style = Omit<Span, 'text'>;
 
 const CODE_COLOR = 'cyan';
-const HEADING_COLOR = 'blue';
+const HEADING_COLOR = ROLES.heading; // blue with the terminal's colors
 const ALERT_COLOR: Record<string, string> = { NOTE: 'blue', TIP: 'green', IMPORTANT: 'magenta', WARNING: 'yellow', CAUTION: 'red' };
 
 // ---------- inline ----------

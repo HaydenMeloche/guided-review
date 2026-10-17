@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { renderGraph } from '../src/diagram/text.js';
 import { graphToSvg } from '../src/diagram/svg.js';
+import { diagramColors, loadPalette, resolveColor, ROLES, terminalPalette } from '../src/tui/theme.js';
+import { rowRoles } from '../src/tui/DiagramView.js';
 import type { Graph } from '../src/types.js';
 
 const g: Graph = {
@@ -254,5 +256,45 @@ describe('graphToSvg', () => {
     expect(svg).toContain('class="node changed"');
     expect(svg).toContain('List&lt;T&gt; &amp; co');
     expect(svg).toContain('data-hunk="h1"');
+  });
+});
+
+describe('themed diagrams', () => {
+  it('gives each character a role: box frame, box text, or arrow, under changed and selected spans', () => {
+    const d = renderGraph(g, 80);
+    const box = d.boxes[0];
+    const roles = rowRoles(d.lines[box.row + 1], box.row + 1, d.boxes, []);
+    expect(roles[box.col]).toBe('border');
+    expect(roles.slice(box.col + 1, box.col + box.width - 1)).toContain('label');
+    const arrowRow = d.lines.findIndex((l, row) => !d.boxes.some((b) => row >= b.row && row < b.row + b.height) && l.trim());
+    expect(
+      rowRoles(d.lines[arrowRow], arrowRow, d.boxes, [])
+        .filter(Boolean)
+        .every((r) => r === 'line'),
+    ).toBe(true);
+    const changed = rowRoles(d.lines[box.row + 1], box.row + 1, d.boxes, [{ start: box.col, end: box.col + box.width, kind: 'changed' }]);
+    expect(changed[box.col]).toBe('changedBorder'); // the frame of a changed box takes the theme's color, not yellow
+    expect(changed.slice(box.col + 1, box.col + box.width - 1)).toContain('changedLabel');
+    const selected = rowRoles(d.lines[box.row], box.row, d.boxes, [{ start: box.col, end: box.col + box.width, kind: 'selected' }]);
+    expect(selected.slice(box.col, box.col + box.width).every((r) => r === 'selected')).toBe(true);
+  });
+
+  it('draws changed boxes in the theme heading and title colors, and yellow with the terminal colors', async () => {
+    const palette = await loadPalette('github-light');
+    expect(resolveColor(palette, ROLES.changedBox)).toBe(palette.heading);
+    expect(resolveColor(palette, ROLES.changedText)).toBe(palette.title);
+    expect(resolveColor(terminalPalette, ROLES.changedBox)).toBe('yellow');
+    expect(resolveColor(terminalPalette, ROLES.changedText)).toBe('yellow');
+    expect(resolveColor(terminalPalette, ROLES.line)).toBeUndefined();
+  });
+
+  it('colors the SVG with the theme, or follows the browser with the terminal colors', async () => {
+    expect(diagramColors(terminalPalette)).toBeUndefined();
+    expect(graphToSvg(g)).toContain('prefers-color-scheme: dark');
+    const palette = await loadPalette('github-light');
+    const svg = graphToSvg(g, diagramColors(palette));
+    expect(svg).not.toContain('prefers-color-scheme');
+    expect(svg).toContain(`--fg: ${palette.fg};`);
+    expect(svg).toContain(`--hl-line: ${palette.heading};`);
   });
 });

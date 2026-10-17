@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useInput } from 'ink';
+import { Box, Text, useSelected, useTheme } from './themed.js';
+import { ROLES } from './theme.js';
 import type { Chapter, ChapterOrder, Tour } from '../types.js';
 import { chapterState, ORDER_LABEL, pad, progress, stateMark, type States } from './nav.js';
 import { DiagramView } from './DiagramView.js';
@@ -39,10 +41,12 @@ export function BriefingScreen(props: {
   active?: boolean;
   onStart: (ci?: number) => void;
   onSubmit: () => void;
+  onTheme?: () => void; // L: the color theme picker
   onBack?: () => void; // q: back to the PR list; unset, q quits
   onQuit: () => void;
 }) {
   const { tour, chapters, states, width, height } = props;
+  const selectedRow = useSelected();
   const [sel, setSel] = useState(0);
   const [overlay, setOverlay] = useState<'none' | 'diagram' | 'ask' | 'read' | 'reviews'>('none');
   useEffect(() => setSel(0), [props.order]);
@@ -82,6 +86,7 @@ export function BriefingScreen(props: {
         return props.toggleDelta();
       }
       if (input === 's') return props.onSubmit();
+      if (input === 'L' && props.onTheme) return props.onTheme();
       if (input === 'r' && tour.description?.trim()) return setOverlay('read');
       if (input === 'V' && tour.existingReviews?.some((r) => r.author !== tour.author && r.author !== tour.viewer)) return setOverlay('reviews');
       if (input === 'q') return (props.onBack ?? props.onQuit)();
@@ -157,9 +162,7 @@ export function BriefingScreen(props: {
       ))}
       {descAll.length ? (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
-          <Text bold dimColor>
-            From the author
-          </Text>
+          <Heading terminal={{ dimColor: true }}>From the author</Heading>
           {desc.map((l, i) => (
             <MdLineView key={i} line={l} />
           ))}
@@ -178,9 +181,7 @@ export function BriefingScreen(props: {
       {reviews.length ? (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
           <Text>
-            <Text bold color="cyan">
-              Other reviewers
-            </Text>
+            <Heading terminal={{ color: 'cyan' }}>Other reviewers</Heading>
             <Text dimColor> · </Text>
             <Key k="V" />
             <Text dimColor> to read all {otherReviews.length} review(s)</Text>
@@ -254,9 +255,12 @@ export function BriefingScreen(props: {
         </Box>
       ) : null}
       <Box flexDirection="column" marginTop={1} flexShrink={0}>
-        <Text bold>
-          Chapters <Text color="cyan">· {ORDER_LABEL[props.order]} order</Text>
-          <Text dimColor>
+        <Text>
+          <Heading terminal={{}}>Chapters</Heading>{' '}
+          <Text bold color="cyan">
+            · {ORDER_LABEL[props.order]} order
+          </Text>
+          <Text bold dimColor>
             {' '}
             · {prog.read + prog.skipped}/{prog.total} hunks done
           </Text>
@@ -281,9 +285,11 @@ export function BriefingScreen(props: {
           const count = !delta ? `${c.hunkIds.length} hunk(s)` : unchanged ? `${c.hunkIds.length} hunk(s) · unchanged` : `${c.hunkIds.length} of ${fullCount(c.id)} hunk(s) changed`;
           const meta = ` ${count}${c.optional ? ' · optional' : c.kind !== 'flow' ? ` · ${c.kind}` : ''}`;
           const selected = !unchanged && ci === sel;
+          const quiet = unchanged || (c.collapsed && !selected);
           return (
-            <Text key={c.id} inverse={selected} dimColor={unchanged || (c.collapsed && !selected)} wrap="truncate">
-              <Text color={unchanged ? undefined : st.color}>{st.mark}</Text> {pad(safe(c.title), Math.max(20, leftW - meta.length - 3))}
+            <Text key={c.id} {...selectedRow(selected)} dimColor={quiet} wrap="truncate">
+              <Text color={unchanged ? undefined : st.color}>{st.mark}</Text>{' '}
+              <Text color={quiet || selected ? undefined : ROLES.title}>{pad(safe(c.title), Math.max(20, leftW - meta.length - 3))}</Text>
               <Text dimColor>{meta}</Text>
             </Text>
           );
@@ -292,7 +298,7 @@ export function BriefingScreen(props: {
       </Box>
       {blast.length ? (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
-          <Text bold>Blast radius</Text>
+          <Heading terminal={{}}>Blast radius</Heading>
           {blast.map((b) => (
             <Text key={b.symbol + b.hunkId} wrap="truncate">
               {safe(
@@ -320,7 +326,7 @@ export function BriefingScreen(props: {
         <Text color="cyan" bold>
           {safe(tour.repo)}
         </Text>
-        <Text bold>
+        <Text bold color={ROLES.title}>
           {' '}
           #{tour.pr} {safe(tour.title)}
         </Text>
@@ -333,9 +339,7 @@ export function BriefingScreen(props: {
         {wide && tour.overview ? (
           <Box flexDirection="column" marginLeft={2} width={rightW} borderStyle="single" borderTop={false} borderBottom={false} borderRight={false} borderColor="gray" paddingLeft={1}>
             <Text>
-              <Text bold dimColor>
-                Overview
-              </Text>
+              <Heading terminal={{ dimColor: true }}>Overview</Heading>
               <Text dimColor> · </Text>
               <Key k="d" />
               <Text dimColor> to explore</Text>
@@ -359,6 +363,7 @@ export function BriefingScreen(props: {
           ...((wide && tour.overview ? [] : [['d', 'overview diagram']]) as [string, string][]),
           ['?', 'ask about the PR'],
           ['s', 'submit'],
+          ...((props.onTheme ? [['L', 'theme']] : []) as [string, string][]),
           ...((props.onBack
             ? [
                 ['q', 'PR list'],
@@ -368,5 +373,15 @@ export function BriefingScreen(props: {
         ]}
       />
     </Box>
+  );
+}
+
+// A section heading in the theme's heading color; with the terminal's colors, styled as before.
+export function Heading(props: { terminal: { color?: string; dimColor?: boolean }; children: ReactNode }) {
+  const { heading } = useTheme();
+  return (
+    <Text bold {...(heading ? { color: heading } : props.terminal)}>
+      {props.children}
+    </Text>
   );
 }

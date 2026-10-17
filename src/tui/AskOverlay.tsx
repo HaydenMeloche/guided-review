@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { useInput } from 'ink';
+import { Box, Text } from './themed.js';
 import type { Hunk } from '../types.js';
 import { TextInput } from './TextInput.js';
 import { ask, type AskTurn } from '../agent/agent.js';

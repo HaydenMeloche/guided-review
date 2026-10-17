@@ -20,6 +20,7 @@ import {
   type UserConfig,
 } from './config.js';
 import { DEFAULT_API_URL, restJson } from './github/api.js';
+import { isTheme, TERMINAL_THEME } from './tui/theme.js';
 import { expandHome, resolveGitHubAuth } from './github/auth.js';
 import { configForRole, defaultApiKeyEnv, type AgentConfig, type Provider } from './agent/types.js';
 
@@ -139,8 +140,24 @@ export function describeUserConfig(config: UserConfig): string[] {
   lines.push(`API key: ${describeKey(config)}`);
   if (config.toolCalling === false) lines.push('Tool calling: off');
   lines.push(`Chapter order: ${config.chapterOrder ?? DEFAULT_CHAPTER_ORDER}`);
+  lines.push(`Theme: ${config.theme ?? `${TERMINAL_THEME} (your terminal's colors)`}`);
   lines.push(`GitHub: ${describeGitHub(config.github)}`);
   return lines;
+}
+
+// The full-screen picker previews each theme as the cursor moves; Esc keeps the current one.
+// A saved name shiki doesn't have is dropped, so Enter through the questions can't save it again.
+async function chooseTheme(saved: string | undefined): Promise<string | undefined> {
+  let current = saved;
+  if (current && !(await isTheme(current))) {
+    process.stdout.write(`\nYour config names a theme that doesn't exist: ${current}.\n`);
+    current = undefined;
+  }
+  if (!(await askYesNo(`\nColor theme: ${current ?? TERMINAL_THEME}. Choose a different one (with a live preview)?`, !current))) return current;
+  const { pickTheme } = await import('./tui/ThemeSetup.js');
+  const chosen = (await pickTheme(current)) ?? current;
+  process.stdout.write(`Theme: ${chosen ?? TERMINAL_THEME}\n`);
+  return chosen;
 }
 
 function describeGitHub(github: GitHubConfig | undefined): string {
@@ -346,6 +363,8 @@ export async function setup(opts: { edit?: boolean } = {}): Promise<void> {
   config.chapterOrder = await choose('Default chapter order (press f during a tour to switch):', CHAPTER_ORDER_CHOICES, current?.chapterOrder ?? DEFAULT_CHAPTER_ORDER);
   if (current?.hideWhitespace !== undefined) config.hideWhitespace = current.hideWhitespace; // set by w during a tour
   if (current?.splitDiff !== undefined) config.splitDiff = current.splitDiff; // set by S during a tour
+  const theme = await chooseTheme(current?.theme);
+  if (theme && theme !== TERMINAL_THEME) config.theme = theme;
   const github = await configureGitHub(current?.github);
   if (github) config.github = github;
   if (current?.roles && Object.values(current.roles).some((r) => r?.provider || r?.baseUrl || r?.apiKey || r?.apiKeyEnv)) {

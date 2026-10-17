@@ -1,4 +1,4 @@
-import { Box, Text } from 'ink';
+import { Box, Text } from './themed.js';
 
 // A key named in a hint, lightly accented so it stands out from the dim text around it. Keep
 // it out of a dimColor parent: Ink dims nested text too.

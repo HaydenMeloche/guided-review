@@ -6,12 +6,14 @@ import {
   defaultUserConfig,
   loadChapterOrder,
   loadUserConfig,
+  loadThemeSetting,
   loadViewSetting,
   parseRepoConfig,
   PRESET_MODELS,
   presetUserConfig,
   repoConfigProblems,
   saveUserConfig,
+  saveThemeSetting,
   saveViewSetting,
   UserConfigError,
 } from '../src/config.js';
@@ -110,6 +112,22 @@ describe('user config', () => {
     expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual({ provider: 'openai', apiKeyEnv: 'KEY', custom: { a: 1 }, hideWhitespace: false });
     expect(fs.statSync(file).mode & 0o777).toBe(0o600);
     expect(loadViewSetting('hideWhitespace')).toBe(false);
+  });
+
+  it('reads and saves the color theme without a provider and leaves the rest of the config alone', () => {
+    const file = configFile();
+    expect(loadThemeSetting()).toBeUndefined();
+    expect(saveThemeSetting('nord')).toBe(false); // no config yet: nothing is created
+    expect(fs.existsSync(file)).toBe(false);
+    fs.writeFileSync(file, '{"provider":"openai","splitDiff":true}\n');
+    expect(saveThemeSetting('nord')).toBe(true);
+    expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual({ provider: 'openai', splitDiff: true, theme: 'nord' });
+    expect(loadThemeSetting()).toBe('nord');
+    expect(loadUserConfig().theme).toBe('nord');
+    expect(saveThemeSetting('terminal')).toBe(true); // the default: the key goes, as gr config does
+    expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual({ provider: 'openai', splitDiff: true });
+    fs.writeFileSync(file, '{"theme":7}\n');
+    expect(() => loadThemeSetting()).toThrow(/"theme" must be a theme name/);
   });
 
   it('keeps split view off by default and saves it beside the whitespace setting', () => {

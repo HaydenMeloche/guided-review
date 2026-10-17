@@ -23,6 +23,7 @@ It is also a way to learn a codebase. Each PR becomes a guided walk through real
 - **Ask questions.** Ask the model about a selected line, a chapter, or the whole PR without leaving the review. Follow-ups keep the thread, which makes it useful for learning as well as reviewing: "what calls this?", "why a mutex here?", "where is this tested?".
 - **Author preview.** Tour your own branch before you open a PR, to see your change the way a reviewer will.
 - **Bring your own model.** Claude Code (with your Claude Code login), the Anthropic API, Codex, Cursor, OpenAI, any OpenAI-compatible endpoint, Bedrock, or Vertex. Use `--no-agent` for a static-analysis-only tour with no model calls. See [Configuration](docs/configuration.md).
+- **Color themes.** Keep your terminal's colors or choose from 65 themes, dark and light, that color the whole interface. `gr config` and `L` preview them live. See [Color themes](docs/configuration.md#color-themes).
 - **Share tours from CI.** A GitHub Action builds the tour once and posts it to the PR, so reviewers open it without their own model calls. See [Share tours from CI](docs/ci.md).
 
 
@@ -30,7 +31,7 @@ It is also a way to learn a codebase. Each PR becomes a guided walk through real
 
 ```sh
 npm install -g @haydenmeloche/guided-review
-gr config            # choose a model provider and GitHub access
+gr config            # choose a model provider, color theme, and GitHub access
 gr                   # pick a PR that's waiting for your review
 ```
 

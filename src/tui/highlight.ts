@@ -13,8 +13,9 @@ const normalize = (text: string) => sanitizeTerminal(text.replace(/\t/g, '  '));
 
 let shiki: Promise<typeof import('shiki')> | undefined;
 
-// The shiki theme every highlight uses; part of the highlight cache key.
-export const HIGHLIGHT_THEME = 'rose-pine-moon';
+// The shiki theme for code when the caller names none: the terminal theme's. Screens pass the
+// interface theme's `syntax`, and it is part of every highlight cache key.
+export const DEFAULT_HIGHLIGHT_THEME = 'rose-pine-moon';
 
 export function highlightLanguage(path: string): string | undefined {
   return languageOf(path)?.shiki;
@@ -24,14 +25,14 @@ function languageFor(path: string, source: string): string | undefined {
   return languageOf(path, source)?.shiki;
 }
 
-async function syntaxLines(source: string, language: string): Promise<SyntaxSpan[][]> {
+async function syntaxLines(source: string, language: string, theme = DEFAULT_HIGHLIGHT_THEME): Promise<SyntaxSpan[][]> {
   shiki ??= import('shiki').catch((error: unknown) => {
     shiki = undefined;
     throw error;
   });
   const { codeToTokens } = await shiki;
   const normalized = normalize(source);
-  const result = await codeToTokens(normalized, { lang: language as BundledLanguage, theme: HIGHLIGHT_THEME });
+  const result = await codeToTokens(normalized, { lang: language as BundledLanguage, theme });
   const defaultColor = result.fg?.slice(0, 7).toLowerCase();
   let lineStart = 0;
   const sourceLines = normalized.split('\n');
@@ -49,17 +50,17 @@ async function syntaxLines(source: string, language: string): Promise<SyntaxSpan
 
 // Tokenizes a whole source file, one span list per line. Undefined when the language is
 // unknown; throws when shiki fails, so callers can decide whether to cache the result.
-export async function highlightFileLines(file: string, source: string, language = languageFor(file, source)): Promise<SyntaxSpan[][] | undefined> {
+export async function highlightFileLines(file: string, source: string, language = languageFor(file, source), theme = DEFAULT_HIGHLIGHT_THEME): Promise<SyntaxSpan[][] | undefined> {
   if (!language) return undefined;
-  return syntaxLines(source, language);
+  return syntaxLines(source, language, theme);
 }
 
-export async function highlightSourceLines(file: string, lines: string[]): Promise<HunkHighlights | undefined> {
+export async function highlightSourceLines(file: string, lines: string[], theme = DEFAULT_HIGHLIGHT_THEME): Promise<HunkHighlights | undefined> {
   const source = lines.join('\n');
   const language = languageFor(file, source);
   if (!language) return undefined;
   try {
-    return await syntaxLines(source, language);
+    return await syntaxLines(source, language, theme);
   } catch {
     return undefined;
   }
@@ -84,11 +85,19 @@ export function mapDiffHighlights(lines: DiffLine[], head: { spans: SyntaxSpan[]
 
 // Highlights a diff from already tokenized full files. A side without full spans is
 // tokenized from the hunk's own lines of that side.
-export async function highlightDiffFromFiles(file: string, lines: DiffLine[], fullSpans: { head?: SyntaxSpan[][]; base?: SyntaxSpan[][] }): Promise<HunkHighlights | undefined> {
+export async function highlightDiffFromFiles(
+  file: string,
+  lines: DiffLine[],
+  fullSpans: { head?: SyntaxSpan[][]; base?: SyntaxSpan[][] },
+  theme = DEFAULT_HIGHLIGHT_THEME,
+): Promise<HunkHighlights | undefined> {
   const language = highlightLanguage(file);
   if (!language) return undefined;
   try {
-    const [head, base] = await Promise.all([fullSpans.head ?? highlightFileLines(file, sideText(lines, 'del')), fullSpans.base ?? highlightFileLines(file, sideText(lines, 'add'))]);
+    const [head, base] = await Promise.all([
+      fullSpans.head ?? highlightFileLines(file, sideText(lines, 'del'), undefined, theme),
+      fullSpans.base ?? highlightFileLines(file, sideText(lines, 'add'), undefined, theme),
+    ]);
     if (!head || !base) return undefined;
     return mapDiffHighlights(lines, { spans: head, full: !!fullSpans.head }, { spans: base, full: !!fullSpans.base });
   } catch {
@@ -98,7 +107,7 @@ export async function highlightDiffFromFiles(file: string, lines: DiffLine[], fu
 
 // Full file contents preserve multiline tokens across diff hunks. When unavailable,
 // highlight each side of this hunk so the viewer still works on cached tours.
-export async function highlightDiffLines(file: string, lines: DiffLine[], full?: { head?: string; base?: string }): Promise<HunkHighlights | undefined> {
+export async function highlightDiffLines(file: string, lines: DiffLine[], full?: { head?: string; base?: string }, theme = DEFAULT_HIGHLIGHT_THEME): Promise<HunkHighlights | undefined> {
   const sourceHint = full?.head ?? full?.base ?? lines.map((line) => line.text).join('\n');
   const language = languageFor(file, sourceHint);
   if (!language) return undefined;
@@ -107,13 +116,13 @@ export async function highlightDiffLines(file: string, lines: DiffLine[], full?:
   let headSpans: SyntaxSpan[][];
   let baseSpans: SyntaxSpan[][];
   try {
-    [headSpans, baseSpans] = await Promise.all([syntaxLines(head, language), syntaxLines(base, language)]);
+    [headSpans, baseSpans] = await Promise.all([syntaxLines(head, language, theme), syntaxLines(base, language, theme)]);
   } catch {
     return undefined;
   }
   return mapDiffHighlights(lines, { spans: headSpans, full: full?.head !== undefined }, { spans: baseSpans, full: full?.base !== undefined });
 }
 
-export function highlightHunk(hunk: Hunk, full?: { head?: string; base?: string }): Promise<HunkHighlights | undefined> {
-  return highlightDiffLines(hunk.file, hunk.lines, full);
+export function highlightHunk(hunk: Hunk, full?: { head?: string; base?: string }, theme = DEFAULT_HIGHLIGHT_THEME): Promise<HunkHighlights | undefined> {
+  return highlightDiffLines(hunk.file, hunk.lines, full, theme);
 }

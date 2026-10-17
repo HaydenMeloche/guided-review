@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { useInput } from 'ink';
+import { Box, Text } from './themed.js';
 import { fetchPRPreview, listReviewRequests, parsePRArg, type PRPreview, type ReviewRequest } from '../github/gh.js';
 import type { Store } from '../store/db.js';
 import { KeyBar } from './ChapterScreen.js';
@@ -107,6 +108,8 @@ interface PickerProps {
   notice?: string;
   onPick: (t: Target) => void;
   onQuit: () => void;
+  onTheme?: () => void; // L: the color theme picker
+  active?: boolean; // false while a popup over the list takes the keys
   downloads: Record<string, DownloadJob>;
   onDownload: (targets: Target[]) => void; // queues tours; progress arrives through `downloads`
   readClipboard?: () => Promise<string | undefined>; // tests stub the system clipboard
@@ -327,6 +330,7 @@ export function PickerScreen(props: PickerProps) {
         return setFiltering(true);
       }
       if (input === 'r') return load();
+      if (input === 'L' && props.onTheme) return props.onTheme();
       if (!items.length) return;
       if (input === ' ' && current) {
         const next = new Set(selected);
@@ -349,7 +353,7 @@ export function PickerScreen(props: PickerProps) {
       if (key.return && current) open(current);
       if (input === 'o' && current) openExternal(current.url).catch((e: unknown) => setHint(`Could not open ${current.url}: ${(e as Error).message}`));
     },
-    { isActive: !filtering },
+    { isActive: !filtering && props.active !== false },
   );
   useInput(
     (_input, key) => {
@@ -358,7 +362,7 @@ export function PickerScreen(props: PickerProps) {
         setFiltering(false);
       }
     },
-    { isActive: filtering },
+    { isActive: filtering && props.active !== false },
   );
 
   const wide = width >= 110;
@@ -400,6 +404,7 @@ export function PickerScreen(props: PickerProps) {
           ['/', 'filter'],
           ['o', 'open in browser'],
           ['r', 'refresh'],
+          ...(props.onTheme ? [['L', 'theme'] as [string, string]] : []),
           ['q', 'quit'],
         ]}
       />

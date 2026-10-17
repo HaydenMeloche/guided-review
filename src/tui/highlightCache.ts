@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { DiffLine, Hunk } from '../types.js';
 import { readBase } from '../git/blobs.js';
-import { HIGHLIGHT_THEME, highlightDiffFromFiles, highlightFileLines, highlightHunk, highlightLanguage, type HunkHighlights, type SyntaxSpan } from './highlight.js';
+import { DEFAULT_HIGHLIGHT_THEME, highlightDiffFromFiles, highlightFileLines, highlightHunk, highlightLanguage, type HunkHighlights, type SyntaxSpan } from './highlight.js';
 
 // A small least-recently-used map: reads refresh an entry, writes past `max` drop the oldest.
 export class LRU<K, V> {
@@ -83,16 +83,22 @@ class AsyncLRU<V> {
 
 export const HIGHLIGHT_CACHE_SIZE = 30;
 
-// Whole-file token spans keyed on (path, sha, theme), so moving between hunks of one file
-// tokenizes it once. Hunk-level results are cached too, keyed on what determines them.
-const fileSpans = new AsyncLRU<FileTokens | undefined>(HIGHLIGHT_CACHE_SIZE);
-
 // A tokenized file: its lines, to check a hunk against, and their spans.
 interface FileTokens {
   lines: string[];
   spans: SyntaxSpan[][];
 }
-const hunkResults = new AsyncLRU<HunkHighlights | undefined>(HIGHLIGHT_CACHE_SIZE * 4);
+
+// Whole-file token spans keyed on (path, sha, theme), so moving between hunks of one file
+// tokenizes it once. Hunk-level results are cached too, keyed on what determines them.
+interface Caches {
+  files: AsyncLRU<FileTokens | undefined>;
+  hunks: AsyncLRU<HunkHighlights | undefined>;
+}
+const main: Caches = { files: new AsyncLRU(HIGHLIGHT_CACHE_SIZE), hunks: new AsyncLRU(HIGHLIGHT_CACHE_SIZE * 4) };
+// Themes being previewed in the picker get their own small cache, so browsing them never
+// evicts the highlights of the theme in use.
+const previews: Caches = { files: new AsyncLRU(4), hunks: new AsyncLRU(16) };
 
 export interface HighlightRequest {
   hunk: Hunk;
@@ -101,14 +107,14 @@ export interface HighlightRequest {
   baseSha: string;
 }
 
-export const fileHighlightKey = (file: string, sha: string, theme = HIGHLIGHT_THEME) => `${theme}\0${sha}\0${file}`;
+export const fileHighlightKey = (file: string, sha: string, theme = DEFAULT_HIGHLIGHT_THEME) => `${theme}\0${sha}\0${file}`;
 
 // Everything a hunk's highlight depends on. A new tour object with the same hunk keeps this key.
-export function hunkHighlightKey(req: HighlightRequest): string {
+export function hunkHighlightKey(req: HighlightRequest, theme = DEFAULT_HIGHLIGHT_THEME): string {
   const { hunk } = req;
   // The first line and the count tell a hunk with expanded context from the hunk itself.
   const span = `${hunk.lines[0]?.newLine ?? hunk.lines[0]?.oldLine ?? ''}+${hunk.lines.length}`;
-  return [HIGHLIGHT_THEME, req.root ?? '', hunk.id, span, hunk.file, hunk.oldFile ?? '', req.headSha, req.baseSha].join('\0');
+  return [theme, req.root ?? '', hunk.id, span, hunk.file, hunk.oldFile ?? '', req.headSha, req.baseSha].join('\0');
 }
 
 // Whole-file highlighting gives tokens that span lines (a comment opened above the hunk) their
@@ -122,11 +128,11 @@ async function readCapped(file: string): Promise<string | undefined> {
   return fs.readFile(file, 'utf8').catch(() => undefined);
 }
 
-function spansFor(file: string, sha: string, read: () => Promise<string | undefined>): Promise<FileTokens | undefined> {
-  return fileSpans.get(fileHighlightKey(file, sha), async () => {
+function spansFor(caches: Caches, file: string, sha: string, theme: string, read: () => Promise<string | undefined>): Promise<FileTokens | undefined> {
+  return caches.files.get(fileHighlightKey(file, sha, theme), async () => {
     const text = await read();
     const source = text !== undefined && Buffer.byteLength(text) <= MAX_HIGHLIGHT_FILE_BYTES ? text : undefined;
-    const spans = source === undefined ? undefined : await highlightFileLines(file, source);
+    const spans = source === undefined ? undefined : await highlightFileLines(file, source, undefined, theme);
     return spans && { lines: source!.split('\n'), spans };
   });
 }
@@ -145,34 +151,38 @@ function spansIfMatching(tokens: FileTokens | undefined, lines: DiffLine[], side
   return tokens.spans;
 }
 
-async function compute(req: HighlightRequest): Promise<HunkHighlights | undefined> {
+async function compute(req: HighlightRequest, theme: string, caches: Caches): Promise<HunkHighlights | undefined> {
   const { hunk, root } = req;
   const language = highlightLanguage(hunk.file);
   if (!language) return undefined;
   // YAML highlights per hunk; so does a tour with no worktree to read the files from.
-  if (language === 'yaml' || !root) return highlightHunk(hunk);
+  if (language === 'yaml' || !root) return highlightHunk(hunk, undefined, theme);
   const basePath = hunk.oldFile ?? hunk.file;
   const [head, base] = await Promise.all([
-    spansFor(hunk.file, req.headSha, () => readCapped(path.join(root, hunk.file))).catch(() => undefined),
-    spansFor(basePath, req.baseSha, () => readBase(root, req.baseSha, basePath)).catch(() => undefined), // readBase is cached and batched in src/git/blobs
+    spansFor(caches, hunk.file, req.headSha, theme, () => readCapped(path.join(root, hunk.file))).catch(() => undefined),
+    spansFor(caches, basePath, req.baseSha, theme, () => readBase(root, req.baseSha, basePath)).catch(() => undefined), // readBase is cached and batched in src/git/blobs
   ]);
-  return highlightDiffFromFiles(hunk.file, hunk.lines, { head: spansIfMatching(head, hunk.lines, 'head'), base: spansIfMatching(base, hunk.lines, 'base') });
+  return highlightDiffFromFiles(hunk.file, hunk.lines, { head: spansIfMatching(head, hunk.lines, 'head'), base: spansIfMatching(base, hunk.lines, 'base') }, theme);
 }
 
-export function highlightHunkCached(req: HighlightRequest): Promise<HunkHighlights | undefined> {
-  return hunkResults.get(hunkHighlightKey(req), () => compute(req));
+// `preview`: the theme is only being previewed, so the result goes in the preview cache.
+export function highlightHunkCached(req: HighlightRequest, theme = DEFAULT_HIGHLIGHT_THEME, preview = false): Promise<HunkHighlights | undefined> {
+  const caches = preview ? previews : main;
+  return caches.hunks.get(hunkHighlightKey(req, theme), () => compute(req, theme, caches));
 }
 
 // The cached highlight for this hunk if it has already been computed.
-export function peekHunkHighlights(req: HighlightRequest): { value: HunkHighlights | undefined } | undefined {
-  return hunkResults.peek(hunkHighlightKey(req));
+export function peekHunkHighlights(req: HighlightRequest, theme = DEFAULT_HIGHLIGHT_THEME, preview = false): { value: HunkHighlights | undefined } | undefined {
+  return (preview ? previews : main).hunks.peek(hunkHighlightKey(req, theme));
 }
 
 export function clearHighlightCache(): void {
-  fileSpans.lru.clear();
-  hunkResults.lru.clear();
+  for (const c of [main, previews]) {
+    c.files.lru.clear();
+    c.hunks.lru.clear();
+  }
 }
 
 export function highlightCacheKeys(): { files: string[]; hunks: string[] } {
-  return { files: fileSpans.lru.keys(), hunks: hunkResults.lru.keys() };
+  return { files: main.files.lru.keys(), hunks: main.hunks.lru.keys() };
 }

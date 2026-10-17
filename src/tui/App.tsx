@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Text, useApp, useInput, useWindowSize } from 'ink';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useApp, useInput, useWindowSize } from 'ink';
+import { Box, PreviewingContext, Text, ThemeContext, useThemePreview } from './themed.js';
+import { terminalPalette, themeList, type Palette, type ThemeInfo } from './theme.js';
+import { ThemePicker } from './ThemePicker.js';
 import { spawnSync } from 'node:child_process';
 import type { Chapter, ChapterOrder, Draft, ExistingThread, Hunk, PRInfo, ReactionContent, ReadState, ThreadComment, Tour } from '../types.js';
 import { Store } from '../store/db.js';
@@ -41,6 +44,15 @@ export interface AppOptions {
   noAgent?: boolean;
   fresh?: boolean;
   preview?: { pr: PRInfo; diff: string; worktree: string }; // author mode on a local branch
+  palette?: Palette; // the saved theme, loaded before the first frame; the terminal's colors when unset
+  saveTheme?: (name: string) => void; // records a theme chosen in the picker; unset when there is no config file
+}
+
+// The theme picker as the screens see it: L opens it over the picker, briefing, or chapter.
+interface ThemeControl {
+  open: boolean;
+  show: () => void;
+  popup: (width: number, height: number) => ReactNode;
 }
 
 type Phase = 'pick' | 'load' | 'briefing' | 'chapter' | 'submit' | 'edit' | 'error';
@@ -77,7 +89,52 @@ function chaptersForOrder(tour: Tour, order: ChapterOrder, moves: Record<string,
   return chapters.map((c) => ({ ...c, hunkIds: c.hunkIds.filter((id) => delta.has(id)) })).filter((c) => c.hunkIds.length);
 }
 
+// Holds the theme, so changing it never remounts the screens (and loses their state).
 export function App(opts: AppOptions) {
+  const { columns, rows } = useWindowSize();
+  const { palette, preview } = useThemePreview(opts.palette ?? terminalPalette);
+  const [themes, setThemes] = useState<ThemeInfo[] | undefined>(); // the picker is open while set
+  // The theme last chosen, by name: the palette may still be loading when the picker reopens.
+  const committed = useRef(palette.name);
+  const opened = useRef(palette.name); // restored when the picker is cancelled
+  const theme: ThemeControl = {
+    open: !!themes,
+    show: () => {
+      opened.current = committed.current;
+      void themeList().then(setThemes);
+    },
+    popup: (width, height) =>
+      themes ? (
+        <ThemePicker
+          themes={themes}
+          current={opened.current}
+          width={width}
+          height={height}
+          note={opts.saveTheme ? 'enter saves the theme to your config' : 'no config file: enter uses the theme until you quit (gr config saves one)'}
+          onPreview={preview}
+          onDone={(name) => {
+            setThemes(undefined);
+            const chosen = name ?? opened.current;
+            committed.current = chosen;
+            preview(chosen);
+            if (name) opts.saveTheme?.(name);
+          }}
+        />
+      ) : null,
+  };
+  return (
+    <ThemeContext value={palette}>
+      <PreviewingContext value={!!themes && palette.name !== committed.current}>
+        <Box flexDirection="column" width={palette.bg ? columns : undefined} height={palette.bg ? rows : undefined} backgroundColor={palette.bg}>
+          <Screens {...opts} theme={theme} />
+        </Box>
+      </PreviewingContext>
+    </ThemeContext>
+  );
+}
+
+function Screens(opts: AppOptions & { theme: ThemeControl }) {
+  const { theme } = opts;
   const { exit, suspendTerminal } = useApp();
   const { columns, rows } = useWindowSize();
   const store = useMemo(() => new Store(), []);
@@ -499,13 +556,22 @@ export function App(opts: AppOptions) {
   const width = columns;
   const height = rows;
 
+  // A screen with the theme picker over it while open. The element tree is the same either way,
+  // so opening the picker never remounts the screen and loses its state.
+  const withThemePicker = (screen: (active: boolean) => ReactNode) => (
+    <ReviewPopup background={screen(!theme.open)} width={width} height={height} maxWidth={100} maxHeight={30}>
+      {theme.open ? theme.popup : undefined}
+    </ReviewPopup>
+  );
+
   if (phase === 'pick') {
-    return (
+    return withThemePicker((active) => (
       <PickerScreen
         store={store}
         notice={pickerNotice}
         width={width}
         height={height}
+        active={active}
         onPick={(t) => {
           setPickerNotice(undefined);
           setTarget(t);
@@ -513,9 +579,10 @@ export function App(opts: AppOptions) {
         }}
         downloads={downloads}
         onDownload={startDownloads}
+        onTheme={theme.show}
         onQuit={quit}
       />
-    );
+    ));
   }
   if (phase === 'error') {
     return <ErrorScreen message={error} onRetry={() => target && void load(target, true)} onBack={back} onQuit={quit} />;
@@ -595,6 +662,7 @@ export function App(opts: AppOptions) {
       width={width}
       height={height}
       active={active}
+      onTheme={theme.show}
       onStart={resume}
       onSubmit={() => {
         setSubmitFrom('briefing');
@@ -650,12 +718,13 @@ export function App(opts: AppOptions) {
       openBriefing={() => setPhase('briefing')}
       openInClaude={(h, c) => void openInClaude(h, c)}
       rebase={newHead && target ? () => void load(target, false) : undefined}
+      onTheme={theme.show}
       back={back}
       quit={quit}
     />
   );
   const submitBackground = () => (submitFrom === 'briefing' ? briefingScreen(false) : chapterScreen(false));
-  if (phase === 'briefing') return <ReviewPopup background={briefingScreen(true)} width={width} height={height} maxWidth={104} maxHeight={34} />;
+  if (phase === 'briefing') return withThemePicker(briefingScreen);
   if (phase === 'edit' && editing && editState) {
     return (
       <ReviewPopup background={submitBackground()} width={width} height={height} maxWidth={96} maxHeight={editState.ai ? 30 : 16}>
@@ -720,7 +789,7 @@ export function App(opts: AppOptions) {
       </ReviewPopup>
     );
   }
-  return <ReviewPopup background={chapterScreen(true)} width={width} height={height} maxWidth={104} maxHeight={34} />;
+  return withThemePicker(chapterScreen);
 }
 
 // ---------- small screens ----------

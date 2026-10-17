@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { grHome } from './paths.js';
+import { TERMINAL_THEME } from './tui/theme.js';
 import type { ChapterOrder, FileKind, KindRule, RepoConfig } from './types.js';
 import { AGENT_ROLES, PROVIDERS, type AgentConfig, type AgentRouting, type Provider } from './agent/types.js';
 
@@ -102,7 +103,7 @@ export function githubApiUrlProblem(value: string): string | undefined {
   return url.protocol === 'https:' ? undefined : 'the GitHub API URL must use https';
 }
 
-export type UserConfig = AgentRouting & { chapterOrder?: ChapterOrderSetting; hideWhitespace?: boolean; splitDiff?: boolean; github?: GitHubConfig };
+export type UserConfig = AgentRouting & { chapterOrder?: ChapterOrderSetting; hideWhitespace?: boolean; splitDiff?: boolean; theme?: string; github?: GitHubConfig };
 
 export class UserConfigError extends Error {}
 
@@ -208,6 +209,34 @@ export function saveViewSetting(key: ViewSetting, value: boolean): void {
   fs.chmodSync(file, 0o600);
 }
 
+function parseTheme(raw: Record<string, unknown>, where: string): string | undefined {
+  if (raw.theme === undefined) return undefined;
+  if (typeof raw.theme !== 'string' || !raw.theme) throw new UserConfigError(`${where}: "theme" must be a theme name`);
+  return raw.theme;
+}
+
+// The color theme's name, readable without a model provider; undefined uses the terminal's colors.
+// Whether the name exists is checked when the theme loads.
+export function loadThemeSetting(): string | undefined {
+  const raw = readUserConfigFile();
+  return raw && parseTheme(raw, userConfigPath());
+}
+
+// Records the theme chosen in the picker; like saveViewSetting, it needs an existing config file.
+// The terminal's colors are the default, so choosing them removes the key, as gr config does.
+export function saveThemeSetting(theme: string): boolean {
+  const file = userConfigPath();
+  const raw = readUserConfigFile();
+  if (!raw) return false;
+  const { theme: saved, ...rest } = raw;
+  const next = theme === TERMINAL_THEME ? rest : { ...rest, theme };
+  if (saved !== (theme === TERMINAL_THEME ? undefined : theme)) {
+    fs.writeFileSync(file, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 });
+    fs.chmodSync(file, 0o600);
+  }
+  return true;
+}
+
 function parseGitHubConfig(raw: Record<string, unknown>, where: string): GitHubConfig | undefined {
   if (raw.github === undefined) return undefined;
   if (!raw.github || typeof raw.github !== 'object' || Array.isArray(raw.github)) throw new UserConfigError(`${where}: "github" must be an object`);
@@ -243,6 +272,8 @@ export function loadUserConfig(): UserConfig {
     const value = parseViewSetting(raw, key, file);
     if (value !== undefined) out[key] = value;
   }
+  const theme = parseTheme(raw, file);
+  if (theme) out.theme = theme;
   const github = parseGitHubConfig(raw, file);
   if (github) out.github = github;
   if (raw.roles !== undefined) {

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { useInput } from 'ink';
+import { Box, Text } from './themed.js';
+import { SURFACES } from './theme.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
 
 // Loading screen for a tour: a title card over a drifting pattern that tracks the
@@ -8,7 +10,7 @@ import { sanitizeTerminal as safe } from '../util/sanitize.js';
 const FRAME_MS = 40;
 const NEEDLE = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'];
 const SPIN = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-const CURTAIN_BG = '#1E1E2E';
+const CURTAIN_BG = SURFACES.popup;
 
 interface Seg {
   text: string;

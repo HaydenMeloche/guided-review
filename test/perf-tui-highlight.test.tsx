@@ -15,7 +15,7 @@ vi.mock('../src/tui/highlightCache.js', async (importOriginal) => {
 
 const cache = await import('../src/tui/highlightCache.js');
 const { ChapterScreen } = await import('../src/tui/ChapterScreen.js');
-const { HIGHLIGHT_THEME } = await import('../src/tui/highlight.js');
+const { DEFAULT_HIGHLIGHT_THEME } = await import('../src/tui/highlight.js');
 const { LRU, clearHighlightCache, fileHighlightKey, highlightCacheKeys, highlightHunkCached, hunkHighlightKey, peekHunkHighlights } = cache;
 
 const tsHunk = (id: string, newLine: number, text: string, extra: Partial<Hunk> = {}) => hunk(id, 'src/app.ts', [{ kind: 'add', text, newLine }], { newStart: newLine, newLines: 1, ...extra });
@@ -47,7 +47,7 @@ describe('highlight cache keying', () => {
     expect(hunkHighlightKey({ ...req, headSha: 'head2' })).not.toBe(hunkHighlightKey(req));
     expect(hunkHighlightKey({ ...req, baseSha: 'base2' })).not.toBe(hunkHighlightKey(req));
     expect(hunkHighlightKey({ ...req, hunk: tsHunk('h2', 1, 'const a = 1;') })).not.toBe(hunkHighlightKey(req));
-    expect(fileHighlightKey('a.ts', 'sha')).toContain(HIGHLIGHT_THEME);
+    expect(fileHighlightKey('a.ts', 'sha')).toContain(DEFAULT_HIGHLIGHT_THEME);
   });
 
   it('returns a cached result for a new hunk object with the same id and shas', async () => {

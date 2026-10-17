@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Box, Text } from 'ink';
+import { Box, Text, useTheme } from './themed.js';
 import { highlightFileLines, type SyntaxSpan } from './highlight.js';
 import { readLines } from './references.js';
 import { truncate } from './nav.js';
@@ -11,11 +11,11 @@ import { sanitizeTerminal } from '../util/sanitize.js';
 const MAX_HIGHLIGHT_LINES = 3000;
 const highlightCache = new Map<string, Promise<SyntaxSpan[][] | undefined>>();
 
-function highlightsFor(path: string, lines: string[]): Promise<SyntaxSpan[][] | undefined> {
-  const key = `${path}\0${lines.length}\0${lines[0] ?? ''}`;
+function highlightsFor(path: string, lines: string[], theme: string): Promise<SyntaxSpan[][] | undefined> {
+  const key = `${theme}\0${path}\0${lines.length}\0${lines[0] ?? ''}`;
   let p = highlightCache.get(key);
   if (!p) {
-    p = highlightFileLines(path, lines.join('\n')).catch(() => undefined);
+    p = highlightFileLines(path, lines.join('\n'), undefined, theme).catch(() => undefined);
     highlightCache.set(key, p);
     if (highlightCache.size > 24) highlightCache.delete(highlightCache.keys().next().value!);
   }
@@ -38,13 +38,14 @@ export function SourcePreview(props: {
   const { root, path, width, height } = props;
   const lines = useMemo(() => readLines(root, path), [root, path]);
   const [spans, setSpans] = useState<{ path: string; spans?: SyntaxSpan[][] }>({ path: '' });
+  const { syntax } = useTheme();
   useEffect(() => {
     let live = true;
-    if (lines && lines.length <= MAX_HIGHLIGHT_LINES) void highlightsFor(path, lines).then((s) => live && setSpans({ path, spans: s }));
+    if (lines && lines.length <= MAX_HIGHLIGHT_LINES) void highlightsFor(path, lines, syntax).then((s) => live && setSpans({ path, spans: s }));
     return () => {
       live = false;
     };
-  }, [path, lines]);
+  }, [path, lines, syntax]);
   const rows = Math.max(1, height - 1);
   const header = <Text dimColor>{truncate(props.title ?? path, width)}</Text>;
   if (!lines)
