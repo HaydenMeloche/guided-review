@@ -109,7 +109,7 @@ Guided Review checks out the PR head in a detached worktree under `~/.guided-rev
 
 Set `GR_DEBUG=1` to print stack traces on errors.
 
-Once a day, `gr` checks npm in the background for a newer version. Before a tour it offers to install it (`s` skips that version); other commands mention it when they finish. It never checks in CI or for `gr build`. Set `GR_NO_UPDATE_CHECK=1` to turn it off.
+Once a day, `gr` checks npm in the background for a newer version. Before a tour it opens an update screen with the release notes since your version: Enter installs the update and restarts `gr` where you were, `n` waits until tomorrow, and `s` skips that version. Other commands mention the update when they finish. It never checks in CI or for `gr build`. Set `GR_NO_UPDATE_CHECK=1` to turn it off.
 
 Providers, models, endpoints, and keys are not CLI options; they live in `~/.guided-review/config.json`. See [Configuration](docs/configuration.md).
 

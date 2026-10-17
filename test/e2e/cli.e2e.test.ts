@@ -11,9 +11,11 @@ beforeEach(() => {
 afterEach(() => box.cleanup());
 
 describe('gr commands that print and exit', () => {
-  it('prints usage for --help', async () => {
+  it('prints the version and usage for --help', async () => {
     const result = await runGr(box, ['--help']);
     expect(result.code).toBe(0);
+    const { version } = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '../../package.json'), 'utf8')) as { version: string };
+    expect(result.stdout).toContain(`Guided Review ${version}: an AI-guided terminal walkthrough`);
     expect(result.stdout).toContain('$ gr review <number|URL>');
     expect(result.stdout).toContain('--no-agent');
   });

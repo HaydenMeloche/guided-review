@@ -7,8 +7,8 @@ import {
   compareVersions,
   detectPackageManager,
   installedVersion,
+  fetchReleaseNotes,
   newerRelease,
-  parseAnswer,
   promptForUpdate,
   startUpdateCheck,
   updateCheckDisabled,
@@ -16,6 +16,7 @@ import {
   type Spawn,
   type UpdateCheckOptions,
   type UpdateOffer,
+  type UpdateResult,
 } from '../src/updateCheck.js';
 
 const dirs: string[] = [];
@@ -175,11 +176,33 @@ describe('versionToOffer', () => {
   });
 });
 
-describe('parseAnswer', () => {
-  it('treats Enter as yes and anything unknown as not now', () => {
-    for (const a of ['', ' ', 'y', 'Y', 'yes']) expect(parseAnswer(a)).toBe('update');
-    for (const a of ['n', 'No', 'maybe', 'q']) expect(parseAnswer(a)).toBe('later');
-    for (const a of ['s', 'S', 'skip']) expect(parseAnswer(a)).toBe('skip');
+describe('fetchReleaseNotes', () => {
+  const releases = (body: unknown, status = 200) => (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+  const signal = new AbortController().signal;
+
+  it('keeps the full releases after the installed version up to the latest, newest first', async () => {
+    const fetchFn = releases([
+      { tag_name: 'v0.4.0', body: 'later', published_at: '2026-11-01T00:00:00Z' },
+      { tag_name: 'v0.2.0', body: 'two', published_at: '2026-10-15T20:23:27Z' },
+      { tag_name: 'v0.3.0-beta.1', body: 'beta', prerelease: true },
+      { tag_name: 'v0.3.0', body: 'three', published_at: '2026-10-20T00:00:00Z' },
+      { tag_name: 'v0.2.5', body: 'draft', draft: true },
+      { tag_name: 'v0.1.0', body: 'installed' },
+      { tag_name: 'nightly', body: 'junk' },
+    ]);
+    expect(await fetchReleaseNotes('0.1.0', '0.3.0', fetchFn, signal)).toEqual([
+      { version: '0.3.0', date: '2026-10-20', body: 'three' },
+      { version: '0.2.0', date: '2026-10-15', body: 'two' },
+    ]);
+  });
+
+  it('is undefined when GitHub fails or answers with something else', async () => {
+    expect(await fetchReleaseNotes('0.1.0', '0.2.0', releases({ message: 'rate limited' }, 403), signal)).toBeUndefined();
+    expect(await fetchReleaseNotes('0.1.0', '0.2.0', releases({ message: 'odd' }), signal)).toBeUndefined();
+    const offline = (async () => {
+      throw new Error('offline');
+    }) as unknown as typeof fetch;
+    expect(await fetchReleaseNotes('0.1.0', '0.2.0', offline, signal)).toBeUndefined();
   });
 });
 
@@ -226,43 +249,48 @@ describe('offer before a tour', () => {
 });
 
 describe('promptForUpdate', () => {
-  function setup(answer: string, results: ReturnType<Spawn>[] = []) {
+  function setup(result: UpdateResult, results: ReturnType<Spawn>[] = []) {
     const offer: UpdateOffer = { installed: '0.1.0', latest: '0.2.0', packageManager: 'pnpm', skip: vi.fn() };
     const spawn = vi.fn<Spawn>(() => results.shift() ?? { status: 0 });
     const log = vi.fn();
-    const ask = vi.fn(async () => answer);
-    const run = () => promptForUpdate(offer, { ask, spawn, log, argv: ['/node', '/bin/gr', 'review', '12'] });
-    return { offer, spawn, log, ask, run };
+    const choose = vi.fn(async () => result);
+    const run = () => promptForUpdate(offer, { choose, spawn, log, argv: ['/node', '/bin/gr', 'review', '12'] });
+    return { offer, spawn, log, choose, run };
   }
 
-  it('installs with the detected manager and relaunches the same command', async () => {
-    const t = setup('', [{ status: 0 }, { status: 3 }]);
+  it('relaunches the same command once the screen has installed the update', async () => {
+    const t = setup({ kind: 'updated', output: ['changed 3 packages in 2s'] }, [{ status: 3 }]);
     expect(await t.run()).toBe(3);
-    expect(t.ask).toHaveBeenCalledWith('Update available: 0.1.0 → 0.2.0. Update now? [Y/n/s(kip this version)] ');
-    expect(t.spawn.mock.calls[0].slice(0, 2)).toEqual(['pnpm', ['add', '-g', '@haydenmeloche/guided-review@latest']]);
-    expect(t.spawn.mock.calls[1][0]).toBe('/node');
-    expect(t.spawn.mock.calls[1][1]).toEqual(['/bin/gr', 'review', '12']);
-    expect(t.spawn.mock.calls[1][2]).toMatchObject({ GR_NO_UPDATE_CHECK: '1' });
-  });
-
-  it('carries on with this version when the install fails', async () => {
-    const t = setup('y', [{ status: 243 }]);
-    expect(await t.run()).toBeUndefined();
+    // The installer's summary stays in the scrollback above the restarted gr.
+    expect(t.log.mock.calls.map((c) => c[0])).toEqual(['changed 3 packages in 2s', 'Updated Guided Review 0.1.0 → 0.2.0.']);
+    expect(t.choose).toHaveBeenCalledWith(t.offer);
     expect(t.spawn).toHaveBeenCalledTimes(1);
-    expect(t.log).toHaveBeenCalledWith(expect.stringContaining('Could not update (pnpm exited with code 243). Run pnpm add -g @haydenmeloche/guided-review@latest yourself'));
-
-    const missing = setup('y', [{ status: null, error: new Error('spawn pnpm ENOENT') }]);
-    expect(await missing.run()).toBeUndefined();
-    expect(missing.log).toHaveBeenCalledWith(expect.stringContaining('spawn pnpm ENOENT'));
+    expect(t.spawn.mock.calls[0][0]).toBe('/node');
+    expect(t.spawn.mock.calls[0][1]).toEqual(['/bin/gr', 'review', '12']);
+    expect(t.spawn.mock.calls[0][2]).toMatchObject({ GR_NO_UPDATE_CHECK: '1' });
   });
 
-  it('does nothing on no, and records a skip', async () => {
-    const no = setup('n');
+  it('carries on with this version when the install fails, and says so in the scrollback', async () => {
+    const t = setup({ kind: 'failed', why: 'pnpm exited with code 243' });
+    expect(await t.run()).toBeUndefined();
+    expect(t.spawn).not.toHaveBeenCalled();
+    expect(t.log).toHaveBeenCalledWith(expect.stringContaining('Could not update (pnpm exited with code 243). Run pnpm add -g @haydenmeloche/guided-review@latest yourself'));
+  });
+
+  it('exits with 130 on Ctrl+C', async () => {
+    const t = setup({ kind: 'quit' });
+    expect(await t.run()).toBe(130);
+    expect(t.spawn).not.toHaveBeenCalled();
+    expect(t.offer.skip).not.toHaveBeenCalled();
+  });
+
+  it('does nothing on not now, and records a skip', async () => {
+    const no = setup({ kind: 'later' });
     expect(await no.run()).toBeUndefined();
     expect(no.spawn).not.toHaveBeenCalled();
     expect(no.offer.skip).not.toHaveBeenCalled();
 
-    const skip = setup('s');
+    const skip = setup({ kind: 'skip' });
     expect(await skip.run()).toBeUndefined();
     expect(skip.spawn).not.toHaveBeenCalled();
     expect(skip.offer.skip).toHaveBeenCalled();

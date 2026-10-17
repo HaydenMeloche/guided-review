@@ -12,7 +12,7 @@ import { planOpen, runOpen, targetArg } from './open.js';
 import type { PRInfo } from './types.js';
 import { KEEP_TOURS_PER_PR, TOUR_MAX_AGE_DAYS } from './store/retention.js';
 import { AGENT_ROLES, configForRole, validateRouting } from './agent/types.js';
-import { promptForUpdate, startUpdateCheck } from './updateCheck.js';
+import { packageInfo, promptForUpdate, startUpdateCheck } from './updateCheck.js';
 
 // node:sqlite prints an ExperimentalWarning on load; drop just that one so it
 // does not land on top of the TUI. The store, and the TUI that imports it, are
@@ -29,6 +29,15 @@ process.emitWarning = function (warning: string | Error, ...rest: unknown[]) {
 // Installed as both `gr` and `guided-review` (Oh My Zsh aliases gr to git remote),
 // so help and errors use whichever name the user typed.
 const NAME = path.basename(process.argv[1] ?? '').replace(/\.js$/, '') === 'guided-review' ? 'guided-review' : 'gr';
+const PKG = packageInfo();
+// The package description with the version after the name, "Guided Review 0.2.0: …", or appended
+// if the description no longer starts with the name.
+function describeGr(): string | undefined {
+  const { version, description } = PKG;
+  if (!version || !description) return description;
+  const named = description.replace(/^Guided Review\b/, `Guided Review ${version}`);
+  return named === description ? `${description} (${version})` : named;
+}
 const usage = (args: string, what: string) => `    $ ${`${NAME}${args && ` ${args}`}`.padEnd(NAME.length + 26)}${what}`;
 
 const cli = meow(
@@ -66,6 +75,7 @@ ${[
 `,
   {
     importMeta: import.meta,
+    description: describeGr(),
     flags: {
       agent: { type: 'boolean', default: true },
       fresh: { type: 'boolean', default: false },
@@ -81,7 +91,7 @@ ${[
 );
 
 // Runs in the background while the command works. Never for build: it runs in CI.
-const updateCheck = cli.input[0] === 'build' ? undefined : startUpdateCheck();
+const updateCheck = cli.input[0] === 'build' ? undefined : startUpdateCheck({ installed: PKG.version });
 
 async function printUpdateNotice(graceMs = 0): Promise<void> {
   const notice = await updateCheck?.finish(graceMs);

@@ -1,7 +1,6 @@
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { grHome } from './paths.js';
 
@@ -90,34 +89,28 @@ export function installCommand(pm: PackageManager): [string, string[]] {
   return ['npm', ['install', '-g', spec]];
 }
 
-const commandLine = (pm: PackageManager) => installCommand(pm).flat().join(' ');
+export const commandLine = (pm: PackageManager) => installCommand(pm).flat().join(' ');
 
 export function updateNotice(installed: string, latest: string, pm: PackageManager): string {
   return `Update available: ${installed} → ${latest}. Run ${commandLine(pm)} to update.`;
-}
-
-export type Answer = 'update' | 'later' | 'skip';
-
-// Enter means yes; anything unrecognised means "not now", so a typo never starts an install.
-export function parseAnswer(input: string): Answer {
-  const a = input.trim().toLowerCase();
-  if (a === '' || a === 'y' || a === 'yes') return 'update';
-  if (a === 's' || a === 'skip') return 'skip';
-  return 'later';
 }
 
 export function updateCheckDisabled(env: NodeJS.ProcessEnv): boolean {
   return !!env.CI || env.GR_NO_UPDATE_CHECK === '1' || env.NODE_ENV === 'test';
 }
 
-export function installedVersion(): string | undefined {
+// gr's own package.json: its version and description, when they can be read.
+export function packageInfo(): { version?: string; description?: string } {
   try {
-    const pkg = JSON.parse(fs.readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')) as { version?: unknown };
-    return typeof pkg.version === 'string' ? pkg.version : undefined;
+    const pkg = JSON.parse(fs.readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')) as { version?: unknown; description?: unknown };
+    const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
+    return { version: str(pkg.version), description: str(pkg.description) };
   } catch {
-    return undefined;
+    return {};
   }
 }
+
+export const installedVersion = (): string | undefined => packageInfo().version;
 
 function readCache(file: string): UpdateCache | undefined {
   try {
@@ -241,19 +234,52 @@ export function startUpdateCheck(options: UpdateCheckOptions = {}): UpdateCheck 
   };
 }
 
-// Asks one question on stderr in cooked mode, so Ctrl+C stays a plain SIGINT and stdin is left for Ink.
-export function ask(question: string): Promise<string> {
-  return new Promise((resolve) => {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stderr, terminal: false });
-    process.stderr.write(question);
-    let answer = 'n'; // Ctrl+D: carry on without updating
-    rl.once('line', (line) => {
-      answer = line;
-      rl.close();
-    });
-    rl.once('close', () => resolve(answer));
-  });
+export interface ReleaseNotes {
+  version: string;
+  date?: string;
+  body: string;
 }
+
+export const RELEASES_URL = 'https://github.com/HaydenMeloche/guided-review/releases';
+const RELEASES_API = 'https://api.github.com/repos/HaydenMeloche/guided-review/releases?per_page=30';
+
+// The notes of each full release after `installed` up to `latest`, newest first. Undefined when
+// GitHub can't be reached, so the update screen can point at the releases page instead.
+export async function fetchReleaseNotes(installed: string, latest: string, fetchImpl: typeof fetch, signal: AbortSignal): Promise<ReleaseNotes[] | undefined> {
+  try {
+    const res = await fetchImpl(RELEASES_API, { signal, headers: { accept: 'application/vnd.github+json' } });
+    if (!res.ok) return undefined;
+    const body = (await res.json()) as unknown;
+    if (!Array.isArray(body)) return undefined;
+    const notes: ReleaseNotes[] = [];
+    for (const r of body as Record<string, unknown>[]) {
+      if (!r || r.draft || r.prerelease || typeof r.tag_name !== 'string') continue;
+      const version = r.tag_name.replace(/^v/, '');
+      if (compareVersions(version, installed) !== 1 || compareVersions(version, latest) === 1) continue;
+      const date = typeof r.published_at === 'string' ? r.published_at.slice(0, 10) : undefined;
+      notes.push({ version, date, body: typeof r.body === 'string' ? r.body : '' });
+    }
+    return notes.sort((a, b) => compareVersions(b.version, a.version) ?? 0);
+  } catch {
+    return undefined;
+  }
+}
+
+export type Install = (command: string, args: string[], onOutput: (chunk: string) => void, signal: AbortSignal) => Promise<{ status: number | null; error?: Error }>;
+
+// Runs the package manager with its output piped, so the update screen can show it as it goes.
+export const runInstall: Install = (command, args, onOutput, signal) =>
+  new Promise((resolve) => {
+    const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'], signal, shell: process.platform === 'win32' });
+    child.stdout.on('data', (d: Buffer) => onOutput(d.toString()));
+    child.stderr.on('data', (d: Buffer) => onOutput(d.toString()));
+    child.once('error', (error) => resolve({ status: null, error }));
+    child.once('close', (status) => resolve({ status }));
+  });
+
+// What the update screen ended with. `updated` carries the installer's summary and `failed` the
+// reason, both already shown on screen.
+export type UpdateResult = { kind: 'updated'; output: string[] } | { kind: 'later' } | { kind: 'skip' } | { kind: 'failed'; why: string } | { kind: 'quit' };
 
 export type Spawn = (command: string, args: string[], env?: NodeJS.ProcessEnv) => { status: number | null; error?: Error };
 
@@ -263,28 +289,29 @@ const spawnInherit: Spawn = (command, args, env) => {
 };
 
 export interface PromptDeps {
-  ask?: (question: string) => Promise<string>;
+  // Shows the update offer and installs on yes. Defaults to the full-screen update screen.
+  choose?: (offer: UpdateOffer) => Promise<UpdateResult>;
   spawn?: Spawn;
   argv?: string[];
   log?: (line: string) => void;
 }
 
-// Offers the update before a tour. Returns the exit code of the relaunched new version, or
-// undefined to carry on with this one (declined, skipped, or the install failed).
+// Offers the update before a tour. Returns the code to exit with (the relaunched new version's,
+// or 130 for Ctrl+C), or undefined to carry on with this one (declined, skipped, or the install failed).
 export async function promptForUpdate(offer: UpdateOffer, deps: PromptDeps = {}): Promise<number | undefined> {
   const log = deps.log ?? ((line: string) => process.stderr.write(`${line}\n`));
-  const answer = parseAnswer(await (deps.ask ?? ask)(`Update available: ${offer.installed} → ${offer.latest}. Update now? [Y/n/s(kip this version)] `));
-  if (answer === 'skip') offer.skip();
-  if (answer !== 'update') return undefined;
+  const choose = deps.choose ?? (async (o: UpdateOffer) => (await import('./tui/UpdateScreen.js')).runUpdateScreen(o));
+  const result = await choose(offer);
+  if (result.kind === 'quit') return 130;
+  if (result.kind === 'skip') offer.skip();
+  // The screen is gone once the tour opens, so the failure stays in the scrollback too.
+  if (result.kind === 'failed') log(`Could not update (${result.why}). Run ${commandLine(offer.packageManager)} yourself; continuing with ${offer.installed}.`);
+  if (result.kind !== 'updated') return undefined;
+  for (const line of result.output) log(line);
+  log(`Updated Guided Review ${offer.installed} → ${offer.latest}.`);
   const spawn = deps.spawn ?? spawnInherit;
-  const [command, args] = installCommand(offer.packageManager);
-  const installed = spawn(command, args);
-  if (installed.error || installed.status !== 0) {
-    const why = installed.error ? installed.error.message : `exited with code ${installed.status}`;
-    log(`Could not update (${command} ${why}). Run ${commandLine(offer.packageManager)} yourself; continuing with ${offer.installed}.`);
-    return undefined;
-  }
-  const [node, ...rest] = deps.argv ?? process.argv;
+  // Node's own flags go too, such as the loader tsx adds when running from source.
+  const [node, ...rest] = deps.argv ?? [process.argv[0], ...process.execArgv, ...process.argv.slice(1)];
   // The relaunch must not offer again if the install landed somewhere else on PATH.
   const relaunched = spawn(node, rest, { ...process.env, GR_NO_UPDATE_CHECK: '1' });
   // This process's files were just replaced, so it cannot safely carry on with the tour itself.
