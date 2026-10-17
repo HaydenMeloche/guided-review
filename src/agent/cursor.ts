@@ -57,7 +57,9 @@ export async function runCursor<T>(prompt: string, config: ProviderRunConfig, op
   // gets the system prompt as a preamble, and a resumed one already has it.
   const options = {
     ...(key ? { apiKey: key } : {}),
-    ...(config.model ? { model: { id: config.model } } : {}),
+    ...(config.model
+      ? { model: { id: config.model, ...(config.modelParams && Object.keys(config.modelParams).length ? { params: Object.entries(config.modelParams).map(([id, value]) => ({ id, value })) } : {}) } }
+      : {}),
     tools: ALLOWED_TOOLS,
     local: { cwd: config.cwd, customTools: cursorTools(config.cwd, opts.signal, maxCalls) },
   };

@@ -19,7 +19,8 @@ const InText = createContext(false);
 
 // The background a Box paints or inherits. Ink draws borders without one, so a Box hands it
 // to its border; otherwise a border shows the terminal's background through a theme's.
-const Surface = createContext<string | undefined>(undefined);
+const NO_BOX = Symbol('no box');
+const Surface = createContext<string | undefined | typeof NO_BOX>(NO_BOX);
 
 // Whether a Text sits inside one shown in the theme's muted color in place of Ink's dim.
 const InMuted = createContext(false);
@@ -44,11 +45,15 @@ export function Box(props: ComponentProps<typeof InkBox>) {
   const palette = useTheme();
   const inherited = use(Surface);
   const backgroundColor = resolveColor(palette, props.backgroundColor);
-  const surface = backgroundColor ?? inherited ?? palette.bg;
+  const surface = backgroundColor ?? (inherited === NO_BOX ? undefined : inherited) ?? palette.bg;
   const borderColor = resolveColor(palette, props.borderColor) ?? (props.borderStyle ? palette.fg : undefined);
   const borderBackgroundColor = resolveColor(palette, props.borderBackgroundColor) ?? (props.borderStyle ? surface : undefined);
   const node = <InkBox {...props} borderColor={borderColor} borderBackgroundColor={borderBackgroundColor} backgroundColor={backgroundColor} />;
-  return surface === inherited ? node : <Surface value={surface}>{node}</Surface>;
+  // The outermost Box, and one given a background, always provide one, so previewing a theme
+  // with a background over the terminal's colors keeps the tree's shape. A provider appearing
+  // would remount everything below it and lose its state (a theme search, say).
+  const provides = inherited === NO_BOX || 'backgroundColor' in props || surface !== inherited;
+  return provides ? <Surface value={surface}>{node}</Surface> : node;
 }
 
 // How a selected row is marked: the theme's selection background, or inverted with the terminal's colors.

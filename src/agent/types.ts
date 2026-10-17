@@ -11,6 +11,9 @@ export interface AgentConfig {
   toolCalling?: boolean;
   // Output token cap per model turn (Anthropic provider).
   maxOutputTokens?: number;
+  // A Cursor model's variant, such as { reasoning_effort: 'low', fast: 'true' }. Without them
+  // Cursor picks the model's default variant, which can be its most expensive one.
+  modelParams?: Record<string, string>;
 }
 
 export const AGENT_ROLES = ['briefing', 'narration', 'qa'] as const;
@@ -32,6 +35,13 @@ export function configForRole(routing: AgentRouting = {}, role: AgentRole): Agen
   const override = roles?.[role];
   if (override?.provider && override.provider !== (defaults.provider ?? 'claude-code')) {
     return { provider: override.provider, toolCalling: defaults.toolCalling, ...override };
+  }
+  // A variant belongs to its model: a role naming another model doesn't take the top-level one's.
+  // A role with its own modelParams, even {}, never inherits.
+  if (override?.model && override.model !== defaults.model && !override.modelParams) {
+    const rest: AgentConfig = { ...defaults };
+    delete rest.modelParams;
+    return { ...rest, ...override };
   }
   return { ...defaults, ...override };
 }
@@ -66,12 +76,32 @@ export function validateRouting(routing: AgentRouting): void {
   }
 }
 
+function sortedParams(params: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(params).sort(([a], [b]) => a.localeCompare(b)));
+}
+
+// A model with its variant, for people: "grok-4.7 (low, fast, 256k)". A "true" parameter shows
+// its name and a "false" one is left out.
+export function formatModel(model: string | undefined, params?: Record<string, string>): string {
+  const parts = Object.entries(params ?? {}).flatMap(([k, v]) => (v === 'true' ? [k] : v === 'false' ? [] : [v]));
+  return `${model ?? 'default'}${parts.length ? ` (${parts.join(', ')})` : ''}`;
+}
+
 export function routingIdentity(routing: AgentRouting = {}): string {
   return JSON.stringify(
     Object.fromEntries(
       AGENT_ROLES.map((role) => {
         const config = configForRole(routing, role);
-        return [role, { provider: config.provider ?? 'claude-code', model: config.model ?? '', baseUrl: config.baseUrl ?? '', toolCalling: config.toolCalling !== false }];
+        return [
+          role,
+          {
+            provider: config.provider ?? 'claude-code',
+            model: config.model ?? '',
+            ...(config.modelParams ? { modelParams: sortedParams(config.modelParams) } : {}),
+            baseUrl: config.baseUrl ?? '',
+            toolCalling: config.toolCalling !== false,
+          },
+        ];
       }),
     ),
   );

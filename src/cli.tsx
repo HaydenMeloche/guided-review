@@ -1,10 +1,11 @@
 import meow from 'meow';
+import fs from 'node:fs';
 import path from 'node:path';
 import type { AppOptions } from './tui/App.js';
 import { currentBranchPR, currentRepo, parsePRArg } from './github/gh.js';
 import { cleanupWorktrees, defaultBaseRef, localRepoRoot, mergeBaseOf, prDiff } from './git/worktree.js';
 import { git } from './git/git.js';
-import { agentRouting, loadChapterOrder, loadThemeSetting, loadUserConfig, loadViewSetting, readUserConfigFile, saveThemeSetting, saveViewSetting, UserConfigError } from './config.js';
+import { agentRouting, loadChapterOrder, loadThemeSetting, loadUserConfig, loadViewSetting, readUserConfigFile, saveThemeSetting, saveViewSetting, userConfigPath, UserConfigError } from './config.js';
 import { editRepoConfig, setup } from './setup.js';
 import { installClaudeCommand, installCodexSkill, type SkillInstallResult } from './codexSkill.js';
 import { planOpen, runOpen, targetArg } from './open.js';
@@ -271,6 +272,11 @@ async function main() {
   if (offer) {
     const code = await promptForUpdate(offer);
     if (code !== undefined) process.exit(code);
+  }
+  // First run: introduce gr and set it up, then carry on with the command that was run.
+  if (cli.flags.agent && !fs.existsSync(userConfigPath())) {
+    const result = await setup({ firstRun: true });
+    if (result.kind === 'cancelled') fail(`no config saved. Run \`${NAME} config\` when you're ready, or pass --no-agent to review without a model.`);
   }
   // Load the TUI while the PR is being resolved below.
   const tui = Promise.all([import('ink'), import('./tui/App.js')]);

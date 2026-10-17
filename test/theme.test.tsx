@@ -132,6 +132,29 @@ describe('themed boxes and dim text', () => {
     ui.unmount();
   });
 
+  it("keeps a screen's state when the theme gains a background", async () => {
+    // A provider appearing above a component remounts it; switching from the terminal's colors
+    // (no background) to a theme with one must not.
+    function Counter() {
+      const [n] = React.useState(() => Math.random());
+      return <Text>{String(n)}</Text>;
+    }
+    const tree = (p: typeof terminalPalette) => (
+      <ThemeContext value={p}>
+        <Box backgroundColor={p.bg}>
+          <Box>
+            <Counter />
+          </Box>
+        </Box>
+      </ThemeContext>
+    );
+    const ui = render(tree(terminalPalette));
+    const before = ui.lastFrame();
+    ui.rerender(tree(await loadPalette('nord')));
+    expect(ui.lastFrame()).toBe(before);
+    ui.unmount();
+  });
+
   it('leaves borders and dim text alone with the terminal colors', () => {
     seen.box.length = 0;
     seen.text.length = 0;

@@ -120,28 +120,44 @@ export type UserConfig = Omit<AgentRouting, 'provider'> & {
 
 export class UserConfigError extends Error {}
 
-// Presets written by `gr config`; the fast model handles briefing and narration, the strong one Q&A.
-export const PRESET_MODELS: Partial<Record<Provider, { fast: string; strong: string }>> = {
+// Models for the two tasks, with a Cursor model's variant: the fast one for the briefing and
+// narration, the strong one for Q&A.
+export interface ModelPair {
+  fast: string;
+  strong: string;
+  fastParams?: Record<string, string>;
+  strongParams?: Record<string, string>;
+}
+
+// Presets written by `gr config`. Cursor's name a variant at 256k context: its default variants
+// are Max Mode, the most expensive way to run a model.
+export const PRESET_MODELS: Partial<Record<Provider, ModelPair>> = {
   'claude-code': { fast: 'haiku', strong: 'opus' },
   anthropic: { fast: 'claude-haiku-5-5', strong: 'claude-opus-5-5' },
   bedrock: { fast: 'haiku', strong: 'opus' },
   vertex: { fast: 'haiku', strong: 'opus' },
   codex: { fast: 'gpt-6-luna', strong: 'gpt-6.1-sol' },
-  cursor: { fast: 'composer-2.5', strong: 'composer-2.5' },
+  cursor: {
+    fast: 'grok-4.7',
+    strong: 'grok-4.7',
+    fastParams: { context: '256k', reasoning_effort: 'low', fast: 'true' },
+    strongParams: { context: '256k', reasoning_effort: 'high', fast: 'false' },
+  },
   openai: { fast: 'gpt-6-luna', strong: 'gpt-6.1-sol' },
 };
 
-export function presetUserConfig(provider: Provider, models: { fast: string; strong: string }, connection: Omit<AgentConfig, 'provider' | 'model'> = {}): UserConfig & AgentRouting {
+export function presetUserConfig(provider: Provider, models: ModelPair, connection: Omit<AgentConfig, 'provider' | 'model' | 'modelParams'> = {}): UserConfig & AgentRouting {
+  // When either task has a variant, both name theirs ({} for the default), so one can't inherit
+  // the other's through the top level.
+  const variants = !!(models.fastParams || models.strongParams);
+  const fast = { model: models.fast, ...(variants ? { modelParams: models.fastParams ?? {} } : {}) };
+  const strong = { model: models.strong, ...(variants ? { modelParams: models.strongParams ?? {} } : {}) };
   return {
     provider,
-    model: models.strong,
+    ...strong,
     chapterOrder: DEFAULT_CHAPTER_ORDER,
     ...connection,
-    roles: {
-      briefing: { model: models.fast },
-      narration: { model: models.fast },
-      qa: { model: models.strong },
-    },
+    roles: { briefing: fast, narration: fast, qa: strong },
   };
 }
 
@@ -162,6 +178,14 @@ function parseAgentConfig(raw: Record<string, unknown>, where: string): AgentCon
   if (typeof raw.apiKeyEnv === 'string' && raw.apiKeyEnv) out.apiKeyEnv = raw.apiKeyEnv.replace(/^\$/, '');
   if (typeof raw.toolCalling === 'boolean') out.toolCalling = raw.toolCalling;
   if (Number.isInteger(raw.maxOutputTokens) && (raw.maxOutputTokens as number) > 0) out.maxOutputTokens = raw.maxOutputTokens as number;
+  if (raw.modelParams !== undefined) {
+    const params = raw.modelParams;
+    if (!params || typeof params !== 'object' || Array.isArray(params) || Object.values(params).some((v) => typeof v !== 'string')) {
+      throw new UserConfigError(`${where}: "modelParams" must be an object of strings, such as { "reasoning_effort": "low" }`);
+    }
+    // Kept even when empty: {} says "the model's default variant" and stops a role inheriting one.
+    out.modelParams = params as Record<string, string>;
+  }
   return out;
 }
 
@@ -273,8 +297,8 @@ export function loadGitHubConfig(): GitHubConfig | undefined {
 }
 
 function routingOf(config: UserConfig, provider: Provider | undefined): AgentRouting {
-  const { model, baseUrl, apiKey, apiKeyEnv, toolCalling, maxOutputTokens, roles } = config;
-  const routing: AgentRouting = { provider, model, baseUrl, apiKey, apiKeyEnv, toolCalling, maxOutputTokens, roles };
+  const { model, modelParams, baseUrl, apiKey, apiKeyEnv, toolCalling, maxOutputTokens, roles } = config;
+  const routing: AgentRouting = { provider, model, modelParams, baseUrl, apiKey, apiKeyEnv, toolCalling, maxOutputTokens, roles };
   return Object.fromEntries(Object.entries(routing).filter(([, v]) => v !== undefined));
 }
 

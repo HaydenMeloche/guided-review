@@ -18,6 +18,7 @@ import {
   saveThemeSetting,
   saveViewSetting,
   UserConfigError,
+  userConfigPath,
 } from '../src/config.js';
 import { configForRole, resolveApiKey, validateRouting } from '../src/agent/types.js';
 import { describeUserConfig } from '../src/setup.js';
@@ -100,6 +101,19 @@ describe('user config', () => {
     expect(configForRole(config, 'briefing').model).toBe('gpt-6-luna');
     expect(configForRole(config, 'narration').model).toBe('gpt-6-luna');
     expect(configForRole(config, 'qa').model).toBe('gpt-6.1-sol');
+  });
+
+  it("saves Cursor's variants, and an empty one, so neither task takes the other's", () => {
+    configFile();
+    const config = presetUserConfig('cursor', { fast: 'grok-4.7', strong: 'grok-4.7', strongParams: { reasoning_effort: 'high' } });
+    saveUserConfig(config);
+    const loaded = loadUserConfig();
+    expect(loaded).toEqual(config);
+    const routing = agentRouting(loaded);
+    expect(configForRole(routing, 'narration').modelParams).toEqual({});
+    expect(configForRole(routing, 'qa').modelParams).toEqual({ reasoning_effort: 'high' });
+    fs.writeFileSync(userConfigPath(), JSON.stringify({ provider: 'cursor', modelParams: { fast: true } }));
+    expect(() => loadUserConfig()).toThrow(/"modelParams" must be an object of strings/);
   });
 
   it('routes OpenAI briefing and narration to Luna, Q&A to Sol', () => {

@@ -42,7 +42,7 @@ The action has no default provider: set `provider` (or `config`, below) and pass
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 ```
 
-To use Cursor, set `provider: cursor` and pass a Cursor API key (Cursor Dashboard → API Keys) as `CURSOR_API_KEY`. The model defaults to `composer-2.5`:
+To use Cursor, set `provider: cursor` and pass a Cursor API key (Cursor Dashboard → API Keys) as `CURSOR_API_KEY`. The model defaults to `grok-4.7` at low effort, Fast, with 256k context (Cursor's own default for it is Max Mode). Naming another `model` uses that model's default variant; for a specific one, pass the `config` input with `modelParams`:
 
 ```yaml
       - uses: HaydenMeloche/guided-review@v0.1.0

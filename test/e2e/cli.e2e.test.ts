@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import { execFile } from 'node:child_process';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { fixtureRepo, runGr, sandbox, startGr, type Sandbox } from './harness.js';
+import { fixtureRepo, KEY, runGr, sandbox, startGr, type Sandbox } from './harness.js';
 
 let box: Sandbox;
 beforeEach(() => {
@@ -102,11 +102,55 @@ describe('gr commands that print and exit', () => {
 });
 
 describe('gr with a terminal', () => {
-  it('asks for a model provider when none is configured', async () => {
+  it('opens setup on the first run, and q leaves without saving', async () => {
     const session = startGr(box, ['review', '12'], { cwd: box.root });
-    await session.waitFor('no model provider is configured');
+    await session.waitFor('turns a pull request into a tour');
+    session.press('q');
+    await session.waitFor('no config saved');
     expect(session.screen()).toContain('--no-agent');
     expect(await session.exited).toBe(1);
+    expect(fs.existsSync(path.join(box.env.GR_HOME!, 'config.json'))).toBe(false);
+  });
+
+  it('saves the first-run setup and carries on with the command', async () => {
+    const session = startGr(box, ['review', '12'], { cwd: box.root });
+    await session.waitFor('turns a pull request into a tour');
+    session.press(KEY.enter);
+    await session.waitFor('Color theme');
+    session.press(KEY.enter);
+    await session.waitFor('Model provider');
+    session.press('G'); // No AI model, last in the list
+    await session.waitFor('Static analysis only');
+    session.press(KEY.enter);
+    // The fake gh runs but isn't signed in, so GitHub access is asked for, starting on gh.
+    await session.waitFor('GitHub access');
+    await session.waitFor('your gh login');
+    session.press(KEY.enter);
+    await session.waitFor('Ready to save');
+    expect(session.screen()).toContain('Provider: none');
+    session.press(KEY.enter);
+    // Saved, then review 12 runs and stops at the fake gh.
+    await session.waitFor(/Saved .*config\.json/);
+    expect(await session.exited).toBe(1);
+    expect(JSON.parse(fs.readFileSync(path.join(box.env.GR_HOME!, 'config.json'), 'utf8'))).toMatchObject({ provider: 'none', chapterOrder: 'guide' });
+  });
+
+  it('opens the same setup from gr config, starting from the saved settings', async () => {
+    fs.mkdirSync(box.env.GR_HOME!, { recursive: true });
+    fs.writeFileSync(path.join(box.env.GR_HOME!, 'config.json'), JSON.stringify({ provider: 'none', chapterOrder: 'risk' }));
+    const session = startGr(box, ['config'], { cwd: box.root });
+    await session.waitFor('Provider: none');
+    session.press(KEY.enter);
+    await session.waitFor('Color theme');
+    session.press(KEY.enter);
+    await session.waitFor('Model provider');
+    session.press(KEY.escape);
+    await session.waitFor('Color theme');
+    session.press(KEY.escape);
+    await session.waitFor('walk through setup');
+    session.press('q');
+    await session.waitFor('Nothing saved');
+    expect(await session.exited).toBe(0);
   });
 
   it('explains a missing PR when the branch has none', async () => {

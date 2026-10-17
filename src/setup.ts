@@ -1,7 +1,5 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { createInterface } from 'node:readline/promises';
 import { openInEditor } from './util/editor.js';
 import {
   agentRouting,
@@ -18,95 +16,14 @@ import {
   presetUserConfig,
   saveUserConfig,
   userConfigPath,
-  type ChapterOrderSetting,
   type GitHubConfig,
   type UserConfig,
 } from './config.js';
 import { DEFAULT_API_URL, restJson } from './github/api.js';
 import { isTheme, TERMINAL_THEME } from './tui/theme.js';
 import { expandHome, resolveGitHubAuth } from './github/auth.js';
-import { configForRole, defaultApiKeyEnv, type AgentConfig, type AgentRouting, type Provider } from './agent/types.js';
-
-async function ask(question: string, fallback = ''): Promise<string> {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  rl.on('SIGINT', () => {
-    process.stdout.write('\n');
-    process.exit(130);
-  });
-  try {
-    const answer = (await rl.question(fallback ? `${question} [${fallback}]: ` : `${question}: `)).trim();
-    return answer || fallback;
-  } finally {
-    rl.close();
-  }
-}
-
-async function askRequired(question: string, fallback = '', check?: (value: string) => string | undefined): Promise<string> {
-  for (;;) {
-    const value = await ask(question, fallback);
-    const problem = value ? check?.(value) : 'a value is required';
-    if (!problem) return value;
-    process.stdout.write(`  ${problem}\n`);
-  }
-}
-
-async function askYesNo(question: string, fallback: boolean): Promise<boolean> {
-  for (;;) {
-    const value = (await ask(`${question} [${fallback ? 'Y/n' : 'y/N'}]`)).toLowerCase();
-    if (!value) return fallback;
-    if (['y', 'yes'].includes(value)) return true;
-    if (['n', 'no'].includes(value)) return false;
-  }
-}
-
-// An option with `unavailable` set is listed with the reason but cannot be chosen.
-async function choose<T extends string>(title: string, options: { value: T; label: string; unavailable?: string }[], fallback: T): Promise<T> {
-  process.stdout.write(`\n${title}\n`);
-  options.forEach((o, i) => process.stdout.write(`  ${i + 1}. ${o.label}${o.unavailable ? ` (unavailable: ${o.unavailable})` : ''}\n`));
-  const preferred = options.find((o) => o.value === fallback && !o.unavailable) ?? options.find((o) => !o.unavailable)!;
-  const fallbackIndex = String(options.indexOf(preferred) + 1);
-  for (;;) {
-    const n = Number(await ask('Choice', fallbackIndex));
-    if (!Number.isInteger(n) || n < 1 || n > options.length) continue;
-    const option = options[n - 1];
-    if (!option.unavailable) return option.value;
-    process.stdout.write(`  That option is unavailable: ${option.unavailable}.\n`);
-  }
-}
-
-// Raw-mode read so a pasted key is not echoed or left in the scrollback.
-function askSecret(question: string): Promise<string> {
-  const stdin = process.stdin;
-  process.stdout.write(question);
-  stdin.setRawMode(true);
-  stdin.setEncoding('utf8');
-  stdin.resume();
-  return new Promise((resolve) => {
-    let value = '';
-    const finish = () => {
-      stdin.off('data', onData);
-      stdin.setRawMode(false);
-      stdin.pause();
-      process.stdout.write('\n');
-    };
-    const onData = (chunk: string) => {
-      for (const ch of chunk) {
-        if (ch === '\r' || ch === '\n') {
-          finish();
-          resolve(value.trim());
-          return;
-        }
-        if (ch === '\u0003') {
-          finish();
-          process.exit(130);
-        }
-        if (ch === '\u007f' || ch === '\b') value = value.slice(0, -1);
-        else if (ch >= ' ') value += ch;
-      }
-    };
-    stdin.on('data', onData);
-  });
-}
+import { configForRole, defaultApiKeyEnv, formatModel, type AgentConfig, type AgentRouting, type Provider } from './agent/types.js';
+import type { ProviderFinding } from './detect.js';
 
 function checkBaseUrl(value: string): string | undefined {
   let url: URL;
@@ -147,27 +64,13 @@ function describeRouting(config: AgentRouting): string[] {
   const narration = configForRole(config, 'narration');
   const qa = configForRole(config, 'qa');
   const lines = [`Provider: ${config.provider}${config.baseUrl ? ` (${config.baseUrl})` : ''}`];
-  if (briefing.model === narration.model) lines.push(`Summaries and narration: ${briefing.model ?? 'default'}`);
-  else lines.push(`Summaries: ${briefing.model ?? 'default'}`, `Narration: ${narration.model ?? 'default'}`);
-  lines.push(`Q&A: ${qa.model ?? 'default'}${qa.provider !== config.provider ? ` (${qa.provider})` : ''}`);
+  const show = (c: AgentConfig) => formatModel(c.model, c.modelParams);
+  if (show(briefing) === show(narration)) lines.push(`Summaries and narration: ${show(briefing)}`);
+  else lines.push(`Summaries: ${show(briefing)}`, `Narration: ${show(narration)}`);
+  lines.push(`Q&A: ${show(qa)}${qa.provider !== config.provider ? ` (${qa.provider})` : ''}`);
   lines.push(`API key: ${describeKey(config)}`);
   if (config.toolCalling === false) lines.push('Tool calling: off');
   return lines;
-}
-
-// The full-screen picker previews each theme as the cursor moves; Esc keeps the current one.
-// A saved name shiki doesn't have is dropped, so Enter through the questions can't save it again.
-async function chooseTheme(saved: string | undefined): Promise<string | undefined> {
-  let current = saved;
-  if (current && !(await isTheme(current))) {
-    process.stdout.write(`\nYour config names a theme that doesn't exist: ${current}.\n`);
-    current = undefined;
-  }
-  if (!(await askYesNo(`\nColor theme: ${current ?? TERMINAL_THEME}. Choose a different one (with a live preview)?`, !current))) return current;
-  const { pickTheme } = await import('./tui/ThemeSetup.js');
-  const chosen = (await pickTheme(current)) ?? current;
-  process.stdout.write(`Theme: ${chosen ?? TERMINAL_THEME}\n`);
-  return chosen;
 }
 
 function describeGitHub(github: GitHubConfig | undefined): string {
@@ -176,228 +79,271 @@ function describeGitHub(github: GitHubConfig | undefined): string {
   return `personal access token from ${source}${github.apiUrl && github.apiUrl !== DEFAULT_API_URL ? ` (${github.apiUrl})` : ''}`;
 }
 
-type GitHubChoice = 'gh' | 'env' | 'file';
-
-const TOKEN_HELP = [
-  'A personal access token works instead. Create one at https://github.com/settings/personal-access-tokens:',
-  '  a fine-grained token needs read access to Contents and Metadata, and read and write access to',
-  '  Pull requests and Issues; a classic token needs the repo scope (and read:org for private orgs).',
-  'gr reads the token from an environment variable or a file each time it runs; it is not copied into config.json.',
+export const TOKEN_HELP = [
+  'Create a token at https://github.com/settings/personal-access-tokens. A fine-grained token needs read',
+  'access to Contents and Metadata, and read and write access to Pull requests and Issues; a classic',
+  'token needs the repo scope (and read:org for private orgs). gr reads the token each time it runs;',
+  'it is not copied into config.json.',
 ];
 
-// GitHub access: gh when it is installed, otherwise (or by choice) a personal access token.
-async function configureGitHub(current: GitHubConfig | undefined): Promise<GitHubConfig | undefined> {
-  const ghInstalled = !spawnSync('gh', ['--version'], { encoding: 'utf8' }).error;
-  if (ghInstalled && !current) return undefined;
-
-  const options: { value: GitHubChoice; label: string }[] = [
-    { value: 'env', label: 'Personal access token in an environment variable' },
-    { value: 'file', label: 'Personal access token in a file' },
-    { value: 'gh', label: ghInstalled ? 'GitHub CLI (gh): uses your gh login' : 'I will install the GitHub CLI (gh) instead' },
-  ];
-  if (ghInstalled) {
-    process.stdout.write('\nGitHub access: your config uses a personal access token, and the GitHub CLI (gh) is also installed.\n');
-  } else {
-    process.stdout.write(
-      [
-        '',
-        'GitHub access: gr reads PRs and posts reviews through GitHub, and the GitHub CLI (gh) is not installed.',
-        'You can choose between:',
-        '  - installing gh (https://cli.github.com) and signing in with `gh auth login`; nothing else to set here, or',
-        `  - ${TOKEN_HELP[0].replace(/^A/, 'a')}`,
-        ...TOKEN_HELP.slice(1).map((l) => `  ${l}`),
-        '',
-      ].join('\n'),
-    );
-  }
-  const currentChoice: GitHubChoice = current?.tokenFile ? 'file' : current?.tokenEnv ? 'env' : ghInstalled ? 'gh' : 'env';
-  const choice = await choose('How should gr access GitHub?', options, currentChoice);
-  if (choice === 'gh') {
-    if (!ghInstalled) process.stdout.write('  Install gh from https://cli.github.com and run `gh auth login` before reviewing.\n');
-    return undefined;
-  }
-
-  const github: GitHubConfig = {};
-  if (choice === 'env') {
-    const name = await askRequired('Environment variable that holds the token', current?.tokenEnv ?? 'GITHUB_TOKEN', (v) =>
-      /^[A-Za-z_][A-Za-z0-9_]*$/.test(v.replace(/^\$/, '')) ? undefined : 'not a valid variable name',
-    );
-    github.tokenEnv = name.replace(/^\$/, '');
-    if (!process.env[github.tokenEnv]) process.stdout.write(`  Note: $${github.tokenEnv} is not set in this shell. Set it before running gr.\n`);
-  } else {
-    github.tokenFile = await askRequired('Path to the file that holds the token', current?.tokenFile ?? '');
-    const file = expandHome(github.tokenFile);
-    if (!fs.existsSync(file)) process.stdout.write(`  Note: ${github.tokenFile} does not exist yet. Save the token there before running gr.\n`);
-    else if (process.platform !== 'win32' && fs.statSync(file).mode & 0o077) {
-      process.stdout.write(`  Note: other users can read ${github.tokenFile}. Consider chmod 600 ${github.tokenFile}.\n`);
-    }
-  }
-
-  const apiUrl = await askRequired('GitHub API URL (change it for GitHub Enterprise Server, e.g. https://github.example.com/api/v3)', current?.apiUrl ?? DEFAULT_API_URL, githubApiUrlProblem);
-  if (apiUrl.replace(/\/+$/, '') !== DEFAULT_API_URL) github.apiUrl = apiUrl.replace(/\/+$/, '');
-
-  await checkGitHubToken(github);
-  return github;
-}
-
 // Signs in once with the token so a typo shows up now rather than on the first review.
-async function checkGitHubToken(github: GitHubConfig): Promise<void> {
+export async function checkGitHubToken(github: GitHubConfig): Promise<{ ok: boolean; message: string }> {
   let auth;
   try {
     auth = resolveGitHubAuth(github);
-  } catch {
-    return; // missing variable or file: already noted above
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
   }
-  if (!auth) return;
+  if (!auth) return { ok: false, message: 'no token found' };
   try {
     const user = await restJson<{ login: string }>(auth, 'user', { signal: AbortSignal.timeout(10_000) });
-    process.stdout.write(`  Signed in to GitHub as ${user.login}.\n`);
+    return { ok: true, message: `signed in to GitHub as ${user.login}` };
   } catch (e) {
-    process.stdout.write(`  Warning: could not sign in to GitHub with this token: ${(e as Error).message}\n`);
+    return { ok: false, message: `could not sign in to GitHub with this token: ${(e as Error).message}` };
   }
 }
 
-const PROVIDER_CHOICES: { value: Provider | typeof NO_PROVIDER | 'edit'; label: string; unavailable?: string }[] = [
-  { value: 'claude-code', label: 'Claude Code: uses your Claude Code login (Claude plan)', unavailable: 'temporarily disabled because of performance issues' },
-  { value: 'anthropic', label: 'Anthropic API: API key required' },
-  { value: 'codex', label: 'Codex: uses your Codex CLI login (ChatGPT plan or API key)' },
-  { value: 'cursor', label: 'Cursor: Cursor API key required (Cursor plan)' },
-  { value: 'openai', label: 'OpenAI API: API key required' },
-  { value: 'openai-compatible', label: 'OpenAI-compatible endpoint: Ollama, vLLM, LM Studio, a proxy, ...' },
-  { value: 'bedrock', label: 'Claude on Amazon Bedrock: uses your AWS credentials' },
-  { value: 'vertex', label: 'Claude on Google Vertex AI: uses your Google Cloud credentials' },
-  { value: NO_PROVIDER, label: 'No AI model: static analysis only; AI briefings, narration, Q&A, and suggestions are off' },
-  { value: 'edit', label: 'Open config.json in your editor' },
+export type ProviderChoice = Provider | typeof NO_PROVIDER;
+
+// The API-key providers are recommended: gr calls them from its own process, while Codex starts
+// a CLI process for every call.
+export const PROVIDER_CHOICES: { value: ProviderChoice; name: string; about: string; unavailable?: string; recommended?: boolean }[] = [
+  { value: 'anthropic', name: 'Anthropic API', about: 'Claude models with an Anthropic API key. Recommended: the fastest way to run gr, with answers that stream.', recommended: true },
+  { value: 'openai', name: 'OpenAI API', about: 'OpenAI models with an OpenAI API key. Recommended: the fastest way to run gr, with answers that stream.', recommended: true },
+  { value: 'cursor', name: 'Cursor', about: "Cursor's models with a Cursor API key (Cursor plan). Recommended: gr calls Cursor's models directly from its own process.", recommended: true },
+  { value: 'codex', name: 'Codex', about: 'Uses your Codex CLI login (ChatGPT plan or API key). Slower than an API key: every request starts a Codex process.' },
+  { value: 'openai-compatible', name: 'OpenAI-compatible endpoint', about: 'Ollama, vLLM, LM Studio, a proxy, or any Chat Completions server.' },
+  { value: 'bedrock', name: 'Claude on Amazon Bedrock', about: 'Uses your AWS credentials.' },
+  { value: 'vertex', name: 'Claude on Google Vertex AI', about: 'Uses your Google Cloud credentials.' },
+  { value: 'claude-code', name: 'Claude Code', about: 'Uses your Claude Code login (Claude plan).', unavailable: 'temporarily disabled because of performance issues' },
+  { value: NO_PROVIDER, name: 'No AI model', about: 'Static analysis only: chapters, flags, tests, and diagrams still work. AI briefings, narration, Q&A, and suggestions are off.' },
 ];
 
-const CHAPTER_ORDER_CHOICES: { value: ChapterOrderSetting; label: string }[] = [
-  { value: 'guide', label: 'Guided: follows the flow of the change, as the briefing recommends' },
-  { value: 'risk', label: 'Risk first: riskiest chapters first' },
-  { value: 'size', label: 'Small first: smallest chapters first' },
-  { value: 'file', label: 'File: one chapter per file, by path' },
-];
+export type KeySource = 'none' | 'env' | 'store';
 
-type KeySource = 'none' | 'env' | 'store';
+// What the model step of setup collects. Fields a provider doesn't use are ignored.
+export interface ModelAnswers {
+  provider: ProviderChoice;
+  fast: string; // summaries and chapter narration
+  strong: string; // Q&A
+  fastParams?: Record<string, string>; // a Cursor model's variant
+  strongParams?: Record<string, string>;
+  baseUrl: string;
+  toolCalling: boolean;
+  keySource: KeySource;
+  apiKeyEnv: string;
+  apiKey: string;
+}
 
-async function askApiKey(provider: Provider, current: AgentConfig | undefined): Promise<Pick<AgentConfig, 'apiKey' | 'apiKeyEnv'>> {
-  if (provider === 'claude-code' || provider === 'codex' || provider === 'bedrock' || provider === 'vertex') return {};
-  const defaultEnv = defaultApiKeyEnv(provider)!;
-  const options: { value: KeySource; label: string }[] = [];
-  if (provider === 'openai-compatible') options.push({ value: 'none', label: 'No key (a local server)' });
-  options.push({ value: 'env', label: 'Read it from an environment variable' });
-  options.push({ value: 'store', label: 'Save it in config.json' });
-  const currentSource: KeySource | undefined = current?.apiKey ? 'store' : current?.apiKeyEnv ? 'env' : undefined;
-  const source = await choose('How should gr get the API key?', options, currentSource ?? options[0].value);
+// Providers that take an API key from gr rather than a login or cloud credentials.
+export const takesKey = (p: ProviderChoice): boolean => p === 'anthropic' || p === 'openai' || p === 'cursor' || p === 'openai-compatible';
 
-  if (source === 'env') {
-    const name = await askRequired('Environment variable name', current?.apiKeyEnv ?? defaultEnv, (v) =>
-      /^[A-Za-z_][A-Za-z0-9_]*$/.test(v.replace(/^\$/, '')) ? undefined : 'not a valid variable name',
-    );
-    const apiKeyEnv = name.replace(/^\$/, '');
-    if (!process.env[apiKeyEnv]) process.stdout.write(`  Note: $${apiKeyEnv} is not set in this shell. Set it before running gr.\n`);
-    return { apiKeyEnv };
+// The answers to start from: the saved settings when the provider is unchanged, then what
+// detection found (a local server's models), then the presets.
+export function modelDefaults(provider: ProviderChoice, previous: AgentRouting | undefined, finding?: ProviderFinding): ModelAnswers {
+  const same = provider !== NO_PROVIDER && previous?.provider === provider ? previous : undefined;
+  const preset = provider === NO_PROVIDER ? undefined : PRESET_MODELS[provider];
+  const savedFast = same && configForRole(same, 'briefing');
+  const savedStrong = same && configForRole(same, 'qa');
+  const fast = savedFast?.model ?? preset?.fast ?? finding?.models?.[0] ?? '';
+  const strong = savedStrong?.model ?? preset?.strong ?? fast;
+  // Each variant goes with the model it came with.
+  const fastParams = savedFast?.model ? savedFast.modelParams : preset?.fastParams;
+  const strongParams = savedStrong?.model ? savedStrong.modelParams : preset?.strongParams;
+  const envName = provider === NO_PROVIDER ? undefined : defaultApiKeyEnv(provider);
+  // A key is read from a variable unless the saved config pasted one. A compatible endpoint saved
+  // without a key, or a local server found, needs none.
+  const keySource: KeySource = same?.apiKey ? 'store' : same?.apiKeyEnv ? 'env' : provider === 'openai-compatible' && (same || finding?.baseUrl) ? 'none' : 'env';
+  return {
+    provider,
+    fast,
+    strong,
+    ...(fastParams ? { fastParams } : {}),
+    ...(strongParams ? { strongParams } : {}),
+    baseUrl: same?.baseUrl ?? finding?.baseUrl ?? '',
+    toolCalling: same?.toolCalling !== false,
+    keySource,
+    apiKeyEnv: same?.apiKeyEnv ?? envName ?? '',
+    apiKey: same?.apiKey ?? '',
+  };
+}
+
+const ENV_NAME = /^\$?[A-Za-z_][A-Za-z0-9_]*$/;
+
+// A problem with an environment variable's name as typed (a leading $ is allowed), or undefined.
+function envNameProblem(value: string): string | undefined {
+  return ENV_NAME.test(value) ? undefined : 'not a valid variable name';
+}
+
+// A note when the named variable isn't set in this shell.
+function envNote(value: string, env: NodeJS.ProcessEnv): string[] {
+  const name = value.replace(/^\$/, '');
+  return name && !env[name] ? [`$${name} is not set in this shell. Set it before running gr.`] : [];
+}
+
+export function checkBaseUrlAnswer(value: string): string | undefined {
+  return value ? checkBaseUrl(value) : 'enter the API base URL, including /v1';
+}
+
+// What must be fixed before the answers can be saved, by field.
+export function modelProblems(a: ModelAnswers): Partial<Record<keyof ModelAnswers, string>> {
+  if (a.provider === NO_PROVIDER) return {};
+  const problems: Partial<Record<keyof ModelAnswers, string>> = {};
+  if (a.provider === 'openai-compatible') {
+    const problem = checkBaseUrlAnswer(a.baseUrl);
+    if (problem) problems.baseUrl = problem;
   }
-  if (source === 'store') {
-    for (;;) {
-      const keep = !!current?.apiKey;
-      const apiKey = await askSecret(keep ? 'API key (hidden; Enter keeps the saved key): ' : 'API key (hidden): ');
-      if (apiKey) return { apiKey };
-      if (keep) return { apiKey: current.apiKey };
+  if (!a.fast.trim()) problems.fast = 'a model is required';
+  if (!a.strong.trim()) problems.strong = 'a model is required';
+  const envProblem = takesKey(a.provider) && a.keySource === 'env' && envNameProblem(a.apiKeyEnv);
+  if (envProblem) problems.apiKeyEnv = envProblem;
+  if (takesKey(a.provider) && a.keySource === 'store' && !a.apiKey) problems.apiKey = 'paste your API key';
+  return problems;
+}
+
+// Things worth saying that don't stop a save, such as a key variable this shell doesn't have.
+export function modelNotes(a: ModelAnswers, env: NodeJS.ProcessEnv = process.env): string[] {
+  return takesKey(a.provider) && a.keySource === 'env' ? envNote(a.apiKeyEnv, env) : [];
+}
+
+// Whether choosing the provider can skip its details: everything it needs was found.
+export function modelReady(a: ModelAnswers, env: NodeJS.ProcessEnv = process.env): boolean {
+  return !Object.keys(modelProblems(a)).length && !modelNotes(a, env).length;
+}
+
+export type GitHubMethod = 'gh' | 'env' | 'file';
+
+export interface GitHubAnswers {
+  method: GitHubMethod;
+  tokenEnv: string;
+  tokenFile: string;
+  apiUrl: string;
+}
+
+export function githubDefaults(current: GitHubConfig | undefined, ghInstalled: boolean): GitHubAnswers {
+  return {
+    method: current?.tokenFile ? 'file' : current?.tokenEnv ? 'env' : ghInstalled ? 'gh' : 'env',
+    tokenEnv: current?.tokenEnv ?? 'GITHUB_TOKEN',
+    tokenFile: current?.tokenFile ?? '',
+    apiUrl: current?.apiUrl ?? DEFAULT_API_URL,
+  };
+}
+
+export function githubProblems(g: GitHubAnswers): Partial<Record<keyof GitHubAnswers, string>> {
+  if (g.method === 'gh') return {};
+  const problems: Partial<Record<keyof GitHubAnswers, string>> = {};
+  const envProblem = g.method === 'env' && envNameProblem(g.tokenEnv);
+  if (envProblem) problems.tokenEnv = envProblem;
+  if (g.method === 'file' && !g.tokenFile.trim()) problems.tokenFile = 'enter the path of the file that holds the token';
+  const urlProblem = githubApiUrlProblem(g.apiUrl);
+  if (urlProblem) problems.apiUrl = urlProblem;
+  return problems;
+}
+
+export function githubNotes(g: GitHubAnswers, ghInstalled: boolean, env: NodeJS.ProcessEnv = process.env): string[] {
+  if (g.method === 'gh') return ghInstalled ? ['Sign in with `gh auth login` if you have not.'] : ['Install gh from https://cli.github.com and run `gh auth login` before reviewing.'];
+  if (g.method === 'env') return envNote(g.tokenEnv, env);
+  const file = expandHome(g.tokenFile.trim());
+  if (!file) return [];
+  if (!fs.existsSync(file)) return [`${g.tokenFile} does not exist yet. Save the token there before running gr.`];
+  if (process.platform !== 'win32' && fs.statSync(file).mode & 0o077) return [`Other users can read ${g.tokenFile}. Consider chmod 600 ${g.tokenFile}.`];
+  return [];
+}
+
+// The config's "github" value; undefined means gh.
+export function githubConfig(g: GitHubAnswers): GitHubConfig | undefined {
+  if (g.method === 'gh') return undefined;
+  const github: GitHubConfig = g.method === 'env' ? { tokenEnv: g.tokenEnv.replace(/^\$/, '') } : { tokenFile: g.tokenFile.trim() };
+  const apiUrl = g.apiUrl.replace(/\/+$/, '');
+  if (apiUrl !== DEFAULT_API_URL) github.apiUrl = apiUrl;
+  return github;
+}
+
+// The model settings in use, or the ones a config with no model kept for later.
+export function previousRouting(current: UserConfig | undefined): AgentRouting | undefined {
+  return current && (agentRouting(current) ?? keptRouting(current));
+}
+
+// Role settings setup writes or carries over; any other set by hand is replaced on save.
+const KEPT_ROLE_KEYS = new Set(['model', 'modelParams', 'maxOutputTokens']);
+
+// Whether saving a provider drops per-task overrides set by hand (another provider, endpoint,
+// key, or tool calling for one task).
+export function replacesOverrides(current: UserConfig | undefined, provider: ProviderChoice): boolean {
+  const previous = previousRouting(current);
+  return provider !== NO_PROVIDER && !!previous?.roles && Object.values(previous.roles).some((r) => r && Object.keys(r).some((k) => !KEPT_ROLE_KEYS.has(k)));
+}
+
+// The config setup saves. Settings it doesn't ask about (chapter order, the diff toggles) are kept.
+export function buildConfig(current: UserConfig | undefined, model: ModelAnswers, theme: string | undefined, github: GitHubConfig | undefined): UserConfig {
+  const previous = previousRouting(current);
+  let config: UserConfig;
+  if (model.provider === NO_PROVIDER) {
+    // No model keeps the model settings, so choosing a provider again starts from them.
+    config = { ...previous, provider: NO_PROVIDER, ...(previous?.provider ? { lastProvider: previous.provider } : {}) };
+  } else {
+    const connection: Omit<AgentConfig, 'provider' | 'model'> = {};
+    if (model.provider === 'openai-compatible') {
+      connection.baseUrl = model.baseUrl;
+      if (!model.toolCalling) connection.toolCalling = false;
+    }
+    if (takesKey(model.provider) && model.keySource === 'env') connection.apiKeyEnv = model.apiKeyEnv.replace(/^\$/, '');
+    if (takesKey(model.provider) && model.keySource === 'store') connection.apiKey = model.apiKey;
+    config = presetUserConfig(model.provider, { fast: model.fast.trim(), strong: model.strong.trim(), fastParams: model.fastParams, strongParams: model.strongParams }, connection);
+    // Output caps set by hand stay while the provider does; setup doesn't ask for them.
+    if (previous?.provider === model.provider) {
+      if (previous.maxOutputTokens) config.maxOutputTokens = previous.maxOutputTokens;
+      for (const [role, settings] of Object.entries(config.roles ?? {})) {
+        const cap = previous.roles?.[role as keyof typeof previous.roles]?.maxOutputTokens;
+        if (cap) settings.maxOutputTokens = cap;
+      }
     }
   }
-  return {};
+  config.chapterOrder = current?.chapterOrder ?? DEFAULT_CHAPTER_ORDER;
+  if (current?.hideWhitespace !== undefined) config.hideWhitespace = current.hideWhitespace; // set by w during a tour
+  if (current?.splitDiff !== undefined) config.splitDiff = current.splitDiff; // set by S during a tour
+  if (theme && theme !== TERMINAL_THEME) config.theme = theme;
+  if (github) config.github = github;
+  return config;
 }
 
-async function configureProvider(provider: Provider, previous: AgentRouting | undefined): Promise<UserConfig> {
-  // Reuse the existing answers as defaults when the provider is unchanged.
-  const same = previous?.provider === provider ? previous : undefined;
-  const preset = PRESET_MODELS[provider];
-  const connection: Omit<AgentConfig, 'provider' | 'model'> = {};
+export type SetupResult = { kind: 'saved'; config: UserConfig } | { kind: 'cancelled' } | { kind: 'edit' };
 
-  if (provider === 'codex') {
-    const status = spawnSync('codex', ['login', 'status'], { encoding: 'utf8' });
-    if (status.error) process.stdout.write('  Note: the codex CLI is not on your PATH. Install it and run `codex login` before reviewing.\n');
-    else if (status.status !== 0) process.stdout.write('  Note: Codex is not logged in. Run `codex login` before reviewing.\n');
-    else process.stdout.write(`  ${(status.stdout || status.stderr).trim().split('\n').pop()}\n`);
-  }
-
-  if (provider === 'openai-compatible') {
-    connection.baseUrl = await askRequired('API base URL, including /v1', same?.baseUrl ?? '', checkBaseUrl);
-  }
-
-  process.stdout.write(`\nModels${preset ? ' (Enter accepts the default)' : ''}:\n`);
-  const fast = await askRequired('  Summaries and chapter narration', (same && configForRole(same, 'briefing').model) ?? preset?.fast ?? '');
-  const strong = await askRequired('  Q&A', (same && configForRole(same, 'qa').model) ?? preset?.strong ?? fast);
-
-  if (provider === 'openai-compatible') {
-    const tools = await askYesNo('Does the endpoint support function calling (tools)?', same?.toolCalling !== false);
-    if (!tools) connection.toolCalling = false;
-  }
-
-  Object.assign(connection, await askApiKey(provider, same));
-  return presetUserConfig(provider, { fast, strong }, connection);
-}
-
-export async function setup(opts: { edit?: boolean } = {}): Promise<void> {
+// The full-screen setup. `firstRun` is gr starting without a config: it opens with an
+// introduction, and the command that was run continues once the config is saved.
+export async function setup(opts: { edit?: boolean; firstRun?: boolean } = {}): Promise<SetupResult> {
   const file = userConfigPath();
   if (opts.edit) {
     if (!fs.existsSync(file)) saveUserConfig(defaultUserConfig());
     openInEditor(file);
     reportConfig(file);
-    return;
+    return { kind: 'edit' };
   }
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error(`gr config needs an interactive terminal; edit ${file} directly instead.`);
 
   let current: UserConfig | undefined;
+  let problem: string | undefined;
   if (fs.existsSync(file)) {
     try {
       current = loadUserConfig();
-      process.stdout.write(
-        `Current config (${file}):\n${describeUserConfig(current)
-          .map((l) => `  ${l}\n`)
-          .join('')}`,
-      );
     } catch (e) {
-      process.stdout.write(`Current config can't be used: ${(e as Error).message}\n`);
+      problem = (e as Error).message;
     }
-  } else {
-    process.stdout.write(`Let's set up a model provider. Settings are saved to ${file}.\n`);
   }
+  // A saved theme shiki doesn't have is dropped, so finishing setup can't save it again.
+  if (current?.theme && !(await isTheme(current.theme))) current = { ...current, theme: undefined };
 
-  // The model settings in use, or the ones a config with no model kept for later.
-  const previous = current && (agentRouting(current) ?? keptRouting(current));
-  const choice = await choose('Choose a model provider:', PROVIDER_CHOICES, current?.provider ?? 'codex');
-  if (choice === 'edit') {
-    await setup({ edit: true });
-    return;
+  const { runSetupWizard } = await import('./tui/SetupWizard.js');
+  const result = await runSetupWizard({ firstRun: !!opts.firstRun, current, problem, file });
+  if (result.kind === 'edit') return setup({ edit: true });
+  if (result.kind === 'cancelled') {
+    process.stdout.write('Setup cancelled. Nothing saved.\n');
+    return result;
   }
-
-  // No model keeps the model settings, so choosing a provider again starts from them.
-  const config: UserConfig =
-    choice === NO_PROVIDER ? { ...previous, provider: NO_PROVIDER, ...(previous?.provider ? { lastProvider: previous.provider } : {}) } : await configureProvider(choice, previous);
-  config.chapterOrder = await choose('Default chapter order (press f during a tour to switch):', CHAPTER_ORDER_CHOICES, current?.chapterOrder ?? DEFAULT_CHAPTER_ORDER);
-  if (current?.hideWhitespace !== undefined) config.hideWhitespace = current.hideWhitespace; // set by w during a tour
-  if (current?.splitDiff !== undefined) config.splitDiff = current.splitDiff; // set by S during a tour
-  const theme = await chooseTheme(current?.theme);
-  if (theme && theme !== TERMINAL_THEME) config.theme = theme;
-  const github = await configureGitHub(current?.github);
-  if (github) config.github = github;
-  if (choice !== NO_PROVIDER && previous?.roles && Object.values(previous.roles).some((r) => r?.provider || r?.baseUrl || r?.apiKey || r?.apiKeyEnv)) {
-    process.stdout.write('\nYour current config has per-task provider overrides; saving replaces them.\n');
-  }
-  process.stdout.write(
-    `\n${describeUserConfig(config)
-      .map((l) => `  ${l}\n`)
-      .join('')}`,
-  );
-  if (!(await askYesNo(`Save to ${file}?`, true))) {
-    process.stdout.write('Nothing saved.\n');
-    return;
-  }
-  saveUserConfig(config);
-  process.stdout.write(`Saved. Run gr config to change it, or gr config --edit to fine-tune per-task models by hand.\n`);
+  saveUserConfig(result.config);
+  process.stdout.write(`Saved ${file}. Run gr config to change it, or gr config --edit to fine-tune per-task models by hand.\n`);
+  return result;
 }
-
 function reportConfig(file: string): void {
   try {
     loadUserConfig();
