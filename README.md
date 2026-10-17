@@ -33,8 +33,7 @@ The same tour works for learning a codebase: every PR becomes a walk through rea
 
 ```sh
 npm install -g @haydenmeloche/guided-review
-gr config            # choose a model provider (or none), color theme, and GitHub access
-gr                   # pick a PR that's waiting for your review
+gr # first time launches a config walkthrugh
 ```
 
 The package installs the command under two names, `gr` and `guided-review`. If `gr` runs something else, a shell alias is shadowing it; Oh My Zsh's git plugin defines `alias gr='git remote'`. Use `guided-review`, or add `unalias gr` to your shell config after the plugin loads.
