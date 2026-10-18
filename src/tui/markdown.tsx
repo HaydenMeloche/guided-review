@@ -2,6 +2,7 @@ import { Text } from './themed.js';
 import { ROLES } from './theme.js';
 import { lexer, type Token, type Tokens } from 'marked';
 import { sanitizeTerminal } from '../util/sanitize.js';
+import { BEL, OSC } from './terminalStatus.js';
 
 // Markdown rendered as styled terminal lines. It returns lines (not one string) because
 // the screens size their sections by counting rows.
@@ -392,8 +393,7 @@ export function MdLineView(props: { line: MdLine }) {
   );
 }
 
-const OSC8 = '\u001b]8;;';
-const BEL = '\u0007';
+const OSC8 = `${OSC}8;;`;
 // The href is stripped of C0 and C1 controls: BEL, ESC, and \u009c (ST) / \u009d (OSC)
 // would otherwise end the sequence early or start a new one in some terminals.
 export const hyperlink = (text: string, href: string) => `${OSC8}${sanitizeTerminal(href)}${BEL}${text}${OSC8}${BEL}`;

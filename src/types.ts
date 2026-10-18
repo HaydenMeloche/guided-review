@@ -331,4 +331,5 @@ export interface ChecklistItem {
   confirmed?: boolean; // the reviewer's confirmation (stored separately, merged in by the UI)
 }
 
-export type ProgressFn = (step: string, done?: boolean) => void;
+// `count` carries a step's done and total items (chapters narrated), so a caller can show a percentage.
+export type ProgressFn = (step: string, done?: boolean, count?: { done: number; total: number }) => void;

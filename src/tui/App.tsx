@@ -27,6 +27,7 @@ import { githubWebHost } from '../github/auth.js';
 import { generateSuggestion } from '../agent/suggest.js';
 import { PickerScreen, keyFor, type DownloadJob, type Target as PickTarget } from './PickerScreen.js';
 import { TourIntro, type IntroLine } from './TourIntro.js';
+import { useTerminalStatus, type TerminalProgress } from './terminalStatus.js';
 
 export interface Target {
   repo: string;
@@ -78,6 +79,24 @@ function slots(limit: number) {
       else active--;
     },
   };
+}
+
+// Where the reviewer is, for the window title.
+function titleSpot(phase: Phase, hasTour: boolean, ci: number, chapterCount: number): string {
+  if (phase === 'pick') return 'reviews';
+  if (phase === 'error') return 'error';
+  if (phase === 'load' || !hasTour) return 'loading';
+  if (phase === 'briefing') return 'briefing';
+  if (phase === 'submit' || phase === 'edit') return 'submit';
+  return chapterCount ? `chapter ${Math.min(ci + 1, chapterCount)}/${chapterCount}` : 'tour';
+}
+
+// The tab's progress indicator: the tour build, then narration still running behind the briefing.
+function tabProgress(phase: Phase, narration: { done: number; total: number } | undefined): TerminalProgress {
+  if (phase === 'error') return { state: 'error' };
+  if (narration?.total) return { state: 'value', percent: (100 * narration.done) / narration.total };
+  if (phase === 'load') return { state: 'busy' };
+  return { state: 'none' };
 }
 
 function chaptersForOrder(tour: Tour, order: ChapterOrder, moves: Record<string, string>, deltaOnly: boolean): Chapter[] {
@@ -145,6 +164,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const [tour, setTour] = useState<Tour | undefined>();
   const [steps, setSteps] = useState<Step[]>([]);
   const [analyzing, setAnalyzing] = useState<string | undefined>();
+  const [narration, setNarration] = useState<{ done: number; total: number }>();
   const [error, setError] = useState('');
   const [states, setStates] = useState<States>({});
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -190,7 +210,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   );
 
   // ---------- loading ----------
-  const onProgress = useCallback((name: string, done?: boolean) => {
+  const onProgress = useCallback((name: string, done?: boolean, count?: { done: number; total: number }) => {
     setSteps((s) => {
       const base = name.replace(/ \d+\/\d+$/, '');
       const i = s.findIndex((x) => x.name.replace(/ \d+\/\d+$/, '') === base);
@@ -199,7 +219,10 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       copy[i] = { name, done: !!done };
       return copy;
     });
-    if (name.startsWith('Narrating')) setAnalyzing(done ? undefined : name);
+    if (name.startsWith('Narrating')) {
+      setAnalyzing(done ? undefined : name);
+      setNarration(done ? undefined : count);
+    }
   }, []);
 
   // Drafts written against an older head whose hunk no longer exists are flagged, not lost.
@@ -231,6 +254,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       setPhase('load');
       setPrTitle(undefined);
       setSteps([]);
+      setAnalyzing(undefined);
+      setNarration(undefined);
       setError('');
       setBanner(undefined);
       setNewHead(undefined);
@@ -290,6 +315,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         agentSessions.current = { ...final.agentSessions, ...agentSessions.current };
         setTour({ ...final, agentSessions: { ...agentSessions.current } });
         setAnalyzing(undefined);
+        setNarration(undefined);
         flagDraftsOnChangedLines(final);
         if (!shown) {
           setDeltaOnly(!!final.rereview?.newHunkIds.length);
@@ -342,6 +368,11 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     if (!tour) return [];
     return deltaOnly ? chaptersForOrder(tour, order, moves, false) : chapters;
   }, [tour, order, moves, deltaOnly, chapters]);
+
+  // The window title names the PR and where you are in it.
+  const subject = opts.preview ? `preview ${opts.preview.pr.repo}` : target ? `${target.repo}#${target.number}` : undefined;
+  const title = ['gr', phase === 'pick' ? undefined : subject, titleSpot(phase, !!tour, pos.ci, chapters.length)].filter(Boolean).join(' · ');
+  const rewriteTerminalStatus = useTerminalStatus(title, tabProgress(phase, narration));
 
   // Switch between the new or changed hunks and the whole tour, keeping the current hunk when it is in both.
   const toggleDelta = () => {
@@ -471,6 +502,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       const r = spawnSync('claude', [prompt], { stdio: 'inherit', cwd: worktree || process.cwd() });
       if (r.error) process.stderr.write(`Could not start claude: ${r.error.message}\n`);
     });
+    // claude sets its own title; put gr's back.
+    rewriteTerminalStatus();
   };
 
   const toggleView = (key: ViewSetting, value: boolean, set: (v: boolean) => void) => {
@@ -549,6 +582,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         setBanner(undefined);
         setNewHead(undefined);
         setAnalyzing(undefined);
+        setNarration(undefined);
         setPhase('pick');
       };
 

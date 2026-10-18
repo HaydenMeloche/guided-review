@@ -527,7 +527,7 @@ export async function runPipeline(opts: PipelineOptions): Promise<Tour> {
       const narratable = tour.chapters.filter((c) => NARRATED_KINDS.has(c.kind));
       const toNarrate = narratable.filter((c) => !c.narrated);
       let done = narratable.length - toNarrate.length;
-      onProgress(`Narrating chapters ${done}/${narratable.length}`, done === narratable.length);
+      onProgress(`Narrating chapters ${done}/${narratable.length}`, done === narratable.length, { done, total: narratable.length });
       // Linked to the caller's signal, and aborted on the first fatal error so the other
       // workers stop calling the model and stop touching the tour.
       const narration = new AbortController();
@@ -589,7 +589,7 @@ export async function runPipeline(opts: PipelineOptions): Promise<Tour> {
             }
             tour = { ...tour, notes, chapters: tour.chapters.map((c) => (c.id === id ? { ...c, narrated: true } : c)) };
             done++;
-            onProgress(`Narrating chapters ${done}/${narratable.length}`, done === narratable.length);
+            onProgress(`Narrating chapters ${done}/${narratable.length}`, done === narratable.length, { done, total: narratable.length });
             opts.onTour(tour);
           },
           narration,

@@ -82,6 +82,7 @@ export function runGr(box: Sandbox, args: string[], cwd = box.root): Promise<Run
 
 export interface Session {
   screen: () => string;
+  title: () => string; // the last window title gr set (OSC 0)
   press: (...keys: string[]) => void;
   type: (text: string) => void;
   waitFor: (match: string | RegExp, timeoutMs?: number) => Promise<string>;
@@ -101,6 +102,8 @@ export function startGr(box: Sandbox, args: string[], opts: { cwd: string; cols?
   const term = new xterm.Terminal({ cols, rows, allowProposedApi: true });
   const proc = pty.spawn(process.execPath, [GR, ...args], { cols, rows, cwd: opts.cwd, env: box.env });
   let lastData = Date.now();
+  let title = '';
+  term.onTitleChange((t) => (title = t));
   proc.onData((data) => {
     lastData = Date.now();
     term.write(data);
@@ -145,6 +148,7 @@ export function startGr(box: Sandbox, args: string[], opts: { cwd: string; cols?
 
   return {
     screen,
+    title: () => title,
     press: (...keys) => {
       for (const k of keys) proc.write(k);
     },

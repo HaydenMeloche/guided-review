@@ -35,6 +35,12 @@ describe('gr preview --no-agent', () => {
     expect(box.ghCalls()).toEqual(['repo view --json nameWithOwner']);
   });
 
+  it('names the preview and the current screen in the window title', async () => {
+    const gr = preview();
+    await gr.waitFor('Chapters · Guided order');
+    expect(gr.title()).toMatch(/^gr · preview .+ · briefing$/);
+  });
+
   it('walks the tour to the end and quits cleanly', async () => {
     const gr = preview();
     await gr.waitFor('Chapters · Guided order');
