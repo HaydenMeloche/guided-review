@@ -3,7 +3,7 @@ import { useInput } from 'ink';
 import { Box, Text } from './themed.js';
 import type { Chapter, ChapterOrder, Draft, DraftAnchor, ExistingThread, Hunk, ReactionContent, ReadState, ThreadComment, Tour } from '../types.js';
 import { ChecklistPanel } from './Panels.js';
-import { pad, progress, stateOf, truncate, type States } from './nav.js';
+import { firstHunk, nextPos, pad, prevPos, progress, stateOf, truncate, type States } from './nav.js';
 import { DiagramView } from './DiagramView.js';
 import { CommentEditor, type SetComposer } from './CommentEditor.js';
 import { INLINE_ROWS, inlineComposerSlot } from './AiSuggestion.js';
@@ -156,27 +156,14 @@ export function ChapterScreen(props: {
   const unchangedHunks = props.deltaOnly && chapter ? (props.allChapters?.find((c) => c.id === chapter.id)?.hunkIds.length ?? 0) - chapter.hunkIds.length : 0;
 
   // ---------- navigation ----------
-  const firstHunk = (c: number) => (chapters[c]?.collapsed ? -1 : 0);
-  // n/p never step into optional chapters (import-only changes); ]/[ and the chapter list still reach them.
-  const nextChapter = () => chapters.findIndex((c, i) => i > ci && !c.optional);
-  const prevChapter = () => chapters.findLastIndex((c, i) => i < ci && !c.optional);
+  const go = (to: { ci: number; hi: number } | undefined) => void (to && props.setPos(to.ci, to.hi));
   const next = (mark?: ReadState) => {
     if (hunk && mark) props.setState(hunk, mark);
     if (!chapter) return;
-    if (!collapsedView && hi < chapter.hunkIds.length - 1) return props.setPos(ci, hi + 1);
-    const nc = nextChapter();
-    if (nc >= 0) return props.setPos(nc, firstHunk(nc));
+    const to = nextPos(chapters, ci, hi);
+    if (to) return go(to);
     const optional = chapters.some((c) => c.optional);
     setFlash(`End of the tour.${optional ? ' Import-only changes are optional (] to open them).' : ''} Press s to review your drafts and submit.`);
-  };
-  const prev = () => {
-    if (hi > 0) return props.setPos(ci, hi - 1);
-    if (hi === 0 && chapter?.collapsed) return props.setPos(ci, -1);
-    const pci = prevChapter();
-    if (pci >= 0) {
-      const pc = chapters[pci];
-      return props.setPos(pci, pc.collapsed ? -1 : pc.hunkIds.length - 1);
-    }
   };
 
   const sel = selRange(cursor, anchor);
@@ -273,9 +260,9 @@ export function ChapterScreen(props: {
     },
     // Code
     next: () => next(collapsedView ? undefined : 'read'),
-    prev: () => prev(),
-    nextChapter: () => void (ci < chapters.length - 1 ? props.setPos(ci + 1, firstHunk(ci + 1)) : undefined),
-    prevChapter: () => void (ci > 0 ? props.setPos(ci - 1, firstHunk(ci - 1)) : undefined),
+    prev: () => go(prevPos(chapters, ci, hi)),
+    nextChapter: () => go(ci < chapters.length - 1 ? { ci: ci + 1, hi: firstHunk(chapters, ci + 1) } : undefined),
+    prevChapter: () => go(ci > 0 ? { ci: ci - 1, hi: firstHunk(chapters, ci - 1) } : undefined),
     down: () => moveCursor(1),
     up: () => moveCursor(-1),
     pageDown: () => moveCursor(10),

@@ -139,3 +139,26 @@ export function wrap(text: string, width: number): string[] {
   }
   return out;
 }
+
+// Positions are a chapter and a hunk in it; hunk -1 is a collapsed chapter's summary.
+export const firstHunk = (chapters: Chapter[], ci: number) => (chapters[ci]?.collapsed ? -1 : 0);
+
+// Where n goes: the next hunk, else the start of the next chapter; undefined at the end of the
+// tour. n and p never step into optional chapters (import-only changes); ] and [ and the chapter
+// list still reach them.
+export function nextPos(chapters: Chapter[], ci: number, hi: number): { ci: number; hi: number } | undefined {
+  const chapter = chapters[ci];
+  if (!(chapter.collapsed && hi < 0) && hi < chapter.hunkIds.length - 1) return { ci, hi: hi + 1 };
+  const nc = chapters.findIndex((c, i) => i > ci && !c.optional);
+  return nc >= 0 ? { ci: nc, hi: firstHunk(chapters, nc) } : undefined;
+}
+
+// Where p goes: the previous hunk, a collapsed chapter's summary, else the end of the previous chapter.
+export function prevPos(chapters: Chapter[], ci: number, hi: number): { ci: number; hi: number } | undefined {
+  if (hi > 0) return { ci, hi: hi - 1 };
+  if (hi === 0 && chapters[ci]?.collapsed) return { ci, hi: -1 };
+  const pci = chapters.findLastIndex((c, i) => i < ci && !c.optional);
+  if (pci < 0) return undefined;
+  const pc = chapters[pci];
+  return { ci: pci, hi: pc.collapsed ? -1 : pc.hunkIds.length - 1 };
+}
