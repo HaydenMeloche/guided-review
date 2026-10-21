@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { DiffFile, Hunk, Tour } from '../../types.js';
-import type { Fold } from '../../diff/lines.js';
+import { foldedLines, pairChangedLines, type Fold } from '../../diff/lines.js';
 import { safeReadFile } from '../../analysis/safeRead.js';
 import { fileLines, headFor, withContext } from '../../diff/context.js';
 
@@ -130,4 +130,16 @@ export function useFoldedCursor(view: HunkView, hidden: ReadonlyMap<number, Fold
     return i;
   };
   return (by: number) => setCursor((c) => visibleLine(Math.max(0, Math.min((hunk?.lines.length ?? 1) - 1, c + by)), by > 0 ? 1 : -1));
+}
+
+// Removed lines folded into the line replacing them; the cursor steps over them. Split, every
+// removed line with a replacement sits beside it, on the replacement's row.
+export function useFolds(hunk: Hunk | undefined, ignoreWhitespace: boolean, split: boolean) {
+  const partner = useMemo(() => (hunk ? pairChangedLines(hunk.lines) : []), [hunk]);
+  const hidden = useMemo(() => {
+    const folds = hunk ? foldedLines(hunk.lines, partner, ignoreWhitespace) : new Map<number, Fold>();
+    if (split && hunk) for (const [i, p] of partner.entries()) if (p >= 0 && hunk.lines[i].kind === 'del' && !folds.has(i)) folds.set(i, 'beside');
+    return folds;
+  }, [hunk, partner, ignoreWhitespace, split]);
+  return { partner, hidden };
 }

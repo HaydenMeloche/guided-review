@@ -22,6 +22,7 @@ export interface KeyCtx {
   done: boolean; // every hunk read or skipped
   split: boolean; // the diff shows split
   rereview: boolean;
+  deltaOnly: boolean; // a re-review shows only new and changed hunks
   rebase: boolean;
   theme: boolean;
 }
@@ -341,3 +342,13 @@ export function barKeys(view: View, c: KeyCtx): [string, string][] {
 
 // Every key bound anywhere, as typed: for checking the docs.
 export const boundKeys = (): string[] => [...new Set(BINDINGS.flatMap((b) => b.on.filter((k) => !named(k))))];
+
+// The key bar's right end: how to get back, and to everything else.
+export function barEnd(view: View, c: KeyCtx): [string, string][] {
+  if (view === 'tests')
+    return [
+      ['t/esc', 'back to code'],
+      ['b', 'briefing'],
+    ];
+  return [...(c.rereview ? [['D', c.deltaOnly ? 'full review' : 'changes only'] as [string, string]] : []), ['b', 'briefing'], ['h', 'all keys']];
+}

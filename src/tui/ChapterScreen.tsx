@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useInput } from 'ink';
 import { Box, Text } from './themed.js';
-import type { Chapter, ChapterOrder, DiffLine, Draft, DraftAnchor, ExistingThread, Hunk, ReactionContent, ReadState, ThreadComment, Tour } from '../types.js';
-import { MdLineView } from './markdown.js';
+import type { Chapter, ChapterOrder, Draft, DraftAnchor, ExistingThread, Hunk, ReactionContent, ReadState, ThreadComment, Tour } from '../types.js';
 import { ChecklistPanel } from './Panels.js';
-import { chapterState, ORDER_LABEL, pad, progress, stateMark, stateOf, truncate, type States } from './nav.js';
+import { pad, progress, stateOf, truncate, type States } from './nav.js';
 import { DiagramView } from './DiagramView.js';
 import { CommentEditor, type SetComposer } from './CommentEditor.js';
 import { INLINE_ROWS, inlineComposerSlot } from './AiSuggestion.js';
@@ -13,19 +12,20 @@ import { AskOverlay } from './AskOverlay.js';
 import { MIN_SPLIT_WIDTH } from './paneWidths.js';
 import { ReviewPopup } from './ReviewPopup.js';
 import type { AgentContext } from '../agent/types.js';
-import { foldedLines, pairChangedLines, type Fold } from '../diff/lines.js';
 import { KeyBar } from './KeyBar.js';
 import { initComposer, isLineAnchor, sameAnchor, type ComposerEnv, type ComposerState, type ReferenceServices } from './composer.js';
 import { generateSuggestion } from '../agent/suggest.js';
 import { clean, safe } from './chapter/text.js';
-import { draftsAt, threadAt } from './chapter/lineNotes.js';
+import { cursorNotes } from './chapter/lineNotes.js';
+import { useMentions } from './chapter/mentions.js';
+import { linkedTests } from './chapter/linkedTests.js';
 import { SourcePane } from './chapter/SourcePane.js';
 import { TestPane } from './chapter/TestPane.js';
-import { ChapterList, ChapterTitle, CollapsedSummary, DraftLine, Header } from './chapter/parts.js';
+import { ChapterList, ChapterStrip, ChapterTitle, CollapsedSummary, DraftLine, EmptyChapter, Explanation, Header, MoveList } from './chapter/parts.js';
 import { Help, HELP_HEIGHT, HELP_WIDTH } from './chapter/Help.js';
 import { anchorLines, crossesContext, describeAnchor, lineAnchor, newDraft, selectedCode, selRange, testLineAnchor } from './chapter/selection.js';
-import { CONTEXT_STEP, useFoldedCursor, useHunkView } from './chapter/hunkView.js';
-import { barKeys, keyAction, type Action, type KeyCtx, type View } from './chapter/keys.js';
+import { CONTEXT_STEP, useFoldedCursor, useFolds, useHunkView } from './chapter/hunkView.js';
+import { barEnd, barKeys, keyAction, type Action, type KeyCtx, type View } from './chapter/keys.js';
 import { explanation } from './chapter/guide.js';
 import { chapterLayout, overlaySlots, type OverlayKind } from './chapter/layout.js';
 
@@ -111,44 +111,11 @@ export function ChapterScreen(props: {
   const ev = props.references;
   // The open composer's working state (see composer.ts).
   const setComposerState: SetComposer = (f) => setOverlay((o) => (o.kind === 'comment' ? { ...o, composer: f(o.composer) } : o));
-  // The pipeline fills tour.mentionUsers only if the collaborator list arrived in time; fetch it
-  // (memoized in gh.ts) the first time an editor that offers @mentions opens.
-  const [lateMentions, setLateMentions] = useState<string[]>();
-  const wantsMentions = overlay.kind === 'comment' || overlay.kind === 'reply' || overlay.kind === 'thread';
-  useEffect(() => {
-    const load = svc?.loadMentionUsers;
-    if (!wantsMentions || !load || tour.mentionUsers !== undefined || lateMentions !== undefined) return;
-    let live = true;
-    load().then(
-      (users) => void (live && setLateMentions(users)),
-      () => undefined,
-    );
-    return () => {
-      live = false;
-    };
-  }, [wantsMentions, svc?.loadMentionUsers, tour.mentionUsers, lateMentions]);
-  const mentionUsers = tour.mentionUsers ?? lateMentions;
-  const mentions = useMemo(
-    () =>
-      [...new Set([tour.author, ...(tour.existingReviews ?? []).map((r) => r.author), ...tour.existingThreads.flatMap((t) => t.comments.map((c) => c.author)), ...(mentionUsers ?? [])])].filter(
-        (name) => name !== 'ghost',
-      ),
-    [tour.author, tour.existingReviews, tour.existingThreads, mentionUsers],
-  );
-  const relevantTests = useMemo(() => hunk?.tests.filter((t) => t.source !== 'naming') ?? [], [hunk]);
-  const selectedTest = relevantTests[testIdx];
-  const testFile = hunk?.covers?.file ?? selectedTest?.testFile;
-  const testCodeLines: DiffLine[] = useMemo(
-    () =>
-      hunk?.covers
-        ? hunk.covers.lines.map((text, i) => ({ kind: 'ctx', text, newLine: hunk.covers!.startLine + i }))
-        : selectedTest?.diffHunks?.length
-          ? selectedTest.diffHunks.flatMap((diff) => diff.lines)
-          : (selectedTest?.lines.map((text, i) => ({ kind: 'ctx', text, newLine: selectedTest.startLine + i })) ?? []),
-    [hunk, selectedTest],
-  );
+  const mentions = useMentions(tour, overlay.kind === 'comment' || overlay.kind === 'reply' || overlay.kind === 'thread', svc?.loadMentionUsers);
+  const linked = useMemo(() => linkedTests(hunk, testIdx), [hunk, testIdx]);
+  const { tests: relevantTests, selected: selectedTest, file: testFile, lines: testCodeLines } = linked;
 
-  const hasLinkedTests = !!hunk && (relevantTests.length > 0 || !!hunk.covers);
+  const hasLinkedTests = linked.any;
   const collapsedView = !!chapter && chapter.collapsed && hi < 0;
   const filesByPath = useMemo(() => new Map(tour.files.map((f) => [f.path, f])), [tour.files]);
   const plan = chapterLayout({
@@ -168,24 +135,10 @@ export function ChapterScreen(props: {
   });
   const { wide, listWidth, mainWidth, sideBySide, srcWidth, splitView, bodyHeight, askHeight } = plan;
 
-  const partner = useMemo(() => (hunk ? pairChangedLines(hunk.lines) : []), [hunk]);
-  // Removed lines folded into the line replacing them; the cursor steps over them.
-  // Split, every removed line with a replacement sits beside it, on the replacement's row.
-  const hidden = useMemo(() => {
-    const folds = hunk ? foldedLines(hunk.lines, partner, ignoreWhitespace) : new Map<number, Fold>();
-    if (splitView && hunk) for (const [i, p] of partner.entries()) if (p >= 0 && hunk.lines[i].kind === 'del' && !folds.has(i)) folds.set(i, 'beside');
-    return folds;
-  }, [hunk, partner, ignoreWhitespace, splitView]);
+  const { partner, hidden } = useFolds(hunk, ignoreWhitespace, splitView);
   const moveCursor = useFoldedCursor(view, hidden, partner);
   const cursorLine = hunk?.lines[cursor];
-  const threadsOn = (l: DiffLine | undefined) => (hunk && l ? threadAt(tour.existingThreads, hunk.file, l.kind === 'del' ? l.oldLine : l.newLine, l.kind === 'del' ? 'LEFT' : 'RIGHT') : []);
-  // Split, a removed line's threads are on the row it shares with its replacement.
-  const cursorThreads = [...threadsOn(cursorLine), ...(hidden.get(partner[cursor]) === 'beside' ? threadsOn(hunk?.lines[partner[cursor]]) : [])];
-  // Unposted drafts on the selected line, likewise; E and X act on the newest.
-  const draftsOn = (l: DiffLine | undefined) => (hunk && l ? draftsAt(props.drafts, hunk, l.kind === 'del' ? l.oldLine : l.newLine, l.kind === 'del' ? 'LEFT' : 'RIGHT').filter((d) => !d.posted) : []);
-  const cursorDraft = [...draftsOn(cursorLine), ...(hidden.get(partner[cursor]) === 'beside' ? draftsOn(hunk?.lines[partner[cursor]]) : [])]
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .at(-1);
+  const { threads: cursorThreads, draft: cursorDraft } = cursorNotes(hunk, cursor, hidden, partner, tour.existingThreads, props.drafts);
   useEffect(() => {
     setSummarySel(0);
     setShowUntested(false);
@@ -201,18 +154,6 @@ export function ChapterScreen(props: {
   // On a re-review showing only changes, the chapter list keeps the whole tour and greys what it leaves out.
   const listed = props.deltaOnly && props.allChapters ? props.allChapters : chapters;
   const unchangedHunks = props.deltaOnly && chapter ? (props.allChapters?.find((c) => c.id === chapter.id)?.hunkIds.length ?? 0) - chapter.hunkIds.length : 0;
-  const chapterStrip = useMemo(
-    () =>
-      wide
-        ? ''
-        : listed
-            .map((c) => {
-              const shown = chapters.find((d) => d.id === c.id);
-              return c.id === chapter?.id ? `[${c.title}]` : shown ? stateMark(chapterState(tour, shown, states)).mark : '·';
-            })
-            .join(' '),
-    [wide, listed, chapters, chapter?.id, tour, states],
-  );
 
   // ---------- navigation ----------
   const firstHunk = (c: number) => (chapters[c]?.collapsed ? -1 : 0);
@@ -291,6 +232,7 @@ export function ChapterScreen(props: {
     done: prog.read + prog.skipped === prog.total,
     split: splitView,
     rereview: !!tour.rereview,
+    deltaOnly: props.deltaOnly,
     rebase: !!props.rebase,
     theme: !!props.onTheme,
   };
@@ -430,32 +372,14 @@ export function ChapterScreen(props: {
   );
 
   if (!chapter) {
-    if (overlay.kind !== 'none') close(); // see overlayShown below
-    return (
-      <Box flexDirection="column">
-        <Text>{props.deltaOnly ? 'Nothing changed since your last review. Press D to show the whole tour.' : 'This PR has no changes to review.'}</Text>
-        <KeyBar
-          width={width}
-          keys={[
-            ['D', 'whole tour'],
-            ['s', 'submit'],
-            ['b', 'briefing'],
-            ...((props.back
-              ? [
-                  ['q', 'PR list'],
-                  ['Q', 'quit'],
-                ]
-              : [['q', 'quit']]) as [string, string][]),
-          ]}
-        />
-      </Box>
-    );
+    if (overlay.kind !== 'none') close(); // see slots.shown below
+    return <EmptyChapter deltaOnly={props.deltaOnly} back={!!props.back} width={width} />;
   }
 
   // Linked tests that are not beside the code (a narrow terminal, T, or a split diff) get a tab
   // saying they are there and how to open them.
   const testDrawer =
-    hasLinkedTests && !sideBySide && !testFocus && !collapsedView ? `◂ ${hunk.covers ? 'code it covers' : `${relevantTests.length} test${relevantTests.length === 1 ? '' : 's'}`}` : undefined;
+    hunk && hasLinkedTests && !sideBySide && !testFocus && !collapsedView ? `◂ ${hunk.covers ? 'code it covers' : `${relevantTests.length} test${relevantTests.length === 1 ? '' : 's'}`}` : undefined;
   // The composer sits under the commented line, growing while its AI line is open. Its state is
   // ours, so it survives moving between the inline slot and the popup.
   const slots = overlaySlots(plan, {
@@ -490,19 +414,7 @@ export function ChapterScreen(props: {
       );
     }
     if (slots.popup === 'comment') return commentEditor(mainWidth, plan.mainHeight);
-    if (slots.popup === 'move') {
-      return (
-        <Box flexDirection="column" borderStyle="round" paddingX={1}>
-          <Text bold>Move this hunk to…</Text>
-          {chapters.map((c, i) => (
-            <Text key={c.id} inverse={overlay.kind === 'move' && i === overlay.sel}>
-              {truncate(`${c.title}`, mainWidth - 6)}
-            </Text>
-          ))}
-          <Text dimColor>enter: move · esc: cancel</Text>
-        </Box>
-      );
-    }
+    if (overlay.kind === 'move') return <MoveList chapters={chapters} sel={overlay.sel} width={mainWidth} />;
     if (slots.popup === 'checklist' && chapter.checklist && svc) {
       return <ChecklistPanel items={chapter.checklist} confirms={svc.confirms} width={mainWidth} onToggle={svc.setConfirm} onClose={() => close()} />;
     }
@@ -586,11 +498,7 @@ export function ChapterScreen(props: {
           {pad(` ${props.banner}`, width)}
         </Text>
       ) : null}
-      {!wide ? (
-        <Text dimColor wrap="truncate">
-          {truncate(`${ORDER_LABEL[props.order]} order · Chapter ${ci + 1}/${chapters.length}: ${chapterStrip}`, width)}
-        </Text>
-      ) : null}
+      {!wide ? <ChapterStrip tour={tour} chapters={chapters} listed={listed} states={states} current={chapter.id} order={props.order} ci={ci} width={width} /> : null}
       <Box flexDirection="row">
         {wide ? <ChapterList tour={tour} chapters={chapters} listed={listed} states={states} current={chapter.id} width={listWidth} height={plan.mainHeight} /> : null}
         {wide ? <Box width={1} /> : null}
@@ -598,16 +506,7 @@ export function ChapterScreen(props: {
           {overlayNode ?? (
             <>
               <ChapterTitle chapter={chapter} hunk={hunk} hi={hi} isNew={!!hunk && delta.has(hunk.id)} unchanged={unchangedHunks} width={mainWidth} states={states} drawer={testDrawer} />
-              {plan.explainLines.length ? (
-                <Box flexDirection="column" flexShrink={0} borderStyle="round" borderColor={hunk?.narrationInferred ? 'gray' : 'blue'} paddingX={1} width={mainWidth}>
-                  <Text bold color={hunk?.narrationInferred ? 'gray' : 'blue'}>
-                    {collapsedView ? 'About this chapter' : 'Explanation'}
-                  </Text>
-                  {plan.explainLines.map((l, i) => (
-                    <MdLineView key={i} line={l} />
-                  ))}
-                </Box>
-              ) : null}
+              <Explanation lines={plan.explainLines} inferred={!!hunk?.narrationInferred} collapsed={collapsedView} width={mainWidth} />
               {collapsedView ? (
                 <>
                   <CollapsedSummary
@@ -708,16 +607,7 @@ export function ChapterScreen(props: {
       <KeyBar
         width={width}
         status={overlay.kind === 'none' && hunk && !testFocus ? [raw && 'raw', splitView && 'split', ignoreWhitespace && 'whitespace hidden'].filter(Boolean).join(' · ') : undefined}
-        end={
-          overlay.kind !== 'none'
-            ? []
-            : testFocus
-              ? [
-                  ['t/esc', 'back to code'],
-                  ['b', 'briefing'],
-                ]
-              : [...((tour.rereview ? [['D', props.deltaOnly ? 'full review' : 'changes only']] : []) as [string, string][]), ['b', 'briefing'], ['h', 'all keys']]
-        }
+        end={overlay.kind !== 'none' ? [] : barEnd(keyView, keyCtx)}
         keys={overlay.kind !== 'none' ? [] : barKeys(keyView, keyCtx)}
       />
     </Box>

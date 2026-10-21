@@ -1,4 +1,5 @@
 import type { DiffLine, Draft, ExistingThread, Hunk } from '../../types.js';
+import type { Fold } from '../../diff/lines.js';
 import { safe } from './text.js';
 
 export function threadAt(threads: ExistingThread[], file: string, line?: number, side: 'LEFT' | 'RIGHT' = 'RIGHT') {
@@ -70,4 +71,19 @@ function notesFor(hunk: Hunk): Map<number, string> {
 export function draftsAt(drafts: Draft[], hunk: Hunk, line?: number, side: 'LEFT' | 'RIGHT' = 'RIGHT') {
   if (line === undefined) return [];
   return drafts.filter((d) => (d.anchor.type === 'line' || d.anchor.type === 'range') && d.anchor.file === hunk.file && d.anchor.line === line && d.anchor.side === side);
+}
+
+// The review threads and the newest unposted draft on the cursor line, which E and X act on. Split,
+// a removed line shares its replacement's row, so its threads and drafts are on the cursor line too.
+export function cursorNotes(hunk: Hunk | undefined, cursor: number, hidden: ReadonlyMap<number, Fold>, partner: number[], threads: ExistingThread[], drafts: Draft[]) {
+  const side = (l: DiffLine) => [l.kind === 'del' ? l.oldLine : l.newLine, l.kind === 'del' ? 'LEFT' : 'RIGHT'] as const;
+  const lines = [hunk?.lines[cursor], hidden.get(partner[cursor]) === 'beside' ? hunk?.lines[partner[cursor]] : undefined];
+  const on = lines.flatMap((l) => (hunk && l ? [side(l)] : []));
+  return {
+    threads: on.flatMap(([line, s]) => threadAt(threads, hunk!.file, line, s)),
+    draft: on
+      .flatMap(([line, s]) => draftsAt(drafts, hunk!, line, s).filter((d) => !d.posted))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .at(-1),
+  };
 }

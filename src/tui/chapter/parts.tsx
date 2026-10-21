@@ -4,6 +4,8 @@ import type { Chapter, ChapterOrder, DiffFile, Draft, Hunk, Tour } from '../../t
 import { changedLineCount, chapterState, ORDER_LABEL, pad, progress, riskMark, stateMark, stateOf, truncate, type States } from '../nav.js';
 import { safe } from './text.js';
 import { draftsAt } from './lineNotes.js';
+import { MdLineView, type MdLine } from '../markdown.js';
+import { KeyBar } from '../KeyBar.js';
 
 const COVERAGE = {
   tested: { mark: '●', color: 'green', text: 'tested' },
@@ -175,5 +177,83 @@ export function DraftLine(props: { drafts: Draft[]; hunk?: Hunk; cursor: number;
     <Text dimColor={!here.length} wrap="truncate">
       {truncate(text, props.width)}
     </Text>
+  );
+}
+
+// Narrow terminals show the chapters as one line of state marks instead of the list.
+export const ChapterStrip = React.memo(function ChapterStrip(props: {
+  tour: Tour;
+  chapters: Chapter[];
+  listed: Chapter[];
+  states: States;
+  current: string;
+  order: ChapterOrder;
+  ci: number;
+  width: number;
+}) {
+  const { tour, chapters, states } = props;
+  const strip = props.listed
+    .map((c) => {
+      const shown = chapters.find((d) => d.id === c.id);
+      return c.id === props.current ? `[${c.title}]` : shown ? stateMark(chapterState(tour, shown, states)).mark : '·';
+    })
+    .join(' ');
+  return (
+    <Text dimColor wrap="truncate">
+      {truncate(`${ORDER_LABEL[props.order]} order · Chapter ${props.ci + 1}/${chapters.length}: ${strip}`, props.width)}
+    </Text>
+  );
+});
+
+// The explanation above the code, already cut to fit (chapterLayout).
+export function Explanation(props: { lines: MdLine[]; inferred: boolean; collapsed: boolean; width: number }) {
+  if (!props.lines.length) return null;
+  const color = props.inferred ? 'gray' : 'blue';
+  return (
+    <Box flexDirection="column" flexShrink={0} borderStyle="round" borderColor={color} paddingX={1} width={props.width}>
+      <Text bold color={color}>
+        {props.collapsed ? 'About this chapter' : 'Explanation'}
+      </Text>
+      {props.lines.map((l, i) => (
+        <MdLineView key={i} line={l} />
+      ))}
+    </Box>
+  );
+}
+
+export function MoveList(props: { chapters: Chapter[]; sel: number; width: number }) {
+  return (
+    <Box flexDirection="column" borderStyle="round" paddingX={1}>
+      <Text bold>Move this hunk to…</Text>
+      {props.chapters.map((c, i) => (
+        <Text key={c.id} inverse={i === props.sel}>
+          {truncate(`${c.title}`, props.width - 6)}
+        </Text>
+      ))}
+      <Text dimColor>enter: move · esc: cancel</Text>
+    </Box>
+  );
+}
+
+// A tour, or a re-review's changes, with nothing to show.
+export function EmptyChapter(props: { deltaOnly: boolean; back: boolean; width: number }) {
+  return (
+    <Box flexDirection="column">
+      <Text>{props.deltaOnly ? 'Nothing changed since your last review. Press D to show the whole tour.' : 'This PR has no changes to review.'}</Text>
+      <KeyBar
+        width={props.width}
+        keys={[
+          ['D', 'whole tour'],
+          ['s', 'submit'],
+          ['b', 'briefing'],
+          ...((props.back
+            ? [
+                ['q', 'PR list'],
+                ['Q', 'quit'],
+              ]
+            : [['q', 'quit']]) as [string, string][]),
+        ]}
+      />
+    </Box>
   );
 }

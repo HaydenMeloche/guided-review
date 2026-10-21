@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Key } from 'ink';
-import { barKeys, boundKeys, keyAction, KEYS, type KeyCtx } from '../src/tui/chapter/keys.js';
+import { barEnd, barKeys, boundKeys, keyAction, KEYS, type KeyCtx } from '../src/tui/chapter/keys.js';
 
 const off: KeyCtx = {
   hunk: false,
@@ -16,6 +16,7 @@ const off: KeyCtx = {
   done: false,
   split: false,
   rereview: false,
+  deltaOnly: false,
   rebase: false,
   theme: false,
 };
@@ -123,5 +124,20 @@ describe('docs', () => {
     const usage = fs.readFileSync(new URL('../docs/usage.md', import.meta.url), 'utf8');
     const missing = boundKeys().filter((k) => !aliases.has(k) && !usage.includes(`\`${k}\``));
     expect(missing).toEqual([]);
+  });
+});
+
+describe('barEnd', () => {
+  it('offers the way back from the tests, or D, b and h', () => {
+    expect(barEnd('tests', all)).toEqual([
+      ['t/esc', 'back to code'],
+      ['b', 'briefing'],
+    ]);
+    expect(barEnd('code', off)).toEqual([
+      ['b', 'briefing'],
+      ['h', 'all keys'],
+    ]);
+    expect(barEnd('collapsed', { ...off, rereview: true })[0]).toEqual(['D', 'changes only']);
+    expect(barEnd('code', { ...off, rereview: true, deltaOnly: true })[0]).toEqual(['D', 'full review']);
   });
 });

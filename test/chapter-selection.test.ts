@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { Chapter, DiffLine } from '../src/types.js';
+import type { Chapter, DiffLine, ExistingThread, Hunk } from '../src/types.js';
+import { cursorNotes } from '../src/tui/chapter/lineNotes.js';
+import { linkedTests } from '../src/tui/chapter/linkedTests.js';
 import { anchorLines, crossesContext, describeAnchor, lineAnchor, newDraft, selectedCode, selRange, testLineAnchor } from '../src/tui/chapter/selection.js';
 import { diffLines, hunk } from './fixtures/tour.js';
 
@@ -104,5 +106,61 @@ describe('newDraft and describeAnchor', () => {
     expect(describeAnchor({ type: 'chapter', chapterId: 'gone' }, [chapter])).toBe('flow "gone"');
     expect(describeAnchor({ type: 'node', chapterId: 'c1', nodeId: 'n1' }, [chapter], chapter)).toBe('diagram node "createInvoice"');
     expect(describeAnchor({ type: 'node', chapterId: 'c1', nodeId: 'n9' }, [chapter], chapter)).toBe('diagram node "n9"');
+  });
+});
+
+describe('cursorNotes', () => {
+  const h = hunk('h3', 'src/c.ts', diffLines([' a', '-old', '+new'], 1));
+  const thread = (line: number, side: 'LEFT' | 'RIGHT') =>
+    ({ id: `t${line}${side}`, path: 'src/c.ts', line: side === 'RIGHT' ? line : undefined, originalLine: line, isOutdated: side === 'LEFT', comments: [] }) as unknown as ExistingThread;
+  const draft = (line: number, side: 'LEFT' | 'RIGHT', createdAt: string, posted = false) => ({
+    ...newDraft({ repo: 'r', pr: 1, headSha: 's' }, { type: 'line', hunkId: 'h3', file: 'src/c.ts', line, side }),
+    createdAt,
+    posted,
+  });
+  const threads = [thread(2, 'LEFT'), thread(2, 'RIGHT')];
+  const drafts = [draft(2, 'RIGHT', '2026-01-02'), draft(2, 'LEFT', '2026-01-03'), draft(2, 'RIGHT', '2026-01-04', true)];
+  const partner = [-1, 2, 1];
+
+  it('finds the notes on the cursor line’s side', () => {
+    const inline = cursorNotes(h, 2, new Map(), partner, threads, drafts);
+    expect(inline.threads.map((t) => t.id)).toEqual(['t2RIGHT']);
+    expect(inline.draft?.createdAt).toBe('2026-01-02');
+  });
+
+  it('split, counts the removed line beside the cursor, newest unposted draft last', () => {
+    const split = cursorNotes(h, 2, new Map([[1, 'beside' as const]]), partner, threads, drafts);
+    expect(split.threads.map((t) => t.id)).toEqual(['t2RIGHT', 't2LEFT']);
+    expect(split.draft?.createdAt).toBe('2026-01-03');
+  });
+
+  it('has nothing without a hunk', () => {
+    expect(cursorNotes(undefined, 0, new Map(), [], threads, drafts)).toEqual({ threads: [], draft: undefined });
+  });
+});
+
+describe('linkedTests', () => {
+  it('leaves name guesses out and shows the selected test’s lines', () => {
+    const tests = [
+      { testFile: 'a.test.ts', testName: 'guess', source: 'naming', startLine: 1, lines: ['x'], confidence: 0.2 },
+      { testFile: 'b.test.ts', testName: 'real', source: 'coverage', startLine: 10, lines: ['it()', 'expect()'], confidence: 0.9 },
+    ] as unknown as Hunk['tests'];
+    const linked = linkedTests(hunk('h4', 'src/d.ts', diffLines(['+x']), { tests }), 0);
+    expect(linked.tests.map((t) => t.testName)).toEqual(['real']);
+    expect(linked).toMatchObject({ file: 'b.test.ts', any: true });
+    expect(linked.lines).toEqual([
+      { kind: 'ctx', text: 'it()', newLine: 10 },
+      { kind: 'ctx', text: 'expect()', newLine: 11 },
+    ]);
+  });
+
+  it('shows a test hunk the code it covers', () => {
+    const linked = linkedTests(hunk('h5', 'test/d.test.ts', diffLines(['+x']), { covers: { file: 'src/d.ts', startLine: 5, lines: ['fn()'] } }), 0);
+    expect(linked).toMatchObject({ file: 'src/d.ts', any: true, lines: [{ kind: 'ctx', text: 'fn()', newLine: 5 }] });
+  });
+
+  it('has none without a hunk or links', () => {
+    expect(linkedTests(undefined, 0)).toMatchObject({ tests: [], lines: [], any: false });
+    expect(linkedTests(hunk('h6', 'src/e.ts', diffLines(['+x'])), 0).any).toBe(false);
   });
 });
