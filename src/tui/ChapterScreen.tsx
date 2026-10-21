@@ -26,6 +26,7 @@ import { SourcePane } from './chapter/SourcePane.js';
 import { TestPane } from './chapter/TestPane.js';
 import { ChapterList, ChapterTitle, CollapsedSummary, DraftLine, Header } from './chapter/parts.js';
 import { Help, HELP_ROWS, HELP_WIDTH } from './chapter/Help.js';
+import { anchorLines, crossesContext, describeAnchor, lineAnchor, newDraft, selectedCode, selRange, testLineAnchor } from './chapter/selection.js';
 import { guideLines, noTestHint, type GuideLine } from './chapter/guide.js';
 
 export { KeyBar };
@@ -331,58 +332,9 @@ export function ChapterScreen(props: {
     setExpand({ id: diffHunk.id, above: after.above, below: after.below });
   };
 
-  const selRange = (): [number, number] => {
-    if (anchor === null) return [cursor, cursor];
-    return [Math.min(anchor, cursor), Math.max(anchor, cursor)];
-  };
-
-  const newDraft = (a: DraftAnchor): Draft => ({
-    id: `d_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-    repo: tour.repo,
-    pr: tour.pr,
-    headSha: tour.headSha,
-    anchor: a,
-    label: 'question',
-    body: '',
-    posted: false,
-    createdAt: new Date().toISOString(),
-  });
-
-  // The selected lines a comment can attach to: expanded context at the ends is left out.
-  const anchorLines = (h: Hunk): DiffLine[] => {
-    const [a, b] = selRange();
-    return h.lines.slice(a, b + 1).filter((l) => !l.expanded);
-  };
-  // A selection with expanded context between commentable lines spans two of GitHub's hunks,
-  // which GitHub will not take one comment across.
-  const crossesContext = (h: Hunk): boolean => {
-    const [a, b] = selRange();
-    const sel = h.lines.slice(a, b + 1);
-    const first = sel.findIndex((l) => !l.expanded);
-    const last = sel.findLastIndex((l) => !l.expanded);
-    return first >= 0 && sel.slice(first, last + 1).some((l) => l.expanded);
-  };
-  // The code under the selection, prefilled as a suggestion: exactly the lines it replaces.
-  const selectedCode = (): string | undefined =>
-    testFocus
-      ? testCodeLines[testCursor]?.text
-      : hunk
-        ? anchorLines(hunk)
-            .filter((l) => l.kind !== 'del')
-            .map((l) => l.text)
-            .join('\n')
-        : undefined;
-
-  const lineAnchor = (h: Hunk): DraftAnchor | undefined => {
-    const lines = anchorLines(h);
-    const right = lines.filter((l) => l.newLine !== undefined && l.kind !== 'del');
-    const side: 'LEFT' | 'RIGHT' = right.length ? 'RIGHT' : 'LEFT';
-    const nums = side === 'RIGHT' ? right.map((l) => l.newLine!) : lines.map((l) => l.oldLine!).filter((n) => n !== undefined);
-    if (!nums.length) return undefined;
-    const start = Math.min(...nums);
-    const end = Math.max(...nums);
-    return start === end ? { type: 'line', hunkId: h.id, file: h.file, line: end, side } : { type: 'range', hunkId: h.id, file: h.file, startLine: start, line: end, side };
-  };
+  const sel = selRange(cursor, anchor);
+  const draft = (a: DraftAnchor) => newDraft(tour, a);
+  const describe = (d: Draft) => describeAnchor(d.anchor, chapters, chapter);
 
   const saveDraft = (d: Draft) => {
     const edited = props.drafts.some((x) => x.id === d.id);
@@ -391,14 +343,6 @@ export function ChapterScreen(props: {
     setOverlay('none');
     setComposer(undefined);
     setFlash(`Draft ${edited ? 'updated' : 'saved'} (${d.label}). Nothing posts until you submit.`);
-  };
-
-  const describeAnchor = (d: Draft): string => {
-    const a = d.anchor;
-    if (a.type === 'line') return `${a.file}:${a.line}`;
-    if (a.type === 'range') return `${a.file}:${a.startLine}-${a.line}`;
-    if (a.type === 'chapter') return `flow "${chapters.find((c) => c.id === a.chapterId)?.title ?? a.chapterId}"`;
-    return `diagram node "${chapter?.diagram?.nodes.find((n) => n.id === a.nodeId)?.label ?? a.nodeId}"`;
   };
 
   // ---------- references: composer, recent locations ----------
@@ -450,15 +394,9 @@ export function ChapterScreen(props: {
           return setTestIdx((i) => (n ? (i + (input === 'p' ? n - 1 : 1)) % n : 0));
         }
         if (input === 'c') {
-          const line = testCodeLines[testCursor];
-          const side = line?.kind === 'del' ? 'LEFT' : 'RIGHT';
-          const lineNo = side === 'LEFT' ? line?.oldLine : line?.newLine;
-          const target = Object.values(tour.hunks).find(
-            (candidate) =>
-              candidate.file === testFile && candidate.lines.some((l) => !l.expanded && (side === 'LEFT' ? l.kind !== 'add' && l.oldLine === lineNo : l.kind !== 'del' && l.newLine === lineNo)),
-          );
-          if (!target || lineNo === undefined || !testFile) return setFlash('This test line is outside the PR diff, so GitHub cannot attach a line comment.');
-          return openComposer(newDraft({ type: 'line', hunkId: target.id, file: testFile, line: lineNo, side }));
+          const a = testLineAnchor(tour.hunks, testFile, testCodeLines[testCursor]);
+          if (!a) return setFlash('This test line is outside the PR diff, so GitHub cannot attach a line comment.');
+          return openComposer(draft(a));
         }
         if (input === '?') return setOverlay('ask');
         if (input === 'q') return (props.back ?? props.quit)();
@@ -512,11 +450,11 @@ export function ChapterScreen(props: {
         return setTestFocus(true);
       }
       if (input === 'c' && hunk) {
-        if (crossesContext(hunk)) return setFlash('This range crosses dimmed lines outside the PR’s diff: GitHub can’t take one comment across them. Select one side.');
-        const a = lineAnchor(hunk);
-        if (!a && anchorLines(hunk).length === 0) return setFlash('This is context outside the PR’s diff: GitHub can’t take a comment on it.');
+        if (crossesContext(hunk, sel)) return setFlash('This range crosses dimmed lines outside the PR’s diff: GitHub can’t take one comment across them. Select one side.');
+        const a = lineAnchor(hunk, sel);
+        if (!a && anchorLines(hunk, sel).length === 0) return setFlash('This is context outside the PR’s diff: GitHub can’t take a comment on it.');
         if (!a) return setFlash('Nothing to anchor a comment to here.');
-        return openComposer(newDraft(a));
+        return openComposer(draft(a));
       }
       if (input === 'y' && hunk && props.replyToThread) {
         if (!cursorThreads.length) return setFlash('No review thread on this line. Move to a commented line and press y.');
@@ -534,7 +472,7 @@ export function ChapterScreen(props: {
         if (!cursorDraft) return setFlash('No draft on this line. Move to a line with ✎ and press X.');
         return setOverlay('delete');
       }
-      if (input === 'C' && chapter) return openComposer(newDraft({ type: 'chapter', chapterId: chapter.id }));
+      if (input === 'C' && chapter) return openComposer(draft({ type: 'chapter', chapterId: chapter.id }));
       if (input === '?') {
         if (hunk && cursorLine?.newLine !== undefined) noteRecent.current?.({ path: hunk.file, line: cursorLine.newLine, why: 'ask' });
         return collapsedView || hunk ? setOverlay('ask') : setFlash('Nothing to ask about here.');
@@ -720,7 +658,7 @@ export function ChapterScreen(props: {
             if (c >= 0) props.setPos(c, chapters[c].hunkIds.indexOf(hid));
             setOverlay('none');
           }}
-          onComment={(nodeId) => openComposer(newDraft({ type: 'node', chapterId: chapter.id, nodeId }))}
+          onComment={(nodeId) => openComposer(draft({ type: 'node', chapterId: chapter.id, nodeId }))}
         />
       );
     }
@@ -756,9 +694,9 @@ export function ChapterScreen(props: {
     return (
       <CommentEditor
         draft={pending}
-        target={safe(describeAnchor({ ...pending, anchor: a }))}
+        target={safe(describeAnchor(a, chapters, chapter))}
         hunk={isLineAnchor(a) ? tour.hunks[a.hunkId] : hunk}
-        selectedText={sameAnchor(a, pending.anchor) ? selectedCode() : undefined}
+        selectedText={sameAnchor(a, pending.anchor) ? (testFocus ? testCodeLines[testCursor]?.text : hunk ? selectedCode(hunk, sel) : undefined) : undefined}
         width={w}
         height={h}
         mentions={mentions}
@@ -780,13 +718,13 @@ export function ChapterScreen(props: {
     overlay === 'ask' ? (
       <AskOverlay
         hunk={askContext}
-        lineIdx={testFocus ? testCursor : hunk ? selRange()[0] : undefined}
-        endIdx={testFocus ? testCursor : hunk ? selRange()[1] : undefined}
+        lineIdx={testFocus ? testCursor : hunk ? sel[0] : undefined}
+        endIdx={testFocus ? testCursor : hunk ? sel[1] : undefined}
         target={
           testFocus && testFile
             ? `${testFile}:${askTestLine?.newLine ?? askTestLine?.oldLine ?? ''}`
             : hunk
-              ? `${hunk.file}:${hunk.lines[selRange()[0]]?.newLine ?? hunk.lines[selRange()[0]]?.oldLine ?? ''}`
+              ? `${hunk.file}:${hunk.lines[sel[0]]?.newLine ?? hunk.lines[sel[0]]?.oldLine ?? ''}`
               : `chapter "${chapter.title}"`
         }
         agent={props.agent}
@@ -870,14 +808,14 @@ export function ChapterScreen(props: {
                               height: threadHeight,
                             }
                           : inlineSourceComment
-                            ? { afterIdx: selRange()[1], ...inlineComposer(codeWidth - 1, bodyHeight) }
+                            ? { afterIdx: sel[1], ...inlineComposer(codeWidth - 1, bodyHeight) }
                             : askPanel && !testFocus
-                              ? { afterIdx: selRange()[1], node: askPanel, height: askHeight }
+                              ? { afterIdx: sel[1], node: askPanel, height: askHeight }
                               : undefined
                       }
                       hunk={hunk}
                       cursor={cursor}
-                      range={anchor !== null ? selRange() : null}
+                      range={anchor !== null ? sel : null}
                       raw={raw}
                       split={splitView}
                       partner={partner}
@@ -951,7 +889,7 @@ export function ChapterScreen(props: {
           {truncate(`Delete this draft? [${cursorDraft.label}] ${clean(cursorDraft.body).replace(/\s+/g, ' ')}`, width - 8)} y / n
         </Text>
       ) : (
-        <DraftLine drafts={props.drafts} hunk={hunk} cursor={cursor} flash={flash} width={width} describe={describeAnchor} />
+        <DraftLine drafts={props.drafts} hunk={hunk} cursor={cursor} flash={flash} width={width} describe={describe} />
       )}
       <KeyBar
         width={width}
