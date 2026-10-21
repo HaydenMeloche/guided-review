@@ -6,7 +6,7 @@ import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 
 export default tseslint.config(
-  { ignores: ['dist/', 'coverage/', 'node_modules/', '.scratch/', '.gr-dev/'] },
+  { ignores: ['dist/', 'coverage/', 'node_modules/', '.scratch/', '.gr-dev/', '.claude/'] },
 
   // Plain JS (bin/, eslint.config.js): syntax-level rules only.
   {
