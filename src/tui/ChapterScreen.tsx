@@ -2,19 +2,18 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useInput } from 'ink';
 import { Box, Text } from './themed.js';
 import type { Chapter, ChapterOrder, DiffFile, DiffLine, Draft, DraftAnchor, ExistingThread, Hunk, ReactionContent, ReadState, ThreadComment, Tour } from '../types.js';
-import { MdLineView, line } from './markdown.js';
+import { MdLineView } from './markdown.js';
 import { ChecklistPanel } from './Panels.js';
-import { chapterState, ORDER_LABEL, pad, progress, stateMark, stateOf, truncate, wrap, type States } from './nav.js';
+import { chapterState, ORDER_LABEL, pad, progress, stateMark, stateOf, truncate, type States } from './nav.js';
 import { DiagramView } from './DiagramView.js';
 import { CommentEditor, type SetComposer } from './CommentEditor.js';
 import { INLINE_ROWS, inlineComposerSlot } from './AiSuggestion.js';
 import { ThreadView } from './ThreadView.js';
 import { AskOverlay } from './AskOverlay.js';
-import { codePaneWidths, MIN_SPLIT_WIDTH } from './paneWidths.js';
+import { MIN_SPLIT_WIDTH } from './paneWidths.js';
 import { ReviewPopup } from './ReviewPopup.js';
 import type { AgentContext } from '../agent/types.js';
 import { foldedLines, pairChangedLines, type Fold } from '../diff/lines.js';
-import { isSpecialKind } from '../analysis/special.js';
 import { safeReadFile } from '../analysis/safeRead.js';
 import { fileLines, headFor, withContext } from '../diff/context.js';
 import { KeyBar } from './KeyBar.js';
@@ -27,13 +26,14 @@ import { TestPane } from './chapter/TestPane.js';
 import { ChapterList, ChapterTitle, CollapsedSummary, DraftLine, Header } from './chapter/parts.js';
 import { Help, HELP_ROWS, HELP_WIDTH } from './chapter/Help.js';
 import { anchorLines, crossesContext, describeAnchor, lineAnchor, newDraft, selectedCode, selRange, testLineAnchor } from './chapter/selection.js';
-import { guideLines, noTestHint, type GuideLine } from './chapter/guide.js';
+import { explanation } from './chapter/guide.js';
+import { chapterLayout, overlaySlots, type OverlayKind } from './chapter/layout.js';
 
 export { KeyBar };
 
 export type AgentCtx = AgentContext;
 
-type Overlay = 'none' | 'diagram' | 'comment' | 'thread' | 'reply' | 'ask' | 'move' | 'help' | 'checklist' | 'delete';
+type Overlay = OverlayKind;
 
 // v1.1 features that need the worktree, the repo config or the store.
 export interface Services {
@@ -181,32 +181,25 @@ export function ChapterScreen(props: {
     [hunk, selectedTest],
   );
 
-  const wide = width >= 180;
-  const roomForTests = width >= 130; // tests can sit beside the code
-  const listWidth = wide ? 32 : 0;
-  const mainWidth = width - listWidth - (wide ? 1 : 0);
   const hasLinkedTests = !!hunk && (relevantTests.length > 0 || !!hunk.covers);
-  const paneWidths = useMemo(
-    () =>
-      codePaneWidths(
-        mainWidth - 1,
-        hunk?.lines.map((line) => line.text) ?? [],
-        testCodeLines.map((line) => line.text),
-        testFocus ? 'test' : 'source',
-        wantSplit,
-      ),
-    [mainWidth, hunk, testCodeLines, testFocus, wantSplit],
-  );
-  // A split diff too narrow to read beside the tests stacks them instead: t still opens them.
-  const testsStacked = roomForTests && hasLinkedTests && !hideTests && wantSplit && paneWidths.source < MIN_SPLIT_WIDTH;
-  // While the comment's @ list is open the pane holding it takes the full width, so the list
-  // and its code preview sit side by side; the other pane comes back when the list closes.
-  const listWide = overlay === 'comment' && !!composer?.listOpen;
-  const sideBySide = roomForTests && hasLinkedTests && !hideTests && !testsStacked && !listWide;
-  // Stacked, only one pane shows at a time, so whichever is visible gets the full width.
-  const srcWidth = sideBySide ? paneWidths.source : mainWidth;
-  const testWidth = sideBySide ? paneWidths.test : mainWidth;
-  const splitView = wantSplit && !raw && srcWidth >= MIN_SPLIT_WIDTH;
+  const collapsedView = !!chapter && chapter.collapsed && hi < 0;
+  const filesByPath = useMemo(() => new Map(tour.files.map((f) => [f.path, f])), [tour.files]);
+  const plan = chapterLayout({
+    width,
+    height,
+    banner: !!props.banner,
+    hunkLines: hunk?.lines,
+    testLines: testCodeLines,
+    linkedTests: hasLinkedTests,
+    collapsedHunks: collapsedView ? chapter.hunkIds.length : undefined,
+    testFocus,
+    split: wantSplit,
+    hideTests,
+    raw,
+    listOpen: overlay === 'comment' && !!composer?.listOpen,
+    explain: (w) => (chapter ? explanation({ tour, chapter, hunk, hi, collapsed: collapsedView, files: filesByPath, confirms: svc?.confirms, linkedTests: hasLinkedTests, showUntested }, w) : []),
+  });
+  const { wide, listWidth, mainWidth, sideBySide, srcWidth, splitView, bodyHeight, askHeight } = plan;
 
   const partner = useMemo(() => (hunk ? pairChangedLines(hunk.lines) : []), [hunk]);
   // Removed lines folded into the line replacing them; the cursor steps over them.
@@ -270,10 +263,8 @@ export function ChapterScreen(props: {
     return () => clearTimeout(t);
   }, [flash]);
 
-  const collapsedView = !!chapter && chapter.collapsed && hi < 0;
   const prog = useMemo(() => progress(tour, states), [tour, states]);
   const delta = useMemo(() => new Set(tour.rereview?.newHunkIds ?? []), [tour.rereview]);
-  const filesByPath = useMemo(() => new Map(tour.files.map((f) => [f.path, f])), [tour.files]);
   // On a re-review showing only changes, the chapter list keeps the whole tour and greys what it leaves out.
   const listed = props.deltaOnly && props.allChapters ? props.allChapters : chapters;
   const unchangedHunks = props.deltaOnly && chapter ? (props.allChapters?.find((c) => c.id === chapter.id)?.hunkIds.length ?? 0) - chapter.hunkIds.length : 0;
@@ -571,7 +562,7 @@ export function ChapterScreen(props: {
       ...ask,
       ['v', selecting ? 'end range' : 'range'],
       [']/[', 'chapter'],
-      ...(showTests ? ([['t', 'tests']] as [string, string][]) : []),
+      ...(hasLinkedTests ? ([['t', 'tests']] as [string, string][]) : []),
       ...(chapter?.diagram || tour.overview ? ([['d', 'diagram']] as [string, string][]) : []),
       ['x', 'skip'],
       ['+/-', 'context'],
@@ -579,73 +570,28 @@ export function ChapterScreen(props: {
     ];
   };
 
-  // ---------- layout ----------
-  // The guide (narration and notes) sits beside the code on wide terminals and
-  // above it on narrow ones. Tests show under the guide only when a test actually
-  // exercises the hunk; a filename-only guess becomes a one-line hint.
-  const configFile = (chapter.kind === 'config' || isSpecialKind(chapter.kind)) && hunk ? filesByPath.get(hunk.file) : undefined;
-  // A narrated collapsed chapter (lockfiles) shares one narration across its hunks: show it above the file list.
-  const sharedNarration = collapsedView ? chapter.hunkIds.map((id) => tour.hunks[id]?.narration).find(Boolean) : undefined;
-  const narration = hunk?.narration ?? (collapsedView ? [sharedNarration, chapter.summary].filter(Boolean).join('\n\n') : (configFile?.summary ?? configFile?.kindReason));
-  const chapterNotes: string[] = [];
-  if (chapter.linkedHunkIds.length && hi <= 0) chapterNotes.push(`Also uses ${chapter.linkedHunkIds.length} hunk(s) shown in an earlier chapter.`);
-  if (chapter.lowConfidence) chapterNotes.push('Some flow links use naming guesses: low confidence.');
-  if (hi <= 0 && chapter.checklist?.length) {
-    const open = chapter.checklist.filter((c) => !svc?.confirms[c.id]).length;
-    if (open) chapterNotes.push(`Team checklist: ${open} item(s) to confirm (i). ${chapter.checklist.filter((c) => c.status === 'fail').length} flagged by the agent.`);
-  }
-
   // Linked tests that are not beside the code (a narrow terminal, T, or a split diff) get a tab
   // saying they are there and how to open them.
   const testDrawer =
     hasLinkedTests && !sideBySide && !testFocus && !collapsedView ? `◂ ${hunk.covers ? 'code it covers' : `${relevantTests.length} test${relevantTests.length === 1 ? '' : 's'}`}` : undefined;
-  const nameGuess = hunk?.tests.find((t) => t.source === 'naming');
-  const showTests = hasLinkedTests;
-
-  const headerRows = 1 + (props.banner ? 1 : 0) + (wide ? 0 : 1);
-  const titleRows = 2;
-  const footerRows = 3;
-  // The explanation is its own large section above the code: narration, the author's note,
-  // notes on the chapter or hunk, and the no-test hint. It takes what it needs, up to about
-  // half the screen; the code gets the rest. Tests sit beside the code only when relevant.
-  const avail = height - headerRows - titleRows - footerRows;
-  const explainW = mainWidth - 4; // border + padding
-  const hint = hunk && !showTests ? noTestHint(hunk, nameGuess?.testFile) : undefined;
-  const untestedBranches = hi <= 0 ? chapter.untestedBranches : [];
-  const testGapSummary = [hint ? 'No linked test' : '', untestedBranches.length ? `${untestedBranches.length} possible untested behavior${untestedBranches.length === 1 ? '' : 's'}` : '']
-    .filter(Boolean)
-    .join(' · ');
-  const explainAll: GuideLine[] = [
-    ...guideLines(narration, !!hunk?.narrationInferred, chapterNotes, explainW, tour.mode, !!hunk),
-    ...(testGapSummary
-      ? [
-          [],
-          line(truncate(`○ ${testGapSummary} · U: ${showUntested ? 'hide' : 'details'}`, explainW), { color: 'red' }),
-          ...(showUntested
-            ? [
-                ...(hint ? wrap(safe(hint), explainW).map((t) => line(t, { dim: true })) : []),
-                ...untestedBranches.flatMap((b) => wrap(safe(`Untested: ${b}`), explainW).map((t) => line(t, { color: 'yellow' }))),
-              ]
-            : []),
-        ]
-      : []),
-  ];
-  const codeNeed = collapsedView ? Math.min(chapter.hunkIds.length, 10) : Math.min((hunk?.lines.length ?? 0) + 1, 14);
-  const explainMax = Math.max(4, Math.max(Math.floor(avail * 0.5), avail - codeNeed - 3) - 3);
-  const explainLines = explainAll.length > explainMax ? [...explainAll.slice(0, explainMax - 1), line('… more than fits: widen or heighten the terminal', { dim: true })] : explainAll;
-  const explainRows = explainLines.length ? explainLines.length + 3 : 0; // title + top/bottom border
-  const bodyHeight = Math.max(6, avail - explainRows);
-  const codeWidth = srcWidth;
   // The composer sits under the commented line, growing while its AI line is open. Its state is
   // ours, so it survives moving between the inline slot and the popup.
   const editAnchor = composer?.anchor ?? pending?.anchor;
-  const lineComment = overlay === 'comment' && pending && editAnchor && isLineAnchor(editAnchor);
-  const inlineSourceComment = lineComment && !testFocus;
-  const inlineTestComment = lineComment && testFocus;
-  const threadHeight = Math.min(Math.max(6, bodyHeight - 2), Math.max(8, Math.floor(bodyHeight * 0.7)));
+  const slots = overlaySlots(plan, {
+    overlay,
+    testFocus,
+    threadsHere: cursorThreads.length > 0,
+    draftHere: !!cursorDraft,
+    commentOpen: !!pending && !!composer,
+    lineComment: !!pending && !!editAnchor && isLineAnchor(editAnchor),
+    checklist: !!chapter.checklist && !!svc,
+  });
+  // An open overlay owns the keyboard through its own useInput. One with nowhere to show would
+  // leave no handler active, so close it.
+  if (overlay !== 'none' && !slots.shown) setOverlay('none'); // React re-renders before committing
 
   const overlayNode = (() => {
-    if (overlay === 'diagram') {
+    if (slots.popup === 'diagram') {
       const g = chapter.diagram ?? tour.overview!;
       return (
         <DiagramView
@@ -662,8 +608,8 @@ export function ChapterScreen(props: {
         />
       );
     }
-    if (overlay === 'comment' && pending && !inlineSourceComment && !inlineTestComment) return commentEditor(mainWidth, height - headerRows - footerRows);
-    if (overlay === 'move') {
+    if (slots.popup === 'comment') return commentEditor(mainWidth, plan.mainHeight);
+    if (slots.popup === 'move') {
       return (
         <Box flexDirection="column" borderStyle="round" paddingX={1}>
           <Text bold>Move this hunk to…</Text>
@@ -676,7 +622,7 @@ export function ChapterScreen(props: {
         </Box>
       );
     }
-    if (overlay === 'checklist' && chapter.checklist && svc) {
+    if (slots.popup === 'checklist' && chapter.checklist && svc) {
       return <ChecklistPanel items={chapter.checklist} confirms={svc.confirms} width={mainWidth} onToggle={svc.setConfirm} onClose={() => setOverlay('none')} />;
     }
     return null;
@@ -711,7 +657,6 @@ export function ChapterScreen(props: {
     );
   }
 
-  const askHeight = Math.min(14, Math.max(5, bodyHeight - 2));
   const askTestLine = testCodeLines[testCursor];
   const askContext = testFocus && hunk && testFile ? { ...hunk, file: testFile, header: selectedTest?.diffHunks?.[0]?.header ?? hunk.header, lines: testCodeLines } : hunk;
   const askPanel =
@@ -729,26 +674,11 @@ export function ChapterScreen(props: {
         }
         agent={props.agent}
         aiOff={props.aiOff}
-        width={testFocus ? testWidth - (sideBySide ? 3 : 1) : hunk ? codeWidth - 1 : mainWidth}
+        width={plan.askWidth}
         height={askHeight}
         onClose={() => setOverlay('none')}
       />
     ) : null;
-
-  // An open overlay owns the keyboard through its own useInput. One that renders nothing (its
-  // hunk or thread went away) would leave no handler active, so close it. Mirrors where the
-  // JSX below mounts each overlay.
-  const sourcePaneShown = !collapsedView && !!hunk && (sideBySide || !testFocus || !showTests);
-  const testPaneShown = !collapsedView && !!hunk && (sideBySide || (testFocus && showTests));
-  const threadInline = (overlay === 'thread' || overlay === 'reply') && cursorThreads.length > 0;
-  const overlayShown =
-    overlay === 'help' ||
-    (overlay === 'delete' && !!cursorDraft) ||
-    overlayNode !== null ||
-    (collapsedView && !!askPanel) ||
-    (sourcePaneShown && (threadInline || !!inlineSourceComment || (!!askPanel && !testFocus))) ||
-    (testPaneShown && (!!inlineTestComment || (testFocus && overlay === 'ask')));
-  if (overlay !== 'none' && !overlayShown) setOverlay('none'); // React re-renders before committing
 
   const screen = (
     <Box flexDirection="column" width={width} height={height}>
@@ -764,40 +694,48 @@ export function ChapterScreen(props: {
         </Text>
       ) : null}
       <Box flexDirection="row">
-        {wide ? <ChapterList tour={tour} chapters={chapters} listed={listed} states={states} current={chapter.id} width={listWidth} height={height - headerRows - footerRows} /> : null}
+        {wide ? <ChapterList tour={tour} chapters={chapters} listed={listed} states={states} current={chapter.id} width={listWidth} height={plan.mainHeight} /> : null}
         {wide ? <Box width={1} /> : null}
         <Box flexDirection="column" width={mainWidth}>
           {overlayNode ?? (
             <>
               <ChapterTitle chapter={chapter} hunk={hunk} hi={hi} isNew={!!hunk && delta.has(hunk.id)} unchanged={unchangedHunks} width={mainWidth} states={states} drawer={testDrawer} />
-              {explainLines.length ? (
+              {plan.explainLines.length ? (
                 <Box flexDirection="column" flexShrink={0} borderStyle="round" borderColor={hunk?.narrationInferred ? 'gray' : 'blue'} paddingX={1} width={mainWidth}>
                   <Text bold color={hunk?.narrationInferred ? 'gray' : 'blue'}>
                     {collapsedView ? 'About this chapter' : 'Explanation'}
                   </Text>
-                  {explainLines.map((l, i) => (
+                  {plan.explainLines.map((l, i) => (
                     <MdLineView key={i} line={l} />
                   ))}
                 </Box>
               ) : null}
               {collapsedView ? (
                 <>
-                  <CollapsedSummary hunks={tour.hunks} files={filesByPath} chapter={chapter} states={states} sel={summarySel} width={mainWidth} height={bodyHeight - (askPanel ? askHeight : 0)} />
-                  {askPanel}
+                  <CollapsedSummary
+                    hunks={tour.hunks}
+                    files={filesByPath}
+                    chapter={chapter}
+                    states={states}
+                    sel={summarySel}
+                    width={mainWidth}
+                    height={bodyHeight - (slots.collapsedAsk ? askHeight : 0)}
+                  />
+                  {slots.collapsedAsk ? askPanel : null}
                 </>
               ) : hunk ? (
                 <Box flexDirection={sideBySide ? 'row' : 'column'}>
-                  {sideBySide || !testFocus || !showTests ? (
+                  {plan.sourcePaneShown ? (
                     <SourcePane
                       inline={
-                        threadInline
+                        slots.sourceInline === 'thread'
                           ? {
                               afterIdx: cursor,
                               node: (
                                 <ThreadView
                                   threads={cursorThreads}
-                                  width={codeWidth - 1}
-                                  height={threadHeight}
+                                  width={srcWidth - 1}
+                                  height={plan.threadHeight}
                                   mentions={mentions}
                                   startReply={overlay === 'reply'}
                                   onReply={props.replyToThread}
@@ -805,11 +743,11 @@ export function ChapterScreen(props: {
                                   onClose={() => setOverlay('none')}
                                 />
                               ),
-                              height: threadHeight,
+                              height: plan.threadHeight,
                             }
-                          : inlineSourceComment
-                            ? { afterIdx: sel[1], ...inlineComposer(codeWidth - 1, bodyHeight) }
-                            : askPanel && !testFocus
+                          : slots.sourceInline === 'comment'
+                            ? { afterIdx: sel[1], ...inlineComposer(srcWidth - 1, bodyHeight) }
+                            : slots.sourceInline === 'ask'
                               ? { afterIdx: sel[1], node: askPanel, height: askHeight }
                               : undefined
                       }
@@ -828,7 +766,7 @@ export function ChapterScreen(props: {
                       root={svc?.root}
                       headSha={tour.headSha}
                       baseSha={tour.baseSha}
-                      width={codeWidth}
+                      width={srcWidth}
                       height={bodyHeight}
                     />
                   ) : null}
@@ -836,7 +774,7 @@ export function ChapterScreen(props: {
                   {sideBySide ? (
                     <Box
                       flexDirection="column"
-                      width={testWidth}
+                      width={plan.testWidth}
                       flexShrink={0}
                       height={bodyHeight}
                       borderStyle="single"
@@ -857,12 +795,18 @@ export function ChapterScreen(props: {
                         scroll={testScroll}
                         setScroll={setTestScroll}
                         focused={testFocus}
-                        inline={inlineTestComment ? inlineComposer(testWidth - 3, bodyHeight - 1) : testFocus && overlay === 'ask' ? { node: askPanel, height: askHeight } : undefined}
-                        width={testWidth - 2}
-                        height={bodyHeight - 1}
+                        inline={
+                          slots.testInline === 'comment'
+                            ? inlineComposer(plan.testPane.inlineWidth, plan.testPane.height)
+                            : slots.testInline === 'ask'
+                              ? { node: askPanel, height: askHeight }
+                              : undefined
+                        }
+                        width={plan.testPane.width}
+                        height={plan.testPane.height}
                       />
                     </Box>
-                  ) : testFocus && showTests ? (
+                  ) : plan.testPaneShown ? (
                     <TestPane
                       tests={relevantTests}
                       covers={hunk.covers}
@@ -871,9 +815,15 @@ export function ChapterScreen(props: {
                       scroll={testScroll}
                       setScroll={setTestScroll}
                       focused={testFocus}
-                      inline={inlineTestComment ? inlineComposer(testWidth - 1, bodyHeight) : testFocus && overlay === 'ask' ? { node: askPanel, height: askHeight } : undefined}
-                      width={testWidth}
-                      height={bodyHeight}
+                      inline={
+                        slots.testInline === 'comment'
+                          ? inlineComposer(plan.testPane.inlineWidth, plan.testPane.height)
+                          : slots.testInline === 'ask'
+                            ? { node: askPanel, height: askHeight }
+                            : undefined
+                      }
+                      width={plan.testPane.width}
+                      height={plan.testPane.height}
                     />
                   ) : null}
                 </Box>
@@ -884,7 +834,7 @@ export function ChapterScreen(props: {
           )}
         </Box>
       </Box>
-      {overlay === 'delete' && cursorDraft ? (
+      {slots.confirmDelete && cursorDraft ? (
         <Text color="yellow" wrap="truncate">
           {truncate(`Delete this draft? [${cursorDraft.label}] ${clean(cursorDraft.body).replace(/\s+/g, ' ')}`, width - 8)} y / n
         </Text>
