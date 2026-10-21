@@ -4,9 +4,10 @@ Guided Review (`gr`) is a terminal app, built with TypeScript, Ink, and pnpm, th
 
 ## Checks
 
-Run these before you call a change done. CI runs them all.
+Run these before you call a change done. CI runs them all. `pnpm check` runs them in order and stops at the first failure.
 
 ```sh
+pnpm check          # all of the below
 pnpm lint
 pnpm format:check   # pnpm format to fix
 pnpm typecheck
