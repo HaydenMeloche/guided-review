@@ -116,6 +116,10 @@ function fail(msg: string, error?: unknown): never {
   process.exit(1);
 }
 
+// What to do about an unusable config: with a model, the problem stops gr choosing one.
+const CHOOSE_PROVIDER_HINT = 'Run `gr config` to choose a model provider (or no model), or pass --no-agent to review without one.';
+const EDIT_CONFIG_HINT = 'Run `gr config --edit` to fix it.';
+
 function reportInstall(result: SkillInstallResult, what: string, installed: string): void {
   if (result.status === 'already-installed') process.stdout.write(`${what} is already installed at ${result.path}.\n`);
   else process.stdout.write(`${result.status === 'replaced' ? 'Replaced' : 'Installed'} ${result.path}. ${installed}\n`);
@@ -164,15 +168,15 @@ async function previewInfo(cwd: string): Promise<{ pr: PRInfo; diff: string; wor
 }
 
 // The model routing for a tour, or undefined with --no-agent or when the config chooses no model.
-// Exits with a hint when the config is unusable.
-function loadAgent(noAgent: boolean): AppOptions['agent'] {
+// Exits with a hint when the config is unusable. Reads config.json unless given what it holds.
+function loadAgent(noAgent: boolean, config?: Record<string, unknown> | null): AppOptions['agent'] {
   if (noAgent) return undefined;
   let agent: AppOptions['agent'];
   try {
-    agent = agentRouting(loadUserConfig());
+    agent = agentRouting(loadUserConfig(config));
   } catch (error) {
     if (!(error instanceof UserConfigError)) throw error;
-    fail(`${error.message}.\n\n  Run \`gr config\` to choose a model provider (or no model), or pass --no-agent to review without one.`);
+    fail(`${error.message}.\n\n  ${CHOOSE_PROVIDER_HINT}`);
   }
   if (!agent) return undefined;
   try {
@@ -187,8 +191,8 @@ function loadAgent(noAgent: boolean): AppOptions['agent'] {
 }
 
 // A config with no model works like --no-agent.
-function agentOptions(): { agent: AppOptions['agent']; noAgent: boolean } {
-  const agent = loadAgent(!cli.flags.agent);
+function agentOptions(config?: Record<string, unknown> | null): { agent: AppOptions['agent']; noAgent: boolean } {
+  const agent = loadAgent(!cli.flags.agent, config);
   return { agent, noAgent: !agent };
 }
 
@@ -307,21 +311,30 @@ async function main() {
   const needsRepo = cmd === 'review' ? !!arg : !!cmd && cmd !== 'preview';
   const cwdRepoP = needsRepo && /^#?\d+$/.test((cmd === 'review' ? arg : cmd).trim()) ? currentRepo(cwd) : Promise.resolve(undefined);
 
-  const { agent, noAgent } = agentOptions();
+  // config.json, read once for the model and every setting below. A file that can't be read gets
+  // the hint the first loader to need it would give.
+  let config: Record<string, unknown> | null;
+  try {
+    config = readUserConfigFile();
+  } catch (error) {
+    if (!(error instanceof UserConfigError)) throw error;
+    fail(`${error.message}.\n\n  ${cli.flags.agent ? CHOOSE_PROVIDER_HINT : EDIT_CONFIG_HINT}`);
+  }
+  const { agent, noAgent } = agentOptions(config);
   let chapterOrder: AppOptions['chapterOrder'];
   let hideWhitespace: boolean;
   let splitDiff: boolean;
   let themeName: string | undefined;
   let codingAgent: AppOptions['codingAgent'];
   try {
-    chapterOrder = loadChapterOrder();
-    hideWhitespace = loadViewSetting('hideWhitespace');
-    splitDiff = loadViewSetting('splitDiff');
-    themeName = loadThemeSetting();
-    codingAgent = loadCodingAgent();
+    chapterOrder = loadChapterOrder(config);
+    hideWhitespace = loadViewSetting('hideWhitespace', config);
+    splitDiff = loadViewSetting('splitDiff', config);
+    themeName = loadThemeSetting(config);
+    codingAgent = loadCodingAgent(config);
   } catch (error) {
     if (!(error instanceof UserConfigError)) throw error;
-    fail(`${error.message}.\n\n  Run \`gr config --edit\` to fix it.`);
+    fail(`${error.message}.\n\n  ${EDIT_CONFIG_HINT}`);
   }
   // Loaded while the PR is resolved below. Only a name shiki doesn't have is the config's fault;
   // any other failure is reported as it is.
@@ -339,7 +352,7 @@ async function main() {
     hideWhitespace,
     splitDiff,
     saveViewSetting,
-    saveTheme: readUserConfigFile() ? saveThemeSetting : undefined,
+    saveTheme: config ? saveThemeSetting : undefined,
     codingAgent,
     noAgent,
     fresh: cli.flags.fresh,

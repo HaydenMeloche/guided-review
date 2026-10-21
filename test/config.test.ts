@@ -173,6 +173,24 @@ describe('user config', () => {
     expect(() => loadThemeSetting()).toThrow(/"theme" must be a theme name/);
   });
 
+  it('loads from a config already read instead of the file', () => {
+    const file = configFile();
+    fs.writeFileSync(file, '{"provider":"openai","chapterOrder":"size","splitDiff":false,"theme":"nord","codingAgent":"codex"}\n');
+    const raw = { provider: 'anthropic', chapterOrder: 'risk', splitDiff: true, theme: 'dracula', codingAgent: 'gemini' };
+    expect(loadUserConfig(raw).provider).toBe('anthropic');
+    expect(loadChapterOrder(raw)).toBe('risk');
+    expect(loadViewSetting('splitDiff', raw)).toBe(true);
+    expect(loadThemeSetting(raw)).toBe('dracula');
+    expect(loadCodingAgent(raw)).toEqual({ agent: 'gemini' });
+    // null is a read that found no file: defaults, without looking at the one that is there.
+    expect(() => loadUserConfig(null)).toThrow(/does not exist/);
+    expect(loadChapterOrder(null)).toBe('flow');
+    expect(loadViewSetting('splitDiff', null)).toBe(false);
+    expect(loadThemeSetting(null)).toBeUndefined();
+    expect(loadCodingAgent(null)).toEqual({ agent: 'claude' });
+    expect(() => loadThemeSetting({ theme: 7 })).toThrow(UserConfigError);
+  });
+
   it('keeps split view off by default and saves it beside the whitespace setting', () => {
     const file = configFile();
     expect(loadViewSetting('splitDiff')).toBe(false);
