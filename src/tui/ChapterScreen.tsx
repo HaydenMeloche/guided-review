@@ -22,9 +22,10 @@ import { draftsAt, threadAt } from './chapter/lineNotes.js';
 import { SourcePane } from './chapter/SourcePane.js';
 import { TestPane } from './chapter/TestPane.js';
 import { ChapterList, ChapterTitle, CollapsedSummary, DraftLine, Header } from './chapter/parts.js';
-import { Help, HELP_ROWS, HELP_WIDTH } from './chapter/Help.js';
+import { Help, HELP_HEIGHT, HELP_WIDTH } from './chapter/Help.js';
 import { anchorLines, crossesContext, describeAnchor, lineAnchor, newDraft, selectedCode, selRange, testLineAnchor } from './chapter/selection.js';
 import { CONTEXT_STEP, useFoldedCursor, useHunkView } from './chapter/hunkView.js';
+import { barKeys, keyAction, type Action, type KeyCtx, type View } from './chapter/keys.js';
 import { explanation } from './chapter/guide.js';
 import { chapterLayout, overlaySlots, type OverlayKind } from './chapter/layout.js';
 
@@ -274,123 +275,127 @@ export function ChapterScreen(props: {
   };
 
   // ---------- input ----------
+  const keyView: View = testFocus ? 'tests' : collapsedView ? 'collapsed' : 'code';
+  const keyCtx: KeyCtx = {
+    hunk: !!hunk,
+    chapter: !!chapter,
+    agent: !!props.agent,
+    selecting: anchor !== null,
+    threads: cursorThreads.length > 0,
+    reply: !!props.replyToThread,
+    draft: !!cursorDraft,
+    tests: hasLinkedTests,
+    diagram: !!(chapter?.diagram || tour.overview),
+    done: prog.read + prog.skipped === prog.total,
+    split: splitView,
+    rereview: !!tour.rereview,
+    rebase: !!props.rebase,
+    theme: !!props.onTheme,
+  };
+  const lastTestLine = Math.max(0, testCodeLines.length - 1);
+  const stepTest = (by: number) => {
+    const n = relevantTests.length;
+    setTestScroll(0);
+    setTestCursor(0);
+    setTestIdx((i) => (n ? (i + by + n) % n : 0));
+  };
+  const actions: Record<Action, () => void> = {
+    briefing: () => props.openBriefing(),
+    back: () => (props.back ?? props.quit)(),
+    quit: () => props.quit(),
+    // Tests
+    leaveTests: () => setTestFocus(false),
+    testDown: () => setTestCursor((i) => Math.min(lastTestLine, i + 1)),
+    testUp: () => setTestCursor((i) => Math.max(0, i - 1)),
+    testPageDown: () => setTestCursor((i) => Math.min(lastTestLine, i + 10)),
+    testPageUp: () => setTestCursor((i) => Math.max(0, i - 10)),
+    nextTest: () => stepTest(1),
+    prevTest: () => stepTest(-1),
+    commentTest: () => {
+      const a = testLineAnchor(tour.hunks, testFile, testCodeLines[testCursor]);
+      if (!a) return setFlash('This test line is outside the PR diff, so GitHub cannot attach a line comment.');
+      openComposer(draft(a));
+    },
+    askTest: () => show('ask'),
+    // A collapsed chapter's summary
+    summaryDown: () => setSummarySel((s) => Math.min(chapter.hunkIds.length - 1, s + 1)),
+    summaryUp: () => setSummarySel((s) => Math.max(0, s - 1)),
+    expand: () => void (chapter.hunkIds.length ? props.setPos(ci, summarySel) : undefined),
+    skipChapter: () => {
+      const ids = chapter.hunkIds;
+      for (const id of ids) if (stateOf(states, tour.hunks[id]) === 'unread') props.setState(tour.hunks[id], 'skipped');
+      setFlash(`Skipped ${ids.length} hunk(s) in "${chapter.title}".`);
+      next();
+    },
+    // Code
+    next: () => next(collapsedView ? undefined : 'read'),
+    prev: () => prev(),
+    nextChapter: () => void (ci < chapters.length - 1 ? props.setPos(ci + 1, firstHunk(ci + 1)) : undefined),
+    prevChapter: () => void (ci > 0 ? props.setPos(ci - 1, firstHunk(ci - 1)) : undefined),
+    down: () => moveCursor(1),
+    up: () => moveCursor(-1),
+    pageDown: () => moveCursor(10),
+    pageUp: () => moveCursor(-10),
+    range: () => setAnchor((a) => (a === null ? cursor : null)),
+    clearRange: () => setAnchor(null),
+    skip: () => next('skipped'),
+    defer: () => {
+      setFlash('Deferred: it stays on the submit screen as unread work.');
+      next('deferred');
+    },
+    unread: () => props.setState(hunk!, 'unread'),
+    raw: () => setRaw((r) => !r),
+    whitespace: () => (props.toggleWhitespace ? props.toggleWhitespace() : setOwnHideWhitespace((w) => !w)),
+    split: () => {
+      if (!wantSplit && srcWidth < MIN_SPLIT_WIDTH) setFlash('Split view needs a wider terminal; showing it once there is room.');
+      if (props.toggleSplit) props.toggleSplit();
+      else setOwnSplit((v) => !v);
+    },
+    testPane: () => {
+      if (!hasLinkedTests) return setFlash('No test exercises this hunk.');
+      if (props.toggleTestPane) props.toggleTestPane();
+      else setOwnHideTests((v) => !v);
+    },
+    moreContext: () => growContext(CONTEXT_STEP),
+    lessContext: () => growContext(-CONTEXT_STEP),
+    untested: () => setShowUntested((shown) => !shown),
+    focusTests: () => (hasLinkedTests ? setTestFocus(true) : setFlash('No test exercises this hunk.')),
+    comment: () => {
+      if (crossesContext(hunk!, sel)) return setFlash('This range crosses dimmed lines outside the PR’s diff: GitHub can’t take one comment across them. Select one side.');
+      const a = lineAnchor(hunk!, sel);
+      if (!a && anchorLines(hunk!, sel).length === 0) return setFlash('This is context outside the PR’s diff: GitHub can’t take a comment on it.');
+      if (!a) return setFlash('Nothing to anchor a comment to here.');
+      openComposer(draft(a));
+    },
+    reply: () => (cursorThreads.length ? show('reply') : setFlash('No review thread on this line. Move to a commented line and press y.')),
+    thread: () => (cursorThreads.length ? show('thread') : setFlash('No review thread on this line. Move to a commented line and press e.')),
+    editDraft: () => (cursorDraft ? openComposer(cursorDraft) : setFlash('No draft on this line. Move to a line with ✎ and press E.')),
+    deleteDraft: () => (cursorDraft ? show('delete') : setFlash('No draft on this line. Move to a line with ✎ and press X.')),
+    commentFlow: () => openComposer(draft({ type: 'chapter', chapterId: chapter.id })),
+    ask: () => {
+      if (hunk && cursorLine?.newLine !== undefined) noteRecent.current?.({ path: hunk.file, line: cursorLine.newLine, why: 'ask' });
+      if (collapsedView || hunk) show('ask');
+      else setFlash('Nothing to ask about here.');
+    },
+    diagram: () => (keyCtx.diagram ? show('diagram') : setFlash('No diagram for this chapter.')),
+    move: () => setOverlay({ kind: 'move', sel: ci }),
+    order: () => props.toggleOrder(),
+    delta: () => props.toggleDelta(),
+    rebase: () => props.rebase?.(),
+    openInAgent: () => props.openInAgent(hunk, chapter),
+    submit: () => props.openSubmit(),
+    help: () => show('help'),
+    checklist: () => {
+      if (!chapter?.checklist?.length) return setFlash('No team checklist applies to this chapter (.guided-review.json → checklists).');
+      if (svc) show('checklist');
+      else setFlash('The checklist opens once the checkout is ready.');
+    },
+    theme: () => props.onTheme?.(),
+  };
   useInput(
     (input, key) => {
-      if (input === 'b') return props.openBriefing();
-      if (testFocus) {
-        if (key.escape || input === 't') {
-          setTestFocus(false);
-          return;
-        }
-        if (input === 'j' || key.downArrow) return setTestCursor((i) => Math.min(Math.max(0, testCodeLines.length - 1), i + 1));
-        if (input === 'k' || key.upArrow) return setTestCursor((i) => Math.max(0, i - 1));
-        if (input === 'J' || key.pageDown) return setTestCursor((i) => Math.min(Math.max(0, testCodeLines.length - 1), i + 10));
-        if (input === 'K' || key.pageUp) return setTestCursor((i) => Math.max(0, i - 10));
-        if (input === 'n' || input === 'p' || key.tab) {
-          const n = relevantTests.length;
-          setTestScroll(0);
-          setTestCursor(0);
-          return setTestIdx((i) => (n ? (i + (input === 'p' ? n - 1 : 1)) % n : 0));
-        }
-        if (input === 'c') {
-          const a = testLineAnchor(tour.hunks, testFile, testCodeLines[testCursor]);
-          if (!a) return setFlash('This test line is outside the PR diff, so GitHub cannot attach a line comment.');
-          return openComposer(draft(a));
-        }
-        if (input === '?') return show('ask');
-        if (input === 'q') return (props.back ?? props.quit)();
-        if (input === 'Q') return props.quit();
-        return;
-      }
-      if (collapsedView) {
-        const ids = chapter.hunkIds;
-        if (input === 'j' || key.downArrow) return setSummarySel((s) => Math.min(ids.length - 1, s + 1));
-        if (input === 'k' || key.upArrow) return setSummarySel((s) => Math.max(0, s - 1));
-        if (key.return || input === 'e') return ids.length ? props.setPos(ci, summarySel) : undefined;
-        if (input === 'x') {
-          for (const id of ids) if (stateOf(states, tour.hunks[id]) === 'unread') props.setState(tour.hunks[id], 'skipped');
-          setFlash(`Skipped ${ids.length} hunk(s) in "${chapter.title}".`);
-          return next();
-        }
-      }
-      if (input === 'n') return next(collapsedView ? undefined : 'read');
-      if (input === 'p') return prev();
-      if (input === ']') return ci < chapters.length - 1 ? props.setPos(ci + 1, firstHunk(ci + 1)) : undefined;
-      if (input === '[') return ci > 0 ? props.setPos(ci - 1, firstHunk(ci - 1)) : undefined;
-      if (hunk && (input === 'j' || key.downArrow)) return moveCursor(1);
-      if (hunk && (input === 'k' || key.upArrow)) return moveCursor(-1);
-      if (hunk && (input === 'J' || key.pageDown)) return moveCursor(10);
-      if (hunk && (input === 'K' || key.pageUp)) return moveCursor(-10);
-      if (input === 'v' && hunk) return setAnchor((a) => (a === null ? cursor : null));
-      if (key.escape) return setAnchor(null);
-      if (input === 'x' && hunk) return next('skipped');
-      if (input === 'z' && hunk) {
-        setFlash('Deferred: it stays on the submit screen as unread work.');
-        return next('deferred');
-      }
-      if (input === 'u' && hunk) return props.setState(hunk, 'unread');
-      if (input === 'r' && hunk) return setRaw((r) => !r);
-      if (input === 'w') return props.toggleWhitespace ? props.toggleWhitespace() : setOwnHideWhitespace((w) => !w);
-      if (input === 'S') {
-        if (!wantSplit && srcWidth < MIN_SPLIT_WIDTH) setFlash('Split view needs a wider terminal; showing it once there is room.');
-        return props.toggleSplit ? props.toggleSplit() : setOwnSplit((v) => !v);
-      }
-      if (input === 'T') {
-        if (!hasLinkedTests) return setFlash('No test exercises this hunk.');
-        return props.toggleTestPane ? props.toggleTestPane() : setOwnHideTests((v) => !v);
-      }
-      if ((input === '+' || input === '=') && hunk) return growContext(CONTEXT_STEP);
-      if (input === '-' && hunk) return growContext(-CONTEXT_STEP);
-
-      if (input === 'U') return setShowUntested((shown) => !shown);
-      if (input === 't') {
-        const has = !!hunk && (hunk.tests.some((t) => t.source !== 'naming') || !!hunk.covers);
-        if (!has) return setFlash('No test exercises this hunk.');
-        return setTestFocus(true);
-      }
-      if (input === 'c' && hunk) {
-        if (crossesContext(hunk, sel)) return setFlash('This range crosses dimmed lines outside the PR’s diff: GitHub can’t take one comment across them. Select one side.');
-        const a = lineAnchor(hunk, sel);
-        if (!a && anchorLines(hunk, sel).length === 0) return setFlash('This is context outside the PR’s diff: GitHub can’t take a comment on it.');
-        if (!a) return setFlash('Nothing to anchor a comment to here.');
-        return openComposer(draft(a));
-      }
-      if (input === 'y' && hunk && props.replyToThread) {
-        if (!cursorThreads.length) return setFlash('No review thread on this line. Move to a commented line and press y.');
-        return show('reply');
-      }
-      if (input === 'e' && hunk) {
-        if (!cursorThreads.length) return setFlash('No review thread on this line. Move to a commented line and press e.');
-        return show('thread');
-      }
-      if (input === 'E' && hunk) {
-        if (!cursorDraft) return setFlash('No draft on this line. Move to a line with ✎ and press E.');
-        return openComposer(cursorDraft);
-      }
-      if (input === 'X' && hunk) {
-        if (!cursorDraft) return setFlash('No draft on this line. Move to a line with ✎ and press X.');
-        return show('delete');
-      }
-      if (input === 'C' && chapter) return openComposer(draft({ type: 'chapter', chapterId: chapter.id }));
-      if (input === '?') {
-        if (hunk && cursorLine?.newLine !== undefined) noteRecent.current?.({ path: hunk.file, line: cursorLine.newLine, why: 'ask' });
-        return collapsedView || hunk ? show('ask') : setFlash('Nothing to ask about here.');
-      }
-      if (input === 'd') return chapter?.diagram || tour.overview ? show('diagram') : setFlash('No diagram for this chapter.');
-      if (input === 'm' && hunk) return setOverlay({ kind: 'move', sel: ci });
-      if (input === 'f') return props.toggleOrder();
-      if (input === 'D' && tour.rereview) return props.toggleDelta();
-      if (input === 'R' && props.rebase) return props.rebase();
-      if (input === 'o') return props.openInAgent(hunk, chapter);
-      if (input === 's') return props.openSubmit();
-      if (input === 'h') return show('help');
-      if (input === 'i') {
-        if (!chapter?.checklist?.length) return setFlash('No team checklist applies to this chapter (.guided-review.json → checklists).');
-        return svc ? show('checklist') : setFlash('The checklist opens once the checkout is ready.');
-      }
-      if (input === 'L' && props.onTheme) return props.onTheme();
-      if (input === 'q') return (props.back ?? props.quit)();
-      if (input === 'Q') return props.quit();
+      const action = keyAction(keyView, keyCtx, input, key);
+      if (action) actions[action]();
     },
     { isActive: props.active !== false && overlay.kind === 'none' },
   );
@@ -446,35 +451,6 @@ export function ChapterScreen(props: {
       </Box>
     );
   }
-
-  // The key bar shows only keys that do something here, most useful first; the rest are under h.
-  const barKeys = (): [string, string][] => {
-    const ask: [string, string][] = props.agent ? [['?', 'ask']] : [];
-    if (testFocus) return [['n/p', 'test'], ['c', 'comment'], ...ask];
-    const submit: [string, string][] = prog.read + prog.skipped === prog.total ? [['s', 'submit']] : [];
-    if (collapsedView) return [...submit, ['enter', 'expand'], ['n/p', 'next/prev'], ['C', 'comment on flow'], ['x', 'skip chapter'], [']/[', 'chapter']];
-    const selecting = anchor !== null;
-    return [
-      ...submit,
-      ['n/p', 'hunk'],
-      ['c', selecting ? 'comment on range' : 'comment'],
-      ...(cursorThreads.length ? ([['e', 'thread'], ...(props.replyToThread ? [['y', 'reply']] : [])] as [string, string][]) : []),
-      ...(cursorDraft
-        ? ([
-            ['E', 'edit draft'],
-            ['X', 'delete draft'],
-          ] as [string, string][])
-        : []),
-      ...ask,
-      ['v', selecting ? 'end range' : 'range'],
-      [']/[', 'chapter'],
-      ...(hasLinkedTests ? ([['t', 'tests']] as [string, string][]) : []),
-      ...(chapter?.diagram || tour.overview ? ([['d', 'diagram']] as [string, string][]) : []),
-      ['x', 'skip'],
-      ['+/-', 'context'],
-      ['S', splitView ? 'inline' : 'split'],
-    ];
-  };
 
   // Linked tests that are not beside the code (a narrow terminal, T, or a split diff) get a tab
   // saying they are there and how to open them.
@@ -760,14 +736,14 @@ export function ChapterScreen(props: {
                 ]
               : [...((tour.rereview ? [['D', props.deltaOnly ? 'full review' : 'changes only']] : []) as [string, string][]), ['b', 'briefing'], ['h', 'all keys']]
         }
-        keys={overlay.kind !== 'none' ? [] : barKeys()}
+        keys={overlay.kind !== 'none' ? [] : barKeys(keyView, keyCtx)}
       />
     </Box>
   );
   // Help floats over the screen, which stays visible around it.
   if (overlay.kind === 'help')
     return (
-      <ReviewPopup background={screen} width={width} height={height} maxWidth={HELP_WIDTH} maxHeight={HELP_ROWS.length + 4}>
+      <ReviewPopup background={screen} width={width} height={height} maxWidth={HELP_WIDTH} maxHeight={HELP_HEIGHT}>
         {(w, h) => <Help width={w} height={h} ai={!!props.agent} />}
       </ReviewPopup>
     );
