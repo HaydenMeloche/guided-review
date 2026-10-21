@@ -46,6 +46,12 @@ export interface Services {
   loadMentionUsers?: () => Promise<string[]>;
 }
 
+// A view setting App owns and saves, or, when it passes none (tests), one the screen keeps.
+function useSetting(value: boolean | undefined, toggle: (() => void) | undefined, initial: boolean): [boolean, () => void] {
+  const [own, setOwn] = useState(initial);
+  return [value ?? own, toggle ?? (() => setOwn((v) => !v))];
+}
+
 export function ChapterScreen(props: {
   tour: Tour;
   chapters: Chapter[];
@@ -94,17 +100,14 @@ export function ChapterScreen(props: {
   const [flash, setFlash] = useState('');
   const view = useHunkView(diffHunk, tour, svc?.root, setFlash);
   const { hunk, cursor, anchor, setAnchor, scroll, setScroll, raw, setRaw, testFocus, setTestFocus, testIdx, setTestIdx, testCursor, setTestCursor, testScroll, setTestScroll, growContext } = view;
-  const [ownHideWhitespace, setOwnHideWhitespace] = useState(true);
-  const ignoreWhitespace = props.hideWhitespace ?? ownHideWhitespace;
+  const [ignoreWhitespace, toggleWhitespace] = useSetting(props.hideWhitespace, props.toggleWhitespace, true);
+  const [wantSplit, toggleSplit] = useSetting(props.splitDiff, props.toggleSplit, false);
+  const [hideTests, toggleTestPane] = useSetting(props.hideTestPane, props.toggleTestPane, false);
   const [showUntested, setShowUntested] = useState(false);
   const [overlay, setOverlay] = useState<Overlay>(NONE);
   const close = () => setOverlay(NONE);
   const show = (kind: Exclude<OverlayKind, 'none' | 'comment' | 'move'>) => setOverlay({ kind });
   const [summarySel, setSummarySel] = useState(0);
-  const [ownSplit, setOwnSplit] = useState(false);
-  const wantSplit = props.splitDiff ?? ownSplit;
-  const [ownHideTests, setOwnHideTests] = useState(false);
-  const hideTests = props.hideTestPane ?? ownHideTests;
   const ev = props.references;
   // The open composer's working state (see composer.ts).
   const setComposerState: SetComposer = (f) => setOverlay((o) => (o.kind === 'comment' ? { ...o, composer: f(o.composer) } : o));
@@ -237,7 +240,6 @@ export function ChapterScreen(props: {
 
   const sel = selRange(cursor, anchor);
   const draft = (a: DraftAnchor) => newDraft(tour, a);
-  const describe = (d: Draft) => describeAnchor(d.anchor, chapters, chapter);
 
   const saveDraft = (d: Draft) => {
     const edited = props.drafts.some((x) => x.id === d.id);
@@ -345,16 +347,14 @@ export function ChapterScreen(props: {
     },
     unread: () => props.setState(hunk!, 'unread'),
     raw: () => setRaw((r) => !r),
-    whitespace: () => (props.toggleWhitespace ? props.toggleWhitespace() : setOwnHideWhitespace((w) => !w)),
+    whitespace: toggleWhitespace,
     split: () => {
       if (!wantSplit && srcWidth < MIN_SPLIT_WIDTH) setFlash('Split view needs a wider terminal; showing it once there is room.');
-      if (props.toggleSplit) props.toggleSplit();
-      else setOwnSplit((v) => !v);
+      toggleSplit();
     },
     testPane: () => {
       if (!hasLinkedTests) return setFlash('No test exercises this hunk.');
-      if (props.toggleTestPane) props.toggleTestPane();
-      else setOwnHideTests((v) => !v);
+      toggleTestPane();
     },
     moreContext: () => growContext(CONTEXT_STEP),
     lessContext: () => growContext(-CONTEXT_STEP),
@@ -562,6 +562,22 @@ export function ChapterScreen(props: {
       />
     ) : null;
 
+  const testPane =
+    plan.testPaneShown && hunk ? (
+      <TestPane
+        tests={relevantTests}
+        covers={hunk.covers}
+        idx={testIdx}
+        cursor={testCursor}
+        scroll={testScroll}
+        setScroll={setTestScroll}
+        focused={testFocus}
+        inline={slots.testInline === 'comment' ? inlineComposer(plan.testPane.inlineWidth, plan.testPane.height) : slots.testInline === 'ask' ? { node: askPanel, height: askHeight } : undefined}
+        width={plan.testPane.width}
+        height={plan.testPane.height}
+      />
+    ) : null;
+
   const screen = (
     <Box flexDirection="column" width={width} height={height}>
       <Header tour={tour} prog={prog} order={props.order} deltaOnly={props.deltaOnly} width={width} />
@@ -669,45 +685,11 @@ export function ChapterScreen(props: {
                       <Text bold dimColor>
                         Tests
                       </Text>
-                      <TestPane
-                        tests={relevantTests}
-                        covers={hunk.covers}
-                        idx={testIdx}
-                        cursor={testCursor}
-                        scroll={testScroll}
-                        setScroll={setTestScroll}
-                        focused={testFocus}
-                        inline={
-                          slots.testInline === 'comment'
-                            ? inlineComposer(plan.testPane.inlineWidth, plan.testPane.height)
-                            : slots.testInline === 'ask'
-                              ? { node: askPanel, height: askHeight }
-                              : undefined
-                        }
-                        width={plan.testPane.width}
-                        height={plan.testPane.height}
-                      />
+                      {testPane}
                     </Box>
-                  ) : plan.testPaneShown ? (
-                    <TestPane
-                      tests={relevantTests}
-                      covers={hunk.covers}
-                      idx={testIdx}
-                      cursor={testCursor}
-                      scroll={testScroll}
-                      setScroll={setTestScroll}
-                      focused={testFocus}
-                      inline={
-                        slots.testInline === 'comment'
-                          ? inlineComposer(plan.testPane.inlineWidth, plan.testPane.height)
-                          : slots.testInline === 'ask'
-                            ? { node: askPanel, height: askHeight }
-                            : undefined
-                      }
-                      width={plan.testPane.width}
-                      height={plan.testPane.height}
-                    />
-                  ) : null}
+                  ) : (
+                    testPane
+                  )}
                 </Box>
               ) : (
                 <Text dimColor>This chapter has no hunks.</Text>
@@ -721,7 +703,7 @@ export function ChapterScreen(props: {
           {truncate(`Delete this draft? [${cursorDraft.label}] ${clean(cursorDraft.body).replace(/\s+/g, ' ')}`, width - 8)} y / n
         </Text>
       ) : (
-        <DraftLine drafts={props.drafts} hunk={hunk} cursor={cursor} flash={flash} width={width} describe={describe} />
+        <DraftLine drafts={props.drafts} hunk={hunk} cursor={cursor} flash={flash} width={width} />
       )}
       <KeyBar
         width={width}

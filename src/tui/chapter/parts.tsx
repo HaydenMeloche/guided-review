@@ -160,7 +160,7 @@ export const CollapsedSummary = React.memo(function CollapsedSummary(props: {
   );
 });
 
-export function DraftLine(props: { drafts: Draft[]; hunk?: Hunk; cursor: number; flash: string; width: number; describe: (d: Draft) => string }) {
+export function DraftLine(props: { drafts: Draft[]; hunk?: Hunk; cursor: number; flash: string; width: number }) {
   const pending = props.drafts.filter((d) => !d.posted);
   if (props.flash)
     return (
