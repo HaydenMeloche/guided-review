@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useInput } from 'ink';
 import { Box, Text } from './themed.js';
-import type { Chapter, ChapterOrder, DiffFile, DiffLine, Draft, DraftAnchor, ExistingThread, Hunk, ReactionContent, ReadState, ThreadComment, Tour } from '../types.js';
+import type { Chapter, ChapterOrder, DiffLine, Draft, DraftAnchor, ExistingThread, Hunk, ReactionContent, ReadState, ThreadComment, Tour } from '../types.js';
 import { MdLineView } from './markdown.js';
 import { ChecklistPanel } from './Panels.js';
 import { chapterState, ORDER_LABEL, pad, progress, stateMark, stateOf, truncate, type States } from './nav.js';
@@ -14,8 +14,6 @@ import { MIN_SPLIT_WIDTH } from './paneWidths.js';
 import { ReviewPopup } from './ReviewPopup.js';
 import type { AgentContext } from '../agent/types.js';
 import { foldedLines, pairChangedLines, type Fold } from '../diff/lines.js';
-import { safeReadFile } from '../analysis/safeRead.js';
-import { fileLines, headFor, withContext } from '../diff/context.js';
 import { KeyBar } from './KeyBar.js';
 import { initComposer, isLineAnchor, sameAnchor, type ComposerEnv, type ComposerState, type ReferenceServices } from './composer.js';
 import { generateSuggestion } from '../agent/suggest.js';
@@ -26,6 +24,7 @@ import { TestPane } from './chapter/TestPane.js';
 import { ChapterList, ChapterTitle, CollapsedSummary, DraftLine, Header } from './chapter/parts.js';
 import { Help, HELP_ROWS, HELP_WIDTH } from './chapter/Help.js';
 import { anchorLines, crossesContext, describeAnchor, lineAnchor, newDraft, selectedCode, selRange, testLineAnchor } from './chapter/selection.js';
+import { CONTEXT_STEP, useFoldedCursor, useHunkView } from './chapter/hunkView.js';
 import { explanation } from './chapter/guide.js';
 import { chapterLayout, overlaySlots, type OverlayKind } from './chapter/layout.js';
 
@@ -45,21 +44,6 @@ export interface Services {
   // Loads repository collaborators for @mention suggestions; absent in preview mode and tests.
   loadMentionUsers?: () => Promise<string[]>;
 }
-
-// The head's lines of a hunk's file, for expanding its context, or why there are none to show.
-function headOf(hunk: Hunk, files: DiffFile[], root?: string): { lines: string[] } | { reason: string } {
-  const file = files.find((f) => f.path === hunk.file);
-  if (!file || file.status === 'added') return { reason: 'No context to add: this file is new, so the hunk already shows all of it.' };
-  if (file.status === 'deleted') return { reason: 'No context to add: this file is deleted in the PR.' };
-  if (file.binary) return { reason: 'No context to add: this is a binary file.' };
-  if (!root) return { reason: 'Context can be expanded once the checkout is ready.' };
-  const text = safeReadFile(root, hunk.file);
-  if (text === undefined) return { reason: 'Can’t read more of this file: it is over 1 MB, or not a plain file in the checkout.' };
-  const lines = headFor(hunk, fileLines(text));
-  return lines ? { lines } : { reason: 'No context to add: the file has changed since the diff was taken.' };
-}
-
-const CONTEXT_STEP = 10; // lines + and - add or remove on each side of a hunk
 
 export function ChapterScreen(props: {
   tour: Tour;
@@ -106,38 +90,16 @@ export function ChapterScreen(props: {
   const chapter = chapters[ci];
   const diffHunk: Hunk | undefined = chapter && hi >= 0 ? tour.hunks[chapter.hunkIds[hi]] : undefined;
   const svc = props.services;
-  // Context the reader expanded around the hunk (+ and -), read from the checkout's head. Keyed
-  // on the hunk, so moving to another hunk starts it unexpanded.
-  const [expand, setExpand] = useState({ id: '', above: 0, below: 0 });
-  const headLines = useMemo(() => {
-    const head = diffHunk && expand.id === diffHunk.id ? headOf(diffHunk, tour.files, svc?.root) : undefined;
-    return head && 'lines' in head ? head.lines : undefined;
-  }, [diffHunk, tour.files, svc?.root, expand.id]);
-  const neighbours = useMemo(() => {
-    const ids = diffHunk ? (tour.files.find((f) => f.path === diffHunk.file)?.hunkIds ?? []) : [];
-    const at = diffHunk ? ids.indexOf(diffHunk.id) : -1;
-    const prev = at > 0 ? tour.hunks[ids[at - 1]] : undefined;
-    const next = at >= 0 ? tour.hunks[ids[at + 1]] : undefined;
-    return { prevEnd: prev?.lines.findLast((l) => l.newLine !== undefined)?.newLine, nextStart: next?.lines.find((l) => l.newLine !== undefined)?.newLine };
-  }, [diffHunk, tour.files, tour.hunks]);
-  // The hunk as shown: the diff's hunk plus any expanded context, with the same id and content hash.
-  const hunk = useMemo(() => (diffHunk && headLines ? withContext(diffHunk, headLines, expand.above, expand.below, neighbours).hunk : diffHunk), [diffHunk, headLines, expand, neighbours]);
-  const [cursor, setCursor] = useState(0);
-  const [anchor, setAnchor] = useState<number | null>(null);
-  const [scroll, setScroll] = useState(0);
-  const [raw, setRaw] = useState(false);
+  const [flash, setFlash] = useState('');
+  const view = useHunkView(diffHunk, tour, svc?.root, setFlash);
+  const { hunk, cursor, anchor, setAnchor, scroll, setScroll, raw, setRaw, testFocus, setTestFocus, testIdx, setTestIdx, testCursor, setTestCursor, testScroll, setTestScroll, growContext } = view;
   const [ownHideWhitespace, setOwnHideWhitespace] = useState(true);
   const ignoreWhitespace = props.hideWhitespace ?? ownHideWhitespace;
-  const [testFocus, setTestFocus] = useState(false);
-  const [testIdx, setTestIdx] = useState(0);
-  const [testCursor, setTestCursor] = useState(0);
-  const [testScroll, setTestScroll] = useState(0);
   const [showUntested, setShowUntested] = useState(false);
   const [overlay, setOverlay] = useState<Overlay>(NONE);
   const close = () => setOverlay(NONE);
   const show = (kind: Exclude<OverlayKind, 'none' | 'comment' | 'move'>) => setOverlay({ kind });
   const [summarySel, setSummarySel] = useState(0);
-  const [flash, setFlash] = useState('');
   const [ownSplit, setOwnSplit] = useState(false);
   const wantSplit = props.splitDiff ?? ownSplit;
   const [ownHideTests, setOwnHideTests] = useState(false);
@@ -210,13 +172,7 @@ export function ChapterScreen(props: {
     if (splitView && hunk) for (const [i, p] of partner.entries()) if (p >= 0 && hunk.lines[i].kind === 'del' && !folds.has(i)) folds.set(i, 'beside');
     return folds;
   }, [hunk, partner, ignoreWhitespace, splitView]);
-  const visibleLine = (i: number, dir: 1 | -1) => {
-    const n = hunk?.lines.length ?? 0;
-    for (let j = i; j >= 0 && j < n; j += dir) if (!hidden.has(j)) return j;
-    for (let j = i; j >= 0 && j < n; j -= dir) if (!hidden.has(j)) return j;
-    return i;
-  };
-  const moveCursor = (by: number) => setCursor((c) => visibleLine(Math.max(0, Math.min((hunk?.lines.length ?? 1) - 1, c + by)), by > 0 ? 1 : -1));
+  const moveCursor = useFoldedCursor(view, hidden, partner);
   const cursorLine = hunk?.lines[cursor];
   const threadsOn = (l: DiffLine | undefined) => (hunk && l ? threadAt(tour.existingThreads, hunk.file, l.kind === 'del' ? l.oldLine : l.newLine, l.kind === 'del' ? 'LEFT' : 'RIGHT') : []);
   // Split, a removed line's threads are on the row it shares with its replacement.
@@ -226,34 +182,6 @@ export function ChapterScreen(props: {
   const cursorDraft = [...draftsOn(cursorLine), ...(hidden.get(partner[cursor]) === 'beside' ? draftsOn(hunk?.lines[partner[cursor]]) : [])]
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
     .at(-1);
-  // Reset per-hunk view state when the hunk changes; the test side jumps to the matching case.
-  useEffect(() => {
-    // The first real change: not a folded line, nor a line that only changed whitespace.
-    const first = hunk
-      ? Math.max(
-          0,
-          hunk.lines.findIndex((l, i) => l.kind !== 'ctx' && !hidden.has(i) && hidden.get(partner[i]) !== 'whitespace'),
-          hunk.lines.findIndex((l, i) => l.kind !== 'ctx' && !hidden.has(i)),
-        )
-      : 0;
-    setCursor(first);
-    setAnchor(null);
-    setScroll(0);
-    setTestIdx(0);
-    setTestCursor(0);
-    setTestScroll(0);
-    setTestFocus(false);
-    setRaw(false);
-    // Keyed on the id: the hunk object is replaced as narration streams in, and folds changing
-    // are handled by the effect below, neither of which should reset the view.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hunk?.id]);
-  // Folding a line moves a cursor or range end off it onto its replacement. Updaters, so a
-  // cursor the hunk reset just placed is the one checked.
-  useEffect(() => {
-    setCursor((c) => (hidden.has(c) ? partner[c] : c));
-    setAnchor((a) => (a !== null && hidden.has(a) ? partner[a] : a));
-  }, [hidden, partner]);
   useEffect(() => {
     setSummarySel(0);
     setShowUntested(false);
@@ -304,24 +232,6 @@ export function ChapterScreen(props: {
       const pc = chapters[pci];
       return props.setPos(pci, pc.collapsed ? -1 : pc.hunkIds.length - 1);
     }
-  };
-
-  // Shows `by` more lines of context on each side of the hunk, or fewer when negative, keeping the
-  // cursor on its line.
-  const growContext = (by: number) => {
-    if (!diffHunk) return;
-    const head = headLines ? { lines: headLines } : headOf(diffHunk, tour.files, svc?.root);
-    if ('reason' in head) return setFlash(head.reason);
-    const { lines } = head;
-    const now = expand.id === diffHunk.id ? expand : { above: 0, below: 0 };
-    const before = withContext(diffHunk, lines, now.above, now.below, neighbours);
-    const after = withContext(diffHunk, lines, Math.max(0, now.above + by), Math.max(0, now.below + by), neighbours);
-    if (by > 0 && after.above === before.above && after.below === before.below) return setFlash('No more context: the hunk reaches the file’s edges or its neighbouring hunks.');
-    const shift = after.above - before.above;
-    const last = after.hunk.lines.length - 1;
-    setCursor((c) => Math.max(0, Math.min(last, c + shift)));
-    setAnchor((a) => (a === null ? null : Math.max(0, Math.min(last, a + shift))));
-    setExpand({ id: diffHunk.id, above: after.above, below: after.below });
   };
 
   const sel = selRange(cursor, anchor);
