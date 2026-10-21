@@ -5,7 +5,19 @@ import type { AppOptions } from './tui/App.js';
 import { currentBranchPR, currentRepo, parsePRArg } from './github/gh.js';
 import { cleanupWorktrees, defaultBaseRef, localRepoRoot, mergeBaseOf, prDiff } from './git/worktree.js';
 import { git } from './git/git.js';
-import { agentRouting, loadChapterOrder, loadThemeSetting, loadUserConfig, loadViewSetting, readUserConfigFile, saveThemeSetting, saveViewSetting, userConfigPath, UserConfigError } from './config.js';
+import {
+  agentRouting,
+  loadChapterOrder,
+  loadCodingAgent,
+  loadThemeSetting,
+  loadUserConfig,
+  loadViewSetting,
+  readUserConfigFile,
+  saveThemeSetting,
+  saveViewSetting,
+  userConfigPath,
+  UserConfigError,
+} from './config.js';
 import { editRepoConfig, setup } from './setup.js';
 import { installClaudeCommand, installCodexSkill, type SkillInstallResult } from './codexSkill.js';
 import { planOpen, runOpen, targetArg } from './open.js';
@@ -300,11 +312,13 @@ async function main() {
   let hideWhitespace: boolean;
   let splitDiff: boolean;
   let themeName: string | undefined;
+  let codingAgent: AppOptions['codingAgent'];
   try {
     chapterOrder = loadChapterOrder();
     hideWhitespace = loadViewSetting('hideWhitespace');
     splitDiff = loadViewSetting('splitDiff');
     themeName = loadThemeSetting();
+    codingAgent = loadCodingAgent();
   } catch (error) {
     if (!(error instanceof UserConfigError)) throw error;
     fail(`${error.message}.\n\n  Run \`gr config --edit\` to fix it.`);
@@ -326,6 +340,7 @@ async function main() {
     splitDiff,
     saveViewSetting,
     saveTheme: readUserConfigFile() ? saveThemeSetting : undefined,
+    codingAgent,
     noAgent,
     fresh: cli.flags.fresh,
     localRepo: await localRepoP,

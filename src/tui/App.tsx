@@ -28,6 +28,7 @@ import { generateSuggestion } from '../agent/suggest.js';
 import { PickerScreen, keyFor, type DownloadJob, type Target as PickTarget } from './PickerScreen.js';
 import { TourIntro, type IntroLine } from './TourIntro.js';
 import { useTerminalStatus, type TerminalProgress } from './terminalStatus.js';
+import { codingAgentLaunch, type CodingAgentSetting } from '../codingAgent.js';
 
 export interface Target {
   repo: string;
@@ -47,6 +48,7 @@ export interface AppOptions {
   preview?: { pr: PRInfo; diff: string; worktree: string }; // author mode on a local branch
   palette?: Palette; // the saved theme, loaded before the first frame; the terminal's colors when unset
   saveTheme?: (name: string) => void; // records a theme chosen in the picker; unset when there is no config file
+  codingAgent?: CodingAgentSetting; // the agent o opens; Claude Code when unset
 }
 
 // The theme picker as the screens see it: L opens it over the picker, briefing, or chapter.
@@ -484,7 +486,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     );
   };
 
-  const openInClaude = async (h: Hunk | undefined, c: Chapter) => {
+  const openInAgent = async (h: Hunk | undefined, c: Chapter) => {
     if (!tour) return;
     const related = drafts.filter((d) => !d.posted && (d.anchor.type === 'line' || d.anchor.type === 'range') && h && d.anchor.file === h.file);
     const threads = tour.existingThreads.filter((t) => h && t.path === h.file);
@@ -498,11 +500,18 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     ]
       .filter(Boolean)
       .join('\n\n');
+    // A NUL byte from the PR would make spawnSync throw rather than start the agent.
+    const agent = codingAgentLaunch(opts.codingAgent, prompt.replaceAll('\0', ''));
     await suspendTerminal(() => {
-      const r = spawnSync('claude', [prompt], { stdio: 'inherit', cwd: worktree || process.cwd() });
-      if (r.error) process.stderr.write(`Could not start claude: ${r.error.message}\n`);
+      // spawnSync throws on arguments it can't pass at all; report those like a failed start.
+      try {
+        const r = spawnSync(agent.command, agent.args, { stdio: 'inherit', cwd: worktree || process.cwd() });
+        if (r.error) process.stderr.write(`Could not start ${agent.command}: ${r.error.message}\n`);
+      } catch (e) {
+        process.stderr.write(`Could not start ${agent.command}: ${(e as Error).message}\n`);
+      }
     });
-    // claude sets its own title; put gr's back.
+    // The agent sets its own title; put gr's back.
     rewriteTerminalStatus();
   };
 
@@ -758,7 +767,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         setPhase('submit');
       }}
       openBriefing={() => setPhase('briefing')}
-      openInClaude={(h, c) => void openInClaude(h, c)}
+      openInAgent={(h, c) => void openInAgent(h, c)}
       rebase={newHead && target ? () => void load(target, false) : undefined}
       onTheme={theme.show}
       back={back}

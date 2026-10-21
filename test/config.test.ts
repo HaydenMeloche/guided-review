@@ -7,6 +7,7 @@ import {
   defaultUserConfig,
   keptRouting,
   loadChapterOrder,
+  loadCodingAgent,
   loadUserConfig,
   loadThemeSetting,
   loadViewSetting,
@@ -182,6 +183,25 @@ describe('user config', () => {
     expect(loadUserConfig().splitDiff).toBe(true);
     fs.writeFileSync(file, '{"splitDiff":1}\n');
     expect(() => loadViewSetting('splitDiff')).toThrow(/"splitDiff" must be true or false/);
+  });
+
+  it('reads the coding agent o opens, Claude Code when unset, even without a provider', () => {
+    const file = configFile();
+    expect(loadCodingAgent()).toEqual({ agent: 'claude' });
+    fs.writeFileSync(file, '{"codingAgent":"codex"}\n');
+    expect(loadCodingAgent()).toEqual({ agent: 'codex' });
+    fs.writeFileSync(file, '{"codingAgent":"custom","codingAgentCommand":"aider --message"}\n');
+    expect(loadCodingAgent()).toEqual({ agent: 'custom', command: 'aider --message' });
+    fs.writeFileSync(file, '{"codingAgent":"custom"}\n');
+    expect(() => loadCodingAgent()).toThrow(/"codingAgent": "custom" needs a "codingAgentCommand"/);
+    fs.writeFileSync(file, '{"codingAgent":"custom","codingAgentCommand":"\\"\\" --message"}\n');
+    expect(() => loadCodingAgent()).toThrow(/"codingAgentCommand": the first word must name the program to run/);
+    fs.writeFileSync(file, '{"provider":"openai","codingAgent":"gemini"}\n');
+    expect(loadUserConfig().codingAgent).toBe('gemini');
+    expect(describeUserConfig(loadUserConfig())).toContain('Coding agent (o): Gemini CLI');
+    fs.writeFileSync(file, '{"provider":"openai","codingAgent":"vim"}\n');
+    expect(() => loadCodingAgent()).toThrow(/unknown codingAgent "vim" \(expected claude, codex, cursor, gemini, opencode, pi, custom\)/);
+    expect(() => loadUserConfig()).toThrow(/unknown codingAgent "vim"/);
   });
 
   it('reads the preferred chapter order, even without a provider', () => {

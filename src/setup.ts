@@ -24,6 +24,7 @@ import { isTheme, TERMINAL_THEME } from './tui/theme.js';
 import { expandHome, resolveGitHubAuth } from './github/auth.js';
 import { configForRole, defaultApiKeyEnv, formatModel, type AgentConfig, type AgentRouting, type Provider } from './agent/types.js';
 import type { ProviderFinding } from './detect.js';
+import { codingAgentName, CUSTOM_AGENT, type CodingAgentSetting } from './codingAgent.js';
 
 function checkBaseUrl(value: string): string | undefined {
   let url: URL;
@@ -55,6 +56,7 @@ export function describeUserConfig(config: UserConfig): string[] {
   if (config.lastProvider) lines.push(`Kept for later: your ${config.lastProvider} settings`);
   lines.push(`Chapter order: ${config.chapterOrder ?? DEFAULT_CHAPTER_ORDER}`);
   lines.push(`Theme: ${config.theme ?? `${TERMINAL_THEME} (your terminal's colors)`}`);
+  lines.push(`Coding agent (o): ${codingAgentName(config.codingAgent && { agent: config.codingAgent, command: config.codingAgentCommand })}`);
   lines.push(`GitHub: ${describeGitHub(config.github)}`);
   return lines;
 }
@@ -274,8 +276,9 @@ export function replacesOverrides(current: UserConfig | undefined, provider: Pro
   return provider !== NO_PROVIDER && !!previous?.roles && Object.values(previous.roles).some((r) => r && Object.keys(r).some((k) => !KEPT_ROLE_KEYS.has(k)));
 }
 
-// The config setup saves. Settings it doesn't ask about (chapter order, the diff toggles) are kept.
-export function buildConfig(current: UserConfig | undefined, model: ModelAnswers, theme: string | undefined, github: GitHubConfig | undefined): UserConfig {
+// The config setup saves. Settings it doesn't ask about (chapter order, the diff toggles) are kept,
+// and so is the coding agent when none is given.
+export function buildConfig(current: UserConfig | undefined, model: ModelAnswers, theme: string | undefined, github: GitHubConfig | undefined, codingAgent?: CodingAgentSetting): UserConfig {
   const previous = previousRouting(current);
   let config: UserConfig;
   if (model.provider === NO_PROVIDER) {
@@ -303,6 +306,9 @@ export function buildConfig(current: UserConfig | undefined, model: ModelAnswers
   if (current?.hideWhitespace !== undefined) config.hideWhitespace = current.hideWhitespace; // set by w during a tour
   if (current?.splitDiff !== undefined) config.splitDiff = current.splitDiff; // set by S during a tour
   if (theme && theme !== TERMINAL_THEME) config.theme = theme;
+  const agent = codingAgent ?? (current?.codingAgent && { agent: current.codingAgent, command: current.codingAgentCommand });
+  if (agent) config.codingAgent = agent.agent;
+  if (agent?.agent === CUSTOM_AGENT) config.codingAgentCommand = agent.command?.trim();
   if (github) config.github = github;
   return config;
 }

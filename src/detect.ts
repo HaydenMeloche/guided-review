@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { defaultApiKeyEnv, type Provider } from './agent/types.js';
+import { CODING_AGENTS, type CodingAgent } from './codingAgent.js';
 
 // What first-run setup can find on this machine without asking: model providers that are
 // signed in or have a key, and whether gh is signed in. Every probe is local or a short
@@ -113,4 +114,11 @@ export async function detectGitHub(deps: Pick<DetectDeps, 'run' | 'signal'> = {}
   const user = await (deps.run ?? runCommand)('gh', ['api', 'user', '--jq', '.login'], deps.signal);
   if (user.missing) return { installed: false };
   return { installed: true, login: user.ok && /^[\w-]+$/.test(user.out) ? user.out : undefined };
+}
+
+// The coding agents installed here, in CODING_AGENTS order: each command that starts at all.
+export async function detectCodingAgents(deps: Pick<DetectDeps, 'run' | 'signal'> = {}): Promise<CodingAgent[]> {
+  const run = deps.run ?? runCommand;
+  const found = await Promise.all(CODING_AGENTS.map(async (a) => !(await run(a.command, ['--version'], deps.signal)).missing));
+  return CODING_AGENTS.filter((_, i) => found[i]).map((a) => a.value);
 }

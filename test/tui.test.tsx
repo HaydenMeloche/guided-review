@@ -102,7 +102,7 @@ function Harness(props: {
       toggleDelta={() => {}}
       openSubmit={() => {}}
       openBriefing={() => props.onBriefing?.()}
-      openInClaude={() => {}}
+      openInAgent={() => {}}
       onTheme={props.onTheme}
       quit={() => {}}
     />
@@ -552,7 +552,7 @@ describe('ChapterScreen', () => {
           toggleDelta={() => {}}
           openSubmit={() => {}}
           openBriefing={() => {}}
-          openInClaude={() => {}}
+          openInAgent={() => {}}
           quit={() => {}}
         />
       );
@@ -814,7 +814,7 @@ describe('BriefingScreen and SubmitScreen', () => {
         toggleDelta={() => toggled++}
         openSubmit={() => {}}
         openBriefing={() => {}}
-        openInClaude={() => {}}
+        openInAgent={() => {}}
         quit={() => {}}
       />,
     );
@@ -960,7 +960,7 @@ describe('optional import chapter', () => {
         toggleDelta={() => {}}
         openSubmit={() => {}}
         openBriefing={() => {}}
-        openInClaude={() => {}}
+        openInAgent={() => {}}
         quit={() => {}}
       />,
     );
@@ -1013,7 +1013,7 @@ describe('team checklist in the chapter screen', () => {
         toggleDelta={() => {}}
         openSubmit={() => {}}
         openBriefing={() => {}}
-        openInClaude={() => {}}
+        openInAgent={() => {}}
         quit={() => {}}
         services={svc}
       />,
@@ -1059,7 +1059,7 @@ describe('lazy @mention users', () => {
         toggleDelta={() => {}}
         openSubmit={() => {}}
         openBriefing={() => {}}
-        openInClaude={() => {}}
+        openInAgent={() => {}}
         quit={() => {}}
         services={{
           root: '/tmp/none',
@@ -1165,7 +1165,7 @@ describe('feedback round: guide, tests, inline comments, description', () => {
       toggleDelta={() => {}}
       openSubmit={() => {}}
       openBriefing={() => {}}
-      openInClaude={() => {}}
+      openInAgent={() => {}}
       quit={() => {}}
     />
   );
@@ -1312,7 +1312,7 @@ describe('split view, test pane toggle and expanded context', () => {
       toggleDelta={() => {}}
       openSubmit={() => {}}
       openBriefing={() => {}}
-      openInClaude={() => {}}
+      openInAgent={() => {}}
       quit={() => {}}
       {...extra}
     />

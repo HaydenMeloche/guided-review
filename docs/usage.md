@@ -72,7 +72,7 @@ Upgrade highlights and package overviews come from a changelog in the worktree w
 | `D` | On a re-review, switch between only the new and changed hunks and the full review. The header shows which one you are in. |
 | `R` | Rebuild the tour on a newer PR head after the author pushes. |
 | `i` | Open the team's checklist for this chapter. |
-| `o` | Open the current review context in Claude Code. |
+| `o` | Open your coding agent in the PR's checkout, with the hunk, your draft comments on its file, and the file's review threads as its first prompt. Choose the agent in `gr config` (Claude Code by default). |
 | `b` / `s` / `h` | Return to the briefing (description and overview diagram), open submit, or show key help. `b` also works while the test pane has focus. |
 | `L` | Choose a color theme. `/` searches the list by name. Moving through the list applies each theme as the cursor stops, so the screen behind it shows what it looks like; `Enter` keeps it and saves it as `theme` in your config, and `Esc` goes back to the one you had. The PR list and the briefing take `L` too. See [Color themes](configuration.md#color-themes). |
 | `q` / `Q` | Go back to the PR list (progress is saved), or quit Guided Review. In an author preview of a local branch there is no list, so `q` quits. |

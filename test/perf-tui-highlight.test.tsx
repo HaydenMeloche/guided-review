@@ -119,7 +119,7 @@ describe('SourcePane highlighting', () => {
       toggleDelta: () => {},
       openSubmit: () => {},
       openBriefing: () => {},
-      openInClaude: () => {},
+      openInAgent: () => {},
       quit: () => {},
     };
     const ui = render(<ChapterScreen {...props} tour={t} chapters={t.chapters} />);

@@ -128,7 +128,7 @@ function Harness(props: { tour: Tour; onDraft?: (d: Draft) => void; initial?: Dr
       toggleDelta={() => {}}
       openSubmit={() => {}}
       openBriefing={() => {}}
-      openInClaude={() => {}}
+      openInAgent={() => {}}
       quit={() => {}}
     />
   );

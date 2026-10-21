@@ -6,7 +6,8 @@ import { ThemePicker } from './ThemePicker.js';
 import { Key, KeyBar } from './KeyBar.js';
 import { pad, truncate, wrap } from './nav.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
-import { detectGitHub, detectProviders, LOOKED_FOR, type GitHubFinding, type ProviderFinding } from '../detect.js';
+import { detectCodingAgents, detectGitHub, detectProviders, LOOKED_FOR, type GitHubFinding, type ProviderFinding } from '../detect.js';
+import { CODING_AGENTS, CUSTOM_AGENT, customCommandProblem, DEFAULT_CODING_AGENT, PROMPT_PLACEHOLDER, type CodingAgent, type CodingAgentSetting } from '../codingAgent.js';
 import { checkModels, type ModelCheck } from '../agent/check.js';
 import { defaultParams, findVariant, KNOWN_MODELS, listModels, LISTS_MODELS, type ModelOption } from '../agent/models.js';
 import { NO_PROVIDER, type GitHubConfig, type UserConfig } from '../config.js';
@@ -36,14 +37,15 @@ import { agentRouting } from '../config.js';
 
 // gr's setup, full screen: a welcome card, the color theme (so every later screen is already
 // in it), the model provider with what detection found marked, its details when something is
-// missing, GitHub access when gh isn't signed in, and a finish screen that sends one request
-// to each model before saving. The caller saves the config the wizard returns.
+// missing, the coding agent o opens, GitHub access when gh isn't signed in, and a finish screen
+// that sends one request to each model before saving. The caller saves the config the wizard returns.
 
-type Step = 'welcome' | 'theme' | 'provider' | 'details' | 'github' | 'finish';
+type Step = 'welcome' | 'theme' | 'provider' | 'details' | 'agent' | 'github' | 'finish';
 
 export interface Detected {
   providers: ProviderFinding[];
   github: GitHubFinding;
+  codingAgents?: CodingAgent[]; // installed, in CODING_AGENTS order
 }
 
 export interface WizardProps {
@@ -139,11 +141,13 @@ export function SetupWizard(props: WizardProps) {
   const [model, setModel] = useState<ModelAnswers>();
   const [modelRow, setModelRow] = useState<string>(); // rowKey of the provider row the answers are for
   const [github, setGitHub] = useState<GitHubAnswers>();
+  const [codingAgent, setCodingAgent] = useState<CodingAgentSetting>();
+  const savedAgent: CodingAgentSetting | undefined = props.current?.codingAgent && { agent: props.current.codingAgent, command: props.current.codingAgentCommand };
 
   // GitHub needs a step only when gh can't be used as it is, or the config already has a token.
   const needsGitHub = !detected || !detected.github.login || !!props.current?.github;
   const githubAnswers = github ?? githubDefaults(props.current?.github, detected?.github.installed ?? true);
-  const afterModel = (): Step => (needsGitHub ? 'github' : 'finish');
+  const afterAgent = (): Step => (needsGitHub ? 'github' : 'finish');
 
   // Ctrl+C leaves setup, as it does everywhere else in gr.
   useInput((input, key) => {
@@ -156,7 +160,7 @@ export function SetupWizard(props: WizardProps) {
 
   const width = columns - 2;
   const height = rows - 2;
-  const steps: [Step, string][] = [['theme', 'Theme'], ['provider', 'Model'], ...(needsGitHub ? ([['github', 'GitHub']] as [Step, string][]) : []), ['finish', 'Finish']];
+  const steps: [Step, string][] = [['theme', 'Theme'], ['provider', 'Model'], ['agent', 'Agent'], ...(needsGitHub ? ([['github', 'GitHub']] as [Step, string][]) : []), ['finish', 'Finish']];
   const stepIndex = steps.findIndex(([s]) => s === (step === 'details' ? 'provider' : step));
   const body = height - 1;
 
@@ -195,7 +199,7 @@ export function SetupWizard(props: WizardProps) {
           const answers = model && modelRow === rowKey(row) ? model : modelDefaults(row.value, previous, row.finding);
           setModel(answers);
           setModelRow(rowKey(row));
-          go(row.value !== NO_PROVIDER && (customize || !modelReady(answers, env)) ? 'details' : afterModel());
+          go(row.value !== NO_PROVIDER && (customize || !modelReady(answers, env)) ? 'details' : 'agent');
         }}
       />
     );
@@ -211,7 +215,22 @@ export function SetupWizard(props: WizardProps) {
         startParams={(role, id) => (start[role] === id ? start[role === 'fast' ? 'fastParams' : 'strongParams'] : undefined)}
         onChange={setModel}
         onBack={back}
-        onDone={() => go(afterModel())}
+        onDone={() => go('agent')}
+      />
+    );
+  } else if (step === 'agent') {
+    screen = (
+      <CodingAgentStep
+        width={width}
+        height={body}
+        detected={detected}
+        // A config saved without one has been opening Claude Code; only a first run starts on what's installed.
+        selected={codingAgent ?? savedAgent ?? { agent: (props.current ? undefined : detected?.codingAgents?.[0]) ?? DEFAULT_CODING_AGENT }}
+        onBack={back}
+        onChoose={(agent) => {
+          setCodingAgent(agent);
+          go(afterAgent());
+        }}
       />
     );
   } else if (step === 'github') {
@@ -220,7 +239,7 @@ export function SetupWizard(props: WizardProps) {
     );
   } else if (step === 'finish' && model) {
     const github = needsGitHub ? githubConfig(githubAnswers) : props.current?.github;
-    const config = buildConfig(props.current, model, theme, github);
+    const config = buildConfig(props.current, model, theme, github, codingAgent);
     screen = (
       <FinishStep
         width={width}
@@ -418,6 +437,106 @@ function ProviderStep(props: { width: number; height: number; detected?: Detecte
           ['c', 'choose and customize'],
           ['esc', 'back'],
         ]}
+      />
+    </Box>
+  );
+}
+
+function CodingAgentStep(props: { width: number; height: number; detected?: Detected; selected: CodingAgentSetting; onBack: () => void; onChoose: (setting: CodingAgentSetting) => void }) {
+  const selectedRow = useSelected();
+  const rows = [...CODING_AGENTS.map((a) => ({ value: a.value, name: a.name, command: a.command })), { value: CUSTOM_AGENT as CodingAgent, name: 'Custom command', command: undefined }];
+  const [moved, setMoved] = useState<number>();
+  // Read through a ref, so keys that arrive together (↓ then Enter) each see the last move.
+  const movedRef = useRef<number>(undefined);
+  const sel =
+    moved ??
+    Math.max(
+      0,
+      rows.findIndex((r) => r.value === props.selected.agent),
+    );
+  const installed = props.detected?.codingAgents;
+  // Enter on the custom row asks for its command, starting from the saved one.
+  const [editing, setEditing] = useState(false);
+  const [command, setCommand] = useState(props.selected.command ?? '');
+
+  useInput(
+    (input, key) => {
+      const move = (d: number) => {
+        const next = Math.max(0, Math.min(rows.length - 1, (movedRef.current ?? sel) + d));
+        movedRef.current = next;
+        setMoved(next);
+      };
+      if (key.downArrow || input === 'j') return move(1);
+      if (key.upArrow || input === 'k') return move(-1);
+      if (key.home || input === 'g') return move(-rows.length);
+      if (key.end || input === 'G') return move(rows.length);
+      if (key.escape) return props.onBack();
+      if (key.return) {
+        const row = rows[movedRef.current ?? sel];
+        return row.value === CUSTOM_AGENT ? setEditing(true) : props.onChoose({ agent: row.value });
+      }
+    },
+    { isActive: !editing },
+  );
+
+  const nameW = Math.max(...rows.map((r) => r.name.length)) + 2;
+  const fields: Field[] = [
+    {
+      id: 'command',
+      label: 'Command',
+      kind: 'text',
+      value: command,
+      placeholder: 'aider --message',
+      problem: customCommandProblem(command),
+      hint: `Runs without a shell. The prompt goes last, or wherever you write ${PROMPT_PLACEHOLDER}.`,
+    },
+  ];
+  return (
+    <Box flexDirection="column" width={props.width} height={props.height}>
+      <StepTitle
+        width={props.width}
+        title="Coding agent"
+        about="Press o in a chapter to open this agent in the PR's checkout, with the hunk, your draft comments, and the review threads as its first prompt."
+      />
+      {rows.map((r, i) => {
+        const found = r.value !== CUSTOM_AGENT && installed?.includes(r.value);
+        const detail = r.value === CUSTOM_AGENT ? 'any command that takes a prompt' : installed ? (found ? `${r.command} is installed` : `${r.command} not found`) : '';
+        return (
+          <Text key={r.value} {...selectedRow(i === sel)} wrap="truncate">
+            {pad(` ${found ? '✓' : ' '} ${r.name}`, nameW + 3)}
+            <Text color={found ? 'green' : undefined} dimColor={!found}>
+              {detail}
+            </Text>
+          </Text>
+        );
+      })}
+      {editing ? (
+        <Box marginTop={1}>
+          <Form
+            width={props.width}
+            fields={fields}
+            onChange={(_, value) => setCommand(value)}
+            onBack={() => setEditing(false)}
+            onSubmit={() => props.onChoose({ agent: CUSTOM_AGENT, command: command.trim() })}
+          />
+        </Box>
+      ) : null}
+      <Box flexGrow={1} />
+      <KeyBar
+        accent
+        width={props.width}
+        keys={
+          editing
+            ? [
+                ['enter', 'choose'],
+                ['esc', 'back to the list'],
+              ]
+            : [
+                ['j/k', 'move'],
+                ['enter', 'choose'],
+                ['esc', 'back'],
+              ]
+        }
       />
     </Box>
   );
@@ -956,7 +1075,9 @@ function FinishStep(props: {
 export async function runSetupWizard(opts: { firstRun: boolean; current?: UserConfig; problem?: string; file: string }): Promise<SetupResult> {
   // Stopped when setup closes, so probes still running don't keep gr from exiting.
   const probes = new AbortController();
-  const detect = Promise.all([detectProviders({ signal: probes.signal }), detectGitHub({ signal: probes.signal })]).then(([providers, github]) => ({ providers, github }));
+  const detect = Promise.all([detectProviders({ signal: probes.signal }), detectGitHub({ signal: probes.signal }), detectCodingAgents({ signal: probes.signal })]).then(
+    ([providers, github, codingAgents]) => ({ providers, github, codingAgents }),
+  );
   const themes = await themeList();
   const known = opts.current?.theme && themes.some((t) => t.id === opts.current!.theme) ? opts.current.theme : TERMINAL_THEME;
   const initial = await loadPalette(known).catch(() => terminalPalette);

@@ -105,7 +105,7 @@ export function ChapterScreen(props: {
   toggleDelta: () => void;
   openSubmit: () => void;
   openBriefing: () => void;
-  openInClaude: (h: Hunk | undefined, chapter: Chapter) => void;
+  openInAgent: (h: Hunk | undefined, chapter: Chapter) => void;
   rebase?: () => void;
   onTheme?: () => void; // L: the color theme picker
   services?: Services;
@@ -561,7 +561,7 @@ export function ChapterScreen(props: {
       if (input === 'f') return props.toggleOrder();
       if (input === 'D' && tour.rereview) return props.toggleDelta();
       if (input === 'R' && props.rebase) return props.rebase();
-      if (input === 'o') return props.openInClaude(hunk, chapter);
+      if (input === 'o') return props.openInAgent(hunk, chapter);
       if (input === 's') return props.openSubmit();
       if (input === 'h') return setOverlay('help');
       if (input === 'i') {
@@ -1686,7 +1686,7 @@ const HELP_ROWS: [string, string][] = [
   ['m', 'Move the hunk to another chapter'],
   ['f', 'Cycle Guided, Risk first, Small first, and File order'],
   ['D', 'Re-review: switch between only new and changed hunks and the full review'],
-  ['o', 'Open the hunk in Claude Code'],
+  ['o', 'Open the hunk in your coding agent (set in gr config)'],
   ['i', 'Team checklist for this chapter'],
   ['b / s', 'Briefing / submit screen'],
   ['L', 'Color theme (previews as you move through the list)'],
