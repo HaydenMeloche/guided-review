@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Guided Review</title>
-    <meta name="description" content="Review pull requests as a guided tour, in your terminal." />
+    <meta name="description" content="Read a code change the way the code runs, in your terminal." />
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232f6f5e'/><text x='16' y='22' font-family='monospace' font-size='15' font-weight='700' fill='white' text-anchor='middle'>gr</text></svg>"
@@ -363,10 +363,11 @@
 
       <div class="hero">
         <span class="status">Early release (0.x)</span>
-        <h1>Review pull requests as a guided tour, in your terminal.</h1>
+        <h1>Read a code change the way the code runs, in your terminal.</h1>
         <p class="lede">
-          A diff lists files alphabetically, but code runs from an entry point through the functions it calls. Guided Review reorders a PR to match: chapters follow each route, command, or handler
-          through the change, with its tests beside it. Draft comments as you go and submit them as one GitHub review.
+          A diff lists files alphabetically. Code runs from an entry point through the functions it calls. Guided Review turns a change into a tour that follows that path: chapters walk each route,
+          command, or handler through the changed code, with its tests beside it. It works on a pull request, your own branch, or uncommitted work. Draft comments as you go and post them as one GitHub
+          review.
         </p>
         <div class="install">
           <code><span class="prompt">$ </span><span id="cmd">npm install -g @haydenmeloche/guided-review</span></code>

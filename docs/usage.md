@@ -176,3 +176,42 @@ To find the default branch, `gr preview` tries these in order and uses the first
 For each name found in steps 1 to 3, origin's copy is preferred over your local branch. Your git `init.defaultBranch` setting is ignored, because it describes new repositories you create, not the repository you contribute to.
 
 If the tour includes changes that aren't yours, your copy of the default branch is probably out of date: run `git fetch` and preview again. To make step 1 work offline, run `git remote set-head origin --auto`.
+
+## Commands and options
+
+```sh
+gr                            # choose from PRs awaiting your review
+gr review 1234               # PR number in the current repository
+gr review https://github.com/owner/repo/pull/1234
+gr review owner/repo#1234
+gr review                    # current branch's open PR
+gr preview                   # tour the current branch before opening a PR
+gr open 1234                 # open a tour in a new tmux or Terminal window
+gr open --preview            # open gr preview in a new tmux or Terminal window
+gr build 1234 --comment      # build a tour without the TUI and post it to the PR (for CI)
+gr config                    # set up or change the model, GitHub access, and theme
+gr cleanup                   # remove managed worktrees and prune old tours
+```
+
+`gr` needs an interactive terminal on both stdin and stdout, and checks for one before contacting GitHub. `gr open` opens the tour in a new tmux window (inside tmux) or a new Terminal window (macOS), and otherwise prints the command to run.
+
+| Option | Purpose |
+| --- | --- |
+| `--no-agent` | Build a plain tour from static analysis, without model calls. Not for `build`, which needs a model. To always review without AI, choose **No AI model** in `gr config` instead. |
+| `--fresh` | Rebuild the tour even if this head commit has a completed cached tour or a tour shared on the PR. |
+| `--comment` | With `build`, post the tour to the PR as a comment. See [Share tours from CI](ci.md). |
+| `--out <file>` | With `build`, write the tour JSON to a file, or `-` for stdout (the default without `--comment`). |
+| `--preview` | With `open`, open `gr preview` of your local changes instead of a PR's tour. |
+| `--days <n>` | With `cleanup`, delete tours not opened in this many days (default 90). |
+| `--force` | With `install-claude-command` or `install-codex-skill`, replace an existing file that has different content. |
+
+Providers, models, endpoints, and keys are not CLI options; they live in `~/.guided-review/config.json`. See [Configuration](configuration.md).
+
+Set `GR_DEBUG=1` to print stack traces on errors.
+
+Once a day, `gr` checks npm in the background for a newer version. Before a tour it opens an update screen with the release notes since your version: `Enter` installs the update and restarts `gr` where you were, `n` waits until tomorrow, and `s` skips that version. Other commands mention the update when they finish. It never checks in CI or for `gr build`. Set `GR_NO_UPDATE_CHECK=1` to turn it off.
+
+### Use from Claude Code or Codex
+
+- **Claude Code:** `gr install-claude-command` installs a `/guided-review` command that previews your local changes: the current branch against its merge base with the default branch, uncommitted work included, with no PR needed. It runs `guided-review open --preview`, which opens `gr preview` in a new tmux window (inside tmux) or a new Terminal window (macOS), and otherwise prints the command to run. The command is only allowed to run `guided-review open --preview`. If `~/.claude/commands/guided-review.md` already exists with different content, the installer stops; pass `--force` to replace it.
+- **Codex:** `gr install-codex-skill` copies a `guided-review` skill, which previews your local changes the same way, to `$CODEX_HOME/skills/` (or `~/.codex/skills/` when `CODEX_HOME` is unset); restart Codex afterwards. Running it again is safe. If that skill path contains different content, the installer stops so your edits are preserved; pass `--force` to replace it.

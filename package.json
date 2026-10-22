@@ -1,7 +1,7 @@
 {
   "name": "@haydenmeloche/guided-review",
   "version": "0.3.0",
-  "description": "Review GitHub pull requests as a guided tour in your terminal: chapters that follow the code's flow, tests beside each change, and one review to submit.",
+  "description": "Read a code change the way the code runs, in your terminal: a tour of a pull request, branch, or working tree, with chapters that follow the code's flow, tests beside each change, and one review to submit.",
   "keywords": [
     "code-review",
     "pull-request",
