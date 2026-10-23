@@ -4,7 +4,15 @@ import { safe } from './text.js';
 
 export function threadAt(threads: ExistingThread[], file: string, line?: number, side: 'LEFT' | 'RIGHT' = 'RIGHT') {
   if (line === undefined) return [];
-  return threads.filter((t) => t.path === file && (side === 'LEFT' ? t.isOutdated && t.originalLine === line : t.line === line || (t.line === undefined && !t.isOutdated && t.originalLine === line)));
+  return threads.filter(
+    (t) =>
+      t.path === file &&
+      (t.placed
+        ? t.placed.side === side && t.placed.line === line
+        : side === 'LEFT'
+          ? t.isOutdated && t.originalLine === line
+          : t.line === line || (t.line === undefined && !t.isOutdated && t.originalLine === line)),
+  );
 }
 
 // Two moved blocks at most this many lines apart on both sides, going to the same place in the

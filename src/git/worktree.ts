@@ -142,6 +142,22 @@ export async function diffBetween(root: string, a: string, b: string, signal?: A
   return git(root, ['diff', ...NO_DRIVERS, a, b], { maxBuffer: 200 * 1024 * 1024, signal });
 }
 
+// One file's diff between two commits, following a rename: a file renamed in between comes back
+// as a rename diff (its old path in `oldPath`), not as a deletion. Git only detects a rename when
+// both paths are in the diff, so the new path is found from the (small) name-status list first.
+export async function diffPath(root: string, a: string, b: string, file: string, signal?: AbortSignal): Promise<string> {
+  const names = (await git(root, ['diff', ...NO_DRIVERS, '--name-status', '-z', '-M', a, b], { maxBuffer: 64 * 1024 * 1024, signal })).split('\0');
+  let renamedTo: string | undefined;
+  for (let i = 0; i < names.length;) {
+    const code = names[i];
+    if (!code) break;
+    const paths = code[0] === 'R' || code[0] === 'C' ? 2 : 1;
+    if (code[0] === 'R' && names[i + 1] === file) renamedTo = names[i + 2];
+    i += 1 + paths;
+  }
+  return git(root, ['diff', ...NO_DRIVERS, '-M', a, b, '--', file, ...(renamedTo ? [renamedTo] : [])], { maxBuffer: 64 * 1024 * 1024, signal });
+}
+
 // The PR diff as GitHub shows it (the three-dot diff from the merge base), computed locally.
 // Every option that user or repo config could change is pinned, so the output matches
 // GitHub's byte for byte except for the abbreviated blob ids on `index` lines. Without a head,

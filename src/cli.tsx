@@ -58,7 +58,8 @@ const cli = meow(
 ${[
   usage('', 'Pick from PRs awaiting your review'),
   usage('review <number|URL>', 'Start or resume a guided tour of a PR'),
-  usage('preview', 'Author mode: tour your current branch before opening the PR'),
+  usage('feedback [number|URL]', 'Work through the review feedback on your PR (default: this branch)'),
+  usage('preview', 'Tour your current branch before opening the PR'),
   usage('open [number|URL]', 'Open the tour of a PR (default: this branch) in a new terminal window'),
   usage('open --preview', 'Open the preview of your current branch in a new terminal window'),
   usage('build [number|URL]', 'Build a tour without the TUI (for CI); share it with --comment or --out'),
@@ -83,7 +84,8 @@ ${[
   Set GR_DEBUG=1 to print stack traces on errors.
   Set GR_NO_UPDATE_CHECK=1 to stop checking npm for a newer version.
 
-  Keys inside a tour: n/p hunk · ]/[ chapter · c comment · ? ask · t tests · d diagram · s submit · h help
+  Keys inside a tour: n/p hunk · ]/[ chapter · c comment · ? ask · t tests · d diagram · s submit · M merge · h help
+  Keys in feedback:   n/p thread · y reply · space triage · Z resolve · o prompt for agent · s send · M merge
 `,
   {
     importMeta: import.meta,
@@ -289,7 +291,7 @@ async function main() {
   }
 
   const prArg = /^(#?\d+|https?:\/\/|[\w.-]+\/[\w.-]+#\d+)/;
-  if (cmd && cmd !== 'review' && cmd !== 'preview' && !prArg.test(cmd)) cli.showHelp(1);
+  if (cmd && cmd !== 'review' && cmd !== 'feedback' && cmd !== 'preview' && !prArg.test(cmd)) cli.showHelp(1);
 
   // Everything below starts the full-screen tour. Check for a terminal before
   // spending any gh or network calls on it.
@@ -308,8 +310,9 @@ async function main() {
   const tui = Promise.all([import('ink'), import('./tui/App.js')]);
   tui.catch(() => undefined); // awaited below; a failure surfaces there
   const localRepoP = localRepoRoot(cwd);
-  const needsRepo = cmd === 'review' ? !!arg : !!cmd && cmd !== 'preview';
-  const cwdRepoP = needsRepo && /^#?\d+$/.test((cmd === 'review' ? arg : cmd).trim()) ? currentRepo(cwd) : Promise.resolve(undefined);
+  const takesArg = cmd === 'review' || cmd === 'feedback';
+  const needsRepo = takesArg ? !!arg : !!cmd && cmd !== 'preview';
+  const cwdRepoP = needsRepo && /^#?\d+$/.test((takesArg ? arg : cmd).trim()) ? currentRepo(cwd) : Promise.resolve(undefined);
 
   // config.json, read once for the model and every setting below. A file that can't be read gets
   // the hint the first loader to need it would give.
@@ -364,6 +367,10 @@ async function main() {
     const target = arg ? parsePRArg(arg, await cwdRepoP) : await currentBranchPR(cwd);
     if (!target) fail('no PR given and the current branch has no open PR. Usage: gr review <number|URL>');
     opts = { ...base, target };
+  } else if (cmd === 'feedback') {
+    const target = arg ? parsePRArg(arg, await cwdRepoP) : await currentBranchPR(cwd);
+    if (!target) fail(`no PR given and the current branch has no open PR. Usage: ${NAME} feedback <number|URL>`);
+    opts = { ...base, target, mode: 'author' };
   } else if (cmd === 'preview') {
     opts = { ...base, preview: await previewInfo(cwd) };
   } else if (cmd) {

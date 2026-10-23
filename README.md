@@ -31,6 +31,8 @@ The tour is built from static analysis of the diff and the checkout. A model, if
 - **Track your progress.** Hunks are marked read, skipped, or deferred, and that state survives a new push.
 - **Re-review after a push.** See only the hunks that changed since your last pass, and check whether your earlier comments were addressed. See [Review after a new push](docs/usage.md#review-after-a-new-push).
 - **Preview your own branch.** Tour your branch before you open a PR, to see your change the way a reviewer will.
+- **Respond to a review.** `gr feedback` turns the feedback on your own PR into a work list: threads grouped by the code they are on, change requests first, outdated threads followed to where their lines are now, and threads your latest push probably addressed marked. Triage each one, queue replies (AI can draft them), copy a thread as a prompt for your coding agent, answer review summaries in the PR's conversation, then send every reply as one review and ask for another look. See [Respond to a review](docs/usage.md#respond-to-a-review).
+- **Merge when it's ready.** The picker and briefings say whether a PR can merge and what blocks it. `M` merges with any method the repository allows, or updates a branch that is behind its base, with a commit message the model drafts. `c` lists the PR's checks and reads a failing job's log. See [Merge a PR](docs/usage.md#merge-a-pr).
 
 **Works with**
 
@@ -67,6 +69,7 @@ gr review 1234               # PR number in the current repository
 gr review https://github.com/owner/repo/pull/1234
 gr review owner/repo#1234
 gr review                    # current branch's open PR
+gr feedback                   # work through the review feedback on your PR
 gr preview                   # tour the current branch before opening a PR
 gr open 1234                 # open a tour in a new tmux or Terminal window
 gr build 1234 --comment      # build a tour without the TUI and post it to the PR (for CI)
@@ -130,11 +133,11 @@ Run `gr config --repo` inside a repository to create or edit `.guided-review.jso
 
 ## Privacy and security
 
-Guided Review has no telemetry and runs no server of its own. PR content and any files the agent reads go only to the model provider in your config (nothing, with no model configured or `--no-agent`), and it writes to GitHub only when you post a review, reply, or react. PR content is treated as untrusted: agent tools are read-only and confined to the PR worktree. See [Data, privacy, and security](docs/security.md) for the details, and [SECURITY.md](SECURITY.md) to report a vulnerability.
+Guided Review has no telemetry and runs no server of its own. PR content and any files the agent reads go only to the model provider in your config (nothing, with no model configured or `--no-agent`), and it writes to GitHub only when you act: post a review, reply, react, resolve a thread, ask for a review, update a branch, or merge, each after you confirm it. PR content is treated as untrusted: agent tools are read-only and confined to the PR worktree. See [Data, privacy, and security](docs/security.md) for the details, and [SECURITY.md](SECURITY.md) to report a vulnerability.
 
 ## Documentation
 
-- [Using Guided Review](docs/usage.md): the picker, briefing, chapters, keys, comments, re-reviews, and every command and option
+- [Using Guided Review](docs/usage.md): the picker, briefing, chapters, keys, comments, re-reviews, responding to a review, merging, and every command and option
 - [Configuration](docs/configuration.md): model providers, GitHub access, and `config.json`
 - [Share tours from CI](docs/ci.md): the GitHub Action and shared tours
 - [Repository configuration](docs/repo-config.md): `.guided-review.json` for teams

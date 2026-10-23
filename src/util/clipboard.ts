@@ -35,3 +35,34 @@ export async function readClipboard(): Promise<string | undefined> {
   reader = null;
   return undefined;
 }
+
+// The platform's clipboard writer, in order of preference, as with READERS.
+const WRITERS: Record<string, [string, string[]][]> = {
+  darwin: [['pbcopy', []]],
+  win32: [['clip.exe', []]],
+  linux: [
+    ['wl-copy', []],
+    ['xclip', ['-selection', 'clipboard']],
+  ],
+};
+
+let writer: [string, string[]] | null | undefined; // null: no writer works here
+
+// Puts text on the clipboard. Without a clipboard tool (over SSH, in a container) it asks the
+// terminal instead with OSC 52, which most terminals honour; 'terminal' says the copy went that
+// way and may not have landed.
+export async function writeClipboard(text: string, out: { write: (s: string) => unknown } = process.stdout): Promise<'tool' | 'terminal'> {
+  const candidates = writer ? [writer] : writer === null ? [] : (WRITERS[process.platform] ?? []);
+  for (const [cmd, args] of candidates) {
+    try {
+      await run(cmd, args, { input: text, timeout: 2000 });
+      writer = [cmd, args];
+      return 'tool';
+    } catch (e) {
+      if ((e as { code?: string }).code !== 'ENOENT') throw e;
+    }
+  }
+  writer = null;
+  out.write(`\x1b]52;c;${Buffer.from(text).toString('base64')}\x07`);
+  return 'terminal';
+}

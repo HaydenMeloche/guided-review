@@ -16,7 +16,19 @@ export const ASK_FLUSH_MS = 33;
 // Ask the agent beside the current review context. Answers stream in place, and each
 // question joins a thread so follow-ups keep the earlier questions and answers in view.
 // Without an agent it says why (aiOff) and takes no question.
-export function AskOverlay(props: { hunk?: Hunk; lineIdx?: number; endIdx?: number; target: string; agent?: AgentContext; aiOff?: string; width: number; height: number; onClose: () => void }) {
+export function AskOverlay(props: {
+  hunk?: Hunk;
+  lineIdx?: number;
+  endIdx?: number;
+  context?: string;
+  placeholder?: string;
+  target: string;
+  agent?: AgentContext;
+  aiOff?: string;
+  width: number;
+  height: number;
+  onClose: () => void;
+}) {
   const [q, setQ] = useState('');
   const [turns, setTurns] = useState<AskTurn[]>([]);
   const [busy, setBusy] = useState(false);
@@ -59,7 +71,7 @@ export function AskOverlay(props: { hunk?: Hunk; lineIdx?: number; endIdx?: numb
     setBusy(true);
     abort.current = new AbortController();
     try {
-      const r = await ask({ ...props.agent, question, history, hunk: props.hunk, lineIdx: props.lineIdx, endIdx: props.endIdx, onText, signal: abort.current.signal });
+      const r = await ask({ ...props.agent, question, history, hunk: props.hunk, lineIdx: props.lineIdx, endIdx: props.endIdx, context: props.context, onText, signal: abort.current.signal });
       // The final flush always lands, so the complete answer is shown.
       flush();
       if (r.value) setAnswer(() => r.value);
@@ -119,7 +131,7 @@ export function AskOverlay(props: { hunk?: Hunk; lineIdx?: number; endIdx?: numb
           onSubmit={(question) => void submit(question)}
           width={inner}
           maxRows={2}
-          placeholder={turns.length ? 'ask a follow-up…' : 'e.g. "why is this nullable?" or "what calls this?"'}
+          placeholder={turns.length ? 'ask a follow-up…' : (props.placeholder ?? 'e.g. "why is this nullable?" or "what calls this?"')}
         />
       )}
       <Text dimColor>{!props.agent ? 'esc: close' : busy ? 'thinking… (esc to stop)' : turns.length ? 'enter: follow up · ↑/↓: scroll · esc: close' : 'enter: ask · esc: close'}</Text>

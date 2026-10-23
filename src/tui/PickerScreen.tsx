@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useInput } from 'ink';
 import { Box, Text } from './themed.js';
-import { fetchPRPreview, listReviewRequests, parsePRArg, type PRPreview, type ReviewRequest } from '../github/gh.js';
+import { fetchPRPreview, AUTHORED_LIMIT, listAuthoredPRs, listReviewRequests, parsePRArg, viewerLogin, type AuthoredPR, type PRPreview, type ReviewRequest } from '../github/gh.js';
 import type { Store } from '../store/db.js';
 import { KeyBar } from './ChapterScreen.js';
 import { TextInput } from './TextInput.js';
@@ -9,6 +9,7 @@ import { pad, truncate, wrap } from './nav.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
 import { openExternal } from '../util/openExternal.js';
 import { readClipboard } from '../util/clipboard.js';
+import { CHECK_MARK, checkLabel, outcomeText, sortChecks } from '../review/checks.js';
 import { MdLineView, line, renderMarkdown } from './markdown.js';
 
 export interface Target {
@@ -43,6 +44,12 @@ export function clipboardPR(text: string): Target | undefined {
   }
 }
 
+// Your PRs as last loaded. Module-level, so returning to the picker after a tour shows them at
+// once while they refresh: their search is the slow one (seconds, on GitHub's side).
+let authoredCache: { prs: AuthoredPR[]; truncated: boolean } | undefined;
+// w: your PRs waiting on reviewers shown too. Kept for the session, like the cache.
+let showWaitingPref = false;
+
 // One PR's tour download, as the app reports it.
 export interface DownloadJob {
   state: 'queued' | 'running' | 'done' | 'failed';
@@ -76,28 +83,65 @@ export function age(iso: string, now = Date.now()): string {
   return `${Math.round(s / (86400 * 365))}y ago`;
 }
 
-type Row = { kind: 'repo'; repo: string; count: number } | { kind: 'pr'; pr: ReviewRequest; index: number };
+type Row =
+  | { kind: 'section'; title: string; count: number }
+  | { kind: 'note'; text: string }
+  | { kind: 'repo'; repo: string; count: number; own: boolean }
+  | { kind: 'pr'; pr: ReviewRequest | AuthoredPR; index: number };
 
-// PRs grouped by repo (repos with the most recent activity first), filtered by text.
-export function pickerRows(prs: ReviewRequest[], filter: string): { rows: Row[]; items: ReviewRequest[] } {
+export const isAuthored = (pr: ReviewRequest | AuthoredPR): pr is AuthoredPR => 'openThreads' in pr;
+
+const MERGEABLE = ['CLEAN', 'HAS_HOOKS', 'UNSTABLE'];
+export const readyToMerge = (pr: AuthoredPR) => !pr.isDraft && MERGEABLE.includes(pr.mergeStateStatus);
+
+const checksFailing = (pr: AuthoredPR) => pr.checks === 'FAILURE' || pr.checks === 'ERROR';
+
+// Your PRs that need you: unresolved threads, a review since your last commit, changes
+// requested, ready to merge, or nobody asked to review it. The rest wait on reviewers, and
+// show only when asked for (w).
+export function needsAuthor(pr: AuthoredPR): boolean {
+  return pr.unresolvedThreads > 0 || pr.newReview || pr.reviewDecision === 'CHANGES_REQUESTED' || readyToMerge(pr) || pr.noReviewers;
+}
+
+// PRs grouped by repo (repos with the most recent activity first), filtered by text, under a
+// Review requests heading and, when you have open PRs, a Your PRs one: the ones that need you,
+// and the ones waiting on reviewers with `showWaiting`, else a line counting them.
+export function pickerRows(prs: ReviewRequest[], filter: string, authored: AuthoredPR[] = [], showWaiting = false, authoredTruncated = false): { rows: Row[]; items: (ReviewRequest | AuthoredPR)[] } {
   const f = filter.trim().toLowerCase();
-  const matching = prs.filter((p) => !f || `${p.repo}#${p.number} ${p.title} ${p.author} ${p.labels.join(' ')}`.toLowerCase().includes(f));
-  const groups = new Map<string, ReviewRequest[]>();
-  for (const p of matching) {
-    const list = groups.get(p.repo);
-    if (list) list.push(p);
-    else groups.set(p.repo, [p]);
-  }
-  const ordered = [...groups.entries()].sort((a, b) => b[1][0].updatedAt.localeCompare(a[1][0].updatedAt));
   const rows: Row[] = [];
-  const items: ReviewRequest[] = [];
-  for (const [repo, list] of ordered) {
-    rows.push({ kind: 'repo', repo, count: list.length });
-    for (const pr of list) {
-      rows.push({ kind: 'pr', pr, index: items.length });
-      items.push(pr);
+  const items: (ReviewRequest | AuthoredPR)[] = [];
+  // `own`: your PRs. A repo can head a group in both sections, so it is part of the row's key.
+  const section = (list: (ReviewRequest | AuthoredPR)[], own = false) => {
+    const matching = list.filter((p) => !f || `${p.repo}#${p.number} ${p.title} ${p.author} ${p.labels.join(' ')}`.toLowerCase().includes(f));
+    const groups = new Map<string, (ReviewRequest | AuthoredPR)[]>();
+    for (const p of matching) {
+      const group = groups.get(p.repo);
+      if (group) group.push(p);
+      else groups.set(p.repo, [p]);
     }
+    const ordered = [...groups.entries()].sort((a, b) => b[1][0].updatedAt.localeCompare(a[1][0].updatedAt));
+    for (const [repo, group] of ordered) {
+      rows.push({ kind: 'repo', repo, count: group.length, own });
+      for (const pr of group) {
+        rows.push({ kind: 'pr', pr, index: items.length });
+        items.push(pr);
+      }
+    }
+    return matching.length;
+  };
+  const reviewsAt = rows.push({ kind: 'section', title: 'Review requests', count: 0 }) - 1;
+  rows[reviewsAt] = { kind: 'section', title: 'Review requests', count: section(prs) };
+  if (!rows[reviewsAt + 1] && !f) rows.push({ kind: 'note', text: 'Nothing is waiting on your review. gr review <number or URL> opens a specific PR.' });
+  if (!authored.length) return { rows, items };
+  const waiting = authored.filter((p) => !needsAuthor(p)).length;
+  const yoursAt = rows.push({ kind: 'section', title: 'Your PRs', count: 0 }) - 1;
+  rows[yoursAt] = { kind: 'section', title: 'Your PRs', count: section(showWaiting ? authored : authored.filter(needsAuthor), true) };
+  if (waiting && !f) {
+    const are = `${waiting === 1 ? 'is' : 'are'} waiting on reviewers`;
+    const none = rows.length - 1 === yoursAt ? 'None need you. ' : '';
+    rows.push({ kind: 'note', text: showWaiting ? `${waiting} ${are} · w hides them` : `${none}${waiting} more ${are} · w shows them` });
   }
+  if (authoredTruncated) rows.push({ kind: 'note', text: `Showing the first ${AUTHORED_LIMIT} of your open PRs.` });
   return { rows, items };
 }
 
@@ -106,7 +150,12 @@ interface PickerProps {
   width: number;
   height: number;
   notice?: string;
-  onPick: (t: Target) => void;
+  onPick: (t: Target, mode?: 'author') => void; // your own PRs open their feedback
+  onMerge?: (t: Target) => void; // M
+  onChecks?: (t: Target) => void; // c: the PR's checks and their logs
+  onReviewers?: (t: Target) => void; // A, on your own PR: who is asked to review, and asking more
+  reload?: number; // a change bumps it: read the lists again
+  merged?: ReadonlySet<string>; // PRs merged this session (keyFor), left off the list: GitHub's search lags
   onQuit: () => void;
   onTheme?: () => void; // L: the color theme picker
   active?: boolean; // false while a popup over the list takes the keys
@@ -119,6 +168,13 @@ interface PickerProps {
 export function PickerScreen(props: PickerProps) {
   const { width, height } = props;
   const [prs, setPrs] = useState<ReviewRequest[] | undefined>();
+  const [authored, setAuthored] = useState<AuthoredPR[]>(() => authoredCache?.prs ?? []);
+  const [showWaiting, setShowWaiting] = useState(showWaitingPref);
+  // 'loading' until the first answer arrives; a refresh after that keeps the list on screen.
+  const [authoredState, setAuthoredState] = useState<'loading' | 'ready' | { error: string }>(() => (authoredCache ? 'ready' : 'loading'));
+  const [authoredTruncated, setAuthoredTruncated] = useState(() => authoredCache?.truncated ?? false);
+  const authoredInflight = useRef(false);
+  const scrollTop = useRef(0); // the list's first row on screen
   const [err, setErr] = useState('');
   const [sel, setSel] = useState(0);
   const [filter, setFilter] = useState('');
@@ -145,6 +201,25 @@ export function PickerScreen(props: PickerProps) {
     loading.current = true;
     setRefreshing(true);
     setErr('');
+    // Your own PRs load alongside the review requests; the list works without them.
+    if (!authoredInflight.current) {
+      authoredInflight.current = true;
+      setAuthoredState((st) => (st === 'ready' ? st : 'loading'));
+      Promise.resolve()
+        .then(() => listAuthoredPRs())
+        .then(
+          (mine) => {
+            authoredCache = mine;
+            setAuthored(mine.prs);
+            setAuthoredTruncated(mine.truncated);
+            setAuthoredState('ready');
+          },
+          (e: unknown) => setAuthoredState((st) => (st === 'ready' ? st : { error: (e as Error).message })),
+        )
+        .finally(() => {
+          authoredInflight.current = false;
+        });
+    }
     listReviewRequests()
       .then(
         (p) => {
@@ -173,6 +248,9 @@ export function PickerScreen(props: PickerProps) {
       });
   };
   useEffect(load, []);
+  useEffect(() => {
+    if (props.reload) load();
+  }, [props.reload]);
   const refreshMs = props.refreshMs ?? REFRESH_MS;
   useEffect(() => {
     const t = setInterval(load, refreshMs);
@@ -209,11 +287,15 @@ export function PickerScreen(props: PickerProps) {
     };
   }, [readClip]);
 
-  const { rows, items } = useMemo(() => pickerRows(prs ?? [], filter), [prs, filter]);
+  const { merged } = props;
+  const { rows, items } = useMemo(() => {
+    const open = <T extends Target>(list: T[]) => (merged?.size ? list.filter((p) => !merged.has(keyFor(p))) : list);
+    return pickerRows(open(prs ?? []), filter, open(authored), showWaiting, authoredTruncated);
+  }, [prs, filter, authored, merged, showWaiting, authoredTruncated]);
   // What's already on this machine for each PR: cheap queries, computed once per list.
   const local = useMemo(() => {
     const out: Record<string, Local> = {};
-    for (const p of prs ?? []) {
+    for (const p of [...(prs ?? []), ...authored]) {
       // listTours is newest first.
       const latest = props.store.listTours(p.repo, p.number)[0];
       out[`${p.repo}#${p.number}`] = { tourHead: latest?.headSha, drafts: props.store.listDrafts(p.repo, p.number).filter((d) => !d.posted).length };
@@ -221,8 +303,9 @@ export function PickerScreen(props: PickerProps) {
     return out;
     // localVersion is a cache buster: finished downloads write to the store behind this memo.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prs, localVersion, props.store]);
+  }, [prs, authored, localVersion, props.store]);
   const current = items[Math.min(sel, items.length - 1)];
+  const waiting = items.filter((p) => !isAuthored(p)).length;
   const key = current ? `${current.repo}#${current.number}` : '';
   selKey.current = key;
 
@@ -242,7 +325,8 @@ export function PickerScreen(props: PickerProps) {
   const wave = useRef({ keys: new Set(activeKeys), startedAt: Date.now() });
   const wasActive = useRef(false);
   const [frame, setFrame] = useState(0);
-  const ticking = active || refreshing;
+  const authoredLoading = authoredState === 'loading';
+  const ticking = active || refreshing || authoredLoading;
   useEffect(() => {
     if (!ticking) return;
     const t = setInterval(() => setFrame((f) => f + 1), FRAME_MS);
@@ -294,19 +378,40 @@ export function PickerScreen(props: PickerProps) {
     return () => clearTimeout(t);
   }, [key, current]);
 
-  const open = (t: Target) => {
+  // Who you are, to tell a copied link to your own PR from one to review.
+  const [viewer, setViewer] = useState<string>();
+  useEffect(() => {
+    let live = true;
+    Promise.resolve()
+      .then(() => viewerLogin())
+      .then(
+        (v) => live && setViewer(v),
+        () => undefined,
+      );
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  // Your own PRs open their feedback; `mine` says so for one outside Your PRs (a copied link).
+  const open = (t: Target, mine = false) => {
     // Opening a PR mid-download would build its tour twice; others open as usual.
     if (isActive(downloads[keyFor(t)])) {
       setHint(`${keyFor(t)} is still downloading · it opens instantly once ready`);
       return false;
     }
-    props.onPick({ repo: t.repo, number: t.number });
+    const own = items.find((p) => keyFor(p) === keyFor(t));
+    if (mine || (own && isAuthored(own))) props.onPick({ repo: t.repo, number: t.number }, 'author');
+    else props.onPick({ repo: t.repo, number: t.number });
     return true;
   };
 
   // A copied PR outside the list needs its title from a preview fetch.
   const clipKey = clip ? keyFor(clip.target) : '';
-  const clipListed = clip ? prs?.find((p) => keyFor(p) === clipKey) : undefined;
+  const clipListed = clip ? items.find((p) => keyFor(p) === clipKey) : undefined;
+  const clipPreview = previews[clipKey];
+  const clipAuthor = clipListed?.author ?? (clipPreview && !('error' in clipPreview) ? clipPreview.author : undefined);
+  const clipMine = !!clip && ((!!clipListed && isAuthored(clipListed)) || (!!viewer && clipAuthor === viewer));
   useEffect(() => {
     if (!clip || clipListed || inflight.current.has(clipKey)) return;
     inflight.current.add(clipKey);
@@ -321,7 +426,7 @@ export function PickerScreen(props: PickerProps) {
       setHint('');
       if (key.escape || input === 'q') return props.onQuit();
       if (clip && (input === 'p' || input === 'x')) {
-        if (input === 'p' && !open(clip.target)) return;
+        if (input === 'p' && !open(clip.target, clipMine)) return;
         dismissedClips.add(clip.text);
         return setClip(undefined);
       }
@@ -352,6 +457,13 @@ export function PickerScreen(props: PickerProps) {
       if (input === 'G') setSel(items.length - 1);
       if (key.return && current) open(current);
       if (input === 'o' && current) openExternal(current.url).catch((e: unknown) => setHint(`Could not open ${current.url}: ${(e as Error).message}`));
+      if (input === 'M' && current && props.onMerge) props.onMerge({ repo: current.repo, number: current.number });
+      if (input === 'w' && authored.some((p) => !needsAuthor(p))) {
+        showWaitingPref = !showWaiting;
+        return setShowWaiting(showWaitingPref);
+      }
+      if (input === 'c' && current && props.onChecks) props.onChecks({ repo: current.repo, number: current.number });
+      if (input === 'A' && current && isAuthored(current) && props.onReviewers) props.onReviewers({ repo: current.repo, number: current.number });
     },
     { isActive: !filtering && props.active !== false },
   );
@@ -368,19 +480,35 @@ export function PickerScreen(props: PickerProps) {
   const wide = width >= 110;
   const listW = wide ? Math.min(70, Math.max(48, Math.floor(width * 0.42))) : width - 2;
   const previewW = wide ? width - listW - 5 : 0;
-  const bodyH = height - 4; // title, key bar, filter line, spacing
-  const listH = clip ? bodyH - 4 : bodyH; // the pinned clipboard row and its gap
+  const bodyH = height - 3; // title, key bar, filter or status line
+  // The Your PRs status line (and its gap) while they load or after they failed.
+  const authoredLine = authoredState !== 'ready' && !!prs;
+  const listH = (clip ? bodyH - 4 : bodyH) - (authoredLine ? 2 : 0); // the pinned clipboard row and its gap
 
-  // Keep the selection in view; each PR takes two rows.
+  // Keep the selection in view; each PR takes two rows. The window keeps its place and moves
+  // only when the selection would leave it, so stepping within the view never jumps the list.
   const selRow = rows.findIndex((r) => r.kind === 'pr' && r.index === sel);
-  const rowH = (r: Row) => (r.kind === 'repo' ? 1 : 2);
-  let start = 0;
-  let used = rows.slice(0, selRow + 1).reduce((n, r) => n + rowH(r), 0);
-  while (used > listH - 1 && start < selRow) used -= rowH(rows[start++]);
-  if (start > 0 && rows[start - 1]?.kind === 'repo') start--; // keep the repo header with its first PR
+  const rowH = (r: Row) => (r.kind === 'pr' ? 2 : 1);
+  const span = (from: number, to: number) => rows.slice(from, to + 1).reduce((n, r) => n + rowH(r), 0);
+  let start = Math.max(0, Math.min(scrollTop.current, rows.length - 1));
+  if (selRow >= 0) {
+    if (selRow < start) {
+      start = selRow;
+      // Its repo and section headings come along while they fit.
+      while (start > 0 && (rows[start - 1].kind === 'repo' || rows[start - 1].kind === 'section') && span(start - 1, selRow) <= listH) start--;
+    }
+    while (start < selRow && span(start, selRow) > listH) start++;
+    // On the last PR, the lines under it (what is waiting, what was left out) scroll in too.
+    if (!rows.slice(selRow + 1).some((r) => r.kind === 'pr')) while (start < selRow && span(start, rows.length - 1) > listH) start++;
+  }
+  // No blank rows under the list while earlier rows could fill them.
+  while (start > 0 && span(start - 1, rows.length - 1) <= listH) start--;
+  scrollTop.current = start;
   const visible: Row[] = [];
   let h = 0;
-  for (let i = start; i < rows.length && h + rowH(rows[i]) <= listH; i++) {
+  // The last row may be cut off at the bottom rather than leave the space blank: a PR is two
+  // rows, and its title alone says there is more below.
+  for (let i = start; i < rows.length && h < listH; i++) {
     visible.push(rows[i]);
     h += rowH(rows[i]);
   }
@@ -388,8 +516,8 @@ export function PickerScreen(props: PickerProps) {
   return (
     <Box flexDirection="column" width={width} height={height} paddingX={1}>
       <Text wrap="truncate">
-        <Text bold>Review requests</Text>
-        <Text dimColor>{prs ? `  ${items.length}${filter ? ` of ${prs.length}` : ''} waiting on you · ` : ''}</Text>
+        <Text bold>Pull requests</Text>
+        <Text dimColor>{prs ? `  ${waiting}${filter ? ` of ${prs.length}` : ''} waiting on you · ` : ''}</Text>
         {prs && refreshing ? <Text color="cyan">{`${SPIN[frame % SPIN.length]} refreshing`}</Text> : null}
         {prs && !refreshing ? <Text dimColor>{`updated ${age(new Date(loadedAt).toISOString())}`}</Text> : null}
       </Text>
@@ -403,6 +531,9 @@ export function PickerScreen(props: PickerProps) {
           ['j/k', 'move'],
           ['/', 'filter'],
           ['o', 'open in browser'],
+          ...((props.onMerge ? [['M', 'merge']] : []) as [string, string][]),
+          ...((props.onChecks ? [['c', 'checks']] : []) as [string, string][]),
+          ...((props.onReviewers && current && isAuthored(current) ? [['A', 'reviewers']] : []) as [string, string][]),
           ['r', 'refresh'],
           ...(props.onTheme ? [['L', 'theme'] as [string, string]] : []),
           ['q', 'quit'],
@@ -457,33 +588,65 @@ export function PickerScreen(props: PickerProps) {
       )}
       <Box flexDirection="row" height={bodyH}>
         <Box flexDirection="column" width={listW} flexShrink={0}>
-          {clip ? <ClipboardRow target={clip.target} listed={clipListed} preview={previews[clipKey]} width={listW} /> : null}
+          {clip ? <ClipboardRow target={clip.target} listed={clipListed} preview={clipPreview} mine={clipMine} width={listW} /> : null}
           {err ? <Text color="red">{safe(err)}</Text> : null}
           {!prs && !err ? (
             <Text dimColor>
               <Text color="cyan">{SPIN[frame % SPIN.length]}</Text> Loading your review requests…
             </Text>
           ) : null}
-          {prs && !items.length ? <Text dimColor>{filter ? 'Nothing matches the filter.' : 'Nothing is waiting on you. gr review <number or URL> opens a specific PR.'}</Text> : null}
-          {visible.map((r) =>
-            r.kind === 'repo' ? (
-              <Text key={`repo:${r.repo}`} color="cyan" bold wrap="truncate">
-                {safe(r.repo)} <Text dimColor>({r.count})</Text>
-              </Text>
-            ) : (
-              <PRRow
-                key={r.pr.url}
-                pr={r.pr}
-                selected={r.index === sel}
-                marked={selected.has(keyFor(r.pr))}
-                width={listW}
-                local={local[`${r.pr.repo}#${r.pr.number}`]}
-                job={downloads[keyFor(r.pr)]}
-                // Only rows that are downloading take the frame, so the rest stay memoized.
-                spin={downloads[keyFor(r.pr)]?.state === 'running' ? SPIN[frame % SPIN.length] : undefined}
-              />
-            ),
-          )}
+          {prs && !items.length && filter ? <Text dimColor>Nothing matches the filter.</Text> : null}
+          <Box flexDirection="column" height={Math.min(h, listH)} overflow="hidden" flexShrink={0}>
+            {visible.map((r) => (
+              // Rows keep their height: the box clips the last one rather than squeezing them all.
+              <Box
+                key={r.kind === 'pr' ? `pr:${keyFor(r.pr)}` : r.kind === 'repo' ? `repo:${r.own}:${r.repo}` : `${r.kind}:${r.kind === 'note' ? r.text : r.title}`}
+                flexShrink={0}
+                flexDirection="column"
+              >
+                {r.kind === 'note' ? (
+                  <Text key={`note:${r.text}`} dimColor wrap="truncate">
+                    {`  ${r.text}`}
+                  </Text>
+                ) : r.kind === 'section' ? (
+                  <Text key={`section:${r.title}`} bold wrap="truncate">
+                    {r.title} <Text dimColor>({r.count})</Text>
+                  </Text>
+                ) : r.kind === 'repo' ? (
+                  <Text key={`repo:${r.own ? 'own' : 'review'}:${r.repo}`} color="cyan" bold wrap="truncate">
+                    {safe(r.repo)} <Text dimColor>({r.count})</Text>
+                  </Text>
+                ) : (
+                  <PRRow
+                    key={r.pr.url}
+                    pr={r.pr}
+                    selected={r.index === sel}
+                    marked={selected.has(keyFor(r.pr))}
+                    width={listW}
+                    local={local[`${r.pr.repo}#${r.pr.number}`]}
+                    job={downloads[keyFor(r.pr)]}
+                    // Only rows that are downloading take the frame, so the rest stay memoized.
+                    spin={downloads[keyFor(r.pr)]?.state === 'running' ? SPIN[frame % SPIN.length] : undefined}
+                  />
+                )}
+              </Box>
+            ))}
+          </Box>
+          {authoredLine ? (
+            <Box marginTop={1}>
+              {authoredLoading ? (
+                <Text wrap="truncate">
+                  <Text bold>Your PRs </Text>
+                  <Text color="cyan">{SPIN[frame % SPIN.length]}</Text>
+                  <Text dimColor> loading…</Text>
+                </Text>
+              ) : (
+                <Text dimColor wrap="truncate">
+                  {truncate(`Your PRs couldn’t load (r to retry): ${safe(typeof authoredState === 'object' ? authoredState.error : '')}`, listW)}
+                </Text>
+              )}
+            </Box>
+          ) : null}
         </Box>
         {wide ? (
           <Box flexDirection="column" width={previewW} marginLeft={2} paddingLeft={1} borderStyle="single" borderTop={false} borderBottom={false} borderRight={false} borderColor="gray" flexShrink={0}>
@@ -501,10 +664,11 @@ export function keyFor(pr: Target): string {
 
 // The copied PR, pinned above the list. Magenta, so it stands apart from the cyan list,
 // green notices and yellow hints.
-function ClipboardRow(props: { target: Target; listed?: ReviewRequest; preview?: PRPreview | { error: string }; width: number }) {
+function ClipboardRow(props: { target: Target; listed?: ReviewRequest; preview?: PRPreview | { error: string }; mine: boolean; width: number }) {
   const { target, listed, preview, width } = props;
   const info = listed ?? (preview && !('error' in preview) ? preview : undefined);
-  const meta = [target.repo, info ? `@${info.author}` : '', preview && 'error' in preview ? `could not load: ${preview.error}` : ''].filter(Boolean).join(' · ');
+  const meta = [target.repo, info ? (props.mine ? 'your PR' : `@${info.author}`) : '', preview && 'error' in preview ? `could not load: ${preview.error}` : ''].filter(Boolean).join(' · ');
+  const action = props.mine ? 'open feedback' : 'open tour';
   return (
     <Box flexDirection="column" marginBottom={1}>
       <Text color="magenta" bold>
@@ -515,11 +679,11 @@ function ClipboardRow(props: { target: Target; listed?: ReviewRequest; preview?:
         <Text bold>{truncate(safe(` #${target.number} ${info?.title ?? ''}`), width - 2)}</Text>
       </Text>
       <Text wrap="truncate">
-        <Text dimColor>{`     ${truncate(safe(meta), Math.max(1, width - 1 - 5 - ' · p open tour · x dismiss'.length))} · `}</Text>
+        <Text dimColor>{`     ${truncate(safe(meta), Math.max(1, width - 1 - 5 - ` · p ${action} · x dismiss`.length))} · `}</Text>
         <Text color="magenta" bold>
           p
         </Text>
-        <Text dimColor> open tour · </Text>
+        <Text dimColor> {action} · </Text>
         <Text color="magenta" bold>
           x
         </Text>
@@ -554,13 +718,39 @@ function DownloadStatus(props: { keys: string[]; downloads: Record<string, Downl
   );
 }
 
-const PRRow = React.memo(function PRRow(props: { pr: ReviewRequest; selected: boolean; marked: boolean; width: number; local?: Local; job?: DownloadJob; spin?: string }) {
+// One piece of a row's subtitle. Plain pieces are dim; a colored one stands out.
+interface Badge {
+  text: string;
+  color?: string;
+  bold?: boolean;
+}
+
+// What one of your PRs needs from you, in place of its author.
+export function authorBadges(pr: AuthoredPR): Badge[] {
+  const more = pr.unresolvedThreadsAtLeast ? '+' : ''; // more threads than gr read
+  const badges: (Badge | undefined)[] = [
+    pr.openThreads ? { text: `${pr.openThreads}${more} open thread(s)`, color: 'yellow' } : pr.unresolvedThreads ? { text: `${pr.unresolvedThreads}${more} unresolved` } : undefined,
+    pr.newReview ? { text: 'new review', color: 'cyan' } : undefined,
+    pr.reviewDecision === 'CHANGES_REQUESTED' ? { text: 'changes requested', color: 'red' } : pr.reviewDecision === 'APPROVED' ? { text: 'approved', color: 'green' } : undefined,
+    readyToMerge(pr) ? { text: '✓ ready to merge', color: 'green', bold: true } : undefined,
+    // Once it can merge, a repository that needs no review has nothing to ask for.
+    pr.noReviewers && !readyToMerge(pr) ? { text: 'no reviewers requested', color: 'yellow' } : undefined,
+    // Passing checks go without saying; ready to merge says they passed.
+    checksFailing(pr) ? { text: '✗ checks failing', color: 'red' } : pr.checks === 'PENDING' ? { text: '● checks running', color: 'yellow' } : undefined,
+    !needsAuthor(pr) && !pr.isDraft ? { text: 'waiting on review' } : undefined,
+  ];
+  return badges.filter((b): b is Badge => !!b);
+}
+
+const PRRow = React.memo(function PRRow(props: { pr: ReviewRequest | AuthoredPR; selected: boolean; marked: boolean; width: number; local?: Local; job?: DownloadJob; spin?: string }) {
   const { pr, selected, marked, width, job } = props;
   const drafts = props.local?.drafts ?? 0;
   const toured = !!props.local?.tourHead;
-  const meta = [`@${pr.author}`, age(pr.updatedAt), pr.isDraft ? 'draft' : '', ...pr.labels.slice(0, 2), toured ? 'toured' : '', drafts ? `${drafts} draft comment(s)` : '']
-    .filter(Boolean)
-    .join(' · ');
+  const who: Badge[] = isAuthored(pr) ? authorBadges(pr) : [{ text: `@${pr.author}` }];
+  const meta: Badge[] = [
+    ...who,
+    ...[age(pr.updatedAt), pr.isDraft ? 'draft' : '', ...pr.labels.slice(0, 2), toured ? 'toured' : '', drafts ? `${drafts} draft comment(s)` : ''].filter(Boolean).map((text) => ({ text })),
+  ];
   const bar = selected ? <Text color="cyan">▌</Text> : <Text> </Text>;
   // A mark wins over the download glyph: it's what the next `d` will act on.
   const glyph = marked
@@ -593,7 +783,21 @@ const PRRow = React.memo(function PRRow(props: { pr: ReviewRequest; selected: bo
       </Text>
       <Text wrap="truncate">
         {bar}
-        {status ? <Text color={status.color}>{truncate(`   ${safe(status.text)}`, width - 1)}</Text> : <Text dimColor>{truncate(`   ${meta}`, width - 1)}</Text>}
+        {status ? (
+          <Text color={status.color}>{truncate(`   ${safe(status.text)}`, width - 1)}</Text>
+        ) : (
+          <Text>
+            {'   '}
+            {meta.map((b, i) => (
+              <Text key={i}>
+                {i ? <Text dimColor> · </Text> : null}
+                <Text color={b.color} bold={b.bold} dimColor={!b.color}>
+                  {safe(b.text)}
+                </Text>
+              </Text>
+            ))}
+          </Text>
+        )}
       </Text>
     </Box>
   );
@@ -606,7 +810,7 @@ const DECISION: Record<string, { text: string; color: string }> = {
 };
 
 // Memoized: the description's Markdown is rendered once per PR, not on every j/k.
-const Preview = React.memo(function Preview(props: { pr: ReviewRequest; preview?: PRPreview | { error: string }; local?: Local; width: number; height: number }) {
+const Preview = React.memo(function Preview(props: { pr: ReviewRequest | AuthoredPR; preview?: PRPreview | { error: string }; local?: Local; width: number; height: number }) {
   const { pr, preview, width, height } = props;
   const lines: React.ReactNode[] = [];
   const push = (n: React.ReactNode) => lines.push(<React.Fragment key={lines.length}>{n}</React.Fragment>);
@@ -640,6 +844,7 @@ const Preview = React.memo(function Preview(props: { pr: ReviewRequest; preview?
         {p.isDraft ? <Text color="gray"> · draft</Text> : null}
         {decision ? <Text color={decision.color}> · {decision.text}</Text> : null}
         {p.mergeable === 'CONFLICTING' ? <Text color="red"> · merge conflicts</Text> : null}
+        {!p.isDraft && MERGEABLE.includes(p.mergeStateStatus ?? '') ? <Text color="green"> · ready to merge (M)</Text> : null}
       </Text>,
     );
     const c = p.checks;
@@ -648,11 +853,26 @@ const Preview = React.memo(function Preview(props: { pr: ReviewRequest; preview?
         <Text wrap="truncate">
           <Text dimColor>checks </Text>
           {c.failed ? <Text color="red">✗ {c.failed} failing </Text> : null}
-          {c.pending ? <Text color="yellow">◷ {c.pending} running </Text> : null}
+          {c.pending ? <Text color="yellow">● {c.pending} running </Text> : null}
           {c.passed ? <Text color="green">✓ {c.passed} passed</Text> : null}
-          {c.failedNames.length ? <Text dimColor> ({safe(c.failedNames.slice(0, 3).join(', '))})</Text> : null}
+          {c.failed || c.pending ? <Text dimColor> · c to view</Text> : null}
         </Text>,
       );
+      // What failed or is still running, by name, as author mode lists them.
+      const loud = sortChecks(c.items ?? []).filter((i) => i.state === 'failed' || i.state === 'pending');
+      for (const i of loud.slice(0, 4)) {
+        const m = CHECK_MARK[i.state];
+        push(
+          <Text wrap="truncate">
+            {'  '}
+            <Text color={m.color}>{`${m.mark} `}</Text>
+            {truncate(safe(checkLabel(i, c.items)), Math.max(8, width - 16))}
+            <Text dimColor>{` ${outcomeText(i)}`}</Text>
+          </Text>,
+        );
+      }
+      if (loud.length > 4) push(<Text dimColor>{`  … ${loud.length - 4} more`}</Text>);
+      else if (!c.items && c.failedNames.length) push(<Text dimColor wrap="truncate">{`  ${safe(c.failedNames.slice(0, 3).join(', '))}`}</Text>);
     }
     if (p.labels.length) push(<Text wrap="truncate">{safe(p.labels.map((l) => `[${l}]`).join(' '))}</Text>);
 

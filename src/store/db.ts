@@ -4,6 +4,7 @@ import { gunzipSync, gzipSync } from 'node:zlib';
 import type { DatabaseSync as DatabaseSyncType, StatementSync } from 'node:sqlite';
 import type { AgentRole } from '../agent/types.js';
 import type { ChapterOrder, CodeRef, Draft, ReadState, SuggestionMeta, Tour } from '../types.js';
+import type { QueuedReply, Triage } from '../review/feedback.js';
 import { grHome } from '../paths.js';
 import { KEEP_TOURS_PER_PR, TOUR_MAX_AGE_DAYS } from './retention.js';
 
@@ -11,6 +12,14 @@ export { KEEP_TOURS_PER_PR, TOUR_MAX_AGE_DAYS };
 
 const require = createRequire(import.meta.url);
 const { DatabaseSync } = require('node:sqlite') as typeof import('node:sqlite');
+
+// What author mode saw on its last visit to a PR, for "since your last visit".
+export interface FeedbackVisit {
+  head: string;
+  at: string;
+  addressed: string[]; // thread ids probably addressed then
+  comments: number; // review comments by others then
+}
 
 export interface Position {
   chapterId: string;
@@ -54,13 +63,34 @@ CREATE TABLE agent_sessions (
 );
 `;
 
+// Author mode: the author's triage of each thread, replies queued to send together, what the
+// last visit saw, and the model's reading of the feedback.
+const SCHEMA_V2 = `
+CREATE TABLE thread_triage (
+  repo TEXT NOT NULL, pr INTEGER NOT NULL, thread_id TEXT NOT NULL, state TEXT NOT NULL, updated_at TEXT NOT NULL,
+  PRIMARY KEY (repo, pr, thread_id)
+);
+CREATE TABLE thread_replies (
+  repo TEXT NOT NULL, pr INTEGER NOT NULL, thread_id TEXT NOT NULL, body TEXT NOT NULL, resolve INTEGER NOT NULL, updated_at TEXT NOT NULL,
+  PRIMARY KEY (repo, pr, thread_id)
+);
+CREATE TABLE feedback_visits (
+  repo TEXT NOT NULL, pr INTEGER NOT NULL, json TEXT NOT NULL,
+  PRIMARY KEY (repo, pr)
+);
+CREATE TABLE feedback_model (
+  repo TEXT NOT NULL, pr INTEGER NOT NULL, key TEXT NOT NULL, json TEXT NOT NULL,
+  PRIMARY KEY (repo, pr)
+);
+`;
+
 interface Row {
   [key: string]: unknown;
 }
 
 // Each entry moves the database from user_version i to i + 1. Append only;
 // never edit a migration that has shipped.
-const MIGRATIONS: ((db: DatabaseSyncType) => void)[] = [(db) => db.exec(SCHEMA_V1)];
+const MIGRATIONS: ((db: DatabaseSyncType) => void)[] = [(db) => db.exec(SCHEMA_V1), (db) => db.exec(SCHEMA_V2)];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
 
@@ -90,8 +120,8 @@ function migrate(db: DatabaseSyncType): void {
 export const JOURNAL_SIZE_LIMIT = 8 * 1024 * 1024;
 
 // Tables holding one PR's reading state, cleared once the PR has no tours left. Unposted
-// drafts are kept: they are the reviewer's own writing.
-const PR_STATE_TABLES = ['read_states', 'positions', 'moves', 'checklist_confirms'];
+// drafts and queued replies are kept: they are the user's own writing.
+const PR_STATE_TABLES = ['read_states', 'positions', 'moves', 'checklist_confirms', 'thread_triage', 'feedback_visits', 'feedback_model'];
 
 const packTour = (t: Tour): Uint8Array => gzipSync(JSON.stringify(t), { level: 1 });
 const unpackTour = (blob: unknown): Tour => JSON.parse(gunzipSync(blob as Uint8Array).toString('utf8')) as Tour;
@@ -349,5 +379,59 @@ export class Store {
 
   setChecklistConfirm(repo: string, pr: number, itemId: string, confirmed: boolean): void {
     this.stmt('INSERT OR REPLACE INTO checklist_confirms (repo, pr, item_id, confirmed) VALUES (?, ?, ?, ?)').run(repo, pr, itemId, confirmed ? 1 : 0);
+  }
+
+  getTriage(repo: string, pr: number): Record<string, Triage> {
+    const rows = this.stmt('SELECT thread_id, state FROM thread_triage WHERE repo = ? AND pr = ?').all(repo, pr) as Row[];
+    return Object.fromEntries(rows.map((r) => [r.thread_id as string, r.state as Triage]));
+  }
+
+  setTriage(repo: string, pr: number, threadId: string, state: Triage | undefined): void {
+    if (!state) {
+      this.stmt('DELETE FROM thread_triage WHERE repo = ? AND pr = ? AND thread_id = ?').run(repo, pr, threadId);
+      return;
+    }
+    this.stmt('INSERT OR REPLACE INTO thread_triage (repo, pr, thread_id, state, updated_at) VALUES (?, ?, ?, ?, ?)').run(repo, pr, threadId, state, new Date().toISOString());
+  }
+
+  listReplies(repo: string, pr: number): QueuedReply[] {
+    const rows = this.stmt('SELECT thread_id, body, resolve, updated_at FROM thread_replies WHERE repo = ? AND pr = ? ORDER BY updated_at').all(repo, pr) as Row[];
+    return rows.map((r) => ({ threadId: r.thread_id as string, body: r.body as string, resolve: Number(r.resolve) === 1, updatedAt: r.updated_at as string }));
+  }
+
+  // An empty body removes the queued reply.
+  saveReply(repo: string, pr: number, reply: Omit<QueuedReply, 'updatedAt'>): void {
+    if (!reply.body.trim()) return this.deleteReplies(repo, pr, [reply.threadId]);
+    this.stmt('INSERT OR REPLACE INTO thread_replies (repo, pr, thread_id, body, resolve, updated_at) VALUES (?, ?, ?, ?, ?, ?)').run(
+      repo,
+      pr,
+      reply.threadId,
+      reply.body,
+      reply.resolve ? 1 : 0,
+      new Date().toISOString(),
+    );
+  }
+
+  deleteReplies(repo: string, pr: number, threadIds: string[]): void {
+    this.stmt('DELETE FROM thread_replies WHERE repo = ? AND pr = ? AND thread_id IN (SELECT value FROM json_each(?))').run(repo, pr, JSON.stringify(threadIds));
+  }
+
+  getVisit(repo: string, pr: number): FeedbackVisit | undefined {
+    const row = this.stmt('SELECT json FROM feedback_visits WHERE repo = ? AND pr = ?').get(repo, pr) as Row | undefined;
+    return row ? (JSON.parse(row.json as string) as FeedbackVisit) : undefined;
+  }
+
+  setVisit(repo: string, pr: number, visit: FeedbackVisit): void {
+    this.stmt('INSERT OR REPLACE INTO feedback_visits (repo, pr, json) VALUES (?, ?, ?)').run(repo, pr, JSON.stringify(visit));
+  }
+
+  // The model's reading of the feedback, kept while the threads it read stay the same (`key`).
+  getFeedbackModel<T>(repo: string, pr: number, key: string): T | undefined {
+    const row = this.stmt('SELECT json FROM feedback_model WHERE repo = ? AND pr = ? AND key = ?').get(repo, pr, key) as Row | undefined;
+    return row ? (JSON.parse(row.json as string) as T) : undefined;
+  }
+
+  setFeedbackModel(repo: string, pr: number, key: string, value: unknown): void {
+    this.stmt('INSERT OR REPLACE INTO feedback_model (repo, pr, key, json) VALUES (?, ?, ?, ?)').run(repo, pr, key, JSON.stringify(value));
   }
 }

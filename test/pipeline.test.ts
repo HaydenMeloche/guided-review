@@ -130,6 +130,20 @@ describe('runPipeline', () => {
     expect(store.saveTour).toHaveBeenLastCalledWith(expect.objectContaining({ complete: false }));
   });
 
+  it('stops after the briefing when asked, leaving the tour for a later review to narrate', async () => {
+    vi.mocked(fetchDiff).mockResolvedValue(writeModules(2));
+    briefing.mockImplementation(async (t) => briefingFor(t.chapters));
+    const store = fakeStore();
+
+    const tour = await runPipeline(options(store, { briefingOnly: true }));
+
+    expect(briefing).toHaveBeenCalledTimes(1);
+    expect(chapter).not.toHaveBeenCalled();
+    expect(tour.mode).toBe('agent');
+    expect(tour.complete).toBe(false);
+    expect(store.saveTour).toHaveBeenLastCalledWith(expect.objectContaining({ mode: 'agent', complete: false }));
+  });
+
   it('falls back to plain mode when the briefing fails', async () => {
     vi.mocked(fetchDiff).mockResolvedValue(writeModules(2));
     briefing.mockRejectedValue(new AgentUnavailableError('no login'));

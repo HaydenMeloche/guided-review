@@ -381,6 +381,7 @@
           <pre><span class="p">$ </span>gr                    <span class="c"># pick a PR waiting for your review</span>
 <span class="p">$ </span>gr review 1234        <span class="c"># or owner/repo#1234, or a PR URL</span>
 <span class="p">$ </span>gr preview            <span class="c"># tour your own branch before opening a PR</span>
+<span class="p">$ </span>gr feedback           <span class="c"># work through the review on your own PR</span>
 <span class="p">$ </span>gr review --no-agent  <span class="c"># static analysis only, no model calls</span></pre>
         </div>
       </div>
@@ -452,6 +453,17 @@
           <div class="card">
             <h3>Preview your own branch</h3>
             <p>Run <code>gr preview</code> to tour your branch before you open a PR and see your change the way a reviewer will.</p>
+          </div>
+          <div class="card">
+            <h3>Answer the review</h3>
+            <p>
+              Run <code>gr feedback</code> on your own PR: threads grouped by the code they are on, change requests first, outdated ones followed to where their lines are now. Triage each one, queue
+              replies, and send them as one review.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Merge when it's ready</h3>
+            <p>See what blocks a merge and read failing checks' logs without leaving the terminal. Press <code>M</code> to merge, with a commit message the model drafts for you to edit.</p>
           </div>
         </div>
       </section>

@@ -6,7 +6,7 @@ import { ThemePicker } from './ThemePicker.js';
 import { spawnSync } from 'node:child_process';
 import type { Chapter, ChapterOrder, Draft, ExistingThread, Hunk, PRInfo, ReactionContent, ReadState, ThreadComment, Tour } from '../types.js';
 import { Store } from '../store/db.js';
-import { fetchHeadSha, fetchPR, fetchThreads, getMentionUsers, replyToThread, setCommentReaction } from '../github/gh.js';
+import { fetchHeadSha, fetchMergeStatus, fetchPR, fetchThreads, getMentionUsers, replyToThread, setCommentReaction, viewerLogin } from '../github/gh.js';
 import { ensureWorktree } from '../git/worktree.js';
 import { runPipeline } from '../pipeline.js';
 import type { AgentRole, AgentRouting } from '../agent/types.js';
@@ -28,15 +28,28 @@ import { generateSuggestion } from '../agent/suggest.js';
 import { PickerScreen, keyFor, type DownloadJob, type Target as PickTarget } from './PickerScreen.js';
 import { TourIntro, type IntroLine } from './TourIntro.js';
 import { useTerminalStatus, type TerminalProgress } from './terminalStatus.js';
+import { sanitizeTerminal } from '../util/sanitize.js';
 import { codingAgentLaunch, type CodingAgentSetting } from '../codingAgent.js';
+import { AuthorMode } from './author/AuthorMode.js';
+import { ChecksPopup, MergePopup, ReviewersPopup } from './prPopups.js';
+import { mergeReadiness, type Readiness } from '../review/merge.js';
+import { placedThreads } from '../review/feedback.js';
+import { loadThreadDiffs } from '../review/threadDiffs.js';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 export interface Target {
   repo: string;
   number: number;
 }
 
+// review: the reviewer's tour. author: the feedback on your own PR (gr feedback).
+export type Mode = 'review' | 'author';
+
 export interface AppOptions {
   target?: Target; // undefined: pick from PRs awaiting your review
+  mode?: Mode; // what a target opens in; review when unset, which asks first on your own PR
   localRepo?: string;
   agent?: AgentRouting;
   chapterOrder?: ChapterOrder; // the user's default; a PR's saved order wins
@@ -45,7 +58,7 @@ export interface AppOptions {
   saveViewSetting?: (key: ViewSetting, value: boolean) => void; // records a w or S toggle for next time
   noAgent?: boolean;
   fresh?: boolean;
-  preview?: { pr: PRInfo; diff: string; worktree: string }; // author mode on a local branch
+  preview?: { pr: PRInfo; diff: string; worktree: string }; // gr preview: a tour of a local branch
   palette?: Palette; // the saved theme, loaded before the first frame; the terminal's colors when unset
   saveTheme?: (name: string) => void; // records a theme chosen in the picker; unset when there is no config file
   codingAgent?: CodingAgentSetting; // the agent o opens; Claude Code when unset
@@ -58,7 +71,7 @@ interface ThemeControl {
   popup: (width: number, height: number) => ReactNode;
 }
 
-type Phase = 'pick' | 'load' | 'briefing' | 'chapter' | 'submit' | 'edit' | 'error';
+type Phase = 'pick' | 'load' | 'own' | 'briefing' | 'chapter' | 'submit' | 'edit' | 'author' | 'error';
 
 interface Step {
   name: string;
@@ -87,6 +100,8 @@ function slots(limit: number) {
 function titleSpot(phase: Phase, hasTour: boolean, ci: number, chapterCount: number): string {
   if (phase === 'pick') return 'reviews';
   if (phase === 'error') return 'error';
+  if (phase === 'own') return 'your PR';
+  if (phase === 'author') return hasTour ? 'feedback' : 'loading';
   if (phase === 'load' || !hasTour) return 'loading';
   if (phase === 'briefing') return 'briefing';
   if (phase === 'submit' || phase === 'edit') return 'submit';
@@ -188,6 +203,18 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const repoIndex = useRef<{ key: string; index: RepoIndex } | undefined>(undefined);
   const [confirms, setConfirms] = useState<Record<string, boolean>>({});
   const [prTitle, setPrTitle] = useState<string | undefined>();
+  const [mode, setMode] = useState<Mode>(opts.mode ?? 'review');
+  // PRs whose "this is your PR" question was answered, so it is asked once per PR.
+  const askedOwn = useRef(new Set<string>());
+  // PRs merged from here, kept off the picker: GitHub's search can list them for a while after.
+  const [merged, setMerged] = useState<ReadonlySet<string>>(new Set());
+  const [readiness, setReadiness] = useState<Readiness>();
+  const [merging, setMerging] = useState<Target>();
+  const [checking, setChecking] = useState<Target>(); // the checks popup, over the picker or the briefing
+  const [askingReviewers, setAskingReviewers] = useState<Target>(); // the reviewers popup, over the picker
+  const [pickerReload, setPickerReload] = useState(0);
+  // Diffs from each outdated thread's commit to the head, so the tour shows it on its line now.
+  const threadDiffs = useRef<Awaited<ReturnType<typeof loadThreadDiffs>>>(new Map());
   const loadGen = useRef(0);
   const agentSessions = useRef<Partial<Record<AgentRole, string>>>({});
   // The in-flight tour build: aborted when a new load starts (R rebase, retry, a new pick) and on quit.
@@ -244,8 +271,48 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     [store],
   );
 
+  // The feedback screen's load: it needs the tour's chapters and summary, not narration of the
+  // author's own code. Returns once the tour is in (or the load was superseded).
+  const loadAuthor = useCallback(
+    async (info: PRInfo, wt: string, gen: number, signal: AbortSignal, fresh: boolean | undefined) => {
+      setMoves(store.getMoves(info.repo, info.number));
+      setOrder(store.getPosition(info.repo, info.number)?.order ?? opts.chapterOrder ?? 'flow');
+      setDeltaOnly(false);
+      // The feedback needs the tour's chapters and summary, not narration of the author's own
+      // code. A tour already built for this head (by gr review or CI) is used as it is; else
+      // the static tour opens at once and, with a model, the briefing is written behind it.
+      const saved = fresh ? undefined : store.loadTour(info.repo, info.number, info.headSha);
+      const withModel = !!opts.agent && !opts.noAgent;
+      if (saved && (saved.mode === 'agent' || !withModel)) {
+        setTour(saved);
+        setPhase('author');
+        return;
+      }
+      const final = await runPipeline({
+        pr: info,
+        worktree: wt,
+        store,
+        agent: opts.agent,
+        noAgent: !withModel,
+        briefingOnly: true,
+        fresh,
+        signal,
+        onProgress,
+        onTour: (tr) => {
+          if (gen !== loadGen.current) return;
+          setTour(tr);
+          setPhase('author');
+        },
+      });
+      if (gen !== loadGen.current) return;
+      setTour(final);
+      setPhase('author');
+    },
+    [opts, store, onProgress],
+  );
+
   const load = useCallback(
-    async (t: Target, fresh = opts.fresh) => {
+    async (t: Target, fresh = opts.fresh, as: Mode = opts.mode ?? 'review') => {
       const gen = ++loadGen.current;
       loadAbort.current?.abort();
       const abort = new AbortController();
@@ -261,6 +328,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       setError('');
       setBanner(undefined);
       setNewHead(undefined);
+      setReadiness(undefined);
+      threadDiffs.current = new Map();
       try {
         let info: PRInfo;
         let wt: string;
@@ -278,6 +347,18 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         if (gen !== loadGen.current) return;
         setPrTitle(info.title);
         setWorktree(wt);
+        // Your own PR from gr review: ask whether you want its feedback or its tour.
+        if (!opts.preview && as === 'review' && !askedOwn.current.has(keyFor(t))) {
+          const viewer = await viewerLogin(signal).catch(() => undefined);
+          if (gen !== loadGen.current) return;
+          if (viewer && viewer === info.author) {
+            askedOwn.current.add(keyFor(t));
+            setPhase('own');
+            return;
+          }
+        }
+        setMode(as);
+        if (as === 'author') return await loadAuthor(info, wt, gen, signal, fresh); // awaited, so a failure reaches the catch below
         setStates(store.getReadStates(info.repo, info.number));
         setDrafts(store.listDrafts(info.repo, info.number));
         setMoves(store.getMoves(info.repo, info.number));
@@ -319,6 +400,16 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         setAnalyzing(undefined);
         setNarration(undefined);
         flagDraftsOnChangedLines(final);
+        if (!opts.preview && final.existingThreads.some((th) => th.isOutdated && !th.isResolved)) {
+          loadThreadDiffs(wt, final.headSha, final.existingThreads, { signal }).then(
+            (diffs) => {
+              if (gen !== loadGen.current) return;
+              threadDiffs.current = diffs;
+              setTour((cur) => (cur ? { ...cur, existingThreads: placedThreads(cur, cur.existingThreads, diffs) } : cur));
+            },
+            () => undefined,
+          );
+        }
         if (!shown) {
           setDeltaOnly(!!final.rereview?.newHunkIds.length);
           setPhase('briefing');
@@ -329,7 +420,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         setPhase('error');
       }
     },
-    [opts, store, onProgress, flagDraftsOnChangedLines],
+    [opts, store, onProgress, flagDraftsOnChangedLines, loadAuthor],
   );
 
   // Mount only: later loads come from explicit actions, and `load` changes identity with opts.
@@ -359,6 +450,19 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     const timer = setInterval(() => void check(), HEAD_POLL_MS);
     return () => clearInterval(timer);
   }, [pollRepo, pollPr, pollHead, preview]);
+
+  // Whether the PR can merge, for the review briefing. Author mode reads its own.
+  useEffect(() => {
+    if (!pollRepo || pollPr === undefined || preview || mode !== 'review') return;
+    let live = true;
+    fetchMergeStatus(pollRepo, pollPr).then(
+      (s) => live && setReadiness(mergeReadiness(s)),
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [pollRepo, pollPr, pollHead, preview, mode, newHead]);
 
   // ---------- derived ----------
   const chapters: Chapter[] = useMemo(() => {
@@ -463,8 +567,9 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       current
         ? {
             ...current,
-            existingThreads:
-              threads ?? current.existingThreads.map((t) => (t.id === thread.id ? { ...t, comments: [...t.comments, { author: 'you', body, createdAt: new Date().toISOString() }] } : t)),
+            existingThreads: threads
+              ? placedThreads(current, threads, threadDiffs.current)
+              : current.existingThreads.map((t) => (t.id === thread.id ? { ...t, comments: [...t.comments, { author: 'you', body, createdAt: new Date().toISOString() }] } : t)),
           }
         : current,
     );
@@ -594,6 +699,12 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         setNarration(undefined);
         setPhase('pick');
       };
+  // After a merge the PR is done: back to the list, saying so.
+  const showMerged = (notice: string) => {
+    setPickerNotice(notice);
+    if (back) back();
+    else setBanner(notice);
+  };
 
   // ---------- screens ----------
   const width = columns;
@@ -607,28 +718,76 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     </ReviewPopup>
   );
 
+  // A merge started from the picker has no checkout: a model drafting its message gets an empty
+  // directory to work in, and the PR's own text in the prompt.
+  const mergeAgent = (cwd?: string) => (opts.agent && !opts.noAgent ? { cwd: cwd ?? emptyDir(), ...opts.agent } : undefined);
+  const mergePopup = (background: ReactNode, t: Target, withTour?: Tour) => (
+    <MergePopup
+      background={background}
+      width={columns}
+      height={rows}
+      repo={t.repo}
+      number={t.number}
+      tour={withTour}
+      agent={mergeAgent(withTour ? worktree || undefined : undefined)}
+      onCancel={() => setMerging(undefined)}
+      onDone={(notice) => {
+        setMerging(undefined);
+        setMerged((m) => new Set(m).add(keyFor(t)));
+        showMerged(notice);
+      }}
+    />
+  );
+  const checksPopup = (background: ReactNode, t: Target) => (
+    <ChecksPopup background={background} width={columns} height={rows} repo={t.repo} number={t.number} onClose={() => setChecking(undefined)} />
+  );
   if (phase === 'pick') {
-    return withThemePicker((active) => (
+    const picker = (active: boolean) => (
       <PickerScreen
         store={store}
         notice={pickerNotice}
         width={width}
         height={height}
         active={active}
-        onPick={(t) => {
+        onPick={(t, as) => {
           setPickerNotice(undefined);
           setTarget(t);
-          void load(t);
+          void load(t, opts.fresh, as ?? 'review');
         }}
+        onMerge={setMerging}
+        onChecks={setChecking}
+        onReviewers={setAskingReviewers}
+        reload={pickerReload}
+        merged={merged}
         downloads={downloads}
         onDownload={startDownloads}
         onTheme={theme.show}
         onQuit={quit}
       />
-    ));
+    );
+    if (merging) return mergePopup(picker(false), merging);
+    if (checking) return checksPopup(picker(false), checking);
+    if (askingReviewers)
+      return (
+        <ReviewersPopup
+          background={picker(false)}
+          width={columns}
+          height={rows}
+          repo={askingReviewers.repo}
+          number={askingReviewers.number}
+          onClose={(changed) => {
+            setAskingReviewers(undefined);
+            if (changed) setPickerReload((n) => n + 1);
+          }}
+        />
+      );
+    return withThemePicker(picker);
   }
   if (phase === 'error') {
-    return <ErrorScreen message={error} onRetry={() => target && void load(target, true)} onBack={back} onQuit={quit} />;
+    return <ErrorScreen message={error} onRetry={() => target && void load(target, true, mode)} onBack={back} onQuit={quit} />;
+  }
+  if (phase === 'own' && target) {
+    return <OwnPrompt target={target} title={prTitle} onFeedback={() => void load(target, opts.fresh, 'author')} onTour={() => void load(target, opts.fresh, 'review')} onBack={back} onQuit={quit} />;
   }
   const introLines = (spinner: string): IntroLine[] => {
     const shown: IntroLine[] = steps
@@ -666,6 +825,48 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     : opts.noAgent
       ? 'AI is off for this review (no model in gr config, or --no-agent), so questions are off.'
       : 'The model is unavailable for this tour, so questions are off. The briefing says why.';
+
+  if (phase === 'author') {
+    // Author mode reads its tour statically, so its model use goes by the config, not the tour.
+    const authorAgent =
+      opts.agent && !opts.noAgent && worktree
+        ? {
+            cwd: worktree,
+            ...opts.agent,
+            sessions: agentSessions.current,
+            rememberSession: (role: AgentRole, sessionId: string) => {
+              agentSessions.current[role] = sessionId;
+              store.saveSession(tour.repo, tour.pr, tour.headSha, role, sessionId);
+            },
+          }
+        : undefined;
+    return withThemePicker((active) => (
+      <AuthorMode
+        key={`${tour.repo}#${tour.pr}@${tour.headSha}`}
+        tour={tour}
+        chapters={allChapters}
+        worktree={worktree}
+        store={store}
+        agent={authorAgent}
+        aiOff={authorAgent ? undefined : 'AI is off (no model in gr config, or --no-agent), so questions and drafted replies are off.'}
+        newHead={newHead}
+        writing={steps.some((st) => st.name === 'Writing briefing' && !st.done) ? 'Writing the summary and chapter titles…' : undefined}
+        width={width}
+        height={height}
+        active={active}
+        onReload={() => target && void load(target, false, 'author')}
+        onFullTour={() => {
+          if (!target) return;
+          askedOwn.current.add(keyFor(target));
+          void load(target, opts.fresh, 'review');
+        }}
+        onMerged={showMerged}
+        onTheme={theme.show}
+        onBack={back}
+        onQuit={quit}
+      />
+    ));
+  }
 
   // One index per checkout and head; its caches never invalidate, so preview mode, where the
   // working tree changes under it, gets a fresh one for each composer.
@@ -718,6 +919,11 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         setSubmitFrom('briefing');
         setPhase('submit');
       }}
+      readiness={readiness}
+      onMerge={!opts.preview && readiness && readiness.level !== 'merged' && readiness.level !== 'closed' ? () => target && setMerging(target) : undefined}
+      // Your own PR: t goes back to its feedback, as t on the feedback briefing opens this tour.
+      onChecks={!opts.preview && target ? () => setChecking(target) : undefined}
+      onFeedback={!opts.preview && target && tour.viewer && tour.viewer === tour.author ? () => void load(target, false, 'author') : undefined}
       onBack={back}
       onQuit={quit}
     />
@@ -768,13 +974,15 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       }}
       openBriefing={() => setPhase('briefing')}
       openInAgent={(h, c) => void openInAgent(h, c)}
-      rebase={newHead && target ? () => void load(target, false) : undefined}
+      rebase={newHead && target ? () => void load(target, false, 'review') : undefined}
       onTheme={theme.show}
       back={back}
       quit={quit}
     />
   );
   const submitBackground = () => (submitFrom === 'briefing' ? briefingScreen(false) : chapterScreen(false));
+  if (phase === 'briefing' && merging) return mergePopup(briefingScreen(false), merging, tour);
+  if (phase === 'briefing' && checking) return checksPopup(briefingScreen(false), checking);
   if (phase === 'briefing') return withThemePicker(briefingScreen);
   if (phase === 'edit' && editing && editState) {
     return (
@@ -846,6 +1054,42 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
 // ---------- small screens ----------
 
 const INTRO_STEPS = 6;
+
+let scratch: string | undefined;
+// An empty directory, made once, for a model call that has no checkout to read. It is removed
+// when the process exits, however the app was quit.
+function emptyDir(): string {
+  if (!scratch) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gr-merge-'));
+    scratch = dir;
+    process.once('exit', () => {
+      try {
+        fs.rmSync(dir, { recursive: true, force: true });
+      } catch {
+        // best effort
+      }
+    });
+  }
+  return scratch;
+}
+
+function OwnPrompt(props: { target: Target; title?: string; onFeedback: () => void; onTour: () => void; onBack?: () => void; onQuit: () => void }) {
+  useInput((input, key) => {
+    if (key.return || input === 'f') props.onFeedback();
+    if (input === 't') props.onTour();
+    if (input === 'q' || key.escape) (props.onBack ?? props.onQuit)();
+    if (input === 'Q') props.onQuit();
+  });
+  return (
+    <Box flexDirection="column" paddingX={1}>
+      <Text bold>
+        {props.target.repo}#{props.target.number} {props.title ? sanitizeTerminal(props.title) : ''}
+      </Text>
+      <Text>This is your PR. Open the feedback on it (Enter) or the full tour (t)?</Text>
+      <Text dimColor>The feedback lists the review threads to answer, in order; gr feedback opens it directly. {props.onBack ? 'q: PR list · Q: quit' : 'q: quit'}</Text>
+    </Box>
+  );
+}
 
 function ErrorScreen(props: { message: string; onRetry: () => void; onBack?: () => void; onQuit: () => void }) {
   useInput((input) => {

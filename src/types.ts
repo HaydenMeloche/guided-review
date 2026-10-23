@@ -160,6 +160,7 @@ export interface ThreadComment {
   body: string;
   createdAt: string;
   reactionGroups?: ReactionGroup[];
+  url?: string;
 }
 
 export type ReactionContent = 'THUMBS_UP' | 'THUMBS_DOWN' | 'LAUGH' | 'CONFUSED' | 'HEART' | 'HOORAY' | 'ROCKET' | 'EYES';
@@ -178,6 +179,28 @@ export interface ExistingThread {
   isResolved: boolean;
   isOutdated: boolean;
   comments: ThreadComment[];
+  // Where the thread was written: originalLine (and originalStartLine) are lines of this commit,
+  // not of the base or the head.
+  originalCommit?: string;
+  startLine?: number;
+  originalStartLine?: number;
+  side?: 'LEFT' | 'RIGHT';
+  subjectType?: 'LINE' | 'FILE';
+  diffHunk?: string; // the first comment's diff hunk, ending at the commented line
+  viewerCanResolve?: boolean;
+  viewerCanUnresolve?: boolean;
+  // An outdated thread followed to its line at the head (see placeThread), so it shows where
+  // the code it was about is now. Computed after loading; never from GitHub.
+  placed?: { line: number; side: 'LEFT' | 'RIGHT' };
+}
+
+// A comment on the PR's conversation, not on a line.
+export interface IssueComment {
+  id: number;
+  author: string;
+  body: string;
+  createdAt: string;
+  url: string;
 }
 
 export interface ExistingReview {

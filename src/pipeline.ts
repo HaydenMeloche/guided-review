@@ -39,6 +39,9 @@ export interface PipelineOptions {
   fresh?: boolean; // ignore a cached tour, and any tour posted to the PR
   shared?: boolean; // look for a tour CI posted to the PR (default true)
   diffOverride?: string; // author preview: a local diff instead of the PR's
+  // Stop after the briefing (gr feedback: the author needs the summary and chapter titles, not
+  // narration of their own code). The tour stays incomplete, so a later review narrates it.
+  briefingOnly?: boolean;
   onProgress: ProgressFn;
   // Called whenever the tour gains content. Emitted tours are never mutated afterwards: each
   // emission is a new top-level object, and unchanged chapters and hunks keep their identity.
@@ -522,80 +525,82 @@ export async function runPipeline(opts: PipelineOptions): Promise<Tour> {
         opts.onTour(tour);
       }
 
-      // Chapter prompts carry the briefing's intent and per-chapter summary, so narration
-      // waits for the briefing.
-      const narratable = tour.chapters.filter((c) => NARRATED_KINDS.has(c.kind));
-      const toNarrate = narratable.filter((c) => !c.narrated);
-      let done = narratable.length - toNarrate.length;
-      onProgress(`Narrating chapters ${done}/${narratable.length}`, done === narratable.length, { done, total: narratable.length });
-      // Linked to the caller's signal, and aborted on the first fatal error so the other
-      // workers stop calling the model and stop touching the tour.
-      const narration = new AbortController();
-      const stop = narration.signal;
-      const onAbort = () => narration.abort(signal?.reason);
-      if (signal?.aborted) onAbort();
-      signal?.addEventListener('abort', onAbort, { once: true });
-      const call = semaphore(CHAPTER_CONCURRENCY);
-      const chapterNow = (id: string) => tour.chapters.find((c) => c.id === id)!;
-      try {
-        await mapLimit(
-          toNarrate,
-          CHAPTER_CONCURRENCY,
-          async (start) => {
-            const id = start.id;
-            const batches = chapterBatches(tour, start);
-            const multi = batches.length > 1;
-            const staticBranches = start.untestedBranches;
-            const branches: string[][] = [];
-            // Every batch runs at once (within the call limit). With several batches the
-            // model's hunkOrder is dropped and only batch 0's diagram is kept, so no batch
-            // depends on another.
-            const settled = await Promise.allSettled(
-              batches.map((batch, i) =>
-                call(async () => {
-                  if (stop.aborted) return;
-                  const part = multi ? { ...chapterNow(id), hunkIds: batch } : chapterNow(id);
-                  const minorIds = minorHunkIds(tour, part);
-                  let r: Awaited<ReturnType<typeof analyzeChapter>>;
-                  try {
-                    r = await analyzeChapter(tour, part, worktree, opts.agent, stop);
-                  } catch (e) {
-                    if (e instanceof AgentUnavailableError) narration.abort(e);
-                    throw e;
-                  }
-                  if (stop.aborted) return;
-                  if (r.modelUsed) tour = { ...tour, modelUsage: { ...tour.modelUsage, [`narration:${id}${multi ? `:${i}` : ''}`]: r.modelUsed } };
-                  const value = { ...r.value };
-                  if (multi) delete value.hunkOrder;
-                  if (i > 0) delete value.diagram;
-                  branches[i] = value.untestedBranches ?? [];
-                  const merged = branches.flat();
-                  tour = applyChapterResult(tour, id, value, { minorIds, untestedBranches: multi ? (merged.length ? merged : staticBranches) : undefined });
-                  opts.onTour(tour);
-                }),
-              ),
-            );
-            const failures = settled.flatMap((s) => (s.status === 'rejected' ? [s.reason as unknown] : []));
-            const fatal = failures.find((e) => e instanceof AgentUnavailableError);
-            if (fatal) throw fatal;
-            if (stop.aborted) return;
-            let notes = tour.notes;
-            const title = chapterNow(id).title;
-            if (failures.length) {
-              notes = [...notes, `Chapter "${title}" got a lighter analysis: ${(failures[0] as Error).message}`];
-            } else {
-              const truncated = chapterNow(id).hunkIds.filter((h) => tour.hunks[h] && isTruncated(tour.hunks[h])).length;
-              if (truncated) notes = [...notes, `"${title}": ${truncated} very large hunk(s) got a lighter analysis (only their first lines were read).`];
-            }
-            tour = { ...tour, notes, chapters: tour.chapters.map((c) => (c.id === id ? { ...c, narrated: true } : c)) };
-            done++;
-            onProgress(`Narrating chapters ${done}/${narratable.length}`, done === narratable.length, { done, total: narratable.length });
-            opts.onTour(tour);
-          },
-          narration,
-        );
-      } finally {
-        signal?.removeEventListener('abort', onAbort);
+      if (!opts.briefingOnly) {
+        // Chapter prompts carry the briefing's intent and per-chapter summary, so narration
+        // waits for the briefing.
+        const narratable = tour.chapters.filter((c) => NARRATED_KINDS.has(c.kind));
+        const toNarrate = narratable.filter((c) => !c.narrated);
+        let done = narratable.length - toNarrate.length;
+        onProgress(`Narrating chapters ${done}/${narratable.length}`, done === narratable.length, { done, total: narratable.length });
+        // Linked to the caller's signal, and aborted on the first fatal error so the other
+        // workers stop calling the model and stop touching the tour.
+        const narration = new AbortController();
+        const stop = narration.signal;
+        const onAbort = () => narration.abort(signal?.reason);
+        if (signal?.aborted) onAbort();
+        signal?.addEventListener('abort', onAbort, { once: true });
+        const call = semaphore(CHAPTER_CONCURRENCY);
+        const chapterNow = (id: string) => tour.chapters.find((c) => c.id === id)!;
+        try {
+          await mapLimit(
+            toNarrate,
+            CHAPTER_CONCURRENCY,
+            async (start) => {
+              const id = start.id;
+              const batches = chapterBatches(tour, start);
+              const multi = batches.length > 1;
+              const staticBranches = start.untestedBranches;
+              const branches: string[][] = [];
+              // Every batch runs at once (within the call limit). With several batches the
+              // model's hunkOrder is dropped and only batch 0's diagram is kept, so no batch
+              // depends on another.
+              const settled = await Promise.allSettled(
+                batches.map((batch, i) =>
+                  call(async () => {
+                    if (stop.aborted) return;
+                    const part = multi ? { ...chapterNow(id), hunkIds: batch } : chapterNow(id);
+                    const minorIds = minorHunkIds(tour, part);
+                    let r: Awaited<ReturnType<typeof analyzeChapter>>;
+                    try {
+                      r = await analyzeChapter(tour, part, worktree, opts.agent, stop);
+                    } catch (e) {
+                      if (e instanceof AgentUnavailableError) narration.abort(e);
+                      throw e;
+                    }
+                    if (stop.aborted) return;
+                    if (r.modelUsed) tour = { ...tour, modelUsage: { ...tour.modelUsage, [`narration:${id}${multi ? `:${i}` : ''}`]: r.modelUsed } };
+                    const value = { ...r.value };
+                    if (multi) delete value.hunkOrder;
+                    if (i > 0) delete value.diagram;
+                    branches[i] = value.untestedBranches ?? [];
+                    const merged = branches.flat();
+                    tour = applyChapterResult(tour, id, value, { minorIds, untestedBranches: multi ? (merged.length ? merged : staticBranches) : undefined });
+                    opts.onTour(tour);
+                  }),
+                ),
+              );
+              const failures = settled.flatMap((s) => (s.status === 'rejected' ? [s.reason as unknown] : []));
+              const fatal = failures.find((e) => e instanceof AgentUnavailableError);
+              if (fatal) throw fatal;
+              if (stop.aborted) return;
+              let notes = tour.notes;
+              const title = chapterNow(id).title;
+              if (failures.length) {
+                notes = [...notes, `Chapter "${title}" got a lighter analysis: ${(failures[0] as Error).message}`];
+              } else {
+                const truncated = chapterNow(id).hunkIds.filter((h) => tour.hunks[h] && isTruncated(tour.hunks[h])).length;
+                if (truncated) notes = [...notes, `"${title}": ${truncated} very large hunk(s) got a lighter analysis (only their first lines were read).`];
+              }
+              tour = { ...tour, notes, chapters: tour.chapters.map((c) => (c.id === id ? { ...c, narrated: true } : c)) };
+              done++;
+              onProgress(`Narrating chapters ${done}/${narratable.length}`, done === narratable.length, { done, total: narratable.length });
+              opts.onTour(tour);
+            },
+            narration,
+          );
+        } finally {
+          signal?.removeEventListener('abort', onAbort);
+        }
       }
     } catch (e) {
       signal?.throwIfAborted();
@@ -621,7 +626,7 @@ export async function runPipeline(opts: PipelineOptions): Promise<Tour> {
   signal?.throwIfAborted();
   // A tour whose narration stopped early is resumed on the next open: the briefing and the
   // chapters marked narrated are reused, the rest are narrated then.
-  const complete = (tour.mode === 'agent' && !tour.notes.some((n) => n.startsWith(STOPPED_EARLY))) || !!opts.noAgent;
+  const complete = (tour.mode === 'agent' && !opts.briefingOnly && !tour.notes.some((n) => n.startsWith(STOPPED_EARLY))) || !!opts.noAgent;
   tour = { ...tour, complete, mentionUsers: mentionUsers ?? tour.mentionUsers };
   store.saveTour(tour);
   opts.onTour(tour);

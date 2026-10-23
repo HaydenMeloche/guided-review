@@ -2,14 +2,14 @@ import type { CommentStatus, Draft, ExistingThread, Hunk, ReReview, Tour } from 
 import { parseUnifiedDiff } from '../diff/parse.js';
 import { hunkKeys } from './hunkState.js';
 
-interface Span {
+export interface Span {
   start: number;
   end: number;
 }
 
 // Old-side line spans each hunk of the prev→next diff actually touched.
 // Pure insertions touch the gap after the preceding old line.
-function changedSpans(hunk: Hunk): Span[] {
+export function changedSpans(hunk: Hunk): Span[] {
   const spans: Span[] = [];
   let lastOld = hunk.oldStart - 1;
   for (const l of hunk.lines) {
@@ -26,7 +26,7 @@ function changedSpans(hunk: Hunk): Span[] {
   return spans;
 }
 
-function overlap(a: Span, b: Span): boolean {
+export function overlap(a: Span, b: Span): boolean {
   return a.start <= b.end && b.start <= a.end;
 }
 

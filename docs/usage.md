@@ -1,18 +1,22 @@
 # Using Guided Review
 
-How to pick a PR, read a tour, ask questions, draft comments, review again after a push, and preview your own branch. For installation and setup, see the [README](../README.md).
+How to pick a PR, read a tour, ask questions, draft comments, review again after a push, respond to the review on your own PR, merge, and preview your own branch. For installation and setup, see the [README](../README.md).
 
 ## Pick a PR
 
-The picker groups review requests by repository. Press `/` to filter by repo, title, author, or label; `j`/`k` to move; `Enter` to open; `o` to open the selected PR in a browser; `r` to refresh; or `L` to choose a [color theme](configuration.md#color-themes). The list also refreshes itself every two minutes, keeping your place. When the clipboard holds a PR link (for example, one copied from Slack), the picker offers it: `p` opens its tour and `x` dismisses it. Press `Space` to select PRs, `a` to select all PRs shown by the filter, and `d` to download the selected tours before opening them. With no selection, `d` downloads the highlighted tour. Downloads run one at a time and show progress in the picker; completed tours are cached for later opening. On a wide terminal, the preview shows the description, changed files, checks, review decision, and whether a local tour or drafts already exist.
+The picker lists your review requests under **Review requests**, grouped by repository. Press `/` to filter by repo, title, author, or label; `j`/`k` to move; `Enter` to open; `o` to open the selected PR in a browser; `r` to refresh; or `L` to choose a [color theme](configuration.md#color-themes). The list also refreshes itself every two minutes, keeping your place. When the clipboard holds a PR link (for example, one copied from Slack), the picker offers it: `p` opens its tour (or, for your own PR, its [feedback](#respond-to-a-review)) and `x` dismisses it. Press `Space` to select PRs, `a` to select all PRs shown by the filter, and `d` to download the selected tours before opening them. With no selection, `d` downloads the highlighted tour. Downloads run one at a time and show progress in the picker; completed tours are cached for later opening. On a wide terminal, the preview shows the description, changed files, checks (failing and running ones by name), review decision, whether the PR is ready to merge, and whether a local tour or drafts already exist.
+
+Below the review requests, **Your PRs** lists your own open PRs that need you: ones with unresolved threads, a review submitted since your latest commit, changes requested, ready to merge, or ready for review with nobody asked to review them (`no reviewers requested`; this applies only to repositories you don't own, so it stays quiet on your own). A line under them counts the rest, which wait on reviewers (drafts included); `w` shows them too, marked `waiting on review`, and hides them again. Each row says which, such as `2 open thread(s) · new review` or `✓ ready to merge`, colored so the state stands out: approved and ready to merge in green, changes requested in red, open threads in yellow. The row also says `✗ checks failing` or `● checks running`. gr reads up to 200 of your open PRs and says `Showing the first 200 of your open PRs.` when there are more. It reads the first 100 review threads of each PR, so a PR with more shows a count like `100+ unresolved`. `Enter` on one opens its feedback (see [Respond to a review](#respond-to-a-review)). `M` on any PR opens the [merge dialog](#merge-a-pr), and `c` its [checks](#checks). `A` on one of your PRs shows [who is asked to review it](#ask-for-reviews) and asks more people.
 
 For a PR, Guided Review fetches metadata, the diff, and existing review threads through `gh`. It checks out the PR head in a detached worktree under `~/.guided-review/worktrees/`. Your own working checkout is left alone. If the current repository is not the PR's repository, it uses a cached clone under `~/.guided-review/repos/`.
 
-Run `gr cleanup` to remove managed PR worktrees and prune old tours. Tours are also pruned as they are saved: each PR keeps the three heads you opened most recently. `gr cleanup` also deletes tours you have not opened in 90 days (`--days <n>` to change it), and for a PR left with no tour, its reading state, position, chapter moves, checklist confirmations, and posted drafts. Unposted drafts and cached repository clones are always kept. Git refuses to remove a worktree with local changes, so the command reports and skips it.
+Run `gr cleanup` to remove managed PR worktrees and prune old tours. Tours are also pruned as they are saved: each PR keeps the three heads you opened most recently. `gr cleanup` also deletes tours you have not opened in 90 days (`--days <n>` to change it), and for a PR left with no tour, its reading state, position, chapter moves, checklist confirmations, thread triage, and posted drafts. Unposted drafts, queued replies, and cached repository clones are always kept. Git refuses to remove a worktree with local changes, so the command reports and skips it.
 
 ## Read the tour
 
-The **briefing** opens once it is ready; chapter narration may continue in the background. It shows the PR's intent and author description, recent reviewer feedback, flagged gaps, an overview diagram, chapters with risk, and your progress. Press `V` to read all submitted reviews. The chapter heading names the current order. Press `f` to cycle **Guided** (recommended reading path), **Risk first**, **Small first** (fewest changed lines), and **File** (path order). Select a chapter with `j`/`k` and `Enter`, or press `n` to resume where you left off. Press `r` to read the full PR description, `d` for the overview diagram, or `?` to ask about the whole PR in a panel below the briefing. On a re-review, press `D` to switch between only the changes and the full review.
+The **briefing** opens once it is ready; chapter narration may continue in the background. It shows the PR's intent and author description, recent reviewer feedback, flagged gaps, an overview diagram, chapters with risk, and your progress. Press `V` to read all submitted reviews. The chapter heading names the current order. Press `f` to cycle **Guided** (recommended reading path), **Risk first**, **Small first** (fewest changed lines), and **File** (path order). Select a chapter with `j`/`k` and `Enter`, or press `n` to resume where you left off. Press `r` to read the full PR description, `d` for the overview diagram, or `?` to ask about the whole PR in a panel below the briefing. On a re-review, press `D` to switch between only the changes and the full review. Above the summary, a line says whether the PR is ready to merge and, if not, why; press `M` to [merge it](#merge-a-pr). Press `c` for the PR's [checks](#checks) and their logs. On your own PR, press `t` to switch to [its feedback](#respond-to-a-review).
+
+An outdated review thread, one on lines a later push changed, shows where those lines are now: Guided Review follows the line from the commit the comment was written on to the current head.
 
 The terminal's window title names the PR and where you are in it, such as `gr · acme/app#42 · chapter 3/7`, and goes back to your own title when you quit (in terminals that keep a title stack). In Ghostty, WezTerm, Windows Terminal, ConEmu, and iTerm2 3.6 or later, the tab or taskbar also shows progress while the tour builds and while chapter narration runs in the background, so you can work in another tab until it is done.
 
@@ -161,6 +165,101 @@ If a draft's original line is no longer in the diff, Guided Review attaches it t
 Guided Review checks for a new PR head while you review and offers `R` to rebuild on it. It keeps your drafts and reading state. A new tour starts in **changes only** mode, showing hunks that are new or changed since the previous head. The briefing says so just above the chapter list, which still shows every chapter: the unchanged ones are greyed, and each changed one says how many of its hunks changed. In a chapter, the header says `changes only`, the chapter list greys unchanged chapters, and the title says how many unchanged hunks are hidden. Press `D` on the briefing or in a chapter to switch to the full review and back.
 
 The briefing also compares your posted comments and GitHub threads with the new diff. It reports whether the commented lines changed, the file was deleted, or a thread was resolved. A changed line is a reason to re-check the author's update, not proof that the concern is fixed. Drafts whose original hunk disappeared are flagged for review.
+
+## Respond to a review
+
+Run `gr feedback` on your branch (or `gr feedback 1234`, a URL, or `owner/repo#1234`) once reviews come in. It opens the feedback on your PR rather than a tour of your own code. `gr review` on your own PR asks which you want, and `Enter` on a PR under **Your PRs** in the picker opens it too. `gr feedback` needs no narrated tour: it uses one already built for this head (by you, a reviewer's `gr review`, or [CI](ci.md)), or builds a static one and opens on it at once. With a model configured, it then writes the tour's briefing (the summary of the PR and its chapter titles) behind the screen, which updates when it arrives; narrating each chapter is left for a later `gr review`.
+
+### The feedback briefing
+
+The first screen is laid out like the review briefing. On the left is the PR: whether it can merge and what blocks it (`M` merges), what it does, your description (`r` reads it all), and the feedback chapters. On the right is the feedback:
+
+- since your last visit: threads your commits probably addressed, and new comments and who wrote them;
+- each reviewer's standing verdict (an approval stays an approval after a later comment-only review), when they gave it, and whether that was before or after your latest commit, then who is asked to review and has not answered yet; `V` reads their review summaries, and `A` asks more people;
+- the head commit's checks: failing and running ones by name, the rest as a count; `c` opens [the checks](#checks), and while any is running the list updates every 20 seconds;
+- how many threads are open, replied (you have the last word, so it waits on a reviewer), probably addressed, and resolved, how many replies you have queued, and `g` to read the PR's general comments;
+- with a model, three to six themes that group related comments across threads and reviewers.
+
+On a terminal narrower than 120 columns, the feedback sits above the PR instead.
+
+A feedback chapter is the tour chapter whose code the threads are on, so related threads stay together; its title also names the files its threads are on. Chapters with an open change request come first, then the tour's reading order; threads with no line in the diff go in **Elsewhere in the PR**. Inside a chapter, change requests come first. A thread's class comes from the label a `gr` reviewer posted (`**[blocking]**`, `**[nit]**`, …), or else from the model (change request, question, suggestion, nit, or praise); without either it counts as a change request. Probably addressed threads stay in their chapter, marked and listed after the others; resolved threads are hidden, and `H` shows them.
+
+**Probably addressed** means the lines under the thread changed in a commit after it was written, the change is your PR's own (an update that only merged the base branch in does not count), and no reviewer has written in it since your latest commit. It is a prompt to check, not proof, and Guided Review never resolves a thread on its own.
+
+Press `n` to start or resume, `Enter` to open the selected chapter (with no feedback to open, either says why: no reviews yet, reviews with no threads, or every thread resolved), `s` to send, `y` to [comment on the PR](#comment-on-the-pr), `t` for the full tour of the PR, `A` to [ask for reviews](#ask-for-reviews), `Y` to copy the PR's link, and `R` to read the feedback again. In the tour, `b` returns to its briefing, and `t` there brings you back to the feedback.
+
+### Feedback keys
+
+Each thread shows its state, class, your triage, the reviewers in it, where it is, the code it is on with the commented line marked, and the discussion. An outdated thread is followed to its line at the current head; if those lines were rewritten it goes to the nearest line that survived, and if they left the diff (or the commit it was written on is gone after a force push), the comment's own diff hunk is shown as it was.
+
+When a comment links to a file in the PR's repository, such as the code references `gr` posts (`https://github.com/o/r/blob/<sha>/src/retry.ts#L10-L14`), the file shows on the right, read at the commit the link names: the linked lines, marked, with ten lines on each side (the top of the file for a link to the whole file). Several linked files stack one under another while they fit; when space runs short, the context around the last one shrinks so its linked lines still show. A link to a branch, or to a commit that is gone after a force push, shows the file at the PR head and says so. Links to other repositories are not previewed. Code a comment names without linking shows the same way: a class or function name (`PaymentsUtils`, `retryPolicy`, `PaymentsUtils.findBorrowers`), a name in backticks, or a source file name (`FacilitiesService.kt`). Each name is looked up in the PR's checkout at its head, and only an exact match shows, headed by the name that found it (`PaymentsUtils → src/…/PaymentsUtils.kt:76`); a class shows its declaration line, a function its first lines. Names in code blocks and URLs are not looked up, and a match on the thread's own lines is left out. The preview needs a terminal at least 110 columns wide; narrower, the status line counts the linked files instead.
+
+| Key | Action |
+| --- | --- |
+| `n` / `p` | Next or previous thread, on into the next chapter. |
+| `]` / `[` | Next or previous feedback chapter. |
+| `j` / `k`, `J` / `K` | Scroll the discussion by a line or a page. `Tab` selects the next comment. |
+| `y` | Write a reply. Replies are queued, not posted: `Enter` queues it, `Ctrl+R` marks the thread to resolve once the reply is sent, and `Esc` cancels. Press `y` again to edit a queued reply; an empty reply removes it. |
+| `Ctrl+T` | In the reply editor, have the model draft a reply, shown as a proposal: `Enter` puts it in the editor for you to change and queue, `r` asks for changes, `Esc` discards it. What you have typed guides the draft. Off with no AI model or `--no-agent`. |
+| `Space` | Cycle your triage: will do, done (fixed by hand, before the push that will mark it probably addressed), won't do, discuss, none. Triage stays on your machine and is never posted. Marking a thread won't do without a reply gets a reminder, since a dismissal with no reason usually brings a second round. |
+| `Z` | Resolve or unresolve the thread on GitHub now, after you confirm. |
+| `a` | React to the selected comment (`1`–`8` toggle a reaction). |
+| `?` | Ask the model about the thread: "is this concern valid?", "what would the change look like?", "is this handled elsewhere?". The question includes the thread and its code. |
+| `o` | Show the prompt for your coding agent to make the fix: the thread, the code it is on, and what to change, with the reviewer's text quoted as untrusted. `Enter` copies it to the clipboard (as `Y` does) for you to paste into your agent in your own checkout of the branch. gr never starts an agent from here: its PR worktree is a detached copy, so a fix made there would not be on your branch. |
+| `e` | Give the discussion more of the screen, or the code back. |
+| `l` | When the thread links to more files than fit beside it, move the preview on to the next. `Tab` to a comment starts the preview at the first file it links to. |
+| `H` | Show or hide resolved threads. |
+| `s` | Open the send screen. |
+| `M` | Merge the PR. |
+| `Y` | Copy the PR's link to the clipboard, here and on the feedback briefing. Without a clipboard tool (`pbcopy`, `wl-copy` or `xclip`, `clip.exe`), as over SSH, gr asks the terminal to copy it (OSC 52), which most terminals allow. |
+| `L` | Change the color theme. |
+| `R` | Read the feedback again, or after you push (gr notices within a minute), rebuild on the new head. Triage and queued replies are kept: they belong to the thread, not the commit. |
+| `b` / `q` / `Q` | Return to the feedback briefing, go back to the PR list, or quit. |
+
+### Send
+
+The send screen lists your queued replies and comment, which threads each reply will resolve, and a re-request for review. Nothing goes to GitHub until you press `P` and confirm. Then:
+
+1. The replies post together as one comment review on your PR, so each reviewer gets one notification instead of one per reply. If you already have a pending review of your own on GitHub (one you started in the browser), GitHub takes no replies at all until you submit or discard it there, so gr says so and sends nothing. If any step of the batching fails, gr deletes its pending review and posts the replies one by one, and tells you why. The one exception is when the final submit step fails and the pending review turns out to be gone, which means it was submitted and only GitHub's answer was lost: then nothing is sent again, the replies stay queued, and gr asks you to check the PR (`Y` copies its link) before sending again. If a one-by-one send stops partway, the replies that did post leave the queue and the rest stay queued, so pressing `P` again never posts a reply twice.
+2. Your queued [comment](#comment-on-the-pr) posts on the PR's conversation.
+3. The threads marked resolve are resolved, after their replies, so no reviewer sees a thread resolved before its answer.
+4. The reviewers ticked under **Re-request review** are asked to review again. Everyone who has reviewed is listed; the ones whose verdict asks for changes start ticked once every change request is resolved, replied to, probably addressed, or has a reply queued. Move onto a reviewer with `j`/`k` and press `r` to tick or untick them; `r` on a reply ticks everyone or no one.
+
+On the send screen, `Esc` goes back to where you came from, `j`/`k` move through the replies and then the reviewers, `e` edits the selected reply or comment, `z` switches resolve after sending, `x` deletes it, and `r` ticks or unticks re-request. After you push, gr notices within a minute and `P` refuses to send until `R` reads the feedback again on the new head, so the replies go out as a review of the commit you see.
+
+### Comment on the PR
+
+A review summary has no thread to reply in, so on GitHub you answer one in the PR's conversation. Press `y` on the feedback briefing to write that comment. It lists the review summaries and conversation comments others wrote, newest first: pick one with `j`/`k` and `Enter`, and the comment starts by quoting it (its first lines) and mentioning its author, or pick **New comment** to start from nothing. `@` completes usernames as in a reply. `Enter` queues the comment, `Shift+Enter` adds a line, and `Esc` cancels.
+
+One comment is queued per PR, so it can answer several reviewers: `y` again and another pick adds its quote below what you wrote. The comment posts with your replies when you send (`s`), and like them nothing goes to GitHub before `P` and a confirmation. An empty comment removes it from the queue.
+
+### Ask for reviews
+
+Press `A` on the feedback briefing, or on one of your PRs under **Your PRs** in the picker, to see who is asked to review the PR and has not answered yet, and each reviewer's standing verdict. Each change goes to GitHub as soon as you make it, and GitHub notifies whoever is asked:
+
+- `a` (or `Enter`) asks more people. Type their usernames, with or without `@`, apart by spaces or commas; the list completes from the repository's collaborators and its past reviewers (listing collaborators needs push access, so on a fork you may have to type names in full). `@org/team` asks a team in the repository's organization; the list completes the organization's teams you can see as well, after `@` or once you type `org/`. `Enter` sends, `Esc` goes back.
+- `x` withdraws the selected request, while it is still unanswered.
+- `r` asks the selected reviewer to review again.
+
+`j`/`k` select, and `Esc` closes. GitHub refuses people without access to the repository, and the PR's author; gr shows its answer.
+
+## Checks
+
+Press `c` in the picker, on a review briefing, or on the feedback briefing to see the PR head's checks: GitHub Actions jobs, other apps' check runs, and commit statuses. Failures come first, then checks still running, then the rest, each with how long it ran and whether it is required. As on GitHub, only each check's latest run counts: a job that failed and then passed on a re-run, or on a later run of its workflow, shows as passed. A workflow that runs on both `push` and `pull_request` lists each job twice, so those name the event. While any check is running, the list is read again every 20 seconds; `R` reads it now.
+
+`Enter` on a GitHub Actions job reads its log in place. The log opens at its first error, with the output that led to it above, and the line above the log names the step you are in. `j`/`k` scroll, `Space`/`b` page, `g`/`G` go to the top or end, `n`/`N` jump to the next or previous error, `R` reads a running job's log again, and `Esc` returns to the list. Timestamps and colours are dropped from the log. Other checks have no log to read: `Enter` opens their page in the browser, and `o` opens any check's page.
+
+## Merge a PR
+
+Press `M` in the picker, on a review briefing, or anywhere in the feedback. The dialog shows whether the PR can merge, taken from GitHub (which knows the branch protection rules), with what blocks it: a draft, conflicts, a branch behind its base, changes requested, a missing approval, or required checks failing or still running. Failing optional checks, checks still running, and unresolved threads are warnings that don't block. You need write access to the repository to merge.
+
+When the repository requires branches to be up to date and the PR's branch is behind its base, press `u` in the dialog to update it, if GitHub says you may (you can push to the branch). `Enter` merges the base into the branch, as GitHub's **Update branch** button does; `r` rebases the branch onto the base instead, which rewrites it, so anyone with it checked out has to reset to the new head. The update names the head the dialog read, so GitHub refuses it if someone pushed in the meantime. The dialog then reads the PR again, and its checks run again on the new head. On a branch that is behind, the briefing's readiness line says `M to update the branch`.
+
+A draft PR can't merge. If it's yours, or you have write access, press `r` in the dialog to mark it ready for review after you confirm; GitHub notifies its requested reviewers, and the dialog reads the PR's state again. On a draft, the briefing's readiness line says `M to mark it ready for review`.
+
+Choose the method with `m`, from those the repository allows: squash and merge, a merge commit, or rebase and merge. With a model, squash and merge-commit messages are drafted from the PR's title, description, commits, and (when its tour is open) the tour's summary; the dialog says the message is a draft, and `g` drafts it again. While the model writes it, the dialog shows no message and `P` waits for it; `x` stops the draft and uses GitHub's default message instead. Without a model, the message is GitHub's default. Edit the title with `e` and the body with `b`. Rebase and merge replays the PR's commits as they are, and GitHub takes no message for it, so none is shown. When the head branch is in the same repository and the repository doesn't delete merged branches itself, `d` deletes it after the merge.
+
+`P` merges after you confirm. The merge names the head commit the dialog read, so if someone pushes in the meantime, GitHub refuses it rather than merging code you haven't seen. Once merged, you're back on the PR list, and the PR is gone from it straight away.
 
 ## Preview your own branch
 

@@ -713,6 +713,29 @@ describe('BriefingScreen and SubmitScreen', () => {
     expect(ui.lastFrame()).toContain('Please cover the error case.');
     ui.unmount();
   });
+  it('on your own PR, offers t to go back to its feedback', async () => {
+    const tour = fixtureTour();
+    let opened = 0;
+    const ui = render(
+      <BriefingScreen
+        tour={tour}
+        chapters={tour.chapters}
+        order="flow"
+        cycleOrder={() => {}}
+        states={{}}
+        width={140}
+        height={45}
+        onStart={() => {}}
+        onSubmit={() => {}}
+        onFeedback={() => opened++}
+        onQuit={() => {}}
+      />,
+    );
+    await waitFor(() => expect(ui.lastFrame()).toContain('your feedback'));
+    ui.stdin.write('t');
+    await waitFor(() => expect(opened).toBe(1));
+    ui.unmount();
+  });
   it('shows the active chapter order and cycles it with f', async () => {
     const tour = fixtureTour();
     function OrderedBriefing() {

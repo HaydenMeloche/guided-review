@@ -15,8 +15,9 @@ describe('gr commands that print and exit', () => {
     const result = await runGr(box, ['--help']);
     expect(result.code).toBe(0);
     const { version } = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '../../package.json'), 'utf8')) as { version: string };
-    expect(result.stdout).toContain(`Guided Review ${version}: Review GitHub pull requests as a guided tour`);
+    expect(result.stdout).toContain(`Guided Review ${version}: Read a code change the way the code runs`);
     expect(result.stdout).toContain('$ gr review <number|URL>');
+    expect(result.stdout).toContain('$ gr feedback [number|URL]');
     expect(result.stdout).toContain('--no-agent');
   });
 
@@ -27,7 +28,7 @@ describe('gr commands that print and exit', () => {
   });
 
   it('refuses to start the tour without a terminal, before calling gh', async () => {
-    for (const args of [['preview', '--no-agent'], ['review', '12', '--no-agent'], ['review']]) {
+    for (const args of [['preview', '--no-agent'], ['review', '12', '--no-agent'], ['review'], ['feedback', '12', '--no-agent'], ['feedback']]) {
       const result = await runGr(box, args, fixtureRepo(box));
       expect(result.code).toBe(1);
       expect(result.stderr).toContain('interactive terminal app');
@@ -160,6 +161,13 @@ describe('gr with a terminal', () => {
   it('explains a missing PR when the branch has none', async () => {
     const session = startGr(box, ['review', '--no-agent'], { cwd: fixtureRepo(box) });
     await session.waitFor('no PR given');
+    expect(await session.exited).toBe(1);
+  });
+
+  it('explains a missing PR for feedback when the branch has none', async () => {
+    const session = startGr(box, ['feedback', '--no-agent'], { cwd: fixtureRepo(box) });
+    await session.waitFor('no PR given');
+    await session.waitFor('feedback <number|URL>');
     expect(await session.exited).toBe(1);
   });
 

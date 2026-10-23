@@ -318,13 +318,15 @@ export async function ask(
     hunk?: Hunk;
     lineIdx?: number;
     endIdx?: number;
+    context?: string; // more to know before the question, such as the review thread asked about
     onText: (text: string) => void;
     signal?: AbortSignal;
   },
 ): Promise<RunResult<string>> {
   const history = opts.history ?? [];
   const resumed = history.length > 0 && !!opts.sessions?.qa;
-  const selection = opts.hunk && !resumed ? `The reviewer has selected (>> marks the selection):\n\n${selectionContext(opts.hunk, opts.lineIdx, opts.endIdx)}\n\n` : '';
+  const context = opts.context && !resumed ? `${opts.context}\n\n` : '';
+  const selection = opts.hunk && !resumed ? `${context}The reviewer has selected (>> marks the selection):\n\n${selectionContext(opts.hunk, opts.lineIdx, opts.endIdx)}\n\n` : context;
   const thread = history.length && !resumed ? `Earlier in this thread:\n\n${history.map((t) => `Q: ${t.question}\nA: ${t.answer}`).join('\n\n')}\n\n` : '';
   const label = history.length ? 'Follow-up question' : 'Question';
   const access = withoutTools(configForRole(opts, 'qa'))

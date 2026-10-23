@@ -12,6 +12,8 @@ import { AskOverlay } from './AskOverlay.js';
 import { KeyBar, type AgentCtx } from './ChapterScreen.js';
 import { Key } from './KeyBar.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
+import type { Readiness } from '../review/merge.js';
+import { ReadinessLine } from './MergeScreen.js';
 
 const FLAG_COLOR: Record<string, string> = {
   'scope-creep': 'magenta',
@@ -42,6 +44,10 @@ export function BriefingScreen(props: {
   active?: boolean;
   onStart: (ci?: number) => void;
   onSubmit: () => void;
+  readiness?: Readiness; // whether the PR can merge; unset in a preview or until it arrives
+  onMerge?: () => void; // M: merge the PR
+  onFeedback?: () => void; // t: the feedback on your own PR (author mode)
+  onChecks?: () => void; // c: the PR's checks and their logs
   onTheme?: () => void; // L: the color theme picker
   onBack?: () => void; // q: back to the PR list; unset, q quits
   onQuit: () => void;
@@ -87,6 +93,9 @@ export function BriefingScreen(props: {
         return props.toggleDelta();
       }
       if (input === 's') return props.onSubmit();
+      if (input === 'M' && props.onMerge) return props.onMerge();
+      if (input === 't' && props.onFeedback) return props.onFeedback();
+      if (input === 'c' && props.onChecks) return props.onChecks();
       if (input === 'L' && props.onTheme) return props.onTheme();
       if (input === 'r' && tour.description?.trim()) return setOverlay('read');
       if (input === 'V' && tour.existingReviews?.some((r) => r.author !== tour.author && r.author !== tour.viewer)) return setOverlay('reviews');
@@ -144,7 +153,15 @@ export function BriefingScreen(props: {
     0,
     rows.findIndex((r) => r.ci === sel),
   );
-  const otherRows = intent.length + 1 + rrRows + (reviews.length ? reviews.length + 2 : 0) + (flags.length ? flags.length + 1 : 0) + tour.notes.length + (blast.length ? blast.length + 2 : 0);
+  const otherRows =
+    intent.length +
+    1 +
+    (props.readiness ? 1 : 0) +
+    rrRows +
+    (reviews.length ? reviews.length + 2 : 0) +
+    (flags.length ? flags.length + 1 : 0) +
+    tour.notes.length +
+    (blast.length ? blast.length + 2 : 0);
   // Long chapter lists show a window around the selection instead of every chapter.
   const chapterRoom = Math.max(5, bodyH - otherRows - 3 - 4);
   const windowed = rows.length > chapterRoom;
@@ -158,6 +175,7 @@ export function BriefingScreen(props: {
 
   const left = (
     <Box flexDirection="column" width={leftW}>
+      {props.readiness ? <ReadinessLine readiness={props.readiness} width={leftW} hint={!!props.onMerge} /> : null}
       {intent.map((l, i) => (
         <MdLineView key={i} line={l} />
       ))}
@@ -357,13 +375,15 @@ export function BriefingScreen(props: {
         // Keys hinted where they apply on screen (D, f, d beside the overview, r under a cut-off
         // description) stay off the bar.
         keys={[
-          ['n', 'start / resume'],
-          ['enter', 'open chapter'],
+          ['n', 'start'],
+          ['enter', 'open'],
           ['j/k', 'select'],
           ...((descAll.length > desc.length ? [] : [['r', 'read description']]) as [string, string][]),
           ...((wide && tour.overview ? [] : [['d', 'overview diagram']]) as [string, string][]),
           ...((props.agent ? [['?', 'ask about the PR']] : []) as [string, string][]),
           ['s', 'submit'],
+          ...((props.onFeedback ? [['t', 'your feedback']] : []) as [string, string][]),
+          ...((props.onChecks ? [['c', 'checks']] : []) as [string, string][]),
           ...((props.onTheme ? [['L', 'theme']] : []) as [string, string][]),
           ...((props.onBack
             ? [
