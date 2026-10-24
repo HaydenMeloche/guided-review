@@ -86,7 +86,8 @@ export function ChapterScreen(props: {
   height: number;
   active?: boolean;
   setPos: (ci: number, hi: number) => void;
-  setState: (h: Hunk, s: ReadState) => void;
+  // Marks hunks read, skipped, deferred or unread, all in one store write.
+  setState: (hunks: Hunk[], s: ReadState) => void;
   saveDraft: (d: Draft) => void;
   deleteDraft: (d: Draft) => void;
   replyToThread?: (thread: ExistingThread, body: string) => Promise<void>;
@@ -212,7 +213,7 @@ export function ChapterScreen(props: {
   // ---------- navigation ----------
   const go = (to: { ci: number; hi: number } | undefined) => void (to && props.setPos(to.ci, to.hi));
   const next = (mark?: ReadState) => {
-    if (hunk && mark) props.setState(hunk, mark);
+    if (hunk && mark) props.setState([hunk], mark);
     if (!chapter) return;
     const to = nextPos(chapters, ci, hi);
     if (to) return go(to);
@@ -308,7 +309,10 @@ export function ChapterScreen(props: {
     expand: () => void (summaryIds[summarySel] ? props.setPos(ci, chapter.hunkIds.indexOf(summaryIds[summarySel])) : undefined),
     skipChapter: () => {
       const ids = chapter.hunkIds;
-      for (const id of ids) if (stateOf(states, tour.hunks[id]) === 'unread') props.setState(tour.hunks[id], 'skipped');
+      props.setState(
+        ids.map((id) => tour.hunks[id]).filter((h) => h && stateOf(states, h) === 'unread'),
+        'skipped',
+      );
       setFlash(`Skipped ${plural(ids.length, 'hunk')} in "${chapter.title}".`, 'info');
       next();
     },
@@ -320,8 +324,8 @@ export function ChapterScreen(props: {
       }
       // Folded hunks are read as their summary: n on it marks them read.
       if (collapsedView && chapter?.folded?.length) {
-        const unread = summaryIds.filter((id) => tour.hunks[id] && stateOf(states, tour.hunks[id]) === 'unread');
-        for (const id of unread) props.setState(tour.hunks[id], 'read');
+        const unread = summaryIds.map((id) => tour.hunks[id]).filter((h) => h && stateOf(states, h) === 'unread');
+        if (unread.length) props.setState(unread, 'read');
         if (unread.length) setFlash(`${G.read} lockfile summary read · ${plural(unread.length, 'hunk')}`, 'info');
       }
       next(collapsedView ? undefined : 'read');
@@ -341,7 +345,7 @@ export function ChapterScreen(props: {
       setFlash('Deferred: it stays on the submit screen as unread work.', 'info');
       next('deferred');
     },
-    unread: () => props.setState(hunk!, 'unread'),
+    unread: () => props.setState([hunk!], 'unread'),
     raw: () => setRaw((r) => !r),
     whitespace: toggleWhitespace,
     split: () => {

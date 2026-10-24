@@ -588,10 +588,10 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     setPhase('chapter');
   };
 
-  const setHunkState = (h: Hunk, s: ReadState) => {
-    if (!tour) return;
-    const keys = hunkKeys(h);
-    for (const k of keys) store.setReadState(tour.repo, tour.pr, k, s);
+  const setHunkState = (hs: Hunk[], s: ReadState) => {
+    if (!tour || !hs.length) return;
+    const keys = hs.flatMap(hunkKeys);
+    store.setReadStates(tour.repo, tour.pr, keys, s);
     setStates((prev) => ({ ...prev, ...Object.fromEntries(keys.map((k) => [k, s])) }));
   };
 

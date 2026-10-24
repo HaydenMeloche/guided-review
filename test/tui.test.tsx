@@ -82,9 +82,9 @@ function Harness(props: {
       width={props.width ?? 150}
       height={40}
       setPos={(ci, hi) => setPos({ ci, hi })}
-      setState={(h: Hunk, s: ReadState) =>
+      setState={(hs: Hunk[], s: ReadState) =>
         setStates((prev) => {
-          const next = { ...prev, [h.contentHash]: s };
+          const next = { ...prev, ...Object.fromEntries(hs.map((h) => [h.contentHash, s])) };
           props.onState(next);
           return next;
         })
@@ -550,9 +550,9 @@ describe('ChapterScreen', () => {
           width={150}
           height={40}
           setPos={() => {}}
-          setState={(h, st) =>
+          setState={(hs, st) =>
             setS((p) => {
-              states = { ...p, [h.contentHash]: st };
+              states = { ...p, ...Object.fromEntries(hs.map((h) => [h.contentHash, st])) };
               return states;
             })
           }
@@ -579,8 +579,12 @@ describe('ChapterScreen', () => {
   it('opens the dependencies chapter on the lockfile summary, and n reads it and goes to the manifest', async () => {
     const manifest = hunkFromDiff('package.json', '-    "zod": "^3.22.0",', '+    "zod": "^4.0.0",');
     const lock = hunkFromDiff('pnpm-lock.yaml', '-  zod@3.22.0:', '+  zod@4.0.0:');
-    const t = makeTour([manifest, lock], [{ kind: 'dependencies', title: 'Dependencies and runtimes', hunkIds: [manifest.id, lock.id], folded: [lock.id] }], { files: filesFor([manifest, lock]) });
+    const lock2 = hunkFromDiff('pnpm-lock.yaml', '-  zod@3.22.0: {}', '+  zod@4.0.0: {}');
+    const t = makeTour([manifest, lock, lock2], [{ kind: 'dependencies', title: 'Dependencies and runtimes', hunkIds: [manifest.id, lock.id, lock2.id], folded: [lock.id, lock2.id] }], {
+      files: filesFor([manifest, lock, lock2]),
+    });
     const states: States = {};
+    let writes = 0;
     const moves: [number, number][] = [];
     const ui = render(
       <ChapterScreen
@@ -595,7 +599,10 @@ describe('ChapterScreen', () => {
         width={150}
         height={40}
         setPos={(ci, hi) => moves.push([ci, hi])}
-        setState={(h, st) => void (states[h.id] = st)}
+        setState={(hs, st) => {
+          writes++;
+          for (const h of hs) states[h.id] = st;
+        }}
         saveDraft={() => {}}
         deleteDraft={() => {}}
         moveHunk={() => {}}
@@ -607,11 +614,13 @@ describe('ChapterScreen', () => {
         quit={() => {}}
       />,
     );
-    await waitFor(() => expect(ui.lastFrame()).toContain('summary of 1 lockfile hunk · n for the other 1 hunk'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('summary of 2 lockfile hunks · n for the other 1 hunk'));
     expect(ui.lastFrame()).toContain('pnpm-lock.yaml');
     ui.stdin.write('n');
     await waitFor(() => expect(moves).toEqual([[0, 0]]));
-    expect(states).toEqual({ [lock.id]: 'read' });
+    // Every folded hunk is marked read in one write.
+    expect(states).toEqual({ [lock.id]: 'read', [lock2.id]: 'read' });
+    expect(writes).toBe(1);
     ui.unmount();
   });
 });

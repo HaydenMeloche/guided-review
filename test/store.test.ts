@@ -33,6 +33,10 @@ describe('Store', () => {
     store.setReadState('o/r', 1, 'def', 'skipped');
     store.setReadState('o/r', 1, 'def', 'unread');
     expect(store.getReadStates('o/r', 1)).toEqual({ abc: 'read' });
+    store.setReadStates('o/r', 1, ['k1', 'k2', 'abc'], 'skipped');
+    expect(store.getReadStates('o/r', 1)).toEqual({ abc: 'skipped', k1: 'skipped', k2: 'skipped' });
+    store.setReadStates('o/r', 1, ['k1', 'k2'], 'unread');
+    expect(store.getReadStates('o/r', 1)).toEqual({ abc: 'skipped' });
     store.setPosition('o/r', 1, { chapterId: 'c1', hunkId: 'h', order: 'flow' });
     expect(store.getPosition('o/r', 1)).toEqual({ chapterId: 'c1', hunkId: 'h', order: 'flow' });
     store.setMove('o/r', 1, 'abc', 'c2');

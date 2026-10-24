@@ -117,7 +117,7 @@ function Harness(props: { tour: Tour; onDraft?: (d: Draft) => void; initial?: Dr
       references={{ host: 'github.com', repoIndex: fakeIndex, ...props.references }}
       agent={props.agent ? { cwd: root } : undefined}
       setPos={(ci, hi) => setPos({ ci, hi })}
-      setState={(h: Hunk, s: ReadState) => setStates((prev) => ({ ...prev, [h.contentHash]: s }))}
+      setState={(hs: Hunk[], s: ReadState) => setStates((prev) => ({ ...prev, ...Object.fromEntries(hs.map((h) => [h.contentHash, s])) }))}
       saveDraft={(d) => {
         setDrafts((ds) => [...ds.filter((x) => x.id !== d.id), d]);
         props.onDraft?.(d);

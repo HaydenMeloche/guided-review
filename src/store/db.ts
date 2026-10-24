@@ -328,6 +328,13 @@ export class Store {
     this.stmt('INSERT OR REPLACE INTO read_states (repo, pr, content_hash, state) VALUES (?, ?, ?, ?)').run(repo, pr, contentHash, state);
   }
 
+  // Many hunks at once, as one transaction: a lockfile's summary can stand for thousands.
+  setReadStates(repo: string, pr: number, contentHashes: string[], state: ReadState): void {
+    this.tx(() => {
+      for (const hash of contentHashes) this.setReadState(repo, pr, hash, state);
+    });
+  }
+
   listDrafts(repo: string, pr: number): Draft[] {
     const rows = this.stmt('SELECT json FROM drafts WHERE repo = ? AND pr = ? ORDER BY created_at').all(repo, pr) as Row[];
     return rows.map((r) => normalizeDraft(JSON.parse(r.json as string) as Draft));
