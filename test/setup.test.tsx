@@ -347,6 +347,12 @@ describe('setup wizard', () => {
     expect(other.map((r) => r.value)).toEqual(expect.arrayContaining(['openai-compatible', NO_PROVIDER]));
   });
 
+  it('puts no model right after the recommended providers, and leaves out one that is off for now', () => {
+    const { other } = providerRows([]);
+    expect(other.map((r) => r.value)).toEqual(['anthropic', 'openai', 'cursor', NO_PROVIDER, 'codex', 'openai-compatible', 'bedrock', 'vertex']);
+    expect([...new Set(other.map((r) => r.group))]).toEqual(['Recommended', 'Without a model', 'Other']);
+  });
+
   async function wizard(detected: Detected, env: NodeJS.ProcessEnv, current?: UserConfig, models: ModelOption[] = []) {
     const listModelsFn = vi.fn(async (): Promise<ModelOption[]> => models);
     const onDone = vi.fn<(r: SetupResult) => void>();

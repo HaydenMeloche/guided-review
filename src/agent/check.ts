@@ -16,7 +16,7 @@ export interface ModelCheck {
 
 const SCHEMA = { type: 'object', properties: { ok: { type: 'boolean' } }, required: ['ok'] };
 const PROMPT = 'This is a connection check from Guided Review setup. Reply with {"ok": true} and nothing else. Do not use any tools.';
-const CHECK_MS = 90_000; // Codex and the Agent SDK start a process before the first token
+export const CHECK_MS = 90_000; // Codex and the Agent SDK start a process before the first token
 
 type Runner = (config: AgentConfig, cwd: string, signal: AbortSignal) => Promise<unknown>;
 

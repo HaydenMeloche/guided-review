@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { render, useApp, useInput, useWindowSize } from 'ink';
 import { Box, Text, ThemeContext, useSelected, useThemePreview } from './themed.js';
 import { loadPalette, terminalPalette, themeList, TERMINAL_THEME, type Palette, type ThemeInfo } from './theme.js';
@@ -8,7 +8,7 @@ import { pad, truncate, wrap } from './nav.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
 import { detectCodingAgents, detectGitHub, detectProviders, LOOKED_FOR, type GitHubFinding, type ProviderFinding } from '../detect.js';
 import { CODING_AGENTS, CUSTOM_AGENT, customCommandProblem, DEFAULT_CODING_AGENT, PROMPT_PLACEHOLDER, type CodingAgent, type CodingAgentSetting } from '../codingAgent.js';
-import { checkModels, type ModelCheck } from '../agent/check.js';
+import { CHECK_MS, checkModels, type ModelCheck } from '../agent/check.js';
 import { defaultParams, findVariant, KNOWN_MODELS, listModels, LISTS_MODELS, type ModelOption } from '../agent/models.js';
 import { NO_PROVIDER, type GitHubConfig, type UserConfig } from '../config.js';
 import {
@@ -98,6 +98,7 @@ interface ProviderRow {
   finding?: ProviderFinding;
   unavailable?: string;
   recommended?: boolean;
+  group?: string; // the heading it is listed under among the choices
   missing?: string; // what detection looked for and didn't find
 }
 
@@ -107,13 +108,18 @@ export const rowKey = (row: ProviderRow): string => (row.finding?.baseUrl ? `${r
 
 export function providerRows(found: ProviderFinding[], detected = true): { found: ProviderRow[]; other: ProviderRow[] } {
   const choice = (v: ProviderChoice) => PROVIDER_CHOICES.find((c) => c.value === v)!;
-  const foundRows = found.map((f) => ({ ...choice(f.provider), finding: f }));
+  const foundRows = found.filter((f) => !choice(f.provider).unavailable).map((f) => ({ ...choice(f.provider), finding: f }));
   const isFound = (v: ProviderChoice) => found.some((f) => f.provider === v);
-  // A local server found doesn't rule out a remote compatible endpoint.
-  const other = PROVIDER_CHOICES.filter((c) => c.value === 'openai-compatible' || c.value === NO_PROVIDER || !isFound(c.value)).map((c) => ({
+  // A local server found doesn't rule out a remote compatible endpoint. A provider that is off
+  // for now is left out rather than shown as a choice that refuses.
+  const rest = PROVIDER_CHOICES.filter((c) => !c.unavailable && (c.value === 'openai-compatible' || c.value === NO_PROVIDER || !isFound(c.value))).map((c) => ({
     ...c,
-    missing: detected && c.value !== NO_PROVIDER && !c.unavailable && !isFound(c.value) ? LOOKED_FOR[c.value] : undefined,
+    group: c.recommended ? 'Recommended' : c.value === NO_PROVIDER ? 'Without a model' : 'Other',
+    missing: detected && c.value !== NO_PROVIDER && !isFound(c.value) ? LOOKED_FOR[c.value] : undefined,
   }));
+  // Recommended first, then no model at all (the free way to try gr), then the rest.
+  const order = ['Recommended', 'Without a model', 'Other'];
+  const other = order.flatMap((g) => rest.filter((r) => r.group === g));
   return { found: foundRows, other };
 }
 
@@ -424,8 +430,12 @@ function ProviderStep(props: { width: number; height: number; detected?: Detecte
       )}
       {found.map((r, i) => line(r, i))}
       <Text> </Text>
-      <Text dimColor> {found.length ? 'Other choices' : 'Choices'}</Text>
-      {other.map((r, i) => line(r, found.length + i))}
+      {other.map((r, i) => (
+        <Fragment key={rowKey(r)}>
+          {r.group !== other[i - 1]?.group ? <Text dimColor> {r.group}</Text> : null}
+          {line(r, found.length + i)}
+        </Fragment>
+      ))}
       <Text> </Text>
       <Para text={notice || row.about} width={props.width} color={notice ? 'yellow' : undefined} dim={!notice} />
       <Box flexGrow={1} />
@@ -1001,6 +1011,16 @@ function FinishStep(props: {
   }, [key, round]);
   const checking = (hasModel && !checks.models) || (!!props.config.github && !checks.github);
   const spin = useSpinner(checking);
+  // Seconds the model check has run, against its limit: a slow first answer reads as progress.
+  const [started, setStarted] = useState(Date.now());
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => setStarted(Date.now()), [key, round]);
+  useEffect(() => {
+    if (!checking) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [checking]);
+  const waited = Math.max(0, Math.floor((now - started) / 1000));
   const failed = !!checks.models?.some((m) => !m.ok) || checks.github?.ok === false;
 
   useInput((input, key) => {
@@ -1033,7 +1053,10 @@ function FinishStep(props: {
             ),
           )
         ) : (
-          <Text color="cyan"> {spin} Sending a test request to your model…</Text>
+          <Text color="cyan">
+            {' '}
+            {spin} Sending a test request to your model… <Text dimColor>{`${waited}s of up to ${CHECK_MS / 1000}s`}</Text>
+          </Text>
         )
       ) : (
         <Text dimColor> No model: tours use static analysis only. Run gr config to add one later.</Text>

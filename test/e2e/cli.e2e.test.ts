@@ -122,8 +122,12 @@ describe('gr with a terminal', () => {
     await session.waitFor('Color theme');
     session.press(KEY.enter);
     await session.waitFor('Model provider');
-    session.press('G'); // No AI model, last in the list
-    await session.waitFor('Static analysis only');
+    await session.waitFor('Nothing found on this machine');
+    // No AI model, after the three recommended providers.
+    for (const about of ['OpenAI models', "Cursor's models", 'Static analysis only']) {
+      session.press('j');
+      await session.waitFor(about);
+    }
     session.press(KEY.enter);
     await session.waitFor('Coding agent');
     session.press(KEY.enter);
