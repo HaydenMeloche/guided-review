@@ -50,6 +50,15 @@ async function keys(gr: Session, ...ks: string[]) {
   }
 }
 
+// Waits for the first chapter to settle. Its first frame shows plain code with the cursor on the
+// hunk's first line; on a slow machine, loading the highlighter can hold the next frame past the
+// quiet gap idle() waits for, so wait for the cursor on the first change and colored code.
+async function chapterReady(gr: Session) {
+  await gr.waitFor(/▶ +3 +3 │/);
+  for (let i = 0; i < 400 && !/‹c\d+[^›]*›export‹\/›/.test(gr.screenWithAttrs()); i++) await new Promise((resolve) => setTimeout(resolve, 25));
+  return gr.idle();
+}
+
 async function snap(gr: Session, name: string, cols: number, rows: number) {
   await expect(stable(gr.screenWithAttrs()) + '\n').toMatchFileSnapshot(file(name, cols, rows));
 }
@@ -69,7 +78,7 @@ describe.each(SIZES)('screens at %ix%i', (cols, rows) => {
     await gone(gr, 'Terminal colors');
 
     gr.press('n');
-    await gr.waitFor(/hunk 1\//);
+    await chapterReady(gr);
     await snap(gr, 'chapter', cols, rows);
 
     await keys(gr, 'j');
@@ -115,7 +124,7 @@ describe.each(SIZES)('screens at %ix%i', (cols, rows) => {
     sessions.push(gr);
     await gr.waitFor('Chapters');
     gr.press('n');
-    await gr.waitFor(/hunk 1\//);
+    await chapterReady(gr);
     await keys(gr, 'v', 'j', 'j');
     await snap(gr, 'chapter-range-themed', cols, rows);
   });

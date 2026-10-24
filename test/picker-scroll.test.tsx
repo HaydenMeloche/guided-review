@@ -73,7 +73,8 @@ describe('scrolling the picker', () => {
       }
       ui.unmount();
     }
-  });
+    // 120 key presses, each waiting for its frame: past the default five seconds on a slow runner.
+  }, 20_000);
 
   it('holds still while the selection moves within the view, and shows the lines under the last PR', async () => {
     authored = { prs: [11, 12, 13, 14, 15, 16].map((n) => yours(n, 2)).concat([yours(21, 0), yours(22, 0)]), truncated: true };

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { render } from 'ink-testing-library';
 import { Text } from '../src/tui/themed.js';
 import { useFlash, type Tone } from '../src/tui/flash.js';
+import { waitFor } from './helpers/waitFor.js';
 
 function Show(props: { text: string; tone?: Tone }) {
   const { flash, show } = useFlash();
@@ -15,13 +16,11 @@ describe('useFlash', () => {
     const info = render(<Show text="Draft saved." tone="info" />);
     const warn = render(<Show text="No review thread on this line." />);
     const error = render(<Show text="Resolve failed: 502" />);
-    await new Promise((r) => setTimeout(r, 50));
-    expect(info.lastFrame()).toBe('info: Draft saved.');
+    await waitFor(() => expect(info.lastFrame()).toBe('info: Draft saved.'));
+    await waitFor(() => expect(warn.lastFrame()).toBe('warn: No review thread on this line.'));
+    await waitFor(() => expect(error.lastFrame()).toBe('error: Resolve failed: 502'));
+    await waitFor(() => expect(info.lastFrame()).toBe('none'), { timeout: 5000, interval: 50 });
     expect(warn.lastFrame()).toBe('warn: No review thread on this line.');
     expect(error.lastFrame()).toBe('error: Resolve failed: 502');
-    await new Promise((r) => setTimeout(r, 2600));
-    expect(info.lastFrame()).toBe('none');
-    expect(warn.lastFrame()).toBe('warn: No review thread on this line.');
-    expect(error.lastFrame()).toBe('error: Resolve failed: 502');
-  });
+  }, 10_000);
 });
