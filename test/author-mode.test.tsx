@@ -217,6 +217,8 @@ describe('FeedbackScreen', () => {
     await waitFor(() => expect(ui.lastFrame()).toContain('Queued reply, then resolve'));
 
     ui.stdin.write(' ');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Triage this thread'));
+    ui.stdin.write('1');
     await waitFor(() => expect(onTriage).toHaveBeenCalledWith('will'));
 
     ui.stdin.write('Z');
@@ -715,6 +717,8 @@ describe('AuthorMode', () => {
     ui.stdin.write('n');
     await waitFor(() => expect(ui.lastFrame()).toContain('Why three retries?'));
     ui.stdin.write(' ');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Triage this thread'));
+    ui.stdin.write('1');
     await waitFor(() => expect(store.getTriage('acme/pay', 4)).toEqual({ T1: 'will' }));
     ui.stdin.write('y');
     await waitFor(() => expect(ui.lastFrame()).toContain('queued, not posted'));

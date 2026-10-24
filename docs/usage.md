@@ -219,7 +219,7 @@ When a comment links to a file in the PR's repository, such as the code referenc
 | `j` / `k`, `J` / `K` | Scroll the discussion by a line or a page. `Tab` selects the next comment. |
 | `y` | Write a reply. Replies are queued, not posted: `Enter` queues it, `Ctrl+R` marks the thread to resolve once the reply is sent, and `Esc` cancels. Press `y` again to edit a queued reply; an empty reply removes it. |
 | `Ctrl+T` | In the reply editor, have the model draft a reply, shown as a proposal: `Enter` puts it in the editor for you to change and queue, `r` asks for changes, `Esc` discards it. What you have typed guides the draft. Off with no AI model or `--no-agent`. |
-| `Space` | Cycle your triage: will do, done (fixed by hand, before the push that will mark it probably addressed), won't do, discuss, none. Triage stays on your machine and is never posted. Marking a thread won't do without a reply gets a reminder, since a dismissal with no reason usually brings a second round. |
+| `Space` | Open the triage picker: `1` will do, `2` done (fixed by hand, before the push that will mark it probably addressed), `3` won't do, `4` discuss, and `Space` again clears it. Triage stays on your machine and is never posted. Marking a thread won't do without a reply gets a reminder, since a dismissal with no reason usually brings a second round. |
 | `Z` | Resolve or unresolve the thread on GitHub now, after you confirm. |
 | `+` | React to the selected comment (`1`–`8` toggle a reaction). |
 | `a` | Ask the model about the thread: "is this concern valid?", "what would the change look like?", "is this handled elsewhere?". The question includes the thread and its code. |

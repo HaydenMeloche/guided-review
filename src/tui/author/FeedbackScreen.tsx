@@ -43,11 +43,14 @@ const REACTIONS: { content: ReactionContent; emoji: string }[] = [
 ];
 
 const TRIAGE_COLOR: Record<Triage, string> = { will: 'cyan', done: 'green', wont: 'red', discuss: 'blue' };
+// The triage picker's choices, by the number that sets each.
+const TRIAGE_CHOICES = TRIAGE_CYCLE.filter((t): t is Triage => !!t);
 
 type Mode =
   | { kind: 'browse' }
   | { kind: 'reply' }
   | { kind: 'react' }
+  | { kind: 'triage' }
   | { kind: 'resolve' }
   | { kind: 'ask' }
   | { kind: 'help' }
@@ -273,7 +276,15 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
   const footerRows = 2;
   const bodyH = Math.max(6, height - headerRows - footerRows);
   const editorRows =
-    mode.kind === 'reply' ? 6 : mode.kind === 'ai' || mode.kind === 'refine' ? 9 : mode.kind === 'ask' ? Math.min(14, Math.max(6, Math.floor(bodyH / 2))) : mode.kind === 'react' ? 2 : 0;
+    mode.kind === 'reply'
+      ? 6
+      : mode.kind === 'ai' || mode.kind === 'refine'
+        ? 9
+        : mode.kind === 'ask'
+          ? Math.min(14, Math.max(6, Math.floor(bodyH / 2)))
+          : mode.kind === 'react' || mode.kind === 'triage'
+            ? 2
+            : 0;
   const codeRows = !code ? 1 : expanded ? 4 : Math.min(code.hunk.lines.length + 1, Math.max(4, Math.floor((bodyH - editorRows) * 0.45)));
   const threadRows = Math.max(3, bodyH - codeRows - editorRows - 1);
   const maxScroll = Math.max(0, lines.length - threadRows);
@@ -345,6 +356,15 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
   useInput(
     (input, key) => {
       dismissFlash();
+      if (mode.kind === 'triage') {
+        // 1-4 choose, Space clears, anything else closes the picker.
+        const choice = /^[1-4]$/.test(input) ? TRIAGE_CHOICES[Number(input) - 1] : input === ' ' ? null : undefined;
+        setMode({ kind: 'browse' });
+        if (choice === undefined) return;
+        props.onTriage(item, choice ?? undefined);
+        if (choice === 'wont' && !queued) setFlash('Won’t do: y to say why. A dismissal without a reason usually brings a second round.');
+        return;
+      }
       if (mode.kind === 'react') {
         if (key.escape || input === '+') return setMode({ kind: 'browse' });
         if (/^[1-8]$/.test(input)) void react(Number(input) - 1);
@@ -392,12 +412,7 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
         return setLinkIdx((i) => (i + 1) % links.length);
       }
       if (input === 'y') return startReply();
-      if (input === ' ') {
-        const next = TRIAGE_CYCLE[(TRIAGE_CYCLE.indexOf(item.triage) + 1) % TRIAGE_CYCLE.length];
-        props.onTriage(item, next);
-        if (next === 'wont' && !queued) setFlash('Won’t do: y to say why. A dismissal without a reason usually brings a second round.');
-        return;
-      }
+      if (input === ' ') return setMode({ kind: 'triage' });
       if (input === 'Z') {
         if (item.thread.isResolved ? item.thread.viewerCanUnresolve === false : item.thread.viewerCanResolve === false) return setFlash('You can’t change whether this thread is resolved.');
         return setMode({ kind: 'resolve' });
@@ -419,7 +434,7 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
       if (key.escape && mode.kind === 'browse') return props.onBriefing();
       if (input === 'Q') return props.onQuit();
     },
-    { isActive: props.active && (mode.kind === 'browse' || mode.kind === 'react' || mode.kind === 'resolve' || mode.kind === 'ai') },
+    { isActive: props.active && (mode.kind === 'browse' || mode.kind === 'react' || mode.kind === 'triage' || mode.kind === 'resolve' || mode.kind === 'ai') },
   );
   // The reply editor: Enter queues, Esc cancels, ^T drafts with AI, ^R resolves after sending.
   useInput(
@@ -522,6 +537,25 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
           height={editorRows}
           onClose={() => setMode({ kind: 'browse' })}
         />
+      );
+    if (mode.kind === 'triage')
+      return (
+        <Box flexDirection="column" height={2}>
+          <Text wrap="truncate">Triage this thread · it stays on your machine</Text>
+          <Text wrap="truncate">
+            {TRIAGE_CHOICES.map((t, k) => (
+              <Text key={t}>
+                <Text color="cyan" bold>{`${k + 1}`}</Text>
+                <Text color={TRIAGE_COLOR[t]} bold={item.triage === t}>{` ${TRIAGE_LABEL[t]}${item.triage === t ? ' ✓' : ''}`}</Text>
+                {'   '}
+              </Text>
+            ))}
+            <Text color="cyan" bold>
+              space
+            </Text>
+            <Text dimColor> clear · esc close</Text>
+          </Text>
+        </Box>
       );
     if (mode.kind === 'react')
       return (

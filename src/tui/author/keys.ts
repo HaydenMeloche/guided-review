@@ -24,7 +24,7 @@ export const THREAD_KEYS: KeyDef<ThreadKeyCtx>[] = [
   { keys: ['J', 'K'], alias: true },
   { keys: ['Tab'], group: 'Move', help: 'Select the next comment' },
   { keys: ['y'], group: 'Answer', help: 'Write a reply (queued until you send)', bar: { shown: 'y', label: (c) => (c.queued ? 'edit reply' : 'reply') } },
-  { keys: [' '], doc: ['Space'], group: 'Answer', help: 'Cycle your triage: will do, done, won’t do, discuss', bar: { shown: 'space', label: 'triage' } },
+  { keys: [' '], doc: ['Space'], group: 'Answer', help: 'Triage: 1 will do, 2 done, 3 won’t do, 4 discuss, space clears', bar: { shown: 'space', label: 'triage' } },
   { keys: ['Z'], group: 'Answer', help: 'Resolve or unresolve the thread on GitHub (asks first)', bar: { shown: 'Z', label: (c) => (c.resolved ? 'unresolve' : 'resolve') } },
   { keys: ['+'], group: 'Answer', help: 'React to the selected comment', bar: { shown: '+', label: 'react' } },
   { keys: ['a'], group: 'Answer', help: 'Ask the model about the thread', bar: { shown: 'a', label: 'ask', when: (c) => c.agent } },
