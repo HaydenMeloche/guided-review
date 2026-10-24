@@ -1525,6 +1525,20 @@ describe('split view, test pane toggle and expanded context', () => {
     ui.unmount();
   });
 
+  it('keeps the thread tip for a hunk with a thread on it, not a lineless thread elsewhere in the file', async () => {
+    const h = hunkFromDiff('src/a.ts', '-go();', '+stop();');
+    const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
+    t.existingThreads = [{ id: 'old', path: 'src/a.ts', isResolved: false, isOutdated: true, comments: [] }];
+    const seen = new Set<string>(['first-chapter']);
+    const takeTip = (tip: string) => (seen.has(tip) ? false : (seen.add(tip), true));
+    const ui = render(screen(t, { takeTip }));
+    await waitFor(() => expect(ui.lastFrame()).toContain('src/a.ts'));
+    await tick(40);
+    expect(ui.lastFrame()).not.toContain('Tip:');
+    expect(seen.has('first-thread')).toBe(false);
+    ui.unmount();
+  });
+
   it('shows each first-run tip once, until a key is pressed', async () => {
     const h = hunkFromDiff('src/a.ts', '-go();', '+stop();');
     const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });

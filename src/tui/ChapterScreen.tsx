@@ -182,7 +182,10 @@ export function ChapterScreen(props: {
   useEffect(() => setExplainScroll(0), [chapter?.id, hunk?.id]);
   // First-run tips, one at a time in the status row, each shown once: how to move on the first
   // hunk, and how to read a review thread the first time one is on screen.
-  const hunkHasThreads = !!hunk && tour.existingThreads.some((t) => t.path === hunk.file && hunk.lines.some((l) => l.newLine === t.line || l.oldLine === t.originalLine));
+  // A thread's line and originalLine are optional (an outdated or file thread may have neither).
+  const hunkHasThreads =
+    !!hunk &&
+    tour.existingThreads.some((t) => t.path === hunk.file && hunk.lines.some((l) => (t.line !== undefined && l.newLine === t.line) || (t.originalLine !== undefined && l.oldLine === t.originalLine)));
   useEffect(() => {
     if (!hunk || flash) return;
     if (props.takeTip?.('first-chapter')) setFlash('Tip: n marks this hunk read and moves on; ? lists every key.', 'tip');
