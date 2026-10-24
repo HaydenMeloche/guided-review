@@ -24,7 +24,7 @@ With nothing waiting on your review and no PRs of your own, the picker lists wha
 
 For a PR, Guided Review fetches metadata, the diff, and existing review threads through `gh`. It checks out the PR head in a detached worktree under `~/.guided-review/worktrees/`. Your own working checkout is left alone. If the current repository is not the PR's repository, it uses a cached clone under `~/.guided-review/repos/`.
 
-Run `gr cleanup` to remove managed PR worktrees and prune old tours. Tours are also pruned as they are saved: each PR keeps the three heads you opened most recently. `gr cleanup` also deletes tours you have not opened in 90 days (`--days <n>` to change it), and for a PR left with no tour, its reading state, position, chapter moves, checklist confirmations, thread triage, and posted drafts. Unposted drafts, queued replies, and cached repository clones are always kept. Git refuses to remove a worktree with local changes, so the command reports and skips it.
+Run `gr cleanup` to remove managed PR worktrees and prune old tours. Tours are also pruned as they are saved: each PR keeps the three heads you opened most recently. `gr cleanup` also deletes tours you have not opened in 90 days (`--days <n>` to change it), and for a PR left with no tour, its reading state, position, chapter moves, checklist confirmations, thread triage, and posted drafts. Unposted drafts, queued replies, and cached repository clones are always kept. Git refuses to remove a worktree with local changes, so the command reports and skips it. The same cleanup also runs on its own when a tour starts, at most once a week, deleting tours not opened in 30 days. It runs silently, and `~/.guided-review/cleanup.json` records when it last ran.
 
 ## Read the tour
 

@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { AppOptions } from './tui/App.js';
 import { currentBranchPR, currentRepo, parsePRArg } from './github/gh.js';
-import { cleanupWorktrees, localRepoRoot } from './git/worktree.js';
+import { localRepoRoot } from './git/worktree.js';
+import { autoCleanup, cleanup } from './cleanup.js';
 import { localPreview } from './preview.js';
 import {
   agentRouting,
@@ -202,20 +203,12 @@ async function main() {
   if (cmd === 'cleanup') {
     const { days } = cli.flags;
     if (days !== undefined && !(Number.isFinite(days) && days > 0)) fail('--days must be a positive number of days.');
-    const result = await cleanupWorktrees();
-    process.stdout.write(`Removed ${result.removed.length} PR worktree(s).\n`);
-    for (const item of result.skipped) process.stdout.write(`Skipped ${item.path}: ${item.reason}\n`);
-    const { Store } = await import('./store/db.js');
-    const store = new Store();
-    try {
-      const extra = store.pruneTours();
-      const maxAge = days ?? TOUR_MAX_AGE_DAYS;
-      const stale = store.pruneStale(maxAge);
-      process.stdout.write(`Removed ${extra + stale.tours} old tour(s): the newest ${KEEP_TOURS_PER_PR} per PR are kept, minus any not opened in ${maxAge} days.\n`);
-      if (stale.prs) process.stdout.write(`Cleared reading state for ${stale.prs} PR(s) with no tour left; unposted drafts are kept.\n`);
-    } finally {
-      store.close();
-    }
+    const maxAge = days ?? TOUR_MAX_AGE_DAYS;
+    const result = await cleanup(maxAge);
+    process.stdout.write(`Removed ${result.worktrees.removed.length} PR worktree(s).\n`);
+    for (const item of result.worktrees.skipped) process.stdout.write(`Skipped ${item.path}: ${item.reason}\n`);
+    process.stdout.write(`Removed ${result.tours} old tour(s): the newest ${KEEP_TOURS_PER_PR} per PR are kept, minus any not opened in ${maxAge} days.\n`);
+    if (result.prs) process.stdout.write(`Cleared reading state for ${result.prs} PR(s) with no tour left; unposted drafts are kept.\n`);
     return;
   }
   if (cmd === 'install-codex-skill') {
@@ -306,6 +299,8 @@ async function main() {
     const result = await setup({ firstRun: true });
     if (result.kind === 'cancelled') fail(`no config saved. Run \`${NAME} config\` when you're ready, or pass --no-agent to review without a model.`);
   }
+  // The weekly cleanup runs while the PR is resolved, and finishes before the tour can open a worktree.
+  const cleanupP = autoCleanup();
   // Load the TUI while the PR is being resolved below.
   const tui = Promise.all([import('ink'), import('./tui/App.js')]);
   tui.catch(() => undefined); // awaited below; a failure surfaces there
@@ -394,6 +389,7 @@ async function main() {
   }
 
   const [{ render }, { App }] = await tui;
+  await cleanupP;
   await setMarks(glyphs, icons);
   opts = { ...opts, palette: await paletteP };
   const app = render(<App {...opts} />, { ...SCREEN_RENDER, exitOnCtrlC: true });
