@@ -1445,6 +1445,38 @@ describe('split view, test pane toggle and expanded context', () => {
     ui.unmount();
   });
 
+  it('gives focus back to the code when the focused chapter list leaves the screen', async () => {
+    const h1 = hunkFromDiff('src/a.ts', '-go();', '+stop();');
+    const h2 = hunkFromDiff('src/b.ts', '-x();', '+y();');
+    const t = makeTour(
+      [h1, h2],
+      [
+        { hunkIds: [h1.id], title: 'First' },
+        { hunkIds: [h2.id], title: 'Second' },
+      ],
+      { files: filesFor([h1, h2]) },
+    );
+    const at: [number, number][] = [];
+    const props = { width: 150, height: 30, setPos: (ci: number, hi: number) => void at.push([ci, hi]) };
+    const ui = render(screen(t, props));
+    await waitFor(() => expect(ui.lastFrame()).toContain('First'));
+    // Shift+Tab back past the explanation, when there is one, to the chapter list.
+    for (let i = 0; i < 3 && !ui.lastFrame()!.includes('open chapter'); i++) {
+      ui.stdin.write('\u001b[Z');
+      await tick(40);
+    }
+    expect(ui.lastFrame()).toContain('open chapter');
+    ui.stdin.write('j');
+    await tick();
+    // The terminal narrows below the list's width: the list is gone, and so is its focus.
+    ui.rerender(screen(t, { ...props, width: 100 }));
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('open chapter'));
+    ui.stdin.write('\r');
+    await tick();
+    expect(at).not.toContainEqual([1, 0]);
+    ui.unmount();
+  });
+
   it('shows each first-run tip once, until a key is pressed', async () => {
     const h = hunkFromDiff('src/a.ts', '-go();', '+stop();');
     const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });

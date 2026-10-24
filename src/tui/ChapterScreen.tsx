@@ -394,6 +394,9 @@ export function ChapterScreen(props: {
   // The panes Tab moves between, in screen order: the chapter list, the explanation, the code, and
   // the tests, each only when it is on screen.
   const panes = [...(wide ? ['list' as const] : []), ...(plan.explainLines.length ? ['explain' as const] : []), 'code' as const, ...(hasLinkedTests && hunk ? ['tests' as const] : [])];
+  // A focused pane that leaves the screen (a narrower terminal, \ hiding the list, a hunk with no
+  // explanation) hands focus back to the code, so its keys never act on something unseen.
+  if (paneFocus !== 'code' && !panes.includes(paneFocus)) setPaneFocus('code'); // React re-renders before committing
   const focusNow = testFocus ? 'tests' : paneFocus;
   const focusPane = (p: (typeof panes)[number]) => {
     setTestFocus(p === 'tests');
