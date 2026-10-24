@@ -162,6 +162,20 @@ function agentOptions(config?: Record<string, unknown> | null): { agent: AppOpti
   return { agent, noAgent: !agent };
 }
 
+// How the terminal shows color, read once before any screen: its background (so the default
+// palette's tints suit a light terminal) and its color depth.
+async function readTerminal(noColor: boolean): Promise<void> {
+  const [{ detectBackground }, theme] = await Promise.all([import('./tui/terminalBackground.js'), import('./tui/theme.js')]);
+  theme.setColorDepth(theme.detectColorDepth());
+  theme.setTerminalBackground(await detectBackground(), noColor);
+}
+
+// The marks and file icons the screens draw, from the config.
+async function setMarks(glyphs: GlyphSetting, icons: IconSetting): Promise<void> {
+  (await import('./tui/glyphs.js')).setGlyphs(glyphs);
+  (await import('./tui/icons.js')).setIcons(icons);
+}
+
 async function main() {
   const [cmd, arg] = cli.input;
   const cwd = process.cwd();
@@ -170,6 +184,17 @@ async function main() {
     if (cli.flags.repo) {
       editRepoConfig((await localRepoRoot(cwd)) ?? fail('not inside a git repository.'));
       return;
+    }
+    // The wizard's theme preview draws as the tour will: for this terminal, with the config's marks.
+    // A config that can't be read keeps the default marks; setup says what is wrong with it.
+    if (!cli.flags.edit && process.stdin.isTTY && process.stdout.isTTY) {
+      await readTerminal(!!process.env.NO_COLOR);
+      try {
+        const saved = readUserConfigFile();
+        await setMarks(loadGlyphSetting(saved), loadIconSetting(saved));
+      } catch (error) {
+        if (!(error instanceof UserConfigError)) throw error;
+      }
     }
     await setup({ edit: cli.flags.edit });
     return;
@@ -260,14 +285,9 @@ async function main() {
   // Everything below starts the full-screen tour. Check for a terminal before
   // spending any gh or network calls on it.
   if (!process.stdin.isTTY || !process.stdout.isTTY) fail(`${NAME} is an interactive terminal app; run it in a terminal.`);
-  // How the terminal shows color, read once before any screen: its background (so the default
-  // palette's tints suit a light terminal), its color depth, and NO_COLOR.
+  // How the terminal shows color, and NO_COLOR, read once before any screen.
   const noColor = !!process.env.NO_COLOR;
-  {
-    const [{ detectBackground }, theme] = await Promise.all([import('./tui/terminalBackground.js'), import('./tui/theme.js')]);
-    theme.setColorDepth(theme.detectColorDepth());
-    theme.setTerminalBackground(await detectBackground(), noColor);
-  }
+  await readTerminal(noColor);
   const offer = updateCheck?.offer();
   if (offer) {
     const code = await promptForUpdate(offer);
@@ -374,8 +394,7 @@ async function main() {
   }
 
   const [{ render }, { App }] = await tui;
-  (await import('./tui/glyphs.js')).setGlyphs(glyphs);
-  (await import('./tui/icons.js')).setIcons(icons);
+  await setMarks(glyphs, icons);
   opts = { ...opts, palette: await paletteP };
   const app = render(<App {...opts} />, { ...SCREEN_RENDER, exitOnCtrlC: true });
   await app.waitUntilExit();

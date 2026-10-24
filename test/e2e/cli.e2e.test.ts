@@ -171,6 +171,18 @@ describe('gr with a terminal', () => {
     expect(await session.exited).toBe(0);
   });
 
+  it('draws the setup theme preview with the marks set in the config', async () => {
+    fs.mkdirSync(box.env.GR_HOME!, { recursive: true });
+    fs.writeFileSync(path.join(box.env.GR_HOME!, 'config.json'), JSON.stringify({ provider: 'none', glyphs: 'ascii' }));
+    const session = startGr(box, ['config'], { cwd: box.root });
+    await session.waitFor('Provider: none');
+    session.press(KEY.enter);
+    await session.waitFor('large pr: 1,240 changed lines');
+    expect(session.screen()).toContain('! large pr');
+    expect(session.screen()).not.toContain('▲');
+    session.press('q');
+  });
+
   it('explains a missing PR when the branch has none', async () => {
     const session = startGr(box, ['review', '--no-agent'], { cwd: fixtureRepo(box) });
     await session.waitFor('no PR given');
