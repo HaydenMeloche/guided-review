@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useInput } from 'ink';
+import { useInput } from './input.js';
 import { Box, Text, useSelected } from './themed.js';
 import { fetchPRPreview, AUTHORED_LIMIT, listAuthoredPRs, listReviewRequests, parsePRArg, viewerLogin, type AuthoredPR, type PRPreview, type ReviewRequest } from '../github/gh.js';
 import type { Store } from '../store/db.js';

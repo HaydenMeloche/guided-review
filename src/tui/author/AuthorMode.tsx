@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useInput } from 'ink';
+import { useInput } from '../input.js';
 import { Box, Text } from '../themed.js';
 import type { Chapter, DiffLine, ExistingReview, ExistingThread, IssueComment, ReactionContent, ThreadComment, Tour } from '../../types.js';
 import type { Store } from '../../store/db.js';

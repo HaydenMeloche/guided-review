@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useInput } from 'ink';
+import { useInput } from './input.js';
 import { Box, Text } from './themed.js';
 import type { Chapter, ChapterOrder, Draft, DraftAnchor, ExistingThread, Hunk, ReactionContent, ReadState, ThreadComment, Tour } from '../types.js';
 import { ChecklistPanel, Reader } from './Panels.js';

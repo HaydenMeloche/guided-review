@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useInput, usePaste } from 'ink';
+import { usePaste } from 'ink';
+import { useInput } from './input.js';
 import { Box, Text } from './themed.js';
 import { truncate, wrap } from './nav.js';
 import { sanitizeTerminal } from '../util/sanitize.js';

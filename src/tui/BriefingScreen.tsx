@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useInput } from 'ink';
+import { useInput } from './input.js';
 import { Box, Text, useSelected, useTheme } from './themed.js';
 import { ROLES } from './theme.js';
 import type { Chapter, ChapterOrder, Flag, Tour } from '../types.js';

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useInput } from 'ink';
+import { useInput } from './input.js';
 import { Box, Text, useSelected, useTheme } from './themed.js';
 import { ROLES, SURFACES, type ThemeInfo, colorDepth } from './theme.js';
 import { highlightDiffLines, type HunkHighlights, type SyntaxSpan } from './highlight.js';

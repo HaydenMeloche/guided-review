@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useInput } from 'ink';
+import { useInput } from '../input.js';
 import { Box, Text, useSelected } from '../themed.js';
 import { quoteReply, type ConversationSource } from '../../review/feedback.js';
 import { TextInput } from '../TextInput.js';

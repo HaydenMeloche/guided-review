@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useInput } from 'ink';
+import { useInput } from './input.js';
 import { Box, Text, useTheme } from './themed.js';
 import { diagramColors, ROLES } from './theme.js';
 import type { Graph } from '../types.js';

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useApp, useInput, useWindowSize } from 'ink';
+import { useApp, useInput as useInkInput, useWindowSize } from 'ink';
+import { KeysLive, useInput } from './input.js';
 import { Box, PreviewingContext, Text, ThemeContext, useThemePreview } from './themed.js';
 import { terminalPalette, themeList, type Palette, type ThemeInfo } from './theme.js';
 import { ThemePicker } from './ThemePicker.js';
@@ -736,7 +737,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     const waiting = [drafts && plural(drafts, 'unposted draft'), replies && plural(replies, 'queued reply', 'queued replies')].filter(Boolean).join(' and ');
     setQuitAsk(`Quit with ${waiting}? ${drafts + replies === 1 ? 'It stays' : 'They stay'} saved for next time.`);
   };
-  useInput(
+  // Ink's own useInput: the question takes keys while everything under it is quiet.
+  useInkInput(
     (input, key) => {
       if (input === 'Q' || input === 'y') return quit();
       if (key.escape || input === 'n' || input === 'q') setQuitAsk(undefined);
@@ -771,11 +773,12 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   // ---------- screens ----------
   const width = columns;
   const height = rows;
-  // While the quit question is up, the screen under it takes no keys.
+  // While the quit question is up, the screen under it takes no keys: KeysLive quiets every
+  // handler under it, popups included.
   const live = !quitAsk;
   // Every screen sits in the same popup frame, so asking to quit never remounts it.
   return (
-    <ReviewPopup background={screens()} width={width} height={height} maxWidth={Math.min(width - 2, 72)} maxHeight={4} tone="decision">
+    <ReviewPopup background={<KeysLive.Provider value={live}>{screens()}</KeysLive.Provider>} width={width} height={height} maxWidth={Math.min(width - 2, 72)} maxHeight={4} tone="decision">
       {quitAsk
         ? (w) => (
             <Box flexDirection="column" paddingX={1}>

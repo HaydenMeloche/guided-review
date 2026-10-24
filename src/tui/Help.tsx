@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { useInput } from 'ink';
+import { useInput } from './input.js';
 import { Box, Text } from './themed.js';
 import { truncate } from './nav.js';
 import { KeyBar } from './KeyBar.js';

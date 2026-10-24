@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useInput } from 'ink';
+import { useInput } from './input.js';
 import { Box, Text, useSelected } from './themed.js';
 import { pad, truncate } from './nav.js';
 import { Hints } from './KeyBar.js';

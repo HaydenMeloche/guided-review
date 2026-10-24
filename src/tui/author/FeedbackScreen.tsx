@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useInput } from 'ink';
+import { useInput } from '../input.js';
 import { Box, Text } from '../themed.js';
 import { Confirm } from '../Confirm.js';
 import type { DiffLine, Hunk, ReactionContent, ThreadComment, Tour } from '../../types.js';

@@ -1,4 +1,4 @@
-import { useInput } from 'ink';
+import { useInput } from '../input.js';
 import { Box, Text } from '../themed.js';
 import { Hints, type Hint } from '../KeyBar.js';
 import { G } from '../glyphs.js';

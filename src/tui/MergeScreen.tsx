@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useInput } from 'ink';
+import { useInput } from './input.js';
 import { Box, Text } from './themed.js';
 import { Confirm } from './Confirm.js';
 import type { PRInfo, Tour } from '../types.js';

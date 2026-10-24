@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useInput } from 'ink';
+import { useInput } from './input.js';
 import { Box, Text, useSelected } from './themed.js';
 import { fetchJobLog, fetchMergeStatus, type CheckItem, type MergeStatus } from '../github/gh.js';
 import { CHECK_MARK, checkLabel, duration, logFocus, outcomeText, parseJobLog, sortChecks, type LogLine } from '../review/checks.js';

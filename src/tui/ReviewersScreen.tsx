@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useInput } from 'ink';
+import { useInput } from './input.js';
 import { Box, Text, useSelected } from './themed.js';
 import { fetchOrgTeams, fetchPendingReviewers, fetchReviews, getMentionUsers, removeReviewRequests, requestReviewers, type PendingReviewers } from '../github/gh.js';
 import { reviewerStatus, type ReviewerStatus } from '../review/feedback.js';

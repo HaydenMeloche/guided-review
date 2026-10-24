@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useInput } from 'ink';
+import { useInput } from './input.js';
 import { Box, Text } from './themed.js';
 import type { ExistingThread, ReactionContent, ThreadComment } from '../types.js';
 import { MdLineView, renderMarkdown, type MdLine } from './markdown.js';

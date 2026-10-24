@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
-import { useApp, useInput } from 'ink';
+import { useApp } from 'ink';
+import { useInput } from './input.js';
 import { Box, Text } from './themed.js';
 import fs from 'node:fs';
 import os from 'node:os';
