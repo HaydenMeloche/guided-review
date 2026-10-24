@@ -1,0 +1,24 @@
+ ‹b›Pull requests‹/›
+  ‹b›d‹/›‹dim› download‹/›   ‹b›space‹/›‹dim› select‹/›   ‹b›a‹/›‹dim› select all‹/›   ‹b›enter‹/›‹dim› open tour‹/›   ‹b›j/k‹/›‹dim› move‹/›
+
+ ‹red›gh search prs --review-requested=@me --state=open --limit 50 --json ‹/›
+ ‹red›number,title,url,updatedAt,author,repository,isDraft,labels failed: gh: not ‹/›
+ ‹red›available in e2e tests‹/›
+ ‹b›Review requests ‹/›‹b,dim›(0)‹/›
+ ‹dim›  Nothing is waiting on your review. gr review <number or URL> opens a specif…‹/›
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

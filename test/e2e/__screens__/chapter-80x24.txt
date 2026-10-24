@@ -1,0 +1,24 @@
+‹cyan,b›local/rich ‹/›‹b›#0 feature/di…‹/› ‹green›░░░░░░░░░░░░░░░░‹/›‹dim› 0/67 lines · 0/5 hunks · Guided order‹/›
+‹dim›Guided order · Chapter 1/3: [createOrder] · ·‹/›
+‹cyan,b›createOrder‹/›‹dim› · entry exported API (createOrder) · hunk 1/3‹/›
+‹bright-black›· ‹/› src/orders.ts:1‹red›  ○ untested‹/›
+‹blue›╭──────────────────────────────────────────────────────────────────────────────╮‹/›
+‹blue›│‹/› ‹blue,b›Explanation‹/›                                                                  ‹blue›│‹/›
+‹blue›│‹/› ‹dim›Plain mode: no narration.‹/›                                                    ‹blue›│‹/›
+‹blue›│‹/›                                                                              ‹blue›│‹/›
+‹blue›│‹/› ‹red›○ No linked test · 2 possible untested behaviors · U: details‹/›                ‹blue›│‹/›
+‹blue›╰──────────────────────────────────────────────────────────────────────────────╯‹/›
+ ‹dim›   1    1 ‹/› ‹c73›import ‹/›‹c145›{‹/›‹c73› ‹/›quote‹c145›,‹/›‹c73› type ‹/›LineItem‹c73› ‹/›‹c145›}‹/›‹c73› from ‹/›‹c222›'./pricing'‹/›‹c145›;‹/›
+ ‹dim›   2    2 ‹/›
+‹cyan›▶‹/›‹dim›   3    3 ‹/›‹green›+‹/›‹c73›export‹/› ‹c73›function‹/› ‹c217›createOrder‹/›‹c145›(‹/›‹c183›items‹/›‹c73›:‹/› ‹c152›LineItem‹/›[]‹c145,bg:c65›,‹/›‹bg:c65› ‹/›‹c183,bg:c65›discountCode‹/›‹c73,bg:c65›?:‹/›‹bg:c65› ‹/›‹c152,bg:c65›string‹/›
+ ‹dim›          ‹/›‹green› ‹/›‹c145›)‹/› ‹c145›{‹/›
+ ‹dim›   4    4 ‹/›‹green›+‹/›  ‹c73›const‹/› price ‹c73›=‹/› ‹c217›quote‹/›(items‹c145,bg:c65›,‹/›‹bg:c65› discountCode‹/›)‹c145›;‹/›
+ ‹dim›   5    5 ‹/›   ‹c73›return‹/› ‹c145›{‹/› id‹c145›:‹/› Date‹c73›.‹/›‹c217›now‹/›()‹c73›.‹/›‹c217›toString‹/›(‹c217›36‹/›)‹c145›,‹/› items‹c145›,‹/› price‹c145›,‹/› status‹c145›:‹/› ‹c222›'open'‹/›
+ ‹dim›          ‹/›  ‹c73›as‹/› ‹c73›const‹/› ‹c145›};‹/›
+ ‹dim›   6    6 ‹/› ‹c145›}‹/›
+
+
+
+‹dim›✎ 0 draft comment(s)‹/›
+ ‹b›n/p‹/›‹dim› hunk‹/›   ‹b›c‹/›‹dim› comment‹/›   ‹b›v‹/›‹dim› range‹/›   ‹yellow›whitespace hidden   ‹/›‹b›b‹/›‹dim› briefing‹/›   ‹b›h‹/›‹dim› all keys‹/›
+

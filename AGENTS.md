@@ -19,6 +19,8 @@ The app and tests need Node 22.13 or newer and ripgrep (`rg`) on the PATH.
 
 If a change alters how PRs split into tours, it shows up as a diff of the `.tour.txt` files in `test/fixtures/prs/`. Only accept that diff with `pnpm test -u` when the new shape is intended.
 
+If a change alters how a screen looks, it shows up as a diff of the golden screens in `test/e2e/__screens__/`: each screen at 80×24, 120×36, and 200×50, with its colors and styles marked up. Only accept that diff with `pnpm test:e2e -u` when the new look is intended.
+
 ## Running the app
 
 - Use `pnpm dev`. It keeps its config and database in `.gr-dev/`, and `pnpm reset:db` clears them. Don't read or write the user's real `~/.guided-review/`.
