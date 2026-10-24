@@ -1,0 +1,1 @@
+ ‹b›n/p‹/›‹dim› hunk‹/›   ‹b›c‹/›‹dim› comment‹/›   ‹b›v‹/›‹dim› range‹/›   ‹b›]/[‹/›‹dim› chapter‹/›         ‹yellow›whitespace hidden   ‹/›‹b›b‹/›‹dim› briefing‹/›   ‹b›h‹/›‹dim› all keys‹/›
