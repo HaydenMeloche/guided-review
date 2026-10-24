@@ -20,6 +20,7 @@ import { MdLineView, renderMarkdown } from '../markdown.js';
 import { age } from '../PickerScreen.js';
 import { plural } from '../plural.js';
 import { sanitizeTerminal as safe } from '../../util/sanitize.js';
+import { TONE_COLOR, useFlash } from '../flash.js';
 
 export const VERDICT: Record<string, { text: string; color: string; mark: string }> = {
   APPROVED: { text: 'approved', color: 'green', mark: '✓' },
@@ -83,12 +84,7 @@ export function FeedbackBriefing(props: {
   const selectedRow = useSelected();
   const [sel, setSel] = useState(0);
   const [overlay, setOverlay] = useState<'none' | 'reviews' | 'comments' | 'description' | 'help'>('none');
-  const [flash, setFlash] = useState('');
-  useEffect(() => {
-    if (!flash) return;
-    const t = setTimeout(() => setFlash(''), 4000);
-    return () => clearTimeout(t);
-  }, [flash]);
+  const { flash, show: setFlash, dismiss: dismissFlash } = useFlash();
   // n, p and Enter with no feedback chapter to open: say why, and what there is to do instead.
   const nothingToOpen = () => {
     const merge = props.readiness?.canMerge && props.onMerge ? ' M merges the PR.' : '';
@@ -101,6 +97,7 @@ export function FeedbackBriefing(props: {
   const summaries = props.reviews.filter((r) => r.author !== tour.author && r.body.trim());
   useInput(
     (input, key) => {
+      dismissFlash();
       if (input === 'j' || key.downArrow) return setSel((s) => Math.min(groups.length - 1, s + 1));
       if (input === 'k' || key.upArrow) return setSel((s) => Math.max(0, s - 1));
       if (key.return) return groups.length ? props.onStart(sel) : nothingToOpen();
@@ -111,7 +108,7 @@ export function FeedbackBriefing(props: {
       if (input === 'M' && props.onMerge) return props.onMerge();
       if (input === 'c' && props.onChecks && props.checks?.items.length) return props.onChecks();
       if (input === 'A' && props.onReviewers) return props.onReviewers();
-      if (input === 'Y' && props.onCopyUrl) return void props.onCopyUrl().then(setFlash);
+      if (input === 'Y' && props.onCopyUrl) return void props.onCopyUrl().then((m) => setFlash(m, /^Copied|^Asked/.test(m) ? 'info' : undefined));
       if (input === 'H') return props.onToggleHidden();
       if (input === 't') return props.onFullTour();
       if (input === 'R') return props.onRefresh();
@@ -436,8 +433,8 @@ export function FeedbackBriefing(props: {
         </Box>
       )}
       {flash ? (
-        <Text color="yellow" wrap="truncate">
-          {safe(flash)}
+        <Text color={TONE_COLOR[flash.tone]} wrap="truncate">
+          {safe(flash.text)}
         </Text>
       ) : props.writing || props.analyzing ? (
         <Text color="yellow">⟳ {safe(props.writing ?? props.analyzing ?? '')}</Text>

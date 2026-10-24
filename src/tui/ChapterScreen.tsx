@@ -28,6 +28,7 @@ import { anchorLines, crossesContext, describeAnchor, lineAnchor, newDraft, sele
 import { CONTEXT_STEP, useFoldedCursor, useFolds, useHunkView } from './chapter/hunkView.js';
 import { barEnd, barKeys, chapterHelp, keyAction, type Action, type KeyCtx, type View } from './chapter/keys.js';
 import { explanation } from './chapter/guide.js';
+import { useFlash } from './flash.js';
 import { plural } from './plural.js';
 import { chapterLayout, overlaySlots, type OverlayKind } from './chapter/layout.js';
 
@@ -101,7 +102,7 @@ export function ChapterScreen(props: {
   const chapter = chapters[ci];
   const diffHunk: Hunk | undefined = chapter && hi >= 0 ? tour.hunks[chapter.hunkIds[hi]] : undefined;
   const svc = props.services;
-  const [flash, setFlash] = useState('');
+  const { flash, show: setFlash, dismiss: dismissFlash } = useFlash();
   const view = useHunkView(diffHunk, tour, svc?.root, setFlash);
   const { hunk, cursor, anchor, setAnchor, scroll, setScroll, raw, setRaw, testFocus, setTestFocus, testIdx, setTestIdx, testCursor, setTestCursor, testScroll, setTestScroll, growContext } = view;
   const [ignoreWhitespace, toggleWhitespace] = useSetting(props.hideWhitespace, props.toggleWhitespace, true);
@@ -147,11 +148,6 @@ export function ChapterScreen(props: {
     setSummarySel(0);
     setShowUntested(false);
   }, [chapter?.id]);
-  useEffect(() => {
-    if (!flash) return;
-    const t = setTimeout(() => setFlash(''), 2500);
-    return () => clearTimeout(t);
-  }, [flash]);
 
   const prog = useMemo(() => progress(tour, states), [tour, states]);
   const delta = useMemo(() => new Set(tour.rereview?.newHunkIds ?? []), [tour.rereview]);
@@ -178,7 +174,7 @@ export function ChapterScreen(props: {
     props.saveDraft(d);
     setAnchor(null);
     close();
-    setFlash(`Draft ${edited ? 'updated' : 'saved'} (${d.label}). Nothing posts until you submit.`);
+    setFlash(`Draft ${edited ? 'updated' : 'saved'} (${d.label}). Nothing posts until you submit.`, 'info');
   };
 
   // ---------- references: composer, recent locations ----------
@@ -258,7 +254,7 @@ export function ChapterScreen(props: {
     skipChapter: () => {
       const ids = chapter.hunkIds;
       for (const id of ids) if (stateOf(states, tour.hunks[id]) === 'unread') props.setState(tour.hunks[id], 'skipped');
-      setFlash(`Skipped ${plural(ids.length, 'hunk')} in "${chapter.title}".`);
+      setFlash(`Skipped ${plural(ids.length, 'hunk')} in "${chapter.title}".`, 'info');
       next();
     },
     // Code
@@ -275,7 +271,7 @@ export function ChapterScreen(props: {
     escape: () => (anchor !== null ? setAnchor(null) : props.openBriefing()),
     skip: () => next('skipped'),
     defer: () => {
-      setFlash('Deferred: it stays on the submit screen as unread work.');
+      setFlash('Deferred: it stays on the submit screen as unread work.', 'info');
       next('deferred');
     },
     unread: () => props.setState(hunk!, 'unread'),
@@ -327,6 +323,8 @@ export function ChapterScreen(props: {
   };
   useInput(
     (input, key) => {
+      // A held message has been seen once a key is pressed.
+      dismissFlash();
       const action = keyAction(keyView, keyCtx, input, key);
       if (action) actions[action]();
     },
@@ -342,7 +340,7 @@ export function ChapterScreen(props: {
         if (input === 'k' || key.upArrow) return move(-1);
         if (key.return && hunk) {
           props.moveHunk(hunk, chapters[overlay.sel].id);
-          setFlash(`Moved to "${chapters[overlay.sel].title}".`);
+          setFlash(`Moved to "${chapters[overlay.sel].title}".`, 'info');
           return close();
         }
       }
@@ -354,7 +352,7 @@ export function ChapterScreen(props: {
     (input, key) => {
       if ((input === 'y' || key.return) && cursorDraft) {
         props.deleteDraft(cursorDraft);
-        setFlash(`Draft deleted (${cursorDraft.label}).`);
+        setFlash(`Draft deleted (${cursorDraft.label}).`, 'info');
       }
       close();
     },
@@ -527,7 +525,7 @@ export function ChapterScreen(props: {
                                   startReply={overlay.kind === 'reply'}
                                   onReply={props.replyToThread}
                                   onReact={props.reactToComment}
-                                  onNotice={setFlash}
+                                  onNotice={(text) => setFlash(text, 'info')}
                                   onClose={() => close()}
                                 />
                               ),

@@ -3,6 +3,7 @@ import { Box, Text } from '../themed.js';
 import type { Chapter, ChapterOrder, DiffFile, Draft, Hunk, Tour } from '../../types.js';
 import { changedLineCount, chapterState, ORDER_LABEL, pad, progress, riskMark, stateMark, stateOf, truncate, type States } from '../nav.js';
 import { safe } from './text.js';
+import { TONE_COLOR, type Flash } from '../flash.js';
 import { draftsAt } from './lineNotes.js';
 import { MdLineView, type MdLine } from '../markdown.js';
 import { plural } from '../plural.js';
@@ -163,12 +164,12 @@ export const CollapsedSummary = React.memo(function CollapsedSummary(props: {
   );
 });
 
-export function DraftLine(props: { drafts: Draft[]; hunk?: Hunk; cursor: number; flash: string; width: number }) {
+export function DraftLine(props: { drafts: Draft[]; hunk?: Hunk; cursor: number; flash?: Flash; width: number }) {
   const pending = props.drafts.filter((d) => !d.posted);
   if (props.flash)
     return (
-      <Text color="yellow" wrap="truncate">
-        {truncate(props.flash, props.width)}
+      <Text color={TONE_COLOR[props.flash.tone]} wrap="truncate">
+        {truncate(props.flash.text, props.width)}
       </Text>
     );
   const l = props.hunk?.lines[props.cursor];

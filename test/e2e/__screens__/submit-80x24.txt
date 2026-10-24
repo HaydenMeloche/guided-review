@@ -19,6 +19,6 @@
  ‹dim›   6    6 ‹/› ‹c145›}‹/›
 
 
-‹yellow›Draft saved (question). Nothing posts until you submit.‹/›
+✎ [question] Before tax?
  ‹b›n/p‹/›‹dim› hunk‹/›   ‹b›]/[‹/›‹dim› chapter‹/›   ‹dim›+8 more‹/›       ‹yellow›whitespace hidden   ‹/›‹b›esc‹/›‹dim› back‹/›   ‹b›?‹/›‹dim› keys‹/›
 

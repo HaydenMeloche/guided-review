@@ -26,6 +26,7 @@ import { codeTerms, resolveCodeRefs, type CodeRef } from '../../review/codeRefs.
 import type { RepoIndex } from '../../analysis/repoIndex.js';
 import { plural } from '../plural.js';
 import { FilePreview } from '../FilePreview.js';
+import { TONE_COLOR, useFlash } from '../flash.js';
 
 // The file preview needs room beside the thread; narrower terminals keep the thread full width.
 const PREVIEW_MIN_WIDTH = 110;
@@ -165,7 +166,7 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
   const { tour, groups, pos, width, height, group, item } = props;
   const queued = props.queued.find((q) => q.threadId === item.thread.id);
   const [mode, setMode] = useState<Mode>({ kind: 'browse' });
-  const [flash, setFlash] = useState('');
+  const { flash, show: setFlash, dismiss: dismissFlash } = useFlash();
   const [expanded, setExpanded] = useState(false);
   const [scroll, setScroll] = useState(0);
   const [codeScroll, setCodeScroll] = useState(0);
@@ -175,11 +176,6 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
   const [busy, setBusy] = useState(false);
   const aiAbort = useRef<AbortController | undefined>(undefined);
   useEffect(() => () => aiAbort.current?.abort(), []);
-  useEffect(() => {
-    if (!flash) return;
-    const t = setTimeout(() => setFlash(''), 3000);
-    return () => clearTimeout(t);
-  }, [flash]);
   const threadId = item.thread.id;
   const [linkIdx, setLinkIdx] = useState(0);
   useEffect(() => {
@@ -302,7 +298,7 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
   const saveReply = (body: string) => {
     props.onSaveReply(item.thread.id, body, reply.resolve);
     setMode({ kind: 'browse' });
-    setFlash(body.trim() ? `Reply queued${reply.resolve ? ' (resolves after sending)' : ''}. Nothing posts until you send (s).` : 'Queued reply removed.');
+    setFlash(body.trim() ? `Reply queued${reply.resolve ? ' (resolves after sending)' : ''}. Nothing posts until you send (s).` : 'Queued reply removed.', 'info');
   };
   const codeText = code ? code.hunk.lines.map((l) => `${l.kind === 'add' ? '+' : l.kind === 'del' ? '-' : ' '}${l.text}`).join('\n') : undefined;
   const runDraft = async (previous?: { reply: string; feedback: string }) => {
@@ -338,7 +334,7 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
     setBusy(true);
     try {
       await props.onResolve(item, to);
-      setFlash(to ? 'Resolved on GitHub.' : 'Unresolved on GitHub.');
+      setFlash(to ? 'Resolved on GitHub.' : 'Unresolved on GitHub.', 'info');
     } catch (e) {
       setFlash(`${to ? 'Resolve' : 'Unresolve'} failed: ${(e as Error).message}`);
     } finally {
@@ -348,6 +344,7 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
 
   useInput(
     (input, key) => {
+      dismissFlash();
       if (mode.kind === 'react') {
         if (key.escape || input === '+') return setMode({ kind: 'browse' });
         if (/^[1-8]$/.test(input)) void react(Number(input) - 1);
@@ -415,7 +412,7 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
       if (input === 'H') return props.onToggleHidden();
       if (input === 's') return props.onSend();
       if (input === 'M' && props.onMerge) return props.onMerge();
-      if (input === 'Y' && props.onCopyUrl) return void props.onCopyUrl().then(setFlash);
+      if (input === 'Y' && props.onCopyUrl) return void props.onCopyUrl().then((m) => setFlash(m, /^Copied|^Asked/.test(m) ? 'info' : undefined));
       if (input === 'R') return props.onRefresh();
       if (input === 'L' && props.onTheme) return props.onTheme();
       if (input === 'b' || input === 'q') return props.onBriefing();
@@ -610,9 +607,9 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
       {mode.kind === 'resolve' ? (
         <Confirm yes={item.thread.isResolved ? 'unresolve' : 'resolve'}>{item.thread.isResolved ? 'Unresolve' : 'Resolve'} this thread on GitHub now?</Confirm>
       ) : flash ? (
-        <Text color="yellow" wrap="truncate">
+        <Text color={TONE_COLOR[flash.tone]} wrap="truncate">
           {' '}
-          {safe(flash)}
+          {safe(flash.text)}
         </Text>
       ) : (
         <Text dimColor wrap="truncate">

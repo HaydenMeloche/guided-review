@@ -31,6 +31,6 @@
 
 
 
-‹yellow›Draft saved (question). Nothing posts until you submit.‹/›
+Draft saved (question). Nothing posts until you submit.
  ‹b›n/p‹/›‹dim› hunk‹/›   ‹b›]/[‹/›‹dim› chapter‹/›   ‹dim›│   ‹/›‹b›c‹/›‹dim› comment‹/›   ‹b›v‹/›‹dim› range‹/›   ‹b›E‹/›‹dim› edit draft‹/›   ‹dim›+5 more‹/›      ‹yellow›whitespace hidden   ‹/›‹b›esc‹/›‹dim› back‹/›   ‹b›?‹/›‹dim› keys‹/›
 

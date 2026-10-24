@@ -12,6 +12,7 @@ import { CHECK_LOG_KEYS, CHECKS_KEYS, checkLogBar, checksBar } from './screenKey
 import { pad, truncate } from './nav.js';
 import { plural } from './plural.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
+import { TONE_COLOR, useFlash } from './flash.js';
 
 // While checks are running, how often their state is read again.
 export const CHECK_POLL_MS = 20_000;
@@ -95,20 +96,15 @@ export function ChecksScreen(props: {
   const checks = useMemo(() => sortChecks(props.checks), [props.checks]);
   const [sel, setSel] = useState(0);
   const [log, setLog] = useState<{ check: CheckItem; lines?: LogLine[]; error?: string; top: number }>();
-  const [flash, setFlash] = useState('');
+  const { flash, show: setFlash, dismiss: dismissFlash } = useFlash();
   const [help, setHelp] = useState(false);
   useEffect(() => setSel((s) => Math.min(s, Math.max(0, checks.length - 1))), [checks.length]);
-  useEffect(() => {
-    if (!flash) return;
-    const t = setTimeout(() => setFlash(''), 3000);
-    return () => clearTimeout(t);
-  }, [flash]);
 
   const viewH = Math.max(3, height - 4); // title, summary or status, gap, key bar
   const openUrl = (c: CheckItem) => {
     if (!c.url) return setFlash('This check has no page to open.');
     void (props.open ?? openExternal)(c.url).then(
-      () => setFlash('Opened in your browser.'),
+      () => setFlash('Opened in your browser.', 'info'),
       () => setFlash(`Couldn't open a browser: ${c.url}`),
     );
   };
@@ -128,6 +124,7 @@ export function ChecksScreen(props: {
 
   useInput((input, key) => {
     if (help) return;
+    dismissFlash();
     if (input === 'Q') return props.onQuit?.();
     if (input === '?' || input === 'h') return setHelp(true);
     if (log) {
@@ -180,10 +177,12 @@ export function ChecksScreen(props: {
         </Text>
         <Text dimColor wrap="truncate">
           {step && !flash ? <Text color="cyan">{`▸ ${safe(step.text)} · `}</Text> : null}
-          {flash ||
-            (log.lines
+          {flash ? <Text color={TONE_COLOR[flash.tone]}>{flash.text}</Text> : null}
+          {flash
+            ? null
+            : log.lines
               ? `${lines.length ? `lines ${log.top + 1}–${Math.min(lines.length, log.top + viewH)} of ${lines.length}` : 'The log is empty.'}${errors ? ` · ${plural(errors, 'error')}` : ''}${c.state === 'pending' ? ' · still running: R reads it again' : ''}`
-              : '')}
+              : ''}
         </Text>
         <Box flexDirection="column" height={viewH} overflow="hidden">
           {log.error ? (
@@ -242,7 +241,7 @@ export function ChecksScreen(props: {
         ) : null}
       </Text>
       <Text dimColor wrap="truncate">
-        {flash || (checks.length ? (cur?.description ? safe(cur.description) : ' ') : 'No checks have reported on this commit.')}
+        {flash ? <Text color={TONE_COLOR[flash.tone]}>{flash.text}</Text> : checks.length ? cur?.description ? safe(cur.description) : ' ' : 'No checks have reported on this commit.'}
       </Text>
       <Box flexDirection="column" height={listH} overflow="hidden">
         {checks.slice(start, start + listH).map((c, k) => {
