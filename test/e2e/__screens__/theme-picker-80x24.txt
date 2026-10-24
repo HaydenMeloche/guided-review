@@ -2,18 +2,18 @@
  ‹cyan,bg:c59›╭────────────────────────────────────────────────────────────────────────────╮‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59,b› Color theme ‹/›‹bg:c59,dim›· 1/66  / to search‹/›‹bg:c59›                                            ‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59,inv› ● Terminal colors            ‹/›‹bg:c59›  ‹/›‹cyan,bg:c59,b›acme/api‹/›‹bg:c59,b› #482 Retry requests that fail‹/›‹bg:c59,dim›  by …‹/›‹cyan,bg:c59›│‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59›   Andromeeda               ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c59,dim›From the author · ‹/›‹bg:c59›fixes the flaky deploys i…‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›   Andromeeda               ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   Retries a request up to ‹/›‹cyan,bg:c59›attempts‹/›‹bg:c59› times when…‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59›   Aurora X                 ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹yellow,bg:c59›⚑ large pr: 1,240 changed lines across 18 f…‹/›‹cyan,bg:c59›│‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59›   Ayu Dark                 ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹green,bg:c59,inv›✓‹/›‹red,bg:c59,inv›▲‹/›‹bg:c59,inv› Retry failed requests          ‹/›‹bg:c59,dim,inv› 3 hunks‹/›‹bg:c59›  ‹/›‹cyan,bg:c59›│‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59›   Ayu Mirage               ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bright-black,bg:c59›· ‹/›‹bg:c59› Tests for the client           ‹/›‹bg:c59,dim› 1 hunks‹/›‹bg:c59›  ‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›   Ayu Dark                 ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c59,b›Chapters‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›· Guided order‹/›‹bg:c59,b,dim› · 4/9 hunks done‹/›‹bg:c59› ‹/›‹bg:c59,dim›───‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›   Ayu Mirage               ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹yellow,bg:c59›◷▲‹/›‹bg:c59› Client configuration           ‹/›‹bg:c59,dim› 2 hunks‹/›‹bg:c59›  ‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59›   Catppuccin Frappé        ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c59,dim›── Chapter ─────────────────────────────────‹/›‹cyan,bg:c59›│‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59›   Catppuccin Macchiato     ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c59,b›Retry failed requests          ‹/›‹bg:c59› ‹/›‹green,bg:c59›████‹/›‹bg:c59,dim›░░░░ 4/9‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›   Catppuccin Macchiato     ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c59,b›Retry failed requests          ‹/›‹bg:c59› ‹/›‹green,bg:c59›▰▰▰▰‹/›‹bg:c59,dim›▱▱▱▱ 4/9‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59›   Catppuccin Mocha         ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹blue,bg:c59›╭──────────────────────────────────────────╮‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59›   Dark Plus                ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹blue,bg:c59›│‹/›‹bg:c59› ‹/›‹blue,bg:c59,b›Explanation‹/›‹bg:c59›                              ‹/›‹blue,bg:c59›│‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59›   Dracula Theme            ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹blue,bg:c59›│‹/›‹bg:c59› Retries up to ‹/›‹cyan,bg:c59›attempts‹/›‹bg:c59› times on a serve… ‹/›‹blue,bg:c59›│‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59›   Dracula Theme Soft       ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹blue,bg:c59›│‹/›‹bg:c59› ‹/›‹yellow,bg:c59›◐ partly tested · ‹/›‹red,bg:c59›○ no test for the giv…‹/›‹bg:c59› ‹/›‹blue,bg:c59›│‹/›‹cyan,bg:c59›│‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59›   Everforest Dark          ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c59,dim› src/client.ts ‹/›‹magenta,bg:c59,dim›[question]‹/›‹blue,bg:c59›──────────────────╯‹/›‹cyan,bg:c59›│‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59›   GitHub Dark              ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c59,dim› 13 ‹/›‹red,bg:c59›-‹/›‹bg:c59›   return fetch(url);                  ‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›   Everforest Dark          ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹blue,bg:c59›╰──────────────────────────────────────────╯‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›   GitHub Dark              ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c59,dim› 12 ‹/›‹bg:c59›  export async function fetchWithRetry(…‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59›   GitHub Dark Default      ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c23,dim› 13 ‹/›‹green,bg:c23›+‹/›‹bg:c23›   for (let i = 0; i < attempts; i++) {‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59›   GitHub Dark Dimmed       ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c23,dim› 15 ‹/›‹green,bg:c23›+‹/›‹bg:c23›     if (res.status < 500) return res; ‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59›   GitHub Dark High Contrast‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c59,dim› 17 ‹/›‹bg:c59›    throw new Error(`gave up on ${url}`…‹/›‹cyan,bg:c59›│‹/›

@@ -1,4 +1,4 @@
-‹cyan,b›local/rich ‹/›‹b›#0 feature/discounts (preview)                        ‹/› ‹green›░░░░░░░░░░░░░░░░‹/›‹dim› 0/67 lines · 0/5 hunks · Guided order‹/›
+‹cyan,b›local/rich ‹/›‹b›#0 feature/discounts (preview)                                          ‹/› ‹dim›▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks · Guided‹/›
 ‹dim›Guided order · Chapter 1/3: [createOrder] · ·‹/›
 ‹cyan,b›createOrder‹/›‹dim› · entry exported API (createOrder) · hunk 1/3‹/›
 ‹bright-black›· ‹/› src/orders.ts:1‹red›  ○ untested‹/›

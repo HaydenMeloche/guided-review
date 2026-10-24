@@ -77,6 +77,13 @@ export function progress(tour: Tour, states: States, only?: string[]): Progress 
   return p;
 }
 
+// A thin progress meter, `cells` wide: filled ▰ for what is done, ▱ for the rest.
+export function meter(done: number, total: number, cells: number): { filled: string; rest: string; percent: number } {
+  const fraction = total ? Math.min(1, done / total) : 1;
+  const n = Math.round(fraction * cells);
+  return { filled: '▰'.repeat(n), rest: '▱'.repeat(cells - n), percent: Math.round(fraction * 100) };
+}
+
 export function riskMark(risk: number): { mark: string; color: string } {
   if (risk >= 3) return { mark: '▲', color: 'red' };
   if (risk === 2) return { mark: '▲', color: 'yellow' };

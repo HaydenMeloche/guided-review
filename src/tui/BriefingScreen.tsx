@@ -192,7 +192,7 @@ export function BriefingScreen(props: {
       ))}
       {descAll.length ? (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
-          <Heading terminal={{ dimColor: true }}>From the author</Heading>
+          <SectionHeading title="From the author" width={leftW} />
           {desc.map((l, i) => (
             <MdLineView key={i} line={l} />
           ))}
@@ -210,12 +210,11 @@ export function BriefingScreen(props: {
       ) : null}
       {reviews.length ? (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
-          <Text>
-            <Heading terminal={{ color: 'cyan' }}>Other reviewers</Heading>
+          <SectionHeading title="Other reviewers" width={leftW}>
             <Text dimColor> · </Text>
             <Key k="V" />
             <Text dimColor> to read all {plural(otherReviews.length, 'review')}</Text>
-          </Text>
+          </SectionHeading>
           {reviews.map((r) => (
             <Text key={r.id} wrap="truncate">
               {safe(
@@ -285,16 +284,16 @@ export function BriefingScreen(props: {
         </Box>
       ) : null}
       <Box flexDirection="column" marginTop={1} flexShrink={0}>
-        <Text>
-          <Heading terminal={{}}>Chapters</Heading>{' '}
+        <SectionHeading title="Chapters" width={leftW}>
           <Text bold color="cyan">
+            {' '}
             · {ORDER_LABEL[props.order]} order
           </Text>
           <Text bold dimColor>
             {' '}
             · {prog.read + prog.skipped}/{prog.total} hunks done
           </Text>
-        </Text>
+        </SectionHeading>
         <Text>
           <Text dimColor>
             {props.order === 'flow'
@@ -332,7 +331,7 @@ export function BriefingScreen(props: {
       </Box>
       {blast.length ? (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
-          <Heading terminal={{}}>Blast radius</Heading>
+          <SectionHeading title="Blast radius" width={leftW} />
           {blast.map((b) => (
             <Text key={b.symbol + b.hunkId} wrap="truncate">
               {safe(
@@ -378,12 +377,11 @@ export function BriefingScreen(props: {
         {left}
         {wide && tour.overview ? (
           <Box flexDirection="column" marginLeft={2} width={rightW} borderStyle="single" borderTop={false} borderBottom={false} borderRight={false} borderColor="gray" paddingLeft={1}>
-            <Text>
-              <Heading terminal={{ dimColor: true }}>Overview</Heading>
+            <SectionHeading title="Overview" width={rightW - 2}>
               <Text dimColor> · </Text>
               <Key k="d" />
               <Text dimColor> to explore</Text>
-            </Text>
+            </SectionHeading>
             <DiagramView graph={tour.overview} width={rightW - 2} height={bodyH - 2} interactive={false} />
           </Box>
         ) : null}
@@ -427,12 +425,25 @@ export function BriefingScreen(props: {
   return screen;
 }
 
-// A section heading in the theme's heading color; with the terminal's colors, styled as before.
-export function Heading(props: { terminal: { color?: string; dimColor?: boolean }; children: ReactNode }) {
+// A section heading: its title in the theme's heading color (bold with the terminal's colors),
+// what follows it (counts, a key to press), then a quiet rule to the column's edge, so the eye
+// finds where each section starts.
+export function SectionHeading(props: { title: string; width: number; children?: ReactNode }) {
   const { heading } = useTheme();
   return (
-    <Text bold {...(heading ? { color: heading } : props.terminal)}>
-      {props.children}
-    </Text>
+    <Box width={props.width} flexShrink={0} overflow="hidden">
+      <Box flexShrink={0}>
+        <Text wrap="truncate">
+          <Text bold color={heading}>
+            {props.title}
+          </Text>
+          {props.children}
+        </Text>
+      </Box>
+      {/* One row high and wrapping, so the rule is cut at the edge without an ellipsis. */}
+      <Box flexGrow={1} flexShrink={1} minWidth={0} marginLeft={1} height={1} overflow="hidden">
+        <Text dimColor>{'─'.repeat(Math.max(0, props.width))}</Text>
+      </Box>
+    </Box>
   );
 }

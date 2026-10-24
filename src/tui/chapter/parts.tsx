@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Text } from '../themed.js';
 import type { Chapter, ChapterOrder, DiffFile, Draft, Hunk, Tour } from '../../types.js';
-import { changedLineCount, chapterState, ORDER_LABEL, pad, progress, riskMark, stateMark, stateOf, truncate, type States } from '../nav.js';
+import { changedLineCount, chapterState, meter, ORDER_LABEL, pad, progress, riskMark, stateMark, stateOf, truncate, type States } from '../nav.js';
 import { safe } from './text.js';
 import { TONE_COLOR, type Flash } from '../flash.js';
 import { draftsAt } from './lineNotes.js';
@@ -20,10 +20,9 @@ export const COVERAGE = {
 // `busy`: background work, shown quietly at the right; `pushed`: a folded new-head notice.
 export const Header = React.memo(function Header(props: { tour: Tour; prog: ReturnType<typeof progress>; order: ChapterOrder; deltaOnly: boolean; width: number; busy?: string; pushed?: boolean }) {
   const { tour, prog, width } = props;
-  const barW = 16;
-  const filled = prog.totalLines ? Math.round((prog.readLines / prog.totalLines) * barW) : barW;
-  const meter = '█'.repeat(filled) + '░'.repeat(barW - filled);
-  const right = `${meter} ${prog.readLines}/${prog.totalLines} lines · ${prog.read + prog.skipped}/${prog.total} hunks · ${ORDER_LABEL[props.order]} order`;
+  const m = meter(prog.readLines, prog.totalLines, 12);
+  const tail = ` ${m.percent}% · ${prog.read + prog.skipped}/${prog.total} hunks · ${ORDER_LABEL[props.order]}`;
+  const right = m.filled + m.rest + tail;
   // A re-review says which hunks it is showing, so the hidden ones are never a surprise.
   const badge = !tour.rereview ? '' : props.deltaOnly ? 'changes only' : 'full review';
   const repo = `${safe(tour.repo)} `;
@@ -45,8 +44,10 @@ export const Header = React.memo(function Header(props: { tour: Tour; prog: Retu
           </Text>{' '}
         </>
       ) : null}
-      <Text color="green">{meter}</Text>
-      <Text dimColor>{right.slice(barW)}</Text>
+      <Text color="green">{m.filled}</Text>
+      <Text dimColor>{m.rest}</Text>
+      <Text bold>{` ${m.percent}%`}</Text>
+      <Text dimColor>{tail.slice(` ${m.percent}%`.length)}</Text>
     </Text>
   );
 });

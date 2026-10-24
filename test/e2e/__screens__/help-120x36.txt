@@ -1,4 +1,4 @@
-‹cyan,b›local/rich ‹/›‹b›#0 feature/discounts (preview)                        ‹/› ‹green›░░░░░░░░░░░░░░░░‹/›‹dim› 0/67 lines · 0/5 hunks · Guided order‹/›
+‹cyan,b›local/rich ‹/›‹b›#0 feature/discounts (preview)                                          ‹/› ‹dim›▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks · Guided‹/›
 ‹dim›Guided o‹/›‹cyan,bg:c59›╭─────────────────────────────────────────────────────────────────────────────────────────────────────╮‹/›
 ‹cyan,b›createOr‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b›Keys‹/›‹bg:c59,dim› · chapter · 1/2 · 29/38‹/›‹bg:c59›                                                                        ‹/›‹cyan,bg:c59›│‹/›
 ‹bright-black›· ‹/› src/o‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹yellow,bg:c59›? is now these keys · ask the model with a‹/›‹bg:c59›                                                          ‹/›‹cyan,bg:c59›│‹/›

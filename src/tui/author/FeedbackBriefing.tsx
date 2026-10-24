@@ -14,7 +14,7 @@ import { Reader } from '../Panels.js';
 import { KeyBar, Key } from '../KeyBar.js';
 import { HelpPopup } from '../Help.js';
 import { helpOf } from '../keys.js';
-import { Heading } from '../BriefingScreen.js';
+import { SectionHeading } from '../BriefingScreen.js';
 import { pad, truncate, wrap } from '../nav.js';
 import { MdLineView, renderMarkdown } from '../markdown.js';
 import { age } from '../PickerScreen.js';
@@ -169,8 +169,7 @@ export function FeedbackBriefing(props: {
   gap('g0');
   add(
     'rhead',
-    <Text>
-      <Heading terminal={{ color: 'cyan' }}>Reviews</Heading>
+    <SectionHeading title="Reviews" width={rightW}>
       {summaries.length ? (
         <>
           <Text dimColor> · </Text>
@@ -178,7 +177,7 @@ export function FeedbackBriefing(props: {
           <Text dimColor> to read {summaries.length === 1 ? 'the summary' : `${summaries.length} summaries`}</Text>
         </>
       ) : null}
-    </Text>,
+    </SectionHeading>,
   );
   const asked = [...(props.pending?.users ?? []).map((u) => `@${u}`), ...(props.pending?.teams ?? []).map((t) => `@${tour.repo.split('/')[0]}/${t}`)];
   if (!props.reviewers.length && !asked.length) add('rnone', <Text dimColor>{props.onReviewers ? 'No reviews yet, and nobody is asked. A asks someone.' : 'No reviews yet.'}</Text>);
@@ -211,8 +210,7 @@ export function FeedbackBriefing(props: {
     gap('gc');
     add(
       'chead',
-      <Text>
-        <Heading terminal={{ color: 'cyan' }}>Checks</Heading>
+      <SectionHeading title="Checks" width={rightW}>
         {all.length && props.onChecks ? (
           <>
             <Text dimColor> · </Text>
@@ -220,7 +218,7 @@ export function FeedbackBriefing(props: {
             <Text dimColor>{loud.some((c) => c.jobId) ? ' to view them and their logs' : ' to view them'}</Text>
           </>
         ) : null}
-      </Text>,
+      </SectionHeading>,
     );
     if (!all.length) add('cnone', <Text dimColor>No checks have reported on this commit.</Text>);
     for (const [k, c] of loud.slice(0, MAX).entries()) {
@@ -251,7 +249,7 @@ export function FeedbackBriefing(props: {
     }
   }
   gap('g1');
-  add('shead', <Heading terminal={{ color: 'cyan' }}>Threads</Heading>);
+  add('shead', <SectionHeading title="Threads" width={rightW} />);
   add(
     'counts',
     <Text wrap="truncate">
@@ -291,7 +289,7 @@ export function FeedbackBriefing(props: {
     );
   if (props.themes?.length || props.analyzing) {
     gap('g2');
-    add('thead', <Heading terminal={{ color: 'cyan' }}>Themes</Heading>);
+    add('thead', <SectionHeading title="Themes" width={rightW} />);
     if (props.analyzing && !props.themes?.length)
       add(
         'thinking',
@@ -343,7 +341,7 @@ export function FeedbackBriefing(props: {
       ))}
       {desc.length ? (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
-          <Heading terminal={{ dimColor: true }}>From you</Heading>
+          <SectionHeading title="From you" width={leftW} />
           {desc.map((l, i) => (
             <MdLineView key={`d${i}`} line={l} />
           ))}
@@ -360,11 +358,10 @@ export function FeedbackBriefing(props: {
         </Box>
       ) : null}
       <Box marginTop={1} flexDirection="column" flexShrink={0}>
-        <Text wrap="truncate">
-          <Heading terminal={{}}>Feedback</Heading>
+        <SectionHeading title="Feedback" width={leftW}>
           <Text dimColor>{` · change requests first · ${props.showHidden ? 'showing' : 'hiding'} ${hiddenCount} resolved · `}</Text>
           <Key k="H" />
-        </Text>
+        </SectionHeading>
         {!groups.length ? (
           <Text dimColor>
             {items.length ? 'Every thread is resolved. H shows them.' : 'No review threads on this PR yet.'}
