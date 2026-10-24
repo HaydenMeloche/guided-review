@@ -1693,6 +1693,9 @@ describe('stripFileRefs', () => {
       'Adds discount codes. It also ships 0.4.0.',
     );
     expect(stripFileRefs('Retries (up to three times) on failure.')).toBe('Retries (up to three times) on failure.');
+    // A dotted word in parentheses is prose unless it has a slash or a line number.
+    expect(stripFileRefs('Upgrade the runtime (Node.js) and pin the SDK (v2.3).')).toBe('Upgrade the runtime (Node.js) and pin the SDK (v2.3).');
+    expect(stripFileRefs('Renames helpers (e.g. foo.bar) in (lib/util.ts).')).toBe('Renames helpers (e.g. foo.bar) in.');
   });
 });
 

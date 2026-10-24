@@ -33,9 +33,19 @@ const BRIEFING_PROSE = 88;
 
 // File references the briefing model puts in its summary, such as "(src/x.ts:31-42; y.ts:3)".
 // The chapter rows already know their files; in chapter narration, where the code is on
-// screen, they stay.
+// screen, they stay. Only a parenthesis holding nothing but references goes, and a reference
+// has a slash or a line number: "(Node.js)" and "(v2.3)" are prose.
+const REF_GROUP = /\s*\(((?:\s*[\w./@-]+\.\w+(?::\d+(?:-\d+)?)?\s*[;,]?)+)\)/g;
+const isFileRef = (ref: string) => ref.includes('/') || /\.\w+:\d+(?:-\d+)?$/.test(ref);
 export function stripFileRefs(text: string): string {
-  return text.replace(/\s*\((?:\s*[\w./@-]+\.[\w]+(?::\d+(?:-\d+)?)?\s*[;,]?)+\)/g, '');
+  return text.replace(REF_GROUP, (group, refs: string) =>
+    refs
+      .split(/[\s;,]+/)
+      .filter(Boolean)
+      .every(isFileRef)
+      ? ''
+      : group,
+  );
 }
 
 // A flag as a row of the Watch for table: a short label, and its sentence as the detail.
