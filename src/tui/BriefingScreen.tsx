@@ -20,7 +20,6 @@ import { CommandPalette, type PaletteItem } from './CommandPalette.js';
 import { reviewLegend } from './legend.js';
 import { REVIEW_BRIEFING_KEYS, reviewBriefingBar } from './screenKeys.js';
 import { plural } from './plural.js';
-import { HELP_NOTE } from './ChapterScreen.js';
 import { G } from './glyphs.js';
 import { TONE_COLOR, unboundKey, useFlash } from './flash.js';
 import { helpOf, readsKey } from './keys.js';
@@ -496,18 +495,7 @@ export function BriefingScreen(props: {
     );
   }
   if (overlay === 'help' && props.active !== false)
-    return (
-      <HelpPopup
-        background={screen}
-        width={width}
-        height={height}
-        title="briefing"
-        sections={helpOf(REVIEW_BRIEFING_KEYS)}
-        legend={reviewLegend()}
-        note={HELP_NOTE}
-        onClose={() => setOverlay('none')}
-      />
-    );
+    return <HelpPopup background={screen} width={width} height={height} title="briefing" sections={helpOf(REVIEW_BRIEFING_KEYS)} legend={reviewLegend()} onClose={() => setOverlay('none')} />;
   return screen;
 }
 

@@ -1,24 +1,24 @@
  ‹dim›local/rich ‹/›‹b›#0 …‹/›‹dim›  chapter 1/3 · hunk 1/3 · ▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks · Guided‹/›
 ‹cyan,b›1‹/›‹bright-black,bg:c235›╭────────────────────────────────────────────────────────────────────────────╮‹/›
-‹blue,b›c‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b›Keys‹/›‹bg:c235,dim› · chapter · 1/2 · 17/44‹/›‹bg:c235›                                               ‹/›‹bright-black,bg:c235›│‹/›‹dim›…‹/›
-‹bright-black›▎‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹yellow,bg:c235›? is now these keys · ask the model with a‹/›‹bg:c235›                                 ‹/›‹bright-black,bg:c235›│‹/›
+‹blue,b›c‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b›Keys‹/›‹bg:c235,dim› · chapter · 1/2 · 18/43‹/›‹bg:c235›                                               ‹/›‹bright-black,bg:c235›│‹/›‹dim›…‹/›
 ‹bright-black›▎‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›Move       ‹/›‹cyan,bg:c235›n / p         ‹/›‹bg:c235›Next or previous hunk (n marks it read), on into… ‹/›‹bright-black,bg:c235›│‹/›
 ‹bright-black›▎‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›N / P, ] / [  ‹/›‹bg:c235›Next or previous chapter, including optional cha… ‹/›‹bright-black,bg:c235›│‹/›
- ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›j / k, J / K  ‹/›‹bg:c235›Move by line (or 10 lines) inside the hunk        ‹/›‹bright-black,bg:c235›│‹/›
+‹bright-black›▎‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›j / k, J / K  ‹/›‹bg:c235›Move by line (or 10 lines) inside the hunk        ‹/›‹bright-black,bg:c235›│‹/›
  ‹bright-black,bg:c235›│‹/›‹bg:c235›                                                                            ‹/›‹bright-black,bg:c235›│‹/›
  ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›Comment    ‹/›‹cyan,bg:c235›c / C         ‹/›‹bg:c235›Comment on the selected line or range (on your d… ‹/›‹bright-black,bg:c235›│‹/›
- ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›v             ‹/›‹bg:c235›Start or end a range selection                    ‹/›‹bright-black,bg:c235›│‹/›‹c152,bg:c28›r‹/›
- ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›In a comment  ‹/›‹bg:c235›@ people/code (@callers: @tests: @threads: …) · … ‹/›‹bright-black,bg:c235›│‹/›
- ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›E / X         ‹/›‹bg:c235›Old keys: c on your draft edits it; ctrl+x in th… ‹/›‹bright-black,bg:c235›│‹/›
- ‹bright-black,bg:c235›│‹/›‹bg:c235›                                                                            ‹/›‹bright-black,bg:c235›│‹/›‹c222›p‹/›
- ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›Threads    ‹/›‹cyan,bg:c235›e             ‹/›‹bg:c235›Read existing review threads on the selected lin… ‹/›‹bright-black,bg:c235›│‹/›
-‹cyan›▶‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›y             ‹/›‹bg:c235›Reply to an existing review thread on the select… ‹/›‹bright-black,bg:c235›│‹/›
+ ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›v             ‹/›‹bg:c235›Start or end a range selection                    ‹/›‹bright-black,bg:c235›│‹/›
+ ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›In a comment  ‹/›‹bg:c235›@ people/code (@callers: @tests: @threads: …) · … ‹/›‹bright-black,bg:c235›│‹/›‹c152,bg:c28›r‹/›
  ‹bright-black,bg:c235›│‹/›‹bg:c235›                                                                            ‹/›‹bright-black,bg:c235›│‹/›
- ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›View       ‹/›‹cyan,bg:c235›t             ‹/›‹bg:c235›Focus the test pane (narrow terminals: toggle so… ‹/›‹bright-black,bg:c235›│‹/›
+ ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›Threads    ‹/›‹cyan,bg:c235›e             ‹/›‹bg:c235›Read existing review threads on the selected lin… ‹/›‹bright-black,bg:c235›│‹/›
+ ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›y             ‹/›‹bg:c235›Reply to an existing review thread on the select… ‹/›‹bright-black,bg:c235›│‹/›‹c222›p‹/›
+ ‹bright-black,bg:c235›│‹/›‹bg:c235›                                                                            ‹/›‹bright-black,bg:c235›│‹/›
+‹cyan›▶‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›View       ‹/›‹cyan,bg:c235›t             ‹/›‹bg:c235›Focus the test pane (narrow terminals: toggle so… ‹/›‹bright-black,bg:c235›│‹/›
  ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,dim›           ‹/›‹cyan,bg:c235,b›tab / shift+tab‹/›‹bg:c235›Move focus between the chapter list, the explan… ‹/›‹bright-black,bg:c235›│‹/›
  ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›Focused list  ‹/›‹bg:c235›j/k choose · enter open the chapter · esc back t… ‹/›‹bright-black,bg:c235›│‹/›
  ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,dim›           ‹/›‹cyan,bg:c235,b›Focused explanation‹/›‹bg:c235›j/k scroll · enter read it all · esc back t… ‹/›‹bright-black,bg:c235›│‹/›
  ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›Focused tests ‹/›‹bg:c235›n/p test · j/k line · c comment · t/Esc back to … ‹/›‹bright-black,bg:c235›│‹/›
+ ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›d             ‹/›‹bg:c235›Chapter diagram (select a node to jump to its co… ‹/›‹bright-black,bg:c235›│‹/›
+ ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›+ / -         ‹/›‹bg:c235›Show 10 more or fewer lines of the file around t… ‹/›‹bright-black,bg:c235›│‹/›
 h‹bright-black,bg:c235›│‹/›‹bg:c235›  ‹/›‹cyan,bg:c235,b›j/k‹/›‹bg:c235› scroll   ‹/›‹cyan,bg:c235,b›tab‹/›‹bg:c235› marks   ‹/›‹cyan,bg:c235,b›esc‹/›‹bg:c235› close                                        ‹/›‹bright-black,bg:c235›│‹/›
  ‹bright-black,bg:c235›╰────────────────────────────────────────────────────────────────────────────╯‹/›
 

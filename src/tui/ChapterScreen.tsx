@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useInput } from 'ink';
 import { Box, Text } from './themed.js';
-import { Confirm } from './Confirm.js';
 import type { Chapter, ChapterOrder, Draft, DraftAnchor, ExistingThread, Hunk, ReactionContent, ReadState, ThreadComment, Tour } from '../types.js';
 import { ChecklistPanel, Reader } from './Panels.js';
-import { firstHunk, nextPos, pad, prevPos, progress, stateOf, truncate, type States } from './nav.js';
+import { firstHunk, nextPos, pad, prevPos, progress, stateOf, type States } from './nav.js';
 import { DiagramView } from './DiagramView.js';
 import { CommentEditor, type SetComposer } from './CommentEditor.js';
 import { INLINE_ROWS, inlineComposerSlot } from './AiSuggestion.js';
@@ -15,7 +14,7 @@ import type { AgentContext } from '../agent/types.js';
 import { KeyBar, type Hint } from './KeyBar.js';
 import { initComposer, isLineAnchor, sameAnchor, type ComposerEnv, type ComposerState, type ReferenceServices } from './composer.js';
 import { generateSuggestion } from '../agent/suggest.js';
-import { clean, safe } from './chapter/text.js';
+import { safe } from './chapter/text.js';
 import { cursorNotes } from './chapter/lineNotes.js';
 import { useMentions } from './chapter/mentions.js';
 import { linkedTests } from './chapter/linkedTests.js';
@@ -47,9 +46,6 @@ function rangeLabel(hunk: Hunk, sel: [number, number]): string {
   const [a, b] = [at(sel[0]), at(sel[1])];
   return `${hunk.file}:${a === b ? a : `${a}–${b}`}`;
 }
-
-// For one release: ? used to ask the model.
-export const HELP_NOTE = '? is now these keys · ask the model with a';
 
 export type AgentCtx = AgentContext;
 
@@ -364,17 +360,6 @@ export function ChapterScreen(props: {
     },
     reply: () => (cursorThreads.length ? show('reply') : setFlash('No review thread on this line. Move to a commented line and press y.')),
     thread: () => (cursorThreads.length ? show('thread') : setFlash('No review thread on this line. Move to a commented line and press e.')),
-    // E and X, for one release: they still work, and say where they moved.
-    editDraft: () => {
-      if (!cursorDraft) return setFlash('No draft on this line. Move to a line with ✎ and press c.');
-      openComposer(cursorDraft);
-      setFlash('E is going away: c on a line with your draft edits it.', 'info');
-    },
-    deleteDraft: () => {
-      if (!cursorDraft) return setFlash('No draft on this line. Move to a line with ✎ and press c.');
-      show('delete');
-      setFlash('X is going away: ctrl+x in the comment deletes your draft.', 'info');
-    },
     palette: () => show('palette'),
     sidebar: () => (width >= WIDE ? toggleSidebar() : setFlash(`The chapter list needs ${WIDE} columns; this terminal has ${width}.`)),
     explanation: () => toggleExplanation(),
@@ -465,17 +450,6 @@ export function ChapterScreen(props: {
     { isActive: props.active !== false && overlay.kind === 'move' },
   );
 
-  useInput(
-    (input, key) => {
-      if ((input === 'y' || key.return) && cursorDraft) {
-        props.deleteDraft(cursorDraft);
-        setFlash(`Draft deleted (${cursorDraft.label}).`, 'info');
-      }
-      close();
-    },
-    { isActive: props.active !== false && overlay.kind === 'delete' },
-  );
-
   if (!chapter) {
     if (overlay.kind !== 'none') close(); // see slots.shown below
     return <EmptyChapter deltaOnly={props.deltaOnly} width={width} />;
@@ -491,7 +465,6 @@ export function ChapterScreen(props: {
     overlay: overlay.kind,
     testFocus,
     threadsHere: cursorThreads.length > 0,
-    draftHere: !!cursorDraft,
     commentOpen: overlay.kind === 'comment',
     lineComment: overlay.kind === 'comment' && isLineAnchor(overlay.composer.anchor),
     checklist: !!chapter.checklist && !!svc,
@@ -813,19 +786,15 @@ export function ChapterScreen(props: {
           </>
         </Box>
       </Box>
-      {slots.confirmDelete && cursorDraft ? (
-        <Confirm yes="delete">{truncate(`Delete this draft? [${cursorDraft.label}] ${clean(cursorDraft.body).replace(/\s+/g, ' ')}`, width - 26)}</Confirm>
-      ) : (
-        <StatusRow
-          drafts={props.drafts}
-          hunk={hunk}
-          cursor={cursor}
-          flash={flash}
-          range={anchor !== null && hunk ? rangeLabel(hunk, sel) : undefined}
-          position={hunk ? `hunk ${hi + 1}/${chapter.hunkIds.length} · line ${cursorLine?.newLine ?? cursorLine?.oldLine ?? ''}` : undefined}
-          width={width}
-        />
-      )}
+      <StatusRow
+        drafts={props.drafts}
+        hunk={hunk}
+        cursor={cursor}
+        flash={flash}
+        range={anchor !== null && hunk ? rangeLabel(hunk, sel) : undefined}
+        position={hunk ? `hunk ${hi + 1}/${chapter.hunkIds.length} · line ${cursorLine?.newLine ?? cursorLine?.oldLine ?? ''}` : undefined}
+        width={width}
+      />
       <KeyBar
         width={width}
         status={overlay.kind === 'none' && hunk && !testFocus ? [raw && 'raw', splitView && 'split', ignoreWhitespace && 'whitespace hidden'].filter(Boolean).join(' · ') : undefined}
@@ -856,6 +825,6 @@ export function ChapterScreen(props: {
     );
   // Help floats over the screen, which stays visible around it.
   if (overlay.kind === 'help' && props.active !== false)
-    return <HelpPopup background={screen} width={width} height={height} title="chapter" sections={chapterHelp(!!props.agent)} legend={reviewLegend()} note={HELP_NOTE} onClose={close} />;
+    return <HelpPopup background={screen} width={width} height={height} title="chapter" sections={chapterHelp(!!props.agent)} legend={reviewLegend()} onClose={close} />;
   return screen;
 }

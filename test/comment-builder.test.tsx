@@ -247,7 +247,7 @@ describe('comment composer', () => {
     const ref: CodeRef = { id: 'r1', kind: 'range', path: 'src/jobs/retries.ts', commitSha: HEAD, startLine: 2, label: 'retries.ts:2' };
     const ui = render(<Harness tour={fixture()} initial={[lineDraft(3, { body: 'Same as `retries.ts:2`', refs: [ref] })]} onDraft={(d) => drafts.push(d)} />);
     await tick();
-    ui.stdin.write('E');
+    ui.stdin.write('c');
     await waitFor(() => expect(ui.lastFrame()).toContain('Same as `retries.ts:2`'));
     expect(ui.lastFrame()).toContain(`→ src/jobs/retries.ts:2 @${HEAD.slice(0, 7)}`);
     ui.stdin.write(CTRL.u);

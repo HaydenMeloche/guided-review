@@ -117,7 +117,7 @@ describe('chapterLayout panes', () => {
 });
 
 describe('overlaySlots', () => {
-  const none: SlotInput = { overlay: 'none', testFocus: false, threadsHere: false, draftHere: false, commentOpen: false, lineComment: false, checklist: false };
+  const none: SlotInput = { overlay: 'none', testFocus: false, threadsHere: false, commentOpen: false, lineComment: false, checklist: false };
   const slots = (o: Partial<SlotInput>, plan = layout({})) => overlaySlots(plan, { ...none, ...o });
 
   it('opens a thread or the ask panel in the right column when tests sit beside the code', () => {
@@ -138,8 +138,6 @@ describe('overlaySlots', () => {
     ['move', { overlay: 'move' }, true],
     ['checklist', { overlay: 'checklist', checklist: true }, true],
     ['checklist before the checkout is ready', { overlay: 'checklist' }, false],
-    ['delete on a draft', { overlay: 'delete', draftHere: true }, true],
-    ['delete with the draft gone', { overlay: 'delete' }, false],
     ['thread on a commented line', { overlay: 'thread', threadsHere: true }, true],
     ['reply with the thread gone', { overlay: 'reply' }, false],
     ['a chapter comment', { overlay: 'comment', commentOpen: true }, true],

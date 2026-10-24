@@ -491,9 +491,6 @@ describe('ChapterScreen', () => {
     const ui = render(<Harness tour={tour} onDraft={(d) => drafts.push(d)} onState={() => {}} onDelete={(d) => deleted.push(d)} />);
     await waitFor(() => expect(ui.lastFrame()).toContain('hunk 1/'));
 
-    ui.stdin.write('E');
-    await waitFor(() => expect(ui.lastFrame()).toContain('No draft on this line'));
-
     ui.stdin.write('c');
     await waitFor(() => expect(ui.lastFrame()).toContain('Comment on'));
     ui.stdin.write('first take');
@@ -502,7 +499,7 @@ describe('ChapterScreen', () => {
     await waitFor(() => expect(drafts).toHaveLength(1));
     await waitFor(() => expect(ui.lastFrame()).toContain('edit draft'));
 
-    ui.stdin.write('E');
+    ui.stdin.write('c');
     await waitFor(() => expect(ui.lastFrame()).toContain('first take'));
     ui.stdin.write('\t'); // question -> suggestion
     await tick();
@@ -515,15 +512,19 @@ describe('ChapterScreen', () => {
     expect(drafts[1].label).toBe('suggestion');
     expect(ui.lastFrame()).toContain('Draft updated');
 
-    ui.stdin.write('X');
-    await waitFor(() => expect(ui.lastFrame()).toContain('Delete this draft?'));
-    ui.stdin.write('n');
-    await waitFor(() => expect(ui.lastFrame()).not.toContain('Delete this draft?'));
+    ui.stdin.write('c');
+    await waitFor(() => expect(ui.lastFrame()).toContain('first take revised'));
+    ui.stdin.write('\u0018');
+    await waitFor(() => expect(ui.lastFrame()).toContain('ctrl+x again to delete this draft'));
+    ui.stdin.write('\u001b');
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('ctrl+x again'));
     expect(deleted).toHaveLength(0);
 
-    ui.stdin.write('X');
-    await waitFor(() => expect(ui.lastFrame()).toContain('Delete this draft?'));
-    ui.stdin.write('y');
+    ui.stdin.write('c');
+    await waitFor(() => expect(ui.lastFrame()).toContain('first take revised'));
+    ui.stdin.write('\u0018');
+    await waitFor(() => expect(ui.lastFrame()).toContain('ctrl+x again to delete this draft'));
+    ui.stdin.write('\u0018');
     await waitFor(() => expect(deleted.map((d) => d.id)).toEqual([drafts[0].id]));
     await waitFor(() => expect(ui.lastFrame()).toContain('Draft deleted'));
     ui.unmount();

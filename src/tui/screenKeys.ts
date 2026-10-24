@@ -82,7 +82,6 @@ export const SUBMIT_KEYS: KeyDef<object>[] = [
   { keys: ['P'], group: 'Post', help: 'Post the review (asks first)', bar: { shown: 'P', label: 'post' } },
   { keys: ['a', 'r', 'c'], group: 'Post', name: 'a / r / c', help: 'Verdict: approve, request changes, or comment', bar: { shown: 'a/r/c', label: 'verdict' } },
   { keys: ['w'], group: 'Post', help: 'Write the review summary', bar: { shown: 'w', label: 'summary' } },
-  { keys: ['b'], alias: true }, // the summary's old key, for one release
   { keys: ['j', 'k'], group: 'Drafts', help: 'Select a draft', bar: { shown: 'j/k', label: 'select' } },
   { keys: ['e'], group: 'Drafts', help: 'Edit the selected draft', bar: { shown: 'e', label: 'edit' } },
   { keys: ['x'], group: 'Drafts', help: 'Delete the selected draft (asks first)', bar: { shown: 'x', label: 'delete' } },

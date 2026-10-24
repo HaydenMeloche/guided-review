@@ -110,13 +110,12 @@ export function chapterLayout(i: LayoutInput) {
   };
 }
 
-export type OverlayKind = 'none' | 'diagram' | 'comment' | 'thread' | 'reply' | 'ask' | 'move' | 'help' | 'checklist' | 'delete' | 'palette' | 'end' | 'reader';
+export type OverlayKind = 'none' | 'diagram' | 'comment' | 'thread' | 'reply' | 'ask' | 'move' | 'help' | 'checklist' | 'palette' | 'end' | 'reader';
 
 export interface SlotInput {
   overlay: OverlayKind;
   testFocus: boolean;
   threadsHere: boolean; // review threads on the cursor line
-  draftHere: boolean; // an unposted draft on the cursor line
   commentOpen: boolean; // a draft and its composer state
   lineComment: boolean; // the open comment is on a line or range, so it goes under the code
   checklist: boolean; // the chapter has a checklist and the checkout is ready
@@ -144,14 +143,12 @@ export function overlaySlots(plan: ChapterLayout, o: SlotInput) {
             : undefined;
   const testInline = !plan.testPaneShown ? undefined : lineComment && o.testFocus ? 'comment' : overlay === 'ask' && o.testFocus ? 'ask' : undefined;
   const collapsedAsk = plan.collapsed && overlay === 'ask';
-  const confirmDelete = overlay === 'delete' && o.draftHere;
   return {
     popup,
     sourceInline,
     side,
     testInline,
     collapsedAsk,
-    confirmDelete,
-    shown: overlay === 'help' || overlay === 'palette' || overlay === 'end' || overlay === 'reader' || confirmDelete || !!popup || collapsedAsk || !!sourceInline || !!side || !!testInline,
+    shown: overlay === 'help' || overlay === 'palette' || overlay === 'end' || overlay === 'reader' || !!popup || collapsedAsk || !!sourceInline || !!side || !!testInline,
   } as const;
 }

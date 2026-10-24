@@ -45,8 +45,6 @@ export type Action =
   | 'commentFlow'
   | 'thread'
   | 'reply'
-  | 'editDraft'
-  | 'deleteDraft'
   | 'ask'
   | 'focusTests'
   | 'testPane'
@@ -178,16 +176,6 @@ export const KEYS: KeyRow[] = [
   },
   { keys: 'In a comment', group: 'Comment', help: '@ people/code (@callers: @tests: @threads: …) · ctrl+x deletes your draft' },
   { keys: '  ^T', group: 'Comment', help: 'In a comment: suggest a code change with AI', ai: true },
-  {
-    keys: 'E / X',
-    group: 'Comment',
-    // Their old keys, kept for one release: the screen says where each moved.
-    help: 'Old keys: c on your draft edits it; ctrl+x in the comment deletes it',
-    bind: [
-      { mode: 'code', on: ['E'], do: 'editDraft', when: hunk },
-      { mode: 'code', on: ['X'], do: 'deleteDraft', when: hunk },
-    ],
-  },
   {
     keys: 'e',
     group: 'Threads',

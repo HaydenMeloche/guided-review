@@ -42,20 +42,20 @@ function keyLines(sections: HelpSection[], width: number): MdLine[] {
 }
 
 // The popup size that fits the help without scrolling.
-export function helpSize(sections: HelpSection[], legend?: MdLine[], note?: string): { width: number; height: number } {
+export function helpSize(sections: HelpSection[], legend?: MdLine[]): { width: number; height: number } {
   const rows = [...sections, EVERYWHERE].flatMap((s) => s.rows);
   const keysW = LABEL_W + KEY_W + Math.max(...rows.map(([, t]) => t.length));
   const legendW = Math.max(0, ...(legend ?? []).map((l) => l.reduce((n, s) => n + s.text.length, 0)));
-  const lines = Math.max(keyLines(sections, keysW).length, legend?.length ?? 0) + (note ? 1 : 0);
-  return { width: Math.max(keysW, legendW, (note ?? '').length) + 4, height: lines + CHROME + 2 };
+  const lines = Math.max(keyLines(sections, keysW).length, legend?.length ?? 0);
+  return { width: Math.max(keysW, legendW) + 4, height: lines + CHROME + 2 };
 }
 
-export function Help(props: { title: string; sections: HelpSection[]; legend?: MdLine[]; note?: string; width: number; height: number; onClose: () => void }) {
+export function Help(props: { title: string; sections: HelpSection[]; legend?: MdLine[]; width: number; height: number; onClose: () => void }) {
   const [page, setPage] = useState<'keys' | 'legend'>('keys');
   const [top, setTop] = useState(0);
   const inner = props.width - 2;
   const lines = page === 'legend' && props.legend ? props.legend : keyLines(props.sections, inner);
-  const room = Math.max(1, props.height - CHROME - (props.note ? 1 : 0));
+  const room = Math.max(1, props.height - CHROME);
   const max = Math.max(0, lines.length - room);
   const scroll = (to: number) => setTop(Math.max(0, Math.min(max, to)));
   useInput((input, key) => {
@@ -79,11 +79,6 @@ export function Help(props: { title: string; sections: HelpSection[]; legend?: M
         <Text bold>{page === 'legend' ? 'Marks' : 'Keys'}</Text>
         <Text dimColor>{` · ${props.title}${pages}${position}`}</Text>
       </Text>
-      {props.note ? (
-        <Text color="yellow" wrap="truncate">
-          {props.note}
-        </Text>
-      ) : null}
       <Box flexDirection="column" height={room} overflow="hidden">
         {lines.slice(top, top + room).map((l, i) => (
           <MdLineView key={top + i} line={l} />
@@ -99,11 +94,11 @@ export function Help(props: { title: string; sections: HelpSection[]; legend?: M
 }
 
 // The help floating over a screen, sized to fit it when the terminal allows.
-export function HelpPopup(props: { background: ReactNode; width: number; height: number; title: string; sections: HelpSection[]; legend?: MdLine[]; note?: string; onClose: () => void }) {
-  const size = helpSize(props.sections, props.legend, props.note);
+export function HelpPopup(props: { background: ReactNode; width: number; height: number; title: string; sections: HelpSection[]; legend?: MdLine[]; onClose: () => void }) {
+  const size = helpSize(props.sections, props.legend);
   return (
     <ReviewPopup background={props.background} width={props.width} height={props.height} maxWidth={size.width} maxHeight={size.height}>
-      {(w, h) => <Help title={props.title} sections={props.sections} legend={props.legend} note={props.note} width={w} height={h} onClose={props.onClose} />}
+      {(w, h) => <Help title={props.title} sections={props.sections} legend={props.legend} width={w} height={h} onClose={props.onClose} />}
     </ReviewPopup>
   );
 }

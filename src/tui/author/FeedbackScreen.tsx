@@ -680,16 +680,6 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
     </Box>
   );
   if (mode.kind === 'help' && props.active)
-    return (
-      <HelpPopup
-        background={screen}
-        width={width}
-        height={height}
-        title="thread"
-        sections={helpOf(THREAD_KEYS)}
-        note="? is now these keys · ask the model with a · react with +"
-        onClose={() => setMode({ kind: 'browse' })}
-      />
-    );
+    return <HelpPopup background={screen} width={width} height={height} title="thread" sections={helpOf(THREAD_KEYS)} onClose={() => setMode({ kind: 'browse' })} />;
   return screen;
 }

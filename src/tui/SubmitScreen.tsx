@@ -103,10 +103,6 @@ export function SubmitScreen(props: {
       if (input === 'c') return setEvent('COMMENT');
       if (input === '?' || input === 'h') return setMode('help');
       if (input === 'w') return setMode('summary');
-      if (input === 'b') {
-        setResult('The summary is on w now.');
-        return setMode('summary');
-      }
       if (input === 'P') {
         if (event === 'REQUEST_CHANGES' && !pending.length && !summary.trim()) return setResult('Requesting changes needs at least one comment or a summary.');
         return setMode('confirm');

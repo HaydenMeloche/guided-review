@@ -7,7 +7,6 @@
  ‹b,dim›           ‹/›‹cyan›v             ‹/›Start or end a range selection
  ‹b,dim›           ‹/›‹cyan›In a comment  ‹/›@ people/code (@callers: @tests: @threads: …) · ctrl+x deletes your draft
  ‹b,dim›           ‹/›‹cyan›^T            ‹/›In a comment: suggest a code change with AI
- ‹b,dim›           ‹/›‹cyan›E / X         ‹/›Old keys: c on your draft edits it; ctrl+x in the comment deletes it
 
  ‹b,dim›Threads    ‹/›‹cyan›e             ‹/›Read existing review threads on the selected line inline
  ‹b,dim›           ‹/›‹cyan›y             ‹/›Reply to an existing review thread on the selected line
@@ -46,6 +45,7 @@
  ‹b,dim›           ‹/›‹cyan›q             ‹/›go up a level
  ‹b,dim›           ‹/›‹cyan›Q             ‹/›quit
  ‹b,dim›           ‹/›‹cyan›?             ‹/›these keys
+
 
 
 
