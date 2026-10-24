@@ -7,6 +7,7 @@ import { barOf, type KeyDef } from './keys.js';
 
 export interface PickerKeyCtx {
   items: boolean; // the list has a PR to act on
+  filter: boolean; // there is a list to filter
   merge: boolean;
   checks: boolean;
   reviewers: boolean; // the highlighted PR is yours
@@ -17,7 +18,7 @@ export const PICKER_KEYS: KeyDef<PickerKeyCtx>[] = [
   { keys: ['Enter'], group: 'Open', help: 'Open the tour, or the feedback on your own PR', bar: { shown: 'enter', label: 'open', when: (c) => c.items } },
   { keys: ['j', 'k'], group: 'Move', help: 'Move through the list', bar: { shown: 'j/k', label: 'move', when: (c) => c.items } },
   { keys: ['g', 'G'], group: 'Move', help: 'First or last PR' },
-  { keys: ['/'], group: 'Move', help: 'Filter by repo, title, author or label (esc clears it)', bar: { shown: '/', label: 'filter' } },
+  { keys: ['/'], group: 'Move', help: 'Filter by repo, title, author or label (esc clears it)', bar: { shown: '/', label: 'filter', when: (c) => c.filter } },
   { keys: ['c'], group: 'PR', help: 'Checks and their logs', bar: { shown: 'c', label: 'checks', when: (c) => c.items && c.checks } },
   { keys: ['M'], group: 'PR', help: 'Merge the PR', bar: { shown: 'M', label: 'merge', when: (c) => c.items && c.merge } },
   { keys: ['o'], group: 'PR', help: 'Open the PR in your browser', bar: { shown: 'o', label: 'browser', when: (c) => c.items } },

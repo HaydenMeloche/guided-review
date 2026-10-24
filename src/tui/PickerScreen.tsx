@@ -16,6 +16,7 @@ import { helpOf } from './keys.js';
 import { plural } from './plural.js';
 import { PICKER_KEYS, pickerBar } from './screenKeys.js';
 import { G } from './glyphs.js';
+import { ErrorBlock } from './ErrorBlock.js';
 
 export interface Target {
   repo: string;
@@ -490,6 +491,8 @@ export function PickerScreen(props: PickerProps) {
     { isActive: filtering && props.active !== false },
   );
 
+  // Nothing to review and no PRs of your own: say what gr can do instead.
+  const empty = !!prs && !prs.length && !items.length && !filter && !err && authoredState !== 'loading';
   const wide = width >= 110;
   const listW = wide ? Math.min(70, Math.max(48, Math.floor(width * 0.42))) : width - 2;
   const previewW = wide ? width - listW - 5 : 0;
@@ -584,14 +587,15 @@ export function PickerScreen(props: PickerProps) {
       <Box flexDirection="row" height={bodyH}>
         <Box flexDirection="column" width={listW} flexShrink={0}>
           {clip ? <ClipboardRow target={clip.target} listed={clipListed} preview={clipPreview} mine={clipMine} width={listW} /> : null}
-          {err ? <Text color="red">{safe(err)}</Text> : null}
+          {err ? <ErrorBlock message={err} failed="Your review requests could not be loaded" width={listW} /> : null}
           {!prs && !err ? (
             <Text dimColor>
               <Text color="cyan">{SPIN[frame % SPIN.length]}</Text> Loading your review requests…
             </Text>
           ) : null}
           {prs && !items.length && filter ? <Text dimColor>Nothing matches the filter.</Text> : null}
-          <Box flexDirection="column" height={Math.min(h, listH)} overflow="hidden" flexShrink={0}>
+          {empty ? <EmptyPicker clipboard={!!clip} /> : null}
+          <Box flexDirection="column" height={empty ? 0 : Math.min(h, listH)} overflow="hidden" flexShrink={0}>
             {visible.map((r) => (
               // Rows keep their height: the box clips the last one rather than squeezing them all.
               <Box
@@ -652,7 +656,14 @@ export function PickerScreen(props: PickerProps) {
       <KeyBar
         width={width - 2}
         accent
-        keys={pickerBar({ items: !!current, merge: !!props.onMerge, checks: !!props.onChecks, reviewers: !!props.onReviewers && !!current && isAuthored(current), theme: !!props.onTheme })}
+        keys={pickerBar({
+          items: !!current,
+          filter: !empty,
+          merge: !!props.onMerge,
+          checks: !!props.onChecks,
+          reviewers: !!props.onReviewers && !!current && isAuthored(current),
+          theme: !!props.onTheme,
+        })}
         end={[
           ['?', 'keys'],
           ['q', 'quit'],
@@ -662,6 +673,31 @@ export function PickerScreen(props: PickerProps) {
   );
   if (help && props.active !== false) return <HelpPopup background={screen} width={width} height={height} title="pull requests" sections={helpOf(PICKER_KEYS)} onClose={() => setHelp(false)} />;
   return screen;
+}
+
+// The empty PR list: the commands that work with nothing waiting, as a first step.
+function EmptyPicker(props: { clipboard: boolean }) {
+  const rows: [string, string][] = [
+    ['gr preview', 'tour the branch you have checked out, before there is a PR'],
+    ['gr review 1234', 'open a PR by number or URL'],
+    ['gr feedback', 'work through the review on your own PR'],
+    ...((props.clipboard ? [] : [['p', 'open a PR link you copy, as soon as it is on the clipboard']]) as [string, string][]),
+  ];
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      <Text bold>Nothing is waiting on your review.</Text>
+      <Text> </Text>
+      {rows.map(([cmd, what]) => (
+        <Text key={cmd} wrap="truncate">
+          {'  '}
+          <Text color="cyan" bold>
+            {cmd.padEnd(18)}
+          </Text>
+          {what}
+        </Text>
+      ))}
+    </Box>
+  );
 }
 
 export function keyFor(pr: Target): string {

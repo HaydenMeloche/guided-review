@@ -40,6 +40,7 @@ import { loadThreadDiffs } from '../review/threadDiffs.js';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { ErrorBlock } from './ErrorBlock.js';
 
 export interface Target {
   repo: string;
@@ -832,7 +833,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       return withThemePicker(picker);
     }
     if (phase === 'error') {
-      return <ErrorScreen message={error} onRetry={() => target && void load(target, true, mode)} onBack={back} onQuit={requestQuit} />;
+      return <ErrorScreen message={error} width={width} onRetry={() => target && void load(target, true, mode)} onBack={back} onQuit={requestQuit} />;
     }
     if (phase === 'own' && target) {
       return (
@@ -1172,7 +1173,7 @@ function OwnPrompt(props: { target: Target; title?: string; onFeedback: () => vo
   );
 }
 
-function ErrorScreen(props: { message: string; onRetry: () => void; onBack?: () => void; onQuit: () => void }) {
+function ErrorScreen(props: { message: string; width: number; onRetry: () => void; onBack?: () => void; onQuit: () => void }) {
   useInput((input, key) => {
     if (input === 'r') props.onRetry();
     if (key.escape) props.onBack?.();
@@ -1181,10 +1182,7 @@ function ErrorScreen(props: { message: string; onRetry: () => void; onBack?: () 
   });
   return (
     <Box flexDirection="column" paddingX={1}>
-      <Text color="red" bold>
-        Could not open the tour
-      </Text>
-      <Text>{props.message}</Text>
+      <ErrorBlock message={props.message} failed="Could not open the tour" width={Math.max(20, props.width - 2)} />
       <Hints
         keys={[
           ['r', 'retry'],

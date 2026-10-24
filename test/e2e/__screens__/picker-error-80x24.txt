@@ -1,12 +1,12 @@
  ‹b›Pull requests‹/›
 
- ‹red›gh search prs --review-requested=@me --state=open --limit 50 --json ‹/›
- ‹red›number,title,url,updatedAt,author,repository,isDraft,labels failed: gh: not ‹/›
- ‹red›available in e2e tests‹/›
+ ‹red,b›Your review requests could not be loaded‹/›
+ ‹dim›gh search prs --review-requested=@me --state=open --limit 50 --json ‹/›
+ ‹dim›number,title,url,updatedAt,author,repository,isDraft,labels failed: gh: not ‹/›
+ ‹dim›available in e2e tests‹/›
+ Press r to retry.
  ‹b›Review requests ‹/›‹b,dim›(0)‹/›
  ‹dim›  Nothing is waiting on your review. gr review <number or URL> opens a specif…‹/›
-
-
 
 
 
