@@ -12,6 +12,10 @@ import type { RecentLocation } from './references.js';
 
 export type ComposerMode = 'text' | 'ai';
 
+// Which part of the composer has the keyboard: the text, the @ list, lines in its preview, or the
+// AI line's prompt, request, proposal, or error. Shown as a chip on the composer's title.
+export type ComposerLayer = 'text' | 'list' | 'pick' | 'ai-prompt' | 'ai-busy' | 'ai-proposal' | 'ai-error';
+
 // Ctrl+T's inline line: an instruction, a request in flight, a proposal, or why there is none.
 export type AiPhase = 'prompt' | 'running' | 'result' | 'error';
 
@@ -41,6 +45,7 @@ export interface ComposerState {
   index?: RepoIndex;
   ai?: AiState; // set while mode is 'ai'
   listOpen?: boolean; // the @ completion list is open: the inline slot grows for its preview
+  layer?: ComposerLayer; // which layer has the keys (see ComposerLayer)
 }
 
 // What the composer reads from the session. All optional but the tour, so a bare editor works.

@@ -338,13 +338,19 @@ describe('mention completion', () => {
     ui.unmount();
   });
 
-  it('Tab still reaches onTab when no mention matches', async () => {
+  it('Tab inside an @ token that matched nothing does nothing, and reaches onTab once past it', async () => {
     const onTab = vi.fn();
     const ui = render(<TextInput value="hi @zed" onChange={() => {}} width={40} mentions={['alice']} onTab={onTab} />);
     await waitFor(() => true);
     ui.stdin.write('\t');
-    await waitFor(() => expect(onTab).toHaveBeenCalledWith(false));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(onTab).not.toHaveBeenCalled();
     ui.unmount();
+    const past = render(<TextInput value="hi @zed " onChange={() => {}} width={40} mentions={['alice']} onTab={onTab} />);
+    await waitFor(() => true);
+    past.stdin.write('\t');
+    await waitFor(() => expect(onTab).toHaveBeenCalledWith(false));
+    past.unmount();
   });
 
   it('@@ never opens the mention list', async () => {

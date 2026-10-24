@@ -74,6 +74,7 @@ export function TextInput(props: {
   onCursor?: (n: number) => void;
   completers?: Completer[];
   onCompleting?: (open: boolean) => void;
+  onPicking?: (picking: boolean) => void; // the list's preview has the keys, choosing lines
   highlightTokens?: TokenRule[]; // e.g. code spans that name a reference, known @mentions
   // Rows the owner gives the open list, its preview and hint lines together; more than the
   // usual goes to the preview, so more of the code shows.
@@ -165,6 +166,13 @@ export function TextInput(props: {
     onCompleting.current?.(true);
     return () => onCompleting.current?.(false);
   }, [open]);
+  const onPicking = useRef(props.onPicking);
+  onPicking.current = props.onPicking;
+  useEffect(() => {
+    if (!inLines) return;
+    onPicking.current?.(true);
+    return () => onPicking.current?.(false);
+  }, [inLines]);
 
   const moveTo = (n: number) => {
     const m = findCompletion(completers, value.slice(0, n));
@@ -234,7 +242,8 @@ export function TextInput(props: {
         if (key.leftArrow) return;
       }
       if (key.return && !key.shift) return props.onSubmit?.(value);
-      if (key.tab) return props.onTab?.(key.shift);
+      // Tab inside an @ token with no list (nothing matched) does nothing, rather than change the label.
+      if (key.tab) return /@\S*$/.test(value.slice(0, c)) ? undefined : props.onTab?.(key.shift);
       if ((key.return && key.shift) || (key.ctrl && input === 'j')) return insert('\n');
       if (key.leftArrow) return moveTo(Math.max(0, c - 1));
       if (key.rightArrow) return moveTo(Math.min(value.length, c + 1));

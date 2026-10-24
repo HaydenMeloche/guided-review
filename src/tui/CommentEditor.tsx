@@ -11,7 +11,19 @@ import { TextInput, type PreviewProps } from './TextInput.js';
 import { mentionHighlight } from './completion.js';
 import { AI_BODY_ROWS, AiSuggestionView, aiChromeRows, aiKeys, useAiSuggestion } from './AiSuggestion.js';
 import { SourcePreview } from './SourcePreview.js';
-import { anchorText, draftFrom, initComposer, isLineAnchor, linesWord, suggestionMetaFor, suggestionStillApplies, type ComposerEnv, type ComposerState, type SetComposer } from './composer.js';
+import {
+  anchorText,
+  draftFrom,
+  initComposer,
+  isLineAnchor,
+  linesWord,
+  suggestionMetaFor,
+  suggestionStillApplies,
+  type ComposerEnv,
+  type ComposerLayer,
+  type ComposerState,
+  type SetComposer,
+} from './composer.js';
 import { mergeRefs, referenceCompleter, refHighlight, refTarget } from './references.js';
 import { truncate } from './nav.js';
 import { SURFACES } from './theme.js';
@@ -40,6 +52,7 @@ const AI_HINT = 'suggest a code change with AI';
 const AI_HINT_SHORT = 'suggest a fix with AI';
 const DISCARD_MS = 2000;
 const COMPACT_CHROME = 7;
+const LAYER_NAME: Record<ComposerLayer, string> = { text: 'text', list: '@ list', pick: 'lines', 'ai-prompt': 'AI prompt', 'ai-busy': 'AI working', 'ai-proposal': 'AI proposal', 'ai-error': 'AI' };
 
 export type { SetComposer };
 
@@ -73,6 +86,7 @@ export function CommentEditor(props: {
   const set: SetComposer = props.setState ?? ((f) => setOwn(f));
   const patch = (p: Partial<ComposerState>) => set((s) => ({ ...s, ...p }));
   const [completing, setCompleting] = useState(false); // TextInput's list owns Esc while open
+  const [picking, setPicking] = useState(false); // the list's preview owns the keys, choosing lines
   // Esc on typed text asks once: a second Esc within DISCARD_MS discards it.
   const [discardArmed, setDiscardArmed] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false); // ctrl+x asks once too
@@ -125,10 +139,10 @@ export function CommentEditor(props: {
   const highlight = useMemo(() => [env ? refHighlight(st.refs) : undefined, mentionHighlight(props.mentions)].filter((r) => r !== undefined), [env, st.refs, props.mentions]);
   const renderPreview = env ? (p: PreviewProps) => <DwellPreview onDwell={env.noteRecent} root={env.root} {...p} title={`${p.path} @ ${env.tour.headSha.slice(0, 7)}`} /> : undefined;
 
-  const editInEditor = async (initial: string): Promise<string | undefined> => {
+  const editInEditor = async (initial: string, name = 'suggestion' + path.extname(hunk?.file ?? '.txt')): Promise<string | undefined> => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gr-'));
     try {
-      const file = path.join(dir, 'suggestion' + path.extname(hunk?.file ?? '.txt'));
+      const file = path.join(dir, name);
       fs.writeFileSync(file, initial);
       await suspendTerminal(() => openInEditor(file));
       return fs.readFileSync(file, 'utf8').replace(/\n$/, '');
@@ -149,6 +163,33 @@ export function CommentEditor(props: {
   };
 
   const ai = useAiSuggestion({ st, set, env, editCode: editInEditor });
+
+  // Ctrl+O: write the body in $EDITOR. References survive while their code spans do.
+  const editBody = async () => {
+    const text = await editInEditor(st.body, 'comment.md');
+    if (text === undefined) return;
+    set((s) => ({ ...s, body: text, cursor: text.length, msg: 'Comment updated from $EDITOR.' }));
+  };
+
+  // Which layer has the keys, kept in the composer's state so it survives a move on screen.
+  const layer: ComposerLayer = ai.ai
+    ? ai.ai.phase === 'prompt'
+      ? 'ai-prompt'
+      : ai.ai.phase === 'running'
+        ? 'ai-busy'
+        : ai.ai.phase === 'error'
+          ? 'ai-error'
+          : 'ai-proposal'
+    : picking
+      ? 'pick'
+      : completing
+        ? 'list'
+        : 'text';
+  useEffect(() => {
+    if (props.state && props.state.layer !== layer) patch({ layer });
+    // patch writes through the owner; the layer is all that changes here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layer]);
 
   useInput(
     (input, key) => {
@@ -175,7 +216,9 @@ export function CommentEditor(props: {
       if (key.ctrl && input === 'g') return canSuggest ? void editSuggestion() : patch({ msg: 'A code suggestion needs a comment on a line or range.' });
       if (key.ctrl && input === 'd' && st.suggestion !== undefined) return set((s) => ({ ...s, suggestion: undefined, suggestionMeta: undefined, msg: 'Suggestion removed.' }));
       if (!env) return;
-      if (key.ctrl && input === 't') return ai.open();
+      // Ctrl+T works from the text: with the @ list open it would close the list unseen.
+      if (key.ctrl && input === 't') return completing ? patch({ msg: 'Close the @ list (esc) before ctrl+t.' }) : ai.open();
+      if (key.ctrl && input === 'o') return void editBody();
     },
     { isActive: mode === 'text' },
   );
@@ -189,10 +232,15 @@ export function CommentEditor(props: {
   const inner = width - 4;
   const full = (props.height ?? 0) >= FULL_ROWS;
   const header = (
-    <Text wrap="truncate">
-      <Text bold>Comment</Text> <Text dimColor>on {props.target}</Text>
-      {tour ? <AnchorStatus tour={tour} state={st} /> : null}
-    </Text>
+    <Box width={inner}>
+      <Box flexShrink={1} flexGrow={1}>
+        <Text wrap="truncate">
+          <Text bold>Comment</Text> <Text dimColor>on {props.target}</Text>
+          {tour ? <AnchorStatus tour={tour} state={st} /> : null}
+        </Text>
+      </Box>
+      <Text backgroundColor={SURFACES.popup} color={layer.startsWith('ai') ? 'magenta' : 'cyan'}>{` ${LAYER_NAME[layer]} `}</Text>
+    </Box>
   );
   // The labels, and what the chosen one does: it posts as a bold tag that groups the review.
   const labels = (note: string) => (
@@ -222,6 +270,7 @@ export function CommentEditor(props: {
       renderPreview={renderPreview}
       highlightTokens={highlight}
       active={mode === 'text'}
+      onPicking={setPicking}
       onCompleting={(open) => {
         setCompleting(open);
         // The owner sizes the inline slot by it: an open list gets room for its preview.
@@ -250,6 +299,7 @@ export function CommentEditor(props: {
     ...((env ? [['@', 'people/code']] : []) as Hint[]),
     ['ctrl+j', 'newline'],
     ['tab', 'label'],
+    ['ctrl+o', 'body in $EDITOR'],
     ...((canSuggest ? [['ctrl+g', 'suggestion in $EDITOR']] : []) as Hint[]),
     ...((st.suggestion !== undefined ? [['ctrl+d', 'drop suggestion']] : []) as Hint[]),
     ...((props.onDelete ? [['ctrl+x', 'delete draft']] : []) as Hint[]),

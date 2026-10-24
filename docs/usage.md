@@ -130,9 +130,13 @@ In the comment editor:
 | `Enter` / `Ctrl+J` | Save the draft or insert a newline. `Shift+Enter` also inserts a newline in terminals that report it. |
 | `@` | Mention someone or reference code. One list shows **People** (matching usernames, at once) and then **Code** (matching symbols, then files, with a preview of the highlighted one). With nothing typed yet, it lists a few people, then places you recently visited, then declarations in the PR's changed files. Filters such as `@callers:` and `@tests:` narrow the list (see [References](#reference-code-in-a-comment)), and `@path:84-96` refers to lines of a file directly. A path (`@src/stock.ts`) or a name ending in a file extension (`@stock.ts`) lists files only; `@Owner.method` still finds symbols. A mention of someone the list knows (the author, a reviewer or commenter, or a collaborator) is drawn in blue in comments and thread replies; an `@name` it does not know stays plain, a hint that it may not be a real user, and nothing inside code is highlighted. See [References](#reference-code-in-a-comment). |
 | `Ctrl+T` | Have AI propose a code change for the selected lines, shown as a GitHub suggestion you can accept, refine, or discard. The composer lists it as `ctrl+t suggest a code change with AI` (`ctrl+t suggest a fix with AI`, or `ctrl+t AI fix`, when narrow). Works on line or range comments on new code; off with no AI model or `--no-agent`. See [AI code suggestions](#ai-code-suggestions). |
+| `Ctrl+O` | Write the comment's body in `$EDITOR`; references survive as long as their code spans do. |
 | `Ctrl+G` | For a line or range comment, edit a GitHub code suggestion in `$EDITOR`. On a chapter or diagram comment it says why it can't. |
 | `Ctrl+D` | Remove a code suggestion. |
+| `Ctrl+X` | Delete your saved draft (pressed twice), or discard a new comment. |
 | `Esc` | Close the innermost layer: a suggestion list, the AI line, then the editor itself. If you have typed something, the editor first asks (`esc again to discard · enter to save`) and a second `Esc` within two seconds discards it. |
+
+A chip at the right of the composer's title says which part has the keyboard: `text`, `@ list`, `lines` (choosing lines in a preview), or `AI prompt`, `AI working`, `AI proposal`. The keys at the bottom are that part's. `Tab` inside an `@` token that matched nothing does nothing, rather than change the label.
 
 A comment without references or a suggestion is stored and posted exactly as before.
 
