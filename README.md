@@ -111,7 +111,7 @@ If pnpm's global binary directory is not on your `PATH`, run `pnpm setup` once a
 
 ### Configure a model
 
-The first run walks you through setup: a color theme, a model provider, and GitHub access. It finds what your machine already has, such as a Codex login or an `ANTHROPIC_API_KEY`, and tests each model before saving. Run `gr config` to go through it again. An Anthropic, OpenAI, or Cursor API key is the fastest choice; Codex works from your Codex CLI login with no key. With Claude models, setup runs summaries and narration at low effort to keep tours quick; Q&A uses the model's default. To review without AI, choose **No AI model** in setup, or pass `--no-agent` for one review. See [Configuration](docs/configuration.md) for every provider, compatible endpoints, Bedrock, Vertex, and GitHub tokens.
+The first run walks you through setup: a color theme, a model provider, the coding agent `o` opens, and GitHub access. It finds what your machine already has, such as a Codex login or an `ANTHROPIC_API_KEY`, and tests each model before saving. Run `gr config` to go through it again. An Anthropic, OpenAI, or Cursor API key is the fastest choice; Codex works from your Codex CLI login with no key. With Claude models, setup runs summaries and narration at low effort to keep tours quick; Q&A uses the model's default. To review without AI, choose **No AI model** in setup, or pass `--no-agent` for one review. See [Configuration](docs/configuration.md) for every provider, compatible endpoints, Bedrock, Vertex, and GitHub tokens.
 
 ### Use from Claude Code or Codex
 

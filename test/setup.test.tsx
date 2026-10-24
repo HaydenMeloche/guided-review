@@ -377,7 +377,7 @@ describe('setup wizard', () => {
 
   it('takes a first run from the welcome card to a saved config in a few Enters', async () => {
     const { ui, onDone, checkModelsFn } = await wizard(codexFound, {});
-    await waitFor(() => expect(ui.lastFrame()).toContain('turns a pull request into a guided tour'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('turns a pull request into a tour'));
     ui.stdin.write(ENTER);
     await waitFor(() => expect(ui.lastFrame()).toContain('Color theme'));
     ui.stdin.write(ENTER);
@@ -549,7 +549,7 @@ describe('setup wizard', () => {
     for (let i = 0; i < 5; i++) ui.stdin.write(ENTER); // the Q&A model and its three parameters
     await keepAgent(ui);
     await waitFor(() => expect(ui.lastFrame()).toContain('Ready to save'));
-    expect(ui.lastFrame()).toContain('Summaries and narration: grok-4.7 (256k, high)');
+    expect(ui.lastFrame()).toContain('Briefing and narration: grok-4.7 (256k, high)');
     expect(ui.lastFrame()).toContain('Q&A: grok-4.7 (256k, high)');
     ui.stdin.write(ENTER);
     await waitFor(() => expect(onDone).toHaveBeenCalled());
@@ -610,7 +610,7 @@ describe('setup wizard', () => {
     ui.stdin.write(ENTER);
     await keepAgent(ui);
     await waitFor(() => expect(ui.lastFrame()).toContain('Provider: openai-compatible (http://localhost:1234/v1)'));
-    expect(ui.lastFrame()).toContain('Summaries and narration: gemma4');
+    expect(ui.lastFrame()).toContain('Briefing and narration: gemma4');
     ui.stdin.write(ENTER);
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     const result = onDone.mock.calls[0][0];
@@ -685,14 +685,14 @@ describe('setup wizard', () => {
     ui.stdin.write(DOWN); // the summaries model, a text field while there is no list
     await waitFor(() => expect(ui.lastFrame()).toContain('listing your models failed: network down'));
     ui.stdin.write('\u0015'); // Ctrl+U clears it
-    await waitFor(() => expect(ui.lastFrame()).not.toMatch(/Summaries and narration\s+grok/));
+    await waitFor(() => expect(ui.lastFrame()).not.toMatch(/Briefing and narration\s+grok/));
     ui.stdin.write('grok-4.7');
-    await waitFor(() => expect(ui.lastFrame()).toMatch(/Summaries and narration\s+grok-4\.7/));
+    await waitFor(() => expect(ui.lastFrame()).toMatch(/Briefing and narration\s+grok-4\.7/));
     ui.stdin.write(ENTER);
     ui.stdin.write(ENTER);
     await keepAgent(ui);
     await waitFor(() => expect(ui.lastFrame()).toContain('Ready to save'));
-    expect(ui.lastFrame()).toContain('Summaries and narration: grok-4.7 (256k, low, fast)');
+    expect(ui.lastFrame()).toContain('Briefing and narration: grok-4.7 (256k, low, fast)');
     ui.stdin.write(ENTER);
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     const result = onDone.mock.calls[0][0];
@@ -774,7 +774,7 @@ describe('setup wizard', () => {
     const current = presetUserConfig('codex', { fast: 'gpt-6-luna', strong: 'gpt-6.1-sol' });
     const { ui, onDone } = await wizard(codexFound, {}, current);
     await waitFor(() => expect(ui.lastFrame()).toContain('Provider: codex'));
-    expect(ui.lastFrame()).not.toContain('turns a pull request into a guided tour');
+    expect(ui.lastFrame()).not.toContain('turns a pull request into a tour');
     ui.stdin.write('q');
     await waitFor(() => expect(onDone).toHaveBeenCalledWith({ kind: 'cancelled' }));
     ui.unmount();

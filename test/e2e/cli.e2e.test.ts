@@ -115,7 +115,7 @@ describe('gr with a terminal', () => {
 
   it('opens setup on the first run, and q leaves without saving', async () => {
     const session = startGr(box, ['preview'], { cwd: fixtureRepo(box) });
-    await session.waitFor('turns a pull request into a guided tour');
+    await session.waitFor('turns a pull request into a tour');
     session.press('q');
     await session.waitFor('no config saved');
     expect(session.screen()).toContain('--no-agent');
@@ -125,7 +125,7 @@ describe('gr with a terminal', () => {
 
   it('saves the first-run setup and carries on with the command', async () => {
     const session = startGr(box, ['preview'], { cwd: fixtureRepo(box) });
-    await session.waitFor('turns a pull request into a guided tour');
+    await session.waitFor('turns a pull request into a tour');
     session.press(KEY.enter);
     await session.waitFor('Color theme');
     session.press(KEY.enter);

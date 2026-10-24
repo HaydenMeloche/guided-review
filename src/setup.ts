@@ -67,8 +67,8 @@ function describeRouting(config: AgentRouting): string[] {
   const qa = configForRole(config, 'qa');
   const lines = [`Provider: ${config.provider}${config.baseUrl ? ` (${config.baseUrl})` : ''}`];
   const show = (c: AgentConfig) => formatModel(c.model, c.modelParams);
-  if (show(briefing) === show(narration)) lines.push(`Summaries and narration: ${show(briefing)}`);
-  else lines.push(`Summaries: ${show(briefing)}`, `Narration: ${show(narration)}`);
+  if (show(briefing) === show(narration)) lines.push(`Briefing and narration: ${show(briefing)}`);
+  else lines.push(`Briefing: ${show(briefing)}`, `Narration: ${show(narration)}`);
   lines.push(`Q&A: ${show(qa)}${qa.provider !== config.provider ? ` (${qa.provider})` : ''}`);
   lines.push(`API key: ${describeKey(config)}`);
   if (config.toolCalling === false) lines.push('Tool calling: off');

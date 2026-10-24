@@ -167,7 +167,7 @@ export function SetupWizard(props: WizardProps) {
 
   const width = columns - 2;
   const height = rows - 2;
-  const steps: [Step, string][] = [['theme', 'Theme'], ['provider', 'Model'], ['agent', 'Agent'], ...(needsGitHub ? ([['github', 'GitHub']] as [Step, string][]) : []), ['finish', 'Finish']];
+  const steps: [Step, string][] = [['theme', 'Theme'], ['provider', 'Model'], ['agent', 'Coding agent'], ...(needsGitHub ? ([['github', 'GitHub']] as [Step, string][]) : []), ['finish', 'Finish']];
   const stepIndex = steps.findIndex(([s]) => s === (step === 'details' ? 'provider' : step));
   const body = height - 1;
 
@@ -307,13 +307,13 @@ function Welcome(props: WizardProps & { width: number; height: number; onStart: 
           <>
             <Box width={textW}>
               <Text>
-                Guided Review turns a pull request into a guided tour: chapters that follow the code's flow, tests beside each change, and risk flags, with a briefing and narration from a model if you
-                connect one. Nothing posts to GitHub until you submit your review.
+                Guided Review turns a pull request into a tour: a briefing that says what it does, then chapters of related changes that follow the code's flow, each read one hunk at a time with its
+                tests beside it. With a model, each chapter is narrated too. Nothing posts to GitHub until you submit your review.
               </Text>
             </Box>
             <Text> </Text>
             <Box width={textW}>
-              <Text dimColor>Let's set you up: a color theme, a model, and GitHub access. It takes about a minute, and gr config changes it any time.</Text>
+              <Text dimColor>Let's set you up: a color theme, a model, your coding agent, and GitHub access. It takes about a minute, and gr config changes it any time.</Text>
             </Box>
           </>
         ) : (
@@ -869,7 +869,7 @@ function DetailsStep(props: {
     }));
   };
   for (const [role, label, about] of [
-    ['fast', 'Summaries and narration', 'A fast model: it writes the briefing and every chapter.'],
+    ['fast', 'Briefing and narration', 'A fast model: it writes the briefing and every chapter.'],
     ['strong', 'Q&A', 'A strong model: it answers your questions with ? during a tour.'],
   ] as const) {
     const params = paramFields(role);
@@ -879,7 +879,7 @@ function DetailsStep(props: {
   const notes = modelNotes(a, props.env);
   return (
     <Box flexDirection="column" width={props.width} height={props.height}>
-      <StepTitle width={props.width} title={name} about="Summaries and narration suit a fast model, Q&A a strong one. Enter moves on; the last Enter continues." />
+      <StepTitle width={props.width} title={name} about="The briefing and narration suit a fast model, Q&A a strong one. Enter moves on; the last Enter continues." />
       <Form
         width={props.width}
         fields={fields}

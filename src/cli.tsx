@@ -75,7 +75,7 @@ ${[
 ].join('\n')}
 
   Options
-    --no-agent       Plain mode: kind sorting and test pairing, no model calls
+    --no-agent       Review without a model: static analysis only
     --fresh          Rebuild the tour even if one is cached or shared on the PR for this head
     --preview        With open: open \`${NAME} preview\` instead of a PR's tour
     --force          With install-*: replace an existing file that has different content
