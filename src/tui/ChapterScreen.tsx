@@ -527,6 +527,7 @@ export function ChapterScreen(props: {
                                   startReply={overlay.kind === 'reply'}
                                   onReply={props.replyToThread}
                                   onReact={props.reactToComment}
+                                  onNotice={setFlash}
                                   onClose={() => close()}
                                 />
                               ),

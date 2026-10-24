@@ -6,6 +6,9 @@ import { MdLineView, renderMarkdown, type MdLine } from './markdown.js';
 import { TextInput } from './TextInput.js';
 import { mentionHighlight } from './completion.js';
 import { sanitizeTerminal } from '../util/sanitize.js';
+import { Confirm } from './Confirm.js';
+import { Hints } from './KeyBar.js';
+import { Spinner } from './Spinner.js';
 
 const safe = sanitizeTerminal;
 const REACTIONS: { content: ReactionContent; emoji: string }[] = [
@@ -27,6 +30,7 @@ export function ThreadView(props: {
   startReply?: boolean;
   onReply?: (thread: ExistingThread, body: string) => Promise<void>;
   onReact?: (comment: ThreadComment, content: ReactionContent, remove: boolean) => Promise<void>;
+  onNotice?: (text: string) => void; // what a post or reaction did, said on the screen behind
   onClose: () => void;
 }) {
   const [selected, setSelected] = useState(0);
@@ -36,6 +40,7 @@ export function ThreadView(props: {
   const [reactionMenu, setReactionMenu] = useState(false);
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false); // Enter in the reply asks before posting
   const [completing, setCompleting] = useState(false); // the mention list owns Esc while open
   const [error, setError] = useState('');
   const thread = props.threads[selected];
@@ -71,6 +76,7 @@ export function ThreadView(props: {
     try {
       await props.onReact(comment, content, remove);
       setReactionMenu(false);
+      props.onNotice?.(`${REACTIONS[choice].emoji} ${remove ? 'removed' : 'added'}`);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -79,6 +85,12 @@ export function ThreadView(props: {
   };
 
   useInput((input, key) => {
+    if (composing && confirming) {
+      // Posting goes to GitHub: y or Enter posts, anything else returns to the reply.
+      if (input === 'y' || key.return) void send();
+      else setConfirming(false);
+      return;
+    }
     if (composing) {
       if (key.escape && !busy && !completing) setComposing(false);
       if (key.pageDown) setScroll((n) => Math.min(maxScroll, n + visible));
@@ -109,12 +121,15 @@ export function ThreadView(props: {
     if (input === 'K' || key.pageUp) return setScroll((n) => Math.max(0, n - visible));
   });
 
+  const where = `${thread.path}:${thread.line ?? thread.originalLine ?? ''}`;
   const send = async () => {
+    setConfirming(false);
     if (!body.trim() || busy || !props.onReply) return;
     setBusy(true);
     setError('');
     try {
       await props.onReply(thread, body.trim());
+      props.onNotice?.(`Reply posted on ${safe(where)}.`);
       props.onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -137,19 +152,32 @@ export function ThreadView(props: {
             <TextInput
               value={body}
               onChange={setBody}
-              onSubmit={() => void send()}
+              onSubmit={() => body.trim() && setConfirming(true)}
               width={props.width - 4}
               maxRows={inputRows}
               mentions={props.mentions}
               highlightTokens={mentionRules}
               onCompleting={setCompleting}
               placeholder="Write a reply…"
-              active={!busy}
+              active={!busy && !confirming}
             />
           </Box>
-          <Text dimColor wrap="truncate">
-            Enter: post · Shift+Enter: newline · PgUp/PgDn: read · Esc: cancel
-          </Text>
+          {busy ? (
+            <Text wrap="truncate">
+              <Spinner /> <Text dimColor>posting to GitHub…</Text>
+            </Text>
+          ) : confirming ? (
+            <Confirm yes="post">Post this reply on {safe(where)}?</Confirm>
+          ) : (
+            <Hints
+              keys={[
+                ['enter', 'post'],
+                ['ctrl+j', 'newline'],
+                ['pgup/pgdn', 'read'],
+                ['esc', 'cancel'],
+              ]}
+            />
+          )}
         </>
       ) : reactionMenu ? (
         <>

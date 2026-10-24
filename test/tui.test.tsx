@@ -333,9 +333,18 @@ describe('ChapterScreen', () => {
     expect(ui.lastFrame()).toContain('@alice');
     ui.stdin.write('\t');
     await tick();
+    // Enter asks first; n goes back to the reply, and y posts it.
     ui.stdin.write('\r');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Post this reply on'));
+    ui.stdin.write('n');
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('Post this reply on'));
+    expect(reply).toBe('');
+    ui.stdin.write('\r');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Post this reply on'));
+    ui.stdin.write('y');
     await waitFor(() => expect(reply).toBe('Agreed @alice'));
     await waitFor(() => expect(ui.lastFrame()).not.toContain('Reply to review thread'));
+    expect(ui.lastFrame()).toContain('Reply posted on');
     ui.stdin.write('y');
     await waitFor(() => expect(ui.lastFrame()).toContain('Reply to review thread'));
     expect(ui.lastFrame()).toContain(line.text.trim().slice(0, 20));

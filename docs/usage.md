@@ -71,7 +71,7 @@ Upgrade highlights and package overviews come from a changelog in the worktree w
 | `]` / `[` | Next or previous chapter, including optional chapters. |
 | `c` / `C` | Draft a comment on the selected line or range, or on the whole chapter. |
 | `e` | Open review threads on the selected line inline. Scroll with `j`/`k` or `J`/`K`; use `Tab` to select a comment and `+` to add or remove a reaction; press `Esc` to close. |
-| `y` | Reply to a review thread on the selected line in the inline panel. Replies post to GitHub when you press Enter. |
+| `y` | Reply to a review thread on the selected line in the inline panel. `Enter` asks before posting to GitHub (`y` or `Enter` posts, any other key goes back to the reply), then says where the reply landed. `Ctrl+J` adds a line. |
 | `E` / `X` | Edit or delete your unposted draft on the selected line (`X` asks first). The submit screen does the same for every draft with `e` / `x`. |
 | `a` | Ask the agent about the selection in a panel below the selected line. Questions form a thread: press `Enter` again to ask a follow-up, and `↑`/`↓` to scroll. Press `Esc` to return to review. Off, and left out of the key bar, with no AI model or `--no-agent`. |
 | `t` | Focus linked tests; narrow terminals toggle source and tests. Long code lines wrap in both panes. When linked tests are not beside the code, a `◂ 2 tests · t` tab at the top right says so. |
