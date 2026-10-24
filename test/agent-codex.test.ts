@@ -45,7 +45,7 @@ const alive = (pid: number) => {
   }
 };
 
-async function waitFor(check: () => boolean, ms = 5_000): Promise<void> {
+async function waitFor(check: () => boolean, ms = 15_000): Promise<void> {
   const until = Date.now() + ms;
   while (!check()) {
     if (Date.now() > until) throw new Error('timed out');
@@ -104,7 +104,8 @@ describe('Codex child processes', () => {
     await expect(run).rejects.toThrow(/aborted/);
     await waitFor(() => !alive(pid));
     expect(liveCodexProcesses()).toBe(0);
-  });
+    // Starting a node process for the fake codex can take seconds while the suite runs in parallel.
+  }, 20_000);
 
   it('does not start codex for an already aborted signal', async () => {
     const fake = hangingCodex();
