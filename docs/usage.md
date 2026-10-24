@@ -71,7 +71,7 @@ The key bar shows the keys you use constantly. Settings you flip once in a revie
 
 | Key | Action |
 | --- | --- |
-| `n` / `p` | Next hunk, marking the current one read, or previous hunk. At the end, move to the next chapter. |
+| `n` / `p` | Next hunk, marking the current one read, or previous hunk. At the end of a chapter, move to the next one; at the end of the tour, a card shows how many hunks you read and skipped, your drafts, and the suggested verdict, and `s` there opens submit. |
 | `j` / `k`, `J` / `K` | Move the code cursor by one line or ten lines. |
 | `v` | Start or end a line-range selection. |
 | `N` / `P`, `]` / `[` | Next or previous chapter, including optional chapters. `N` and `P` are plain keys on layouts where `[` and `]` need AltGr. |

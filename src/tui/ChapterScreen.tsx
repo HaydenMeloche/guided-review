@@ -36,6 +36,8 @@ import { chapterLayout, overlaySlots, type OverlayKind } from './chapter/layout.
 import { G } from './glyphs.js';
 import { hunkKeys } from '../review/hunkState.js';
 import { WIDE } from './breakpoints.js';
+import { EndCard } from './chapter/EndCard.js';
+import { EVENT_TEXT, suggestVerdict } from '../review/submit.js';
 
 export { KeyBar };
 
@@ -199,8 +201,8 @@ export function ChapterScreen(props: {
     if (!chapter) return;
     const to = nextPos(chapters, ci, hi);
     if (to) return go(to);
-    const optional = chapters.some((c) => c.optional);
-    setFlash(`End of the tour.${optional ? ' Import-only changes are optional (] to open them).' : ''} Press s to review your drafts and submit.`);
+    // The last hunk: a card says what the review comes to, and s submits it.
+    show('end');
   };
 
   const sel = selRange(cursor, anchor);
@@ -483,6 +485,40 @@ export function ChapterScreen(props: {
     }
     if (slots.popup === 'comment' && overlay.kind === 'comment')
       return { tone: 'input' as const, width: Math.min(96, width - 4), height: overlay.composer.ai ? Math.min(30, height - 4) : 18, node: (w: number, h: number) => commentEditor(w, h) };
+    if (overlay.kind === 'end') {
+      const p = progress(tour, hunk ? { ...states, ...Object.fromEntries(hunkKeys(hunk).map((k) => [k, stateOf(states, hunk) === 'unread' ? 'read' : stateOf(states, hunk)])) } : states);
+      const verdict = suggestVerdict(tour, props.drafts, states);
+      const pending = props.drafts.filter((d) => !d.posted).length;
+      const optional = chapters.some((c) => c.optional);
+      return {
+        tone: 'decision' as const,
+        width: Math.min(72, width - 4),
+        height: 9 + Math.min(3, verdict.reasons.length) + (optional ? 1 : 0),
+        node: () => (
+          <EndCard
+            read={p.read}
+            skipped={p.skipped}
+            deferred={p.deferred}
+            unread={p.unread}
+            drafts={pending}
+            verdict={EVENT_TEXT[verdict.event]}
+            reasons={verdict.reasons.slice(0, 3)}
+            optional={optional}
+            onSubmit={() => {
+              close();
+              props.openSubmit();
+            }}
+            onOptional={() => {
+              close();
+              const oi = chapters.findIndex((c) => c.optional);
+              if (oi >= 0) props.setPos(oi, firstHunk(chapters, oi));
+            }}
+            onClose={close}
+            onQuit={props.quit}
+          />
+        ),
+      };
+    }
     if (overlay.kind === 'palette')
       return {
         tone: 'input' as const,

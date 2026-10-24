@@ -100,7 +100,7 @@ export function chapterLayout(i: LayoutInput) {
   };
 }
 
-export type OverlayKind = 'none' | 'diagram' | 'comment' | 'thread' | 'reply' | 'ask' | 'move' | 'help' | 'checklist' | 'delete' | 'palette';
+export type OverlayKind = 'none' | 'diagram' | 'comment' | 'thread' | 'reply' | 'ask' | 'move' | 'help' | 'checklist' | 'delete' | 'palette' | 'end';
 
 export interface SlotInput {
   overlay: OverlayKind;
@@ -137,6 +137,6 @@ export function overlaySlots(plan: ChapterLayout, o: SlotInput) {
     testInline,
     collapsedAsk,
     confirmDelete,
-    shown: overlay === 'help' || overlay === 'palette' || confirmDelete || !!popup || collapsedAsk || !!sourceInline || !!testInline,
+    shown: overlay === 'help' || overlay === 'palette' || overlay === 'end' || confirmDelete || !!popup || collapsedAsk || !!sourceInline || !!testInline,
   } as const;
 }

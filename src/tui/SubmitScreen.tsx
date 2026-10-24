@@ -3,7 +3,7 @@ import { useInput } from 'ink';
 import { Box, Text } from './themed.js';
 import { Confirm } from './Confirm.js';
 import type { Chapter, ChecklistItem, Draft, Tour } from '../types.js';
-import { buildReviewPayload, groupByLabel, LABELS, postingNote, suggestVerdict } from '../review/submit.js';
+import { buildReviewPayload, EVENT_TEXT, groupByLabel, LABELS, postingNote, suggestVerdict } from '../review/submit.js';
 import { postReview, type ReviewPayload } from '../github/gh.js';
 import { githubWebHost } from '../github/auth.js';
 import { progress, truncate, type States } from './nav.js';
@@ -19,7 +19,6 @@ import { plural } from './plural.js';
 import { SUBMIT_KEYS, submitBar } from './screenKeys.js';
 
 type Event = ReviewPayload['event'];
-const EVENT_TEXT: Record<Event, string> = { APPROVE: 'Approve', REQUEST_CHANGES: 'Request changes', COMMENT: 'Comment' };
 
 // Lists drafts by label, unread hunks and a suggested verdict. Nothing posts until the reviewer
 // presses P and confirms. A draft that posting will change (moved, plain-code suggestion, review

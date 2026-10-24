@@ -203,6 +203,9 @@ export function postingNote(tour: Tour, d: Draft, opts: PayloadOptions = {}): st
 
 const LOGIC_CHAPTERS = new Set(['flow', 'supporting']);
 
+// A verdict as the screens name it.
+export const EVENT_TEXT: Record<ReviewPayload['event'], string> = { APPROVE: 'Approve', REQUEST_CHANGES: 'Request changes', COMMENT: 'Comment' };
+
 export function suggestVerdict(tour: Tour, drafts: Draft[], readStates: Record<string, ReadState>): { event: ReviewPayload['event']; reasons: string[] } {
   const pending = drafts.filter((d) => !d.posted);
   const groups = groupByLabel(pending);

@@ -53,7 +53,13 @@ describe('gr preview --no-agent', () => {
     gr.press('n');
     const end = await gr.waitFor('End of the tour');
     expect(end).toContain('1/1 hunks');
-    // q goes up to the briefing; a preview has no PR list, so q there quits.
+    expect(end).toContain('✓ 1 read');
+    expect(end).toContain('Suggested verdict: Approve');
+    // Any key but s closes the card; q goes up to the briefing, and in a preview, which has no
+    // PR list, q there quits.
+    gr.press(KEY.escape);
+    for (let i = 0; i < 200 && gr.screen().includes('End of the tour'); i++) await new Promise((r) => setTimeout(r, 25));
+    await gr.idle();
     gr.press('q');
     await gr.waitFor('Chapters · Guided order');
     gr.press('q');
