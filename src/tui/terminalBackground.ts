@@ -1,8 +1,11 @@
 // The terminal's background, so the default palette's tints suit a light terminal as well as a
 // dark one. gr asks with OSC 11 and then with DA1, which every terminal answers: once the DA1
-// reply arrives, an OSC 11 reply would have come before it, so no late answer is left for the
-// tour to read as keys. Failing that, COLORFGBG (set by rxvt, Konsole and others) says light or
-// dark. Undefined: assume dark.
+// reply arrives, an OSC 11 reply would have come before it. Startup waits for that only so long
+// (300 ms). When the answer is slower than that, over SSH or mosh, it would reach the screens as
+// keys (Esc, ], 1, 1, ;, r, g, b, …), so for a few seconds after giving up gr strips any OSC 11
+// or DA1 reply from what stdin.read() returns (`swallowLateReply`), until the DA1 reply has gone
+// by. Failing an answer, COLORFGBG (set by rxvt, Konsole and others) says light or dark.
+// Undefined: assume dark.
 
 export interface Background {
   type: 'dark' | 'light';
@@ -44,8 +47,9 @@ export async function detectBackground(opts: { stdin?: NodeJS.ReadStream; stdout
   const reply = await new Promise<string>((resolve) => {
     let buf = '';
     const wasRaw = stdin.isRaw;
-    const done = () => {
+    const done = (late?: boolean) => {
       clearTimeout(timer);
+      if (late) swallowLateReply(stdin, buf, LATE_REPLY_MS);
       stdin.off('data', onData);
       stdin.setRawMode(wasRaw);
       stdin.pause();
@@ -55,7 +59,7 @@ export async function detectBackground(opts: { stdin?: NodeJS.ReadStream; stdout
       buf += d.toString('latin1');
       if (DA1.test(buf)) done();
     };
-    const timer = setTimeout(done, opts.timeoutMs ?? 300);
+    const timer = setTimeout(() => done(true), opts.timeoutMs ?? 300);
     stdin.setRawMode(true);
     stdin.on('data', onData);
     stdin.resume();
@@ -63,4 +67,48 @@ export async function detectBackground(opts: { stdin?: NodeJS.ReadStream; stdout
   });
   const hex = parseOsc11(reply);
   return hex ? { type: typeOf(hex), hex } : fallback;
+}
+
+// How long after giving up a late reply is still stripped from input.
+const LATE_REPLY_MS = 5000;
+// A reply, whole: OSC 11 ended by BEL or ST, or DA1.
+const REPLY = /\u001b\]11;[^\u0007\u001b]*(?:\u0007|\u001b\\)|\u001b\[\?[\d;]*c/g;
+// The start of a reply cut off at the end of a chunk. No key sends ESC ] or ESC [ ?.
+const REPLY_START = /(?:\u001b\][^\u0007\u001b]*\u001b?|\u001b\[\?[\d;]*)$/;
+
+// Takes the late reply out of input text. `held` is a reply's start cut off at the end of the last
+// chunk; `over` says the DA1 reply, the answer's end, has gone by.
+export function stripReply(held: string, text: string): { text: string; held: string; over: boolean } {
+  const all = held + text;
+  const over = DA1.test(all);
+  const stripped = all.replace(REPLY, '');
+  const cut = REPLY_START.exec(stripped);
+  return cut ? { text: stripped.slice(0, cut.index), held: cut[0], over } : { text: stripped, held: '', over };
+}
+
+// Wraps stdin.read, which Ink reads input with, to strip a late answer for `ms`, or until it has
+// all gone by. `seen` is what had arrived of it before the timeout.
+export function swallowLateReply(stdin: NodeJS.ReadStream, seen: string, ms: number): void {
+  if (DA1.test(seen)) return;
+  const read = stdin.read.bind(stdin);
+  const own = Object.hasOwn(stdin, 'read');
+  let held = REPLY_START.exec(seen.replace(REPLY, ''))?.[0] ?? '';
+  const restore = () => {
+    clearTimeout(timer);
+    if (stdin.read !== filtered) return;
+    if (own) stdin.read = read;
+    else Reflect.deleteProperty(stdin, 'read');
+  };
+  const filtered = ((size?: number) => {
+    const chunk = read(size) as string | Buffer | null;
+    if (chunk === null) return chunk;
+    const isBuffer = typeof chunk !== 'string';
+    const out = stripReply(held, isBuffer ? chunk.toString('latin1') : chunk);
+    held = out.held;
+    if (out.over) restore();
+    return isBuffer ? Buffer.from(out.text, 'latin1') : out.text;
+  }) as typeof stdin.read;
+  const timer = setTimeout(restore, ms);
+  timer.unref?.();
+  stdin.read = filtered;
 }
