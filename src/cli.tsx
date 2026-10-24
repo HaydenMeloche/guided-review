@@ -3,8 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { AppOptions } from './tui/App.js';
 import { currentBranchPR, currentRepo, parsePRArg } from './github/gh.js';
-import { cleanupWorktrees, defaultBaseRef, localRepoRoot, mergeBaseOf, prDiff } from './git/worktree.js';
-import { git } from './git/git.js';
+import { cleanupWorktrees, localRepoRoot } from './git/worktree.js';
+import { localPreview } from './preview.js';
 import {
   agentRouting,
   loadChapterOrder,
@@ -27,7 +27,6 @@ import {
 import { editRepoConfig, setup } from './setup.js';
 import { installClaudeCommand, installCodexSkill, type SkillInstallResult } from './codexSkill.js';
 import { planOpen, runOpen, targetArg } from './open.js';
-import type { PRInfo } from './types.js';
 import { KEEP_TOURS_PER_PR, TOUR_MAX_AGE_DAYS } from './store/retention.js';
 import { AGENT_ROLES, configForRole, validateRouting } from './agent/types.js';
 import { packageInfo, promptForUpdate, startUpdateCheck } from './updateCheck.js';
@@ -132,48 +131,6 @@ const EDIT_CONFIG_HINT = 'Run `gr config --edit` to fix it.';
 function reportInstall(result: SkillInstallResult, what: string, installed: string): void {
   if (result.status === 'already-installed') process.stdout.write(`${what} is already installed at ${result.path}.\n`);
   else process.stdout.write(`${result.status === 'replaced' ? 'Replaced' : 'Installed'} ${result.path}. ${installed}\n`);
-}
-
-async function previewInfo(cwd: string): Promise<{ pr: PRInfo; diff: string; worktree: string }> {
-  const root = await localRepoRoot(cwd);
-  if (!root) fail(`${NAME} preview must run inside a git repository.`);
-  const trim = (s: string) => s.trim();
-  // Independent lookups run together; only the merge base waits for the default branch.
-  // Preview works without gh: an unknown repo becomes local/<dir> below.
-  const repoP = currentRepo(root).catch(() => undefined);
-  const headP = git(root, ['rev-parse', 'HEAD']).then(trim);
-  const branchP = git(root, ['rev-parse', '--abbrev-ref', 'HEAD']).then(trim);
-  const base = (await defaultBaseRef(root, () => repoP)) ?? fail(`could not find the default branch to compare against (no origin/HEAD, no answer from origin, and no main or master).`);
-  const baseSha = (await mergeBaseOf(root, 'HEAD', base.ref)) ?? fail(`could not find the merge base with ${base.ref.replace(/^refs\/(remotes\/|heads\/)/, '')}.`);
-  // Diffs against the working tree, so it includes uncommitted work: the author is still shaping the branch.
-  const [headSha, branch, log, diff, currentRepoName] = await Promise.all([headP, branchP, git(root, ['log', '--format=%H%x00%B%x1e', `${baseSha}..HEAD`]).then(trim), prDiff(root, baseSha), repoP]);
-  const commits = log
-    .split('\x1e')
-    .map((c) => c.trim())
-    .filter(Boolean)
-    .map((c) => {
-      const [sha, message] = c.split('\0');
-      return { sha, message: message ?? '' };
-    });
-  const repo = currentRepoName ?? `local/${path.basename(root)}`;
-  return {
-    worktree: root,
-    diff,
-    pr: {
-      repo,
-      number: 0,
-      title: `${branch} (preview)`,
-      body: commits.map((c) => c.message).join('\n\n'),
-      url: '',
-      author: 'you',
-      baseRef: base.name,
-      headRef: branch,
-      baseSha,
-      headSha,
-      commits,
-      linkedIssues: [],
-    },
-  };
 }
 
 // The model routing for a tour, or undefined with --no-agent or when the config chooses no model.
@@ -410,7 +367,8 @@ async function main() {
     if (!target) fail(`no PR given and the current branch has no open PR. Usage: ${NAME} feedback <number|URL>`);
     opts = { ...base, target, mode: 'author' };
   } else if (cmd === 'preview') {
-    opts = { ...base, preview: await previewInfo(cwd) };
+    if (!base.localRepo) fail(`${NAME} preview must run inside a git repository.`);
+    opts = { ...base, preview: await localPreview(cwd).catch((e: Error) => fail(e.message)) };
   } else if (cmd) {
     opts = { ...base, target: parsePRArg(cmd, await cwdRepoP) };
   }

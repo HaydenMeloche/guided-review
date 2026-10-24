@@ -70,7 +70,7 @@ gr review https://github.com/owner/repo/pull/1234
 gr review owner/repo#1234
 gr review                    # current branch's open PR
 gr feedback                   # work through the review feedback on your PR
-gr preview                   # tour the current branch before opening a PR
+gr preview                   # tour the current branch before opening a PR (l on the PR list)
 gr open 1234                 # open a tour in a new tmux or Terminal window
 gr build 1234 --comment      # build a tour without the TUI and post it to the PR (for CI)
 ```

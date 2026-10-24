@@ -163,6 +163,7 @@ interface PickerProps {
   height: number;
   notice?: string;
   onPick: (t: Target, mode?: 'author') => void; // your own PRs open their feedback
+  onLocal?: () => void; // l: tour the branch checked out where gr runs; unset outside a git repository
   onMerge?: (t: Target) => void; // M
   onChecks?: (t: Target) => void; // c: the PR's checks and their logs
   onReviewers?: (t: Target) => void; // A, on your own PR: who is asked to review, and asking more
@@ -456,6 +457,7 @@ export function PickerScreen(props: PickerProps) {
       }
       if (input === 'r') return load();
       if (input === 'L' && props.onTheme) return props.onTheme();
+      if (input === 'l') return props.onLocal ? props.onLocal() : setHint('l tours local changes: run gr inside a git repository.');
       if (!items.length) return;
       if (input === ' ' && current) {
         const next = new Set(selected);
@@ -610,7 +612,7 @@ export function PickerScreen(props: PickerProps) {
             </Text>
           ) : null}
           {prs && !items.length && filter ? <Text dimColor>Nothing matches the filter.</Text> : null}
-          {empty ? <EmptyPicker clipboard={!!clip} /> : null}
+          {empty ? <EmptyPicker clipboard={!!clip} local={!!props.onLocal} /> : null}
           <Box flexDirection="column" height={empty ? 0 : Math.min(h, listH)} overflow="hidden" flexShrink={0}>
             {visible.map((r) => (
               // Rows keep their height: the box clips the last one rather than squeezing them all.
@@ -679,6 +681,7 @@ export function PickerScreen(props: PickerProps) {
           checks: !!props.onChecks,
           reviewers: !!props.onReviewers && !!current && isAuthored(current),
           theme: !!props.onTheme,
+          local: !!props.onLocal,
         })}
         end={[
           ['?', 'keys'],
@@ -692,9 +695,9 @@ export function PickerScreen(props: PickerProps) {
 }
 
 // The empty PR list: the commands that work with nothing waiting, as a first step.
-function EmptyPicker(props: { clipboard: boolean }) {
+function EmptyPicker(props: { clipboard: boolean; local: boolean }) {
   const rows: [string, string][] = [
-    ['gr preview', 'tour the branch you have checked out, before there is a PR'],
+    props.local ? ['l', 'tour your local changes, before there is a PR'] : ['gr preview', 'tour the branch you have checked out, before there is a PR'],
     ['gr review 1234', 'open a PR by number or URL'],
     ['gr feedback', 'work through the review on your own PR'],
     ...((props.clipboard ? [] : [['p', 'open a PR link you copy, as soon as it is on the clipboard']]) as [string, string][]),

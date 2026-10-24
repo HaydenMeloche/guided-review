@@ -113,6 +113,23 @@ describe('gr preview --no-agent', () => {
   });
 });
 
+describe('local changes from the PR list', () => {
+  it('tours the checked-out branch on l and comes back to the list on q', async () => {
+    const gr = startGr(box, ['--no-agent'], { cwd: repo });
+    sessions.push(gr);
+    const list = await gr.waitFor(/Review requests \(0\)/);
+    expect(list).toContain('local changes');
+    gr.press('l');
+    const briefing = await gr.waitFor('Chapters · Guided order');
+    expect(briefing).toContain('feature/discount (preview)');
+    expect(gr.title()).toMatch(/^gr · preview .+ · briefing$/);
+    gr.press('q');
+    await gr.waitFor(/Review requests \(0\)/);
+    gr.press('q');
+    expect(await gr.exited).toBe(0);
+  });
+});
+
 describe('gr preview with no AI model configured', () => {
   it('builds a plain tour without --no-agent and hides the ask key', async () => {
     fs.mkdirSync(box.env.GR_HOME!, { recursive: true });

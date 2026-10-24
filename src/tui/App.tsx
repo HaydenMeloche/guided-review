@@ -8,6 +8,7 @@ import type { Chapter, ChapterOrder, Draft, ExistingThread, Hunk, PRInfo, Reacti
 import { Store } from '../store/db.js';
 import { fetchHeadSha, fetchMergeStatus, fetchPR, fetchThreads, getMentionUsers, replyToThread, setCommentReaction, viewerLogin } from '../github/gh.js';
 import { ensureWorktree } from '../git/worktree.js';
+import { localPreview, type LocalPreview } from '../preview.js';
 import { runPipeline } from '../pipeline.js';
 import type { AgentRole, AgentRouting } from '../agent/types.js';
 import type { ViewSetting } from '../config.js';
@@ -65,7 +66,7 @@ export interface AppOptions {
   saveViewSetting?: (key: ViewSetting, value: boolean) => void; // records a w or S toggle for next time
   noAgent?: boolean;
   fresh?: boolean;
-  preview?: { pr: PRInfo; diff: string; worktree: string }; // gr preview: a tour of a local branch
+  preview?: LocalPreview; // gr preview: a tour of a local branch
   palette?: Palette; // the saved theme, loaded before the first frame; the terminal's colors when unset
   saveTheme?: (name: string) => void; // records a theme chosen in the picker; unset when there is no config file
   codingAgent?: CodingAgentSetting; // the agent o opens; Claude Code when unset
@@ -184,6 +185,11 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const [phase, setPhase] = useState<Phase>(opts.target || opts.preview ? 'load' : 'pick');
   const [submitFrom, setSubmitFrom] = useState<'briefing' | 'chapter'>('chapter');
   const [target, setTarget] = useState<Target | undefined>(opts.target ?? (opts.preview ? { repo: opts.preview.pr.repo, number: opts.preview.pr.number } : undefined));
+  // A tour of a local branch, from gr preview or l on the PR list: the branch as last read, and
+  // where to read it again. Each load reads it again, as the working tree changes under it;
+  // gr preview's first load uses what the CLI read.
+  const [local, setLocal] = useState<LocalPreview | undefined>(opts.preview);
+  const localSource = useRef<{ cwd: string; first?: LocalPreview } | undefined>(opts.preview ? { cwd: opts.preview.worktree, first: opts.preview } : undefined);
   const [worktree, setWorktree] = useState<string>('');
   const [tour, setTour] = useState<Tour | undefined>();
   const [steps, setSteps] = useState<Step[]>([]);
@@ -356,9 +362,22 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       try {
         let info: PRInfo;
         let wt: string;
-        if (opts.preview) {
-          info = opts.preview.pr;
-          wt = opts.preview.worktree;
+        let diff: string | undefined;
+        const src = localSource.current;
+        if (src) {
+          let p = src.first;
+          src.first = undefined;
+          if (!p) {
+            onProgress('Reading your local changes');
+            p = await localPreview(src.cwd);
+            onProgress('Reading your local changes', true);
+          }
+          if (gen !== loadGen.current) return;
+          setLocal(p);
+          setTarget({ repo: p.pr.repo, number: p.pr.number });
+          info = p.pr;
+          wt = p.worktree;
+          diff = p.diff;
         } else {
           onProgress(`Fetching ${t.repo}#${t.number}`);
           info = await fetchPR(t.repo, t.number, signal);
@@ -371,7 +390,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         setPrTitle(info.title);
         setWorktree(wt);
         // Your own PR from gr review: ask whether you want its feedback or its tour.
-        if (!opts.preview && as === 'review' && !askedOwn.current.has(keyFor(t))) {
+        if (!src && as === 'review' && !askedOwn.current.has(keyFor(t))) {
           const viewer = await viewerLogin(signal).catch(() => undefined);
           if (gen !== loadGen.current) return;
           if (viewer && viewer === info.author) {
@@ -399,7 +418,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
           agent: opts.agent,
           noAgent: opts.noAgent,
           fresh,
-          diffOverride: opts.preview?.diff,
+          diffOverride: diff,
           signal,
           onProgress,
           onTour: (tr) => {
@@ -423,7 +442,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         setAnalyzing(undefined);
         setNarration(undefined);
         flagDraftsOnChangedLines(final);
-        if (!opts.preview && final.existingThreads.some((th) => th.isOutdated && !th.isResolved)) {
+        if (!src && final.existingThreads.some((th) => th.isOutdated && !th.isResolved)) {
           loadThreadDiffs(wt, final.headSha, final.existingThreads, { signal }).then(
             (diffs) => {
               if (gen !== loadGen.current) return;
@@ -456,7 +475,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const pollRepo = tour?.repo;
   const pollPr = tour?.pr;
   const pollHead = tour?.headSha;
-  const preview = !!opts.preview;
+  const preview = !!local;
   useEffect(() => {
     if (!pollRepo || pollPr === undefined || !pollHead || preview) return;
     const check = async () => {
@@ -499,7 +518,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   }, [tour, order, moves, deltaOnly, chapters]);
 
   // The window title names the PR and where you are in it.
-  const subject = opts.preview ? `preview ${opts.preview.pr.repo}` : target ? `${target.repo}#${target.number}` : undefined;
+  const subject = local ? `preview ${local.pr.repo}` : target ? `${target.repo}#${target.number}` : undefined;
   const title = ['gr', phase === 'pick' ? undefined : subject, titleSpot(phase, !!tour, pos.ci, chapters.length)].filter(Boolean).join(' · ');
   const rewriteTerminalStatus = useTerminalStatus(title, tabProgress(phase, narration));
 
@@ -531,7 +550,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
             store.setChecklistConfirm(tour.repo, tour.pr, id, v);
             setConfirms(store.getChecklistConfirms(tour.repo, tour.pr));
           },
-          loadMentionUsers: opts.preview ? undefined : () => getMentionUsers(tour.repo),
+          loadMentionUsers: local ? undefined : () => getMentionUsers(tour.repo),
         }
       : undefined;
 
@@ -725,12 +744,14 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     { isActive: !!quitAsk },
   );
 
-  // q while reviewing: drop the open tour and return to the PR list. A preview has no list,
+  // q while reviewing: drop the open tour and return to the PR list. gr preview has no list,
   // so there q quits.
   const back = opts.preview
     ? undefined
     : () => {
         loadGen.current++;
+        localSource.current = undefined;
+        setLocal(undefined);
         loadAbort.current?.abort();
         setTour(undefined);
         setSteps([]);
@@ -822,6 +843,17 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
             setTarget(t);
             void load(t, opts.fresh, as ?? 'review');
           }}
+          onLocal={
+            opts.localRepo
+              ? () => {
+                  setPickerNotice(undefined);
+                  localSource.current = { cwd: opts.localRepo! };
+                  const t = { repo: 'local', number: 0 };
+                  setTarget(t);
+                  void load(t, opts.fresh, 'review');
+                }
+              : undefined
+          }
           onMerge={setMerging}
           onChecks={setChecking}
           onReviewers={setAskingReviewers}
@@ -951,7 +983,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     const indexFor = (): RepoIndex | undefined => {
       if (!worktree) return undefined;
       const make = () => new RepoIndex({ root: worktree, headSha: tour.headSha, changedFiles: tour.files.map((f) => f.path) });
-      if (opts.preview) return make();
+      if (local) return make();
       const key = `${worktree}\0${tour.headSha}`;
       if (repoIndex.current?.key !== key) repoIndex.current = { key, index: make() };
       return repoIndex.current.index;
@@ -1008,10 +1040,10 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
           setPhase('submit');
         }}
         readiness={readiness}
-        onMerge={!opts.preview && readiness && readiness.level !== 'merged' && readiness.level !== 'closed' ? () => target && setMerging(target) : undefined}
+        onMerge={!local && readiness && readiness.level !== 'merged' && readiness.level !== 'closed' ? () => target && setMerging(target) : undefined}
         // Your own PR: t goes back to its feedback, as t on the feedback briefing opens this tour.
-        onChecks={!opts.preview && target ? () => setChecking(target) : undefined}
-        onFeedback={!opts.preview && target && tour.viewer && tour.viewer === tour.author ? () => void load(target, false, 'author') : undefined}
+        onChecks={!local && target ? () => setChecking(target) : undefined}
+        onFeedback={!local && target && tour.viewer && tour.viewer === tour.author ? () => void load(target, false, 'author') : undefined}
         onBack={back}
         onQuit={requestQuit}
       />
@@ -1043,8 +1075,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
           store.deleteDraft(d.id);
           setDrafts(store.listDrafts(d.repo, d.pr));
         }}
-        replyToThread={opts.preview ? undefined : sendThreadReply}
-        reactToComment={opts.preview ? undefined : reactToComment}
+        replyToThread={local ? undefined : sendThreadReply}
+        reactToComment={local ? undefined : reactToComment}
         moveHunk={(h, chapterId) => {
           for (const k of hunkKeys(h)) store.setMove(tour.repo, tour.pr, k, chapterId);
           setMoves(store.getMoves(tour.repo, tour.pr));
@@ -1106,7 +1138,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       );
     }
     if (phase === 'submit') {
-      if (opts.preview) {
+      if (local) {
         return (
           <ReviewPopup background={submitBackground()} width={width} height={height} maxWidth={76} maxHeight={9} tone="decision">
             {() => <PreviewSubmit onBack={() => setPhase(submitFrom)} />}
