@@ -14,7 +14,7 @@ export function guideLines(narration: string | undefined, inferred: boolean, not
   // Narration and notes are model output; renderMarkdown strips terminal controls.
   if (narration) {
     const md = renderMarkdown(narration, width);
-    out.push(...(inferred ? restyle(md, { dim: true, italic: true }) : md));
+    out.push(...(inferred ? restyle(md, { dim: true, italic: true }) : leadThenDim(md)));
     if (inferred) out.push(line('(the agent’s inference: not tied to visible code)', { dim: true, italic: true }));
   } else if (hasHunk) {
     out.push(line(mode === 'plain' ? 'Plain mode: no narration.' : 'Narration is still being written…', { dim: true }));
@@ -24,6 +24,28 @@ export function guideLines(narration: string | undefined, inferred: boolean, not
     for (const n of notes) out.push(...restyle(renderMarkdown(n, width), { color: 'yellow' }));
   }
   return out;
+}
+
+// The first sentence in the normal weight and the rest dim, so the lead reads at a glance.
+export function leadThenDim(lines: MdLine[]): MdLine[] {
+  let done = false;
+  return lines.map((l) =>
+    l.flatMap((span) => {
+      if (done) return [{ ...span, dim: true }];
+      // A sentence ends at . ! or ? followed by a space or the end of the span, outside code.
+      const m = span.color ? null : /[.!?](\s|$)/.exec(span.text);
+      if (!m) return [span];
+      done = true;
+      const cut = m.index + 1;
+      const rest = span.text.slice(cut);
+      return rest
+        ? [
+            { ...span, text: span.text.slice(0, cut) },
+            { ...span, text: rest, dim: true },
+          ]
+        : [{ ...span, text: span.text.slice(0, cut) }];
+    }),
+  );
 }
 
 export function noTestHint(hunk: Hunk, nameGuess?: string): string | undefined {

@@ -55,15 +55,15 @@ describe('chapterLayout heights', () => {
   it('gives the code the rest when there is no explanation', () => {
     const p = layout({});
     expect(p.explainLines).toEqual([]);
-    expect(p.bodyHeight).toBe(33);
+    expect(p.bodyHeight).toBe(34);
     expect(p.threadHeight).toBe(23);
     expect(p.askHeight).toBe(14);
   });
 
   it('cuts a long explanation to explainMax, ending in a note', () => {
     const p = layout({ explain: () => Array.from({ length: 30 }, (_, i) => line(`l${i}`)) });
-    expect(p.explainMax).toBe(21);
-    expect(p.explainLines).toHaveLength(21);
+    expect(p.explainMax).toBe(24);
+    expect(p.explainLines).toHaveLength(24);
     expect(p.explainLines.at(-1)).toEqual(line('… more than fits: widen or heighten the terminal', { dim: true }));
     expect(p.bodyHeight).toBe(9);
     expect(p.threadHeight).toBe(7);
@@ -73,7 +73,7 @@ describe('chapterLayout heights', () => {
   it('lays out the explanation at its inner width', () => {
     let asked = 0;
     layout({ width: 180, explain: (w) => ((asked = w), []) });
-    expect(asked).toBe(143);
+    expect(asked).toBe(145);
   });
 
   it('never squeezes the code below six rows', () => {

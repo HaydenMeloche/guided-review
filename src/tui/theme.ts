@@ -11,6 +11,7 @@ export interface Palette {
   heading?: string; // section headings, from the theme's heading or keyword color
   title?: string; // PR and chapter titles, from the theme's function-name color
   selection?: string; // behind a selected row; unset, selected rows are inverted
+  range?: string; // behind the rows of a range selection, a lighter shade of `selection`
   bg?: string; // painted behind the whole screen; unset leaves the terminal's own
   ansi: Record<AnsiName, string>;
   popup: string; // behind popups
@@ -226,6 +227,7 @@ export function paletteFrom(name: string, theme: ThemeRegistrationAny): Palette 
     white: fg,
     gray: muted,
   };
+  const selection = selectionOver(solid(colors['editor.selectionBackground'] ?? colors['list.activeSelectionBackground'], bg), fg, bg, ansi.cyan);
   const heading = readable(solid(tokenColor(settings, ['markup.heading', 'keyword', 'storage']), bg) ?? ansi.blue, fg, bg, 4.5);
   const title = readable(solid(tokenColor(settings, ['entity.name.function', 'support.function', 'entity.name']), bg) ?? ansi.cyan, fg, bg, 4.5);
   return {
@@ -235,7 +237,8 @@ export function paletteFrom(name: string, theme: ThemeRegistrationAny): Palette 
     muted,
     heading,
     title,
-    selection: selectionOver(solid(colors['editor.selectionBackground'] ?? colors['list.activeSelectionBackground'], bg), fg, bg, ansi.cyan),
+    selection,
+    range: selection ? mix(bg, selection, 0.5) : undefined,
     bg,
     ansi,
     popup: popupOver(solid(colors['editorWidget.background'], bg), fg, bg),
@@ -265,6 +268,7 @@ function popupOver(widget: string | undefined, fg: string, bg: string): string {
 // Names for the palette's backgrounds, usable wherever a color is.
 export const SURFACES = {
   selection: 'surface:selection',
+  range: 'surface:range',
   popup: 'surface:popup',
   lineAdd: 'surface:line-add',
   lineDel: 'surface:line-del',
@@ -286,6 +290,8 @@ export function resolveColor(palette: Palette, color: string | undefined): strin
       return palette.popup;
     case SURFACES.selection:
       return palette.selection;
+    case SURFACES.range:
+      return palette.range;
     case ROLES.heading:
       return palette.heading ?? palette.ansi.blue;
     case ROLES.title:

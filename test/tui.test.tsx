@@ -16,6 +16,7 @@ import { ChapterScreen } from '../src/tui/ChapterScreen.js';
 import { ThreadView } from '../src/tui/ThreadView.js';
 import { SubmitScreen } from '../src/tui/SubmitScreen.js';
 import { BriefingScreen, stripFileRefs } from '../src/tui/BriefingScreen.js';
+import { leadThenDim } from '../src/tui/chapter/guide.js';
 import { ORDER_SEQUENCE, positionAfterOrderChange, progress, sortChapters, type States } from '../src/tui/nav.js';
 import { waitFor } from './helpers/waitFor.js';
 import { filesFor, hunkFromDiff, tour as makeTour } from './fixtures/tour.js';
@@ -1216,7 +1217,7 @@ describe('feedback round: guide, tests, inline comments, description', () => {
     const guide = ui
       .lastFrame()!
       .split('\n')
-      .map((r) => r.split('│')[1] ?? '')
+      .map((r) => r.split('▎ ')[1] ?? '')
       .join(' ')
       .replace(/\s+/g, ' ');
     expect(guide).toContain('Nearest test file by name: src/x.test.ts');
@@ -1572,5 +1573,16 @@ describe('stripFileRefs', () => {
       'Adds discount codes. It also ships 0.4.0.',
     );
     expect(stripFileRefs('Retries (up to three times) on failure.')).toBe('Retries (up to three times) on failure.');
+  });
+});
+
+describe('leadThenDim', () => {
+  it('keeps the first sentence in the normal weight and dims the rest', () => {
+    expect(leadThenDim([[{ text: 'Adds a discount. Then taxes it.' }], [{ text: 'More.' }]])).toEqual([
+      [{ text: 'Adds a discount.' }, { text: ' Then taxes it.', dim: true }],
+      [{ text: 'More.', dim: true }],
+    ]);
+    // A period inside code is not the end of a sentence.
+    expect(leadThenDim([[{ text: 'Calls ' }, { text: 'a.b()', color: 'cyan' }, { text: ' twice. Once more.' }]])[0].at(-1)).toEqual({ text: ' Once more.', dim: true });
   });
 });

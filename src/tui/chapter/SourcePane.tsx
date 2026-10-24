@@ -9,6 +9,7 @@ import { wordDiff, type CharRange, type Fold } from '../../diff/lines.js';
 import { clean, codeChunks } from './text.js';
 import { DIFF_BACKGROUND, SyntaxText, WORD_BACKGROUND } from './SyntaxText.js';
 import { GUTTER, SPLIT_GUTTER } from '../paneWidths.js';
+import { SURFACES } from '../theme.js';
 import { draftsAt, movedNote, threadAt } from './lineNotes.js';
 import { G } from '../glyphs.js';
 
@@ -70,7 +71,8 @@ export const SourcePane = React.memo(function SourcePane(props: {
     return out;
   }, [hunk, props.partner]);
   const rows = useMemo(() => {
-    const out: { idx: number; node: React.ReactNode }[] = [];
+    // `paint` draws the row again on a background (the cursor's, a range's) in place of its diff tint.
+    const out: { idx: number; node: React.ReactNode; paint?: (bg: string) => React.ReactNode }[] = [];
     if (props.raw) {
       out.push({ idx: -1, node: <Text color="cyan">{truncate(hunk.header, width)}</Text> });
       hunk.lines.forEach((l, i) => {
@@ -121,7 +123,7 @@ export const SourcePane = React.memo(function SourcePane(props: {
       // Old on the left, new on the right; a removed line shares its replacement's row.
       const half = Math.max(8, Math.floor((width - 2) / 2));
       const codeW = Math.max(1, half - SPLIT_GUTTER);
-      const cells = (j: number | undefined, side: 'old' | 'new'): React.ReactNode[] => {
+      const cells = (j: number | undefined, side: 'old' | 'new', bg?: string): React.ReactNode[] => {
         if (j === undefined) return [];
         const l = hunk.lines[j];
         const reindented = props.hidden.get(l.kind === 'del' ? j : props.partner[j]) === 'whitespace' && l.kind !== 'ctx';
@@ -131,8 +133,8 @@ export const SourcePane = React.memo(function SourcePane(props: {
         const text = clean(l.text);
         const emphasis = reindented || l.kind === 'ctx' ? undefined : words[j]?.filter(([s, e]) => !props.ignoreWhitespace || text.slice(s, e).trim());
         return codeChunks(l.text, codeW).map((code, part) => (
-          <Text key={`${side}${part}`} backgroundColor={reindented ? undefined : DIFF_BACKGROUND[l.kind]} dimColor={l.expanded}>
-            <Text dimColor>{`${part === 0 ? no : '    '} │ `}</Text>
+          <Text key={`${side}${part}`} backgroundColor={bg ?? (reindented ? undefined : DIFF_BACKGROUND[l.kind])} dimColor={l.expanded}>
+            <Text dimColor>{`${part === 0 ? no : `   ${G.wrapped}`} │ `}</Text>
             <Text color={color} dimColor={reindented}>
               {`${part === 0 ? sign : ' '} `}
             </Text>
@@ -145,19 +147,18 @@ export const SourcePane = React.memo(function SourcePane(props: {
       hunk.lines.forEach((l, i) => {
         if (props.hidden.has(i)) return;
         const beside = l.kind === 'add' && props.hidden.has(props.partner[i]) ? props.partner[i] : undefined;
-        const left = cells(l.kind === 'add' ? beside : i, 'old');
-        const right = cells(l.kind === 'del' ? undefined : i, 'new');
-        for (let k = 0; k < Math.max(left.length, right.length); k++)
-          out.push({
-            idx: i,
-            node: (
-              <Text>
-                {left[k] ?? blank}
-                <Text dimColor>│</Text>
-                {right[k] ?? blank}
-              </Text>
-            ),
-          });
+        const side = (bg?: string) => ({ left: cells(l.kind === 'add' ? beside : i, 'old', bg), right: cells(l.kind === 'del' ? undefined : i, 'new', bg) });
+        const plain = side();
+        for (let k = 0; k < Math.max(plain.left.length, plain.right.length); k++) {
+          const draw = (s: ReturnType<typeof side>, bg?: string) => (
+            <Text backgroundColor={bg}>
+              {s.left[k] ?? blank}
+              <Text dimColor>│</Text>
+              {s.right[k] ?? blank}
+            </Text>
+          );
+          out.push({ idx: i, node: draw(plain), paint: (bg) => draw(side(bg), bg) });
+        }
         if (beside !== undefined) notesUnder(beside, i);
         notesUnder(i, i);
       });
@@ -175,20 +176,20 @@ export const SourcePane = React.memo(function SourcePane(props: {
       const color = reindented ? undefined : l.kind === 'add' ? 'green' : l.kind === 'del' ? 'red' : undefined;
       const text = clean(l.text);
       const emphasis = reindented || l.kind === 'ctx' ? undefined : words[i]?.filter(([s, e]) => !props.ignoreWhitespace || text.slice(s, e).trim());
-      codeChunks(l.text, width - GUTTER).forEach((code, part) =>
-        out.push({
-          idx: i,
-          node: (
-            <Text backgroundColor={DIFF_BACKGROUND[kind]} dimColor={l.expanded}>
-              <Text dimColor>{`${part === 0 ? no : ' '.repeat(9)} │ `}</Text>
-              <Text color={color} dimColor={reindented}>
-                {`${part === 0 ? sign : ' '} `}
-              </Text>
-              <SyntaxText text={code} spans={highlights?.[i]} column={part * Math.max(1, width - GUTTER)} emphasis={emphasis} emphasisColor={WORD_BACKGROUND[l.kind]} />
+      codeChunks(l.text, width - GUTTER).forEach((code, part) => {
+        // A wrapped line's later rows show ↪ where the line numbers were.
+        const draw = (bg: string | undefined) => (
+          <Text backgroundColor={bg} dimColor={l.expanded}>
+            <Text dimColor>{`${part === 0 ? no : `${' '.repeat(8)}${G.wrapped}`} │ `}</Text>
+            <Text color={color} dimColor={reindented}>
+              {`${part === 0 ? sign : ' '} `}
             </Text>
-          ),
-        }),
-      );
+            <SyntaxText text={code} spans={highlights?.[i]} column={part * Math.max(1, width - GUTTER)} emphasis={emphasis} emphasisColor={WORD_BACKGROUND[l.kind]} />
+            {bg ? ' '.repeat(Math.max(0, width - GUTTER - code.length)) : ''}
+          </Text>
+        );
+        out.push({ idx: i, node: draw(DIFF_BACKGROUND[kind]), paint: draw });
+      });
       notesUnder(i, i);
     });
     return out;
@@ -205,14 +206,21 @@ export const SourcePane = React.memo(function SourcePane(props: {
     if (top !== props.scroll) props.setScroll(top);
   });
 
+  // The cursor's rows take the selection background and a range's a lighter tint, where the
+  // theme has them; with the terminal's colors the gutter marks say it alone.
+  const { selection, range: rangeTint } = useTheme();
   const renderRow = (r: (typeof rows)[number], k: number) => {
-    const inRange = range && r.idx >= range[0] && r.idx <= range[1];
+    const inRange = !!range && r.idx >= range[0] && r.idx <= range[1];
     const first = rows[k - 1]?.idx !== r.idx;
-    const isCursor = r.idx === cursor && first;
+    const onCursor = r.idx === cursor;
+    const isCursor = onCursor && first;
+    const bg = r.paint && selection ? (onCursor ? SURFACES.selection : inRange && rangeTint ? SURFACES.range : undefined) : undefined;
     return (
       <Box key={k}>
-        <Text color={isCursor ? 'cyan' : inRange ? 'blue' : undefined}>{isCursor ? G.cursor : inRange ? G.range : ' '}</Text>
-        {r.node}
+        <Text color={isCursor ? 'cyan' : inRange ? 'blue' : undefined} backgroundColor={bg}>
+          {isCursor ? G.cursor : inRange ? G.range : ' '}
+        </Text>
+        {bg && r.paint ? r.paint(bg) : r.node}
       </Box>
     );
   };

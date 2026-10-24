@@ -36,7 +36,7 @@ The terminal's window title names the PR and where you are in it, such as `gr ·
 
 <p align="center"><img src="images/briefing.webp" alt="The briefing screen: a summary of the PR, the author's description, flagged gaps, an overview diagram, chapters in reading order, and blast radius" width="900"></p>
 
-A **chapter** shows an explanation, code hunk, risk and test status, existing review threads, and linked tests. Wide terminals put code and tests side by side; narrow terminals let `t` toggle between them. Generated, vendored, and mechanical changes start collapsed into summaries. Import-only changes form an optional chapter that normal `n`/`p` navigation skips.
+A **chapter** shows an explanation, code hunk, risk and test status, existing review threads, and linked tests. One row names the chapter, the hunk, where it is, and how it is tested; the explanation sits under it behind a quiet rule, its first sentence in the normal weight and the rest dimmer. With a theme, the cursor's row takes the selection color and a range a lighter tint; a long line that wraps shows `↪` where its line numbers were. Wide terminals put code and tests side by side; narrow terminals let `t` toggle between them. Generated, vendored, and mechanical changes start collapsed into summaries. Import-only changes form an optional chapter that normal `n`/`p` navigation skips.
 
 <p align="center"><img src="images/ask.webp" alt="A question about a changed line, answered inline below the code with file and line references" width="900"></p>
 

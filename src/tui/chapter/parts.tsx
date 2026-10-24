@@ -86,7 +86,8 @@ export const ChapterList = React.memo(function ChapterList(props: { tour: Tour; 
   );
 });
 
-// `drawer`: a hint at the right end of the title row for linked tests that are not on screen.
+// One row: the chapter, where the hunk is in it and in the code, and how it is tested.
+// `drawer`: a hint at the right end for linked tests that are not on screen.
 export const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: Chapter; hunk?: Hunk; hi: number; isNew: boolean; unchanged?: number; width: number; states: States; drawer?: string }) {
   const { chapter, hunk, hi } = props;
   const cov = hunk ? COVERAGE[hunk.coverage] : undefined;
@@ -94,53 +95,45 @@ export const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: C
   // A deleted file's hunk has no new lines: point at where it was.
   const location = hunk ? `${hunk.file}:${hunk.newStart || hunk.oldStart}` : '';
   return (
-    <Box flexDirection="column" flexShrink={0}>
-      <Box width={props.width}>
-        <Box flexShrink={1} flexGrow={1}>
-          <Text wrap="truncate">
-            <Text bold color="cyan">
-              {truncate(safe(chapter.title), Math.floor(props.width * 0.6))}
-            </Text>
-            {chapter.entryPoint ? <Text dimColor> · entry {safe(chapter.entryPoint)}</Text> : null}
-            {hunk ? (
+    <Box width={props.width} flexShrink={0}>
+      <Box flexShrink={1} flexGrow={1}>
+        <Text wrap="truncate">
+          <Text bold color="cyan">
+            {truncate(safe(chapter.title), Math.floor(props.width * 0.45))}
+          </Text>
+          {hunk ? (
+            <>
               <Text dimColor>
                 {' '}
-                · hunk {hi + 1}/{chapter.hunkIds.length}
+                · hunk {hi + 1}/{chapter.hunkIds.length} ·{' '}
               </Text>
-            ) : null}
-            {props.unchanged ? <Text dimColor> · {props.unchanged} unchanged hidden</Text> : null}
+              {st ? <Text color={st.color}>{st.mark} </Text> : null}
+              {props.isNew ? (
+                <>
+                  <Text color="black" backgroundColor="yellow">
+                    {' NEW '}
+                  </Text>{' '}
+                </>
+              ) : null}
+              <Text>{safe(location)}</Text>
+              {cov && cov.text ? <Text color={cov.color}>{`  ${cov.mark} ${cov.text}`}</Text> : null}
+              {hunk.importOnly ? <Text dimColor> · imports only · optional</Text> : null}
+            </>
+          ) : chapter.collapsed ? (
+            <Text dimColor>{` · ${plural(chapter.hunkIds.length, 'hunk')}, collapsed${chapter.optional ? ' · optional: not counted toward progress' : ''}`}</Text>
+          ) : null}
+          {props.unchanged ? <Text dimColor> · {props.unchanged} unchanged hidden</Text> : null}
+          {chapter.entryPoint ? <Text dimColor> · entry {safe(chapter.entryPoint)}</Text> : null}
+        </Text>
+      </Box>
+      {props.drawer ? (
+        <Box flexShrink={0}>
+          <Text color="cyan">
+            {` ${props.drawer} · `}
+            <Text bold>t</Text>
           </Text>
         </Box>
-        {props.drawer ? (
-          <Box flexShrink={0}>
-            <Text color="cyan">
-              {` ${props.drawer} · `}
-              <Text bold>t</Text>
-            </Text>
-          </Box>
-        ) : null}
-      </Box>
-      {hunk ? (
-        <Text wrap="truncate">
-          {st ? <Text color={st.color}>{st.mark} </Text> : null}
-          {props.isNew ? (
-            <Text color="black" backgroundColor="yellow">
-              {' '}
-              NEW{' '}
-            </Text>
-          ) : null}
-          <Text> {safe(location)}</Text>
-          {cov && cov.text ? (
-            <Text color={cov.color}>
-              {'  '}
-              {cov.mark} {cov.text}
-            </Text>
-          ) : null}
-          {hunk.importOnly ? <Text dimColor> · imports only · optional</Text> : null}
-        </Text>
-      ) : (
-        <Text dimColor>{chapter.collapsed ? `${plural(chapter.hunkIds.length, 'hunk')}, collapsed${chapter.optional ? ' · optional: not counted toward progress' : ''}` : ''}</Text>
-      )}
+      ) : null}
     </Box>
   );
 });
@@ -222,17 +215,22 @@ export const ChapterStrip = React.memo(function ChapterStrip(props: {
 });
 
 // The explanation above the code, already cut to fit (chapterLayout).
+// An in-flow block with a left rule, not a box: it is always in the same place, so a frame and a
+// title would only cost rows. The rule is quiet, magenta for narration that is the model's
+// inference, and green for a moment when the explanation has just arrived.
 export function Explanation(props: { lines: MdLine[]; inferred: boolean; collapsed: boolean; updated?: boolean; width: number }) {
   if (!props.lines.length) return null;
-  const color = props.inferred ? 'gray' : 'blue';
+  const rule = props.updated ? 'green' : props.inferred ? 'magenta' : 'gray';
   return (
-    <Box flexDirection="column" flexShrink={0} borderStyle="round" borderColor={color} paddingX={1} width={props.width}>
-      <Text bold color={color}>
-        {props.collapsed ? 'About this chapter' : 'Explanation'}
-        {props.updated ? <Text color="green"> · updated</Text> : null}
-      </Text>
+    <Box flexDirection="column" flexShrink={0} width={props.width} marginBottom={1}>
       {props.lines.map((l, i) => (
-        <MdLineView key={i} line={l} />
+        <Box key={i}>
+          <Text color={rule}>{'▎ '}</Text>
+          <Box flexGrow={1}>
+            <MdLineView line={l} />
+          </Box>
+          {i === 0 && props.updated ? <Text color="green"> updated</Text> : null}
+        </Box>
       ))}
     </Box>
   );

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import fs from 'node:fs';
 import path from 'node:path';
 import { KEY, richFixtureRepo, sandbox, startGr, type Sandbox, type Session } from './harness.js';
 
@@ -39,6 +40,16 @@ async function gone(gr: Session, text: string) {
   return gr.idle();
 }
 
+// Keys sent one at a time: written close together they arrive as one input, which gr reads as
+// typed text, so each waits for the frame it causes.
+async function keys(gr: Session, ...ks: string[]) {
+  for (const k of ks) {
+    gr.press(k);
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    await gr.idle();
+  }
+}
+
 async function snap(gr: Session, name: string, cols: number, rows: number) {
   await expect(stable(gr.screenWithAttrs()) + '\n').toMatchFileSnapshot(file(name, cols, rows));
 }
@@ -61,12 +72,10 @@ describe.each(SIZES)('screens at %ix%i', (cols, rows) => {
     await gr.waitFor(/hunk 1\//);
     await snap(gr, 'chapter', cols, rows);
 
-    gr.press('j', 'j', 'j');
-    await gr.idle();
+    await keys(gr, 'j');
     await snap(gr, 'chapter-cursor', cols, rows);
 
-    gr.press('v', 'j', 'j');
-    await gr.idle();
+    await keys(gr, 'v', 'j', 'j');
     await snap(gr, 'chapter-range', cols, rows);
     gr.press(KEY.escape);
     await gr.idle();
@@ -91,6 +100,19 @@ describe.each(SIZES)('screens at %ix%i', (cols, rows) => {
     gr.press('s');
     await gr.waitFor('Author preview');
     await snap(gr, 'submit', cols, rows);
+  });
+
+  it('paints the cursor and a range with a theme', async () => {
+    fs.mkdirSync(box.env.GR_HOME!, { recursive: true });
+    fs.writeFileSync(path.join(box.env.GR_HOME!, 'config.json'), JSON.stringify({ provider: 'none', theme: 'github-dark' }));
+    const repo = richFixtureRepo(box);
+    const gr = startGr(box, ['preview'], { cwd: repo, cols, rows });
+    sessions.push(gr);
+    await gr.waitFor('Chapters');
+    gr.press('n');
+    await gr.waitFor(/hunk 1\//);
+    await keys(gr, 'v', 'j', 'j');
+    await snap(gr, 'chapter-range-themed', cols, rows);
   });
 
   it('shows the PR list when gh cannot list PRs', async () => {

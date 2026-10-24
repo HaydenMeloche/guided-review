@@ -2,7 +2,7 @@ import type { DiffLine } from '../../types.js';
 import { line, type MdLine } from '../markdown.js';
 import { codePaneWidths, MIN_SPLIT_WIDTH } from '../paneWidths.js';
 
-const TITLE_ROWS = 2;
+const TITLE_ROWS = 1;
 const FOOTER_ROWS = 3;
 
 export interface LayoutInput {
@@ -53,12 +53,12 @@ export function chapterLayout(i: LayoutInput) {
   // notes on the chapter or hunk, and the no-test hint. It takes what it needs, up to about
   // half the screen; the code gets the rest.
   const avail = mainHeight - TITLE_ROWS;
-  const explainAll = i.explain(mainWidth - 4); // border + padding
+  const explainAll = i.explain(mainWidth - 2); // the left rule
   const collapsed = i.collapsedHunks !== undefined;
   const codeNeed = collapsed ? Math.min(i.collapsedHunks!, 10) : Math.min((i.hunkLines?.length ?? 0) + 1, 14);
-  const explainMax = Math.max(4, Math.max(Math.floor(avail * 0.5), avail - codeNeed - 3) - 3);
+  const explainMax = Math.max(4, Math.max(Math.floor(avail * 0.5), avail - codeNeed - 3) - 1);
   const explainLines = explainAll.length > explainMax ? [...explainAll.slice(0, explainMax - 1), line('… more than fits: widen or heighten the terminal', { dim: true })] : explainAll;
-  const explainRows = explainLines.length ? explainLines.length + 3 : 0; // title + top/bottom border
+  const explainRows = explainLines.length ? explainLines.length + 1 : 0; // and a blank row under it
   const bodyHeight = Math.max(6, avail - explainRows);
 
   const hunk = !collapsed && !!i.hunkLines;
