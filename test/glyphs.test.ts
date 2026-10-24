@@ -15,3 +15,15 @@ describe('glyphs', () => {
     for (const g of Object.values(GLYPH_SETS.ascii)) expect(g).toMatch(/^[\x21-\x7e]$/);
   });
 });
+
+describe('file icons', () => {
+  it('are off until asked for, then name the file type', async () => {
+    const { fileIcon, setIcons } = await import('../src/tui/icons.js');
+    expect(fileIcon('src/a.ts')).toBe('');
+    setIcons('nerd');
+    expect(fileIcon('src/a.ts')).toBe(' ');
+    expect(fileIcon('Dockerfile')).toBe(' ');
+    expect(fileIcon('notes.unknown')).toBe(' ');
+    setIcons('none');
+  });
+});

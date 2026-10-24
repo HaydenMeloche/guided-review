@@ -9,6 +9,7 @@ import { SectionHeading } from './BriefingScreen.js';
 import { plural } from './plural.js';
 import type { DiffLine } from '../types.js';
 import { G } from './glyphs.js';
+import { fileIcon } from './icons.js';
 
 const PREVIEW_DELAY_MS = 150;
 
@@ -263,7 +264,7 @@ function ThemeSample(props: { width: number; height: number }) {
       </Box>
       <Text dimColor wrap="truncate">
         {' '}
-        src/client.ts <Text color="blue">[question]</Text>
+        {fileIcon('src/client.ts')}src/client.ts <Text color="blue">[question]</Text>
       </Text>
       {SAMPLE.map((l, i) => (
         <SampleLine key={i} line={l} spans={highlights?.[i]} width={w} />

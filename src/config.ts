@@ -119,6 +119,7 @@ export type UserConfig = Omit<AgentRouting, 'provider'> & {
   shortExplanation?: boolean;
   theme?: string;
   glyphs?: GlyphSetting;
+  icons?: IconSetting;
   tipsSeen?: string[];
   codingAgent?: CodingAgent;
   codingAgentCommand?: string; // with "codingAgent": "custom"
@@ -280,6 +281,14 @@ function parseChoice<T extends string>(raw: Record<string, unknown>, key: string
   return value as T;
 }
 
+export const ICON_SETTINGS = ['none', 'nerd'] as const;
+export type IconSetting = (typeof ICON_SETTINGS)[number];
+
+// Nerd Font file icons before paths: off unless asked for, since the font can't be detected.
+export function loadIconSetting(raw = readUserConfigFile()): IconSetting {
+  return (raw && parseChoice(raw, 'icons', ICON_SETTINGS, userConfigPath())) ?? 'none';
+}
+
 export const GLYPH_SETTINGS = ['unicode', 'ascii'] as const;
 export type GlyphSetting = (typeof GLYPH_SETTINGS)[number];
 
@@ -414,6 +423,8 @@ export function loadUserConfig(raw = readUserConfigFile()): UserConfig {
   if (theme) out.theme = theme;
   const glyphs = parseChoice(raw, 'glyphs', GLYPH_SETTINGS, file);
   if (glyphs) out.glyphs = glyphs;
+  const icons = parseChoice(raw, 'icons', ICON_SETTINGS, file);
+  if (icons) out.icons = icons;
   const tipsSeen = parseTipsSeen(raw, file);
   if (tipsSeen) out.tipsSeen = tipsSeen;
   const codingAgent = parseCodingAgent(raw, file);

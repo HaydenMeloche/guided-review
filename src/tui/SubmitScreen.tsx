@@ -18,6 +18,7 @@ import { helpOf } from './keys.js';
 import { plural } from './plural.js';
 import { SUBMIT_KEYS, submitBar } from './screenKeys.js';
 import { Working } from './Spinner.js';
+import { fileIcon } from './icons.js';
 
 type Event = ReviewPayload['event'];
 
@@ -174,9 +175,9 @@ export function SubmitScreen(props: {
           lastLabel = d.label;
           const where =
             d.anchor.type === 'line'
-              ? `${d.anchor.file}:${d.anchor.line}`
+              ? `${fileIcon(d.anchor.file)}${d.anchor.file}:${d.anchor.line}`
               : d.anchor.type === 'range'
-                ? `${d.anchor.file}:${d.anchor.startLine}-${d.anchor.line}`
+                ? `${fileIcon(d.anchor.file)}${d.anchor.file}:${d.anchor.startLine}-${d.anchor.line}`
                 : d.anchor.type === 'chapter'
                   ? `flow ${props.chapters.find((c) => c.id === (d.anchor as { chapterId: string }).chapterId)?.title ?? ''}`
                   : 'diagram node';

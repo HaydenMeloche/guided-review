@@ -12,6 +12,7 @@ import { Hints, KeyBar } from '../KeyBar.js';
 import { G } from '../glyphs.js';
 import { LabelChip } from '../CommentEditor.js';
 import { TitleBar } from '../TitleBar.js';
+import { fileIcon } from '../icons.js';
 
 export const COVERAGE = {
   get tested() {
@@ -144,7 +145,7 @@ export const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: C
                   </Text>{' '}
                 </>
               ) : null}
-              <Text>{safe(location)}</Text>
+              <Text>{safe(`${fileIcon(location)}${location}`)}</Text>
               {cov && cov.text ? <Text color={cov.color}>{`  ${cov.mark} ${cov.text}`}</Text> : null}
               {hunk.importOnly ? <Text dimColor> · imports only · optional</Text> : null}
             </>

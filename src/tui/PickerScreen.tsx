@@ -22,6 +22,7 @@ import { unboundKey } from './flash.js';
 import { hasSidePanel } from './breakpoints.js';
 import { TitleBar } from './TitleBar.js';
 import { writeClipboard } from '../util/clipboard.js';
+import { fileIcon } from './icons.js';
 
 export interface Target {
   repo: string;
@@ -979,7 +980,7 @@ const Preview = React.memo(function Preview(props: { pr: ReviewRequest | Authore
         push(
           <Text wrap="truncate">
             <Text color="green">{`+${f.additions}`.padStart(5)}</Text>
-            <Text color="red">{` -${f.deletions}`.padEnd(7)}</Text> {truncate(f.path, width - numW - 1)}
+            <Text color="red">{` -${f.deletions}`.padEnd(7)}</Text> {truncate(`${fileIcon(f.path)}${f.path}`, width - numW - 1)}
           </Text>,
         );
       }

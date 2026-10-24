@@ -10,6 +10,7 @@ import {
   loadChapterOrder,
   loadCodingAgent,
   loadGlyphSetting,
+  loadIconSetting,
   loadTipsSeen,
   saveTipSeen,
   loadThemeSetting,
@@ -21,6 +22,7 @@ import {
   userConfigPath,
   UserConfigError,
   type GlyphSetting,
+  type IconSetting,
 } from './config.js';
 import { editRepoConfig, setup } from './setup.js';
 import { installClaudeCommand, installCodexSkill, type SkillInstallResult } from './codexSkill.js';
@@ -352,6 +354,7 @@ async function main() {
   let shortExplanation: boolean;
   let themeName: string | undefined;
   let glyphs: GlyphSetting;
+  let icons: IconSetting;
   let tipsSeen: string[];
   let codingAgent: AppOptions['codingAgent'];
   try {
@@ -362,6 +365,7 @@ async function main() {
     shortExplanation = loadViewSetting('shortExplanation', config);
     themeName = loadThemeSetting(config);
     glyphs = loadGlyphSetting(config);
+    icons = loadIconSetting(config);
     tipsSeen = loadTipsSeen(config);
     codingAgent = loadCodingAgent(config);
   } catch (error) {
@@ -413,6 +417,7 @@ async function main() {
 
   const [{ render }, { App }] = await tui;
   (await import('./tui/glyphs.js')).setGlyphs(glyphs);
+  (await import('./tui/icons.js')).setIcons(icons);
   opts = { ...opts, palette: await paletteP };
   const app = render(<App {...opts} />, { ...SCREEN_RENDER, exitOnCtrlC: true });
   await app.waitUntilExit();
