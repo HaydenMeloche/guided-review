@@ -632,7 +632,7 @@ export function ChapterScreen(props: {
 
   const askTestLine = testCodeLines[testCursor];
   const askContext = testFocus && hunk && testFile ? { ...hunk, file: testFile, header: selectedTest?.diffHunks?.[0]?.header ?? hunk.header, lines: testCodeLines } : hunk;
-  const askPanel =
+  const askPanelAt = (w: number, h: number) =>
     overlay.kind === 'ask' ? (
       <AskOverlay
         hunk={askContext}
@@ -647,11 +647,25 @@ export function ChapterScreen(props: {
         }
         agent={props.agent}
         aiOff={props.aiOff}
-        width={plan.askWidth}
-        height={askHeight}
+        width={w}
+        height={h}
         onClose={() => close()}
       />
     ) : null;
+  const askPanel = askPanelAt(plan.askWidth, askHeight);
+  const threadAt = (w: number, h: number) => (
+    <ThreadView
+      threads={cursorThreads}
+      width={w}
+      height={h}
+      mentions={mentions}
+      startReply={overlay.kind === 'reply'}
+      onReply={props.replyToThread}
+      onReact={props.reactToComment}
+      onNotice={(text) => setFlash(text, 'info')}
+      onClose={() => close()}
+    />
+  );
 
   const testPane =
     plan.testPaneShown && hunk ? (
@@ -724,23 +738,7 @@ export function ChapterScreen(props: {
                   <SourcePane
                     inline={
                       slots.sourceInline === 'thread'
-                        ? {
-                            afterIdx: cursor,
-                            node: (
-                              <ThreadView
-                                threads={cursorThreads}
-                                width={srcWidth - 1}
-                                height={plan.threadHeight}
-                                mentions={mentions}
-                                startReply={overlay.kind === 'reply'}
-                                onReply={props.replyToThread}
-                                onReact={props.reactToComment}
-                                onNotice={(text) => setFlash(text, 'info')}
-                                onClose={() => close()}
-                              />
-                            ),
-                            height: plan.threadHeight,
-                          }
+                        ? { afterIdx: cursor, node: threadAt(srcWidth - 1, plan.threadHeight), height: plan.threadHeight }
                         : slots.sourceInline === 'comment'
                           ? { afterIdx: sel[1], ...inlineComposer(srcWidth - 1, bodyHeight) }
                           : slots.sourceInline === 'ask'
@@ -780,10 +778,18 @@ export function ChapterScreen(props: {
                     borderColor="gray"
                     paddingLeft={1}
                   >
-                    <Text bold dimColor={!testFocus} color={testFocus ? 'cyan' : undefined}>
-                      Tests
-                    </Text>
-                    {testPane}
+                    {slots.side === 'thread' ? (
+                      threadAt(plan.testWidth - 2, bodyHeight)
+                    ) : slots.side === 'ask' ? (
+                      askPanelAt(plan.testWidth - 2, bodyHeight)
+                    ) : (
+                      <>
+                        <Text bold dimColor={!testFocus} color={testFocus ? 'cyan' : undefined}>
+                          Tests
+                        </Text>
+                        {testPane}
+                      </>
+                    )}
                   </Box>
                 ) : (
                   testPane

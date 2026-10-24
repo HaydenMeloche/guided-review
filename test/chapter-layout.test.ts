@@ -58,7 +58,7 @@ describe('chapterLayout heights', () => {
     const p = layout({});
     expect(p.explainLines).toEqual([]);
     expect(p.bodyHeight).toBe(34);
-    expect(p.threadHeight).toBe(23);
+    expect(p.threadHeight).toBe(17);
     expect(p.askHeight).toBe(14);
   });
 
@@ -119,6 +119,14 @@ describe('chapterLayout panes', () => {
 describe('overlaySlots', () => {
   const none: SlotInput = { overlay: 'none', testFocus: false, threadsHere: false, draftHere: false, commentOpen: false, lineComment: false, checklist: false };
   const slots = (o: Partial<SlotInput>, plan = layout({})) => overlaySlots(plan, { ...none, ...o });
+
+  it('opens a thread or the ask panel in the right column when tests sit beside the code', () => {
+    const beside = layout({ width: 130 });
+    expect(slots({ overlay: 'thread', threadsHere: true }, beside)).toMatchObject({ side: 'thread', sourceInline: undefined, shown: true });
+    expect(slots({ overlay: 'ask' }, beside)).toMatchObject({ side: 'ask', sourceInline: undefined });
+    // Stacked, they open under the line as before.
+    expect(slots({ overlay: 'thread', threadsHere: true })).toMatchObject({ side: undefined, sourceInline: 'thread' });
+  });
 
   it('shows nothing with no overlay', () => {
     expect(slots({})).toMatchObject({ popup: undefined, sourceInline: undefined, testInline: undefined, shown: false });

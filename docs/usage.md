@@ -76,7 +76,7 @@ The key bar shows the keys you use constantly. Settings you flip once in a revie
 | `v` | Start or end a line-range selection. |
 | `N` / `P`, `]` / `[` | Next or previous chapter, including optional chapters. `N` and `P` are plain keys on layouts where `[` and `]` need AltGr. |
 | `c` / `C` | Draft a comment on the selected line or range, or on the whole chapter. On a line that holds your unposted draft, `c` edits it; `Ctrl+X` in the comment deletes it (pressed twice). |
-| `e` | Open review threads on the selected line inline. Scroll with `j`/`k` or `J`/`K`; use `Tab` to select a comment and `+` to add or remove a reaction; press `Esc` to close. |
+| `e` | Open review threads on the selected line: in the right column when tests sit beside the code, otherwise under the line, taking at most half the code's height. The ask panel (`a`) opens the same way. Scroll with `j`/`k` or `J`/`K`; use `Tab` to select a comment and `+` to add or remove a reaction; press `Esc` to close. |
 | `y` | Reply to a review thread on the selected line in the inline panel. `Enter` asks before posting to GitHub (`y` or `Enter` posts, any other key goes back to the reply), then says where the reply landed. `Ctrl+J` adds a line. |
 | `E` / `X` | Old keys for editing and deleting your draft, kept for one release: they still work and say where they moved (`c`, and `Ctrl+X` in the comment). The submit screen edits and deletes every draft with `e` / `x`. |
 | `a` | Ask the agent about the selection in a panel below the selected line. Questions form a thread: press `Enter` again to ask a follow-up, and `↑`/`↓` to scroll. Press `Esc` to return to review. Off, and left out of the key bar, with no AI model or `--no-agent`. |

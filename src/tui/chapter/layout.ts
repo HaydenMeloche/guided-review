@@ -99,7 +99,8 @@ export function chapterLayout(i: LayoutInput) {
     explainAll,
     explainMaxScroll: explainAll.length > cap ? explainMaxScroll : 0,
     bodyHeight,
-    threadHeight: Math.min(Math.max(6, bodyHeight - 2), Math.max(8, Math.floor(bodyHeight * 0.7))),
+    // Inline under the line, a thread takes at most half the body, so the code stays in view.
+    threadHeight: Math.min(Math.max(6, bodyHeight - 2), Math.max(8, Math.floor(bodyHeight * 0.5))),
     askHeight: Math.min(14, Math.max(5, bodyHeight - 2)),
     askWidth: i.testFocus ? testInlineWidth : hunk ? srcWidth - 1 : mainWidth,
     collapsed,
@@ -128,24 +129,29 @@ export function overlaySlots(plan: ChapterLayout, o: SlotInput) {
   const { overlay } = o;
   const popup = overlay === 'diagram' || overlay === 'move' || (overlay === 'checklist' && o.checklist) || (overlay === 'comment' && o.commentOpen && !o.lineComment) ? overlay : undefined;
   const lineComment = overlay === 'comment' && o.lineComment;
-  const sourceInline = !plan.sourcePaneShown
-    ? undefined
-    : (overlay === 'thread' || overlay === 'reply') && o.threadsHere
-      ? 'thread'
-      : lineComment && !o.testFocus
-        ? 'comment'
-        : overlay === 'ask' && !o.testFocus
-          ? 'ask'
-          : undefined;
+  // With tests beside the code, a thread or the ask panel takes the right column, in place of the
+  // tests, so the code it is about stays in view.
+  const side = plan.sideBySide && !o.testFocus ? ((overlay === 'thread' || overlay === 'reply') && o.threadsHere ? 'thread' : overlay === 'ask' ? 'ask' : undefined) : undefined;
+  const sourceInline =
+    !plan.sourcePaneShown || side
+      ? undefined
+      : (overlay === 'thread' || overlay === 'reply') && o.threadsHere
+        ? 'thread'
+        : lineComment && !o.testFocus
+          ? 'comment'
+          : overlay === 'ask' && !o.testFocus
+            ? 'ask'
+            : undefined;
   const testInline = !plan.testPaneShown ? undefined : lineComment && o.testFocus ? 'comment' : overlay === 'ask' && o.testFocus ? 'ask' : undefined;
   const collapsedAsk = plan.collapsed && overlay === 'ask';
   const confirmDelete = overlay === 'delete' && o.draftHere;
   return {
     popup,
     sourceInline,
+    side,
     testInline,
     collapsedAsk,
     confirmDelete,
-    shown: overlay === 'help' || overlay === 'palette' || overlay === 'end' || overlay === 'reader' || confirmDelete || !!popup || collapsedAsk || !!sourceInline || !!testInline,
+    shown: overlay === 'help' || overlay === 'palette' || overlay === 'end' || overlay === 'reader' || confirmDelete || !!popup || collapsedAsk || !!sourceInline || !!side || !!testInline,
   } as const;
 }
