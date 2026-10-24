@@ -21,7 +21,7 @@ The tour is built from static analysis of the diff and the checkout. A model, if
 **The tour**
 
 - **A tour instead of a file list.** Chapters follow entry points such as routes, commands, and handlers through the changed code, in a recommended reading order. Sort by risk, size, or file instead when you prefer.
-- **Changes explained by what they mean.** Migrations, API contracts, dependency and runtime upgrades, lockfiles, infrastructure, and CI each get [their own chapter](docs/usage.md#change-aware-chapters) that covers impact: what a migration locks or drops, which API changes break clients, what a workflow can now do.
+- **Changes explained by what they mean.** Migrations, API contracts, dependency and runtime upgrades (with their lockfiles), infrastructure, and CI each get [their own chapter](docs/usage.md#change-aware-chapters) that covers impact: what a migration locks or drops, which API changes break clients, what a workflow can now do.
 - **Tests beside the code.** Linked test cases appear next to the hunks they exercise, and [possible test gaps](docs/usage.md#tests-risk-and-review-prompts) are flagged.
 - **Ask questions.** Ask about a selected line, a chapter, or the whole PR without leaving the review. The model can read the rest of the repository, and follow-ups keep the thread: "what calls this?", "why a mutex here?", "where is this tested?".
 

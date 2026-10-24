@@ -154,10 +154,23 @@ const CHAPTER_BUDGET = 60_000;
 // chapters get every hunk narrated instead of dropping the tail.
 export function chapterBatches(tour: Tour, chapter: Chapter): string[][] {
   // Lockfile hunks are not rendered, only their parsed changes, so one call covers them all.
-  if (chapter.kind === 'lockfiles') return chapter.hunkIds.length ? [chapter.hunkIds.filter((id) => tour.hunks[id])] : [];
+  if (isLockfileBatch(chapter)) return chapter.hunkIds.length ? [chapter.hunkIds.filter((id) => tour.hunks[id])] : [];
+  const folded = new Set(chapter.folded);
+  const locks = chapter.hunkIds.filter((id) => folded.has(id) && tour.hunks[id]);
+  return [...renderedBatches(tour, folded.size ? chapter.hunkIds.filter((id) => !folded.has(id)) : chapter.hunkIds), ...(locks.length ? [locks] : [])];
+}
+
+// Lockfile hunks only: an old tour's lockfiles chapter, or the folded batch of the dependencies chapter.
+function isLockfileBatch(chapter: Chapter): boolean {
+  if (chapter.kind === 'lockfiles') return true;
+  const folded = new Set(chapter.folded);
+  return folded.size > 0 && chapter.hunkIds.every((id) => folded.has(id));
+}
+
+function renderedBatches(tour: Tour, ids: string[]): string[][] {
   const batches: string[][] = [[]];
   let size = 0;
-  for (const id of chapter.hunkIds) {
+  for (const id of ids) {
     const h = tour.hunks[id];
     if (!h) continue;
     const n = renderHunk(h).length;
@@ -193,7 +206,7 @@ function isMinorHunk(h: Hunk, chapter: Pick<Chapter, 'kind'> & { size: number })
 export function minorHunkIds(tour: Tour, chapter: Chapter): string[] {
   // Lockfile hunks are read as one summary of the parsed package changes. In the other special
   // chapters a one-line edit (a version bump, a dropped column) can be the whole point.
-  if (chapter.kind === 'lockfiles') return chapter.hunkIds.filter((id) => tour.hunks[id]);
+  if (isLockfileBatch(chapter)) return chapter.hunkIds.filter((id) => tour.hunks[id]);
   if (isSpecialKind(chapter.kind)) return [];
   const size = tour.chapters.find((c) => c.id === chapter.id)?.hunkIds.length ?? chapter.hunkIds.length;
   const ids = chapter.hunkIds.filter((id) => tour.hunks[id] && isMinorHunk(tour.hunks[id], { kind: chapter.kind, size }));
@@ -265,10 +278,10 @@ function lockfileSection(tour: Tour, chapter: Chapter): string {
 }
 
 function lockfilePrompt(tour: Tour, chapter: Chapter): string {
-  const manifests = tour.chapters.some((c) => c.kind === 'dependencies');
+  const manifests = tour.chapters.some((c) => c.kind === 'dependencies' && c.hunkIds.some((id) => !c.folded?.includes(id)));
   return `PR #${tour.pr} — intent: ${tour.intent || '(unknown)'}
 
-Chapter ${chapter.id} (lockfiles): "${chapter.title}". The lockfile hunks are not shown; these are the package changes parsed from them.${manifests ? ' The PR also changes dependency manifests, narrated in another chapter.' : ' No dependency manifest changed, so these are indirect (transitive) changes, e.g. from a lockfile refresh or an audit fix.'}
+Chapter ${chapter.id} (lockfiles): "${chapter.title}". The lockfile hunks are not shown; these are the package changes parsed from them.${manifests ? ' The PR also changes dependency manifests, narrated separately.' : ' No dependency manifest changed, so these are indirect (transitive) changes, e.g. from a lockfile refresh or an audit fix.'}
 
 ${lockfileSection(tour, chapter)}
 
@@ -278,7 +291,7 @@ Return:
 }
 
 export function chapterPrompt(tour: Tour, chapter: Chapter): string {
-  if (chapter.kind === 'lockfiles') return lockfilePrompt(tour, chapter);
+  if (isLockfileBatch(chapter)) return lockfilePrompt(tour, chapter);
   const minor = new Set(minorHunkIds(tour, chapter));
   const hunks = chapter.hunkIds.map((id) => tour.hunks[id]).filter(Boolean);
   let budget = CHAPTER_BUDGET;
@@ -305,7 +318,7 @@ export function chapterPrompt(tour: Tour, chapter: Chapter): string {
   const checklist = chapter.checklist?.length
     ? `\n\nTeam checklist for this chapter. Pre-check each item against the code (read files if needed): pass, fail, or unknown when you cannot tell; give a one-line reason citing file:line.\n${chapter.checklist.map((c) => `- ${c.id}: ${c.item}`).join('\n')}`
     : '';
-  const special = isSpecialKind(chapter.kind) ? SPECIAL_PROMPTS[chapter.kind] : undefined;
+  const special = isSpecialKind(chapter.kind) && chapter.kind !== 'lockfiles' ? SPECIAL_PROMPTS[chapter.kind] : undefined;
   const lockfiles = chapter.kind === 'dependencies' ? tour.files.filter((f) => isLockfile(f.path) && f.summary).map((f) => `- ${f.path}: ${f.summary}`) : [];
   const specialContext = special ? `\n${special.context}${lockfiles.length ? ` Lockfile changes in this PR:\n${lockfiles.join('\n')}` : ''}` : '';
   const hunksAsk = special

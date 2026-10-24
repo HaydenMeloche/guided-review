@@ -3,7 +3,7 @@ import { useInput } from 'ink';
 import { Box, Text } from './themed.js';
 import type { Chapter, ChapterOrder, Draft, DraftAnchor, ExistingThread, Hunk, ReactionContent, ReadState, ThreadComment, Tour } from '../types.js';
 import { ChecklistPanel, Reader } from './Panels.js';
-import { firstHunk, nextPos, pad, prevPos, progress, stateOf, type States } from './nav.js';
+import { firstHunk, nextPos, opensOnSummary, pad, prevPos, progress, stateOf, summaryHunkIds, type States } from './nav.js';
 import { DiagramView } from './DiagramView.js';
 import { CommentEditor, type SetComposer } from './CommentEditor.js';
 import { INLINE_ROWS, inlineComposerSlot } from './AiSuggestion.js';
@@ -147,7 +147,8 @@ export function ChapterScreen(props: {
   const { tests: relevantTests, selected: selectedTest, file: testFile, lines: testCodeLines } = linked;
 
   const hasLinkedTests = linked.any;
-  const collapsedView = !!chapter && chapter.collapsed && hi < 0;
+  const collapsedView = opensOnSummary(chapter) && hi < 0;
+  const summaryIds = useMemo(() => (chapter ? summaryHunkIds(chapter) : []), [chapter]);
   const filesByPath = useMemo(() => new Map(tour.files.map((f) => [f.path, f])), [tour.files]);
   const plan = chapterLayout({
     width,
@@ -156,7 +157,7 @@ export function ChapterScreen(props: {
     hunkLines: hunk?.lines,
     testLines: testCodeLines,
     linkedTests: hasLinkedTests,
-    collapsedHunks: collapsedView ? chapter.hunkIds.length : undefined,
+    collapsedHunks: collapsedView ? summaryIds.length : undefined,
     testFocus,
     split: wantSplit,
     hideTests,
@@ -302,9 +303,9 @@ export function ChapterScreen(props: {
     },
     askTest: () => show('ask'),
     // A collapsed chapter's summary
-    summaryDown: () => setSummarySel((s) => Math.min(chapter.hunkIds.length - 1, s + 1)),
+    summaryDown: () => setSummarySel((s) => Math.min(summaryIds.length - 1, s + 1)),
     summaryUp: () => setSummarySel((s) => Math.max(0, s - 1)),
-    expand: () => void (chapter.hunkIds.length ? props.setPos(ci, summarySel) : undefined),
+    expand: () => void (summaryIds[summarySel] ? props.setPos(ci, chapter.hunkIds.indexOf(summaryIds[summarySel])) : undefined),
     skipChapter: () => {
       const ids = chapter.hunkIds;
       for (const id of ids) if (stateOf(states, tour.hunks[id]) === 'unread') props.setState(tour.hunks[id], 'skipped');
@@ -316,6 +317,12 @@ export function ChapterScreen(props: {
       if (!collapsedView && hunk && chapter) {
         const p = progress(tour, { ...states, ...Object.fromEntries(hunkKeys(hunk).map((k) => [k, 'read'])) }, chapter.hunkIds);
         setFlash(`${G.read} hunk ${hi + 1} read · ${p.read + p.skipped}/${p.total} in this chapter`, 'info');
+      }
+      // Folded hunks are read as their summary: n on it marks them read.
+      if (collapsedView && chapter?.folded?.length) {
+        const unread = summaryIds.filter((id) => tour.hunks[id] && stateOf(states, tour.hunks[id]) === 'unread');
+        for (const id of unread) props.setState(tour.hunks[id], 'read');
+        if (unread.length) setFlash(`${G.read} lockfile summary read · ${plural(unread.length, 'hunk')}`, 'info');
       }
       next(collapsedView ? undefined : 'read');
     },
@@ -709,7 +716,7 @@ export function ChapterScreen(props: {
                 <CollapsedSummary
                   hunks={tour.hunks}
                   files={filesByPath}
-                  chapter={chapter}
+                  ids={summaryIds}
                   states={states}
                   sel={summarySel}
                   width={mainWidth}

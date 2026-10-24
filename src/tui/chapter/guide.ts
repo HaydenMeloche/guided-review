@@ -1,7 +1,7 @@
 import type { Chapter, DiffFile, Hunk, Tour } from '../../types.js';
 import { line, renderMarkdown, restyle, type MdLine } from '../markdown.js';
 import { isSpecialKind } from '../../analysis/special.js';
-import { truncate, wrap } from '../nav.js';
+import { summaryHunkIds, truncate, wrap } from '../nav.js';
 import { plural } from '../plural.js';
 import { safe } from './text.js';
 
@@ -61,8 +61,12 @@ export function explanation(
 ): GuideLine[] {
   const { tour, chapter, hunk, hi, collapsed } = o;
   const configFile = (chapter.kind === 'config' || isSpecialKind(chapter.kind)) && hunk ? o.files.get(hunk.file) : undefined;
-  // A narrated collapsed chapter (lockfiles) shares one narration across its hunks: show it above the file list.
-  const sharedNarration = collapsed ? chapter.hunkIds.map((id) => tour.hunks[id]?.narration).find(Boolean) : undefined;
+  // Lockfile hunks share one narration: on the summary page, show it above the file list.
+  const sharedNarration = collapsed
+    ? summaryHunkIds(chapter)
+        .map((id) => tour.hunks[id]?.narration)
+        .find(Boolean)
+    : undefined;
   const narration = hunk?.narration ?? (collapsed ? [sharedNarration, chapter.summary].filter(Boolean).join('\n\n') : (configFile?.summary ?? configFile?.kindReason));
   const chapterNotes: string[] = [];
   if (chapter.linkedHunkIds.length && hi <= 0) chapterNotes.push(`Also uses ${plural(chapter.linkedHunkIds.length, 'hunk')} shown in an earlier chapter.`);

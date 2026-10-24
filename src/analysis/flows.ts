@@ -555,16 +555,25 @@ export function buildChapters(files: DiffFile[], hunks: Record<string, Hunk>, in
     chapters.push(ch);
   }
 
+  const summaryOf = (kind: SpecialKind) =>
+    sorted
+      .filter((f) => f.hunkIds.some((id) => special.get(id) === kind))
+      .map((f) => `${f.path}${f.summary ? `: ${f.summary}` : ''}`)
+      .join('\n');
+  const idsOf = (kind: SpecialKind) => [...special].filter(([, k]) => k === kind).map(([id]) => id);
   for (const sc of SPECIAL_CHAPTERS) {
-    const ids = [...special].filter(([, k]) => k === sc.kind).map(([id]) => id);
-    if (!ids.length) continue;
-    const ch = newChapter(nextId(), sc.kind, sc.title, ids, hunks);
-    ch.collapsed = sc.collapsed;
-    if (sc.collapsed)
-      ch.summary = sorted
-        .filter((f) => f.hunkIds.some((id) => special.get(id) === sc.kind))
-        .map((f) => `${f.path}${f.summary ? `: ${f.summary}` : ''}`)
-        .join('\n');
+    // Lockfiles are reviewed with the manifests they lock: the dependencies chapter opens on their
+    // summary, then steps through the manifest hunks. With no manifest change, the summary is all.
+    if (sc.kind === 'lockfiles') continue;
+    const ids = idsOf(sc.kind);
+    const locks = sc.kind === 'dependencies' ? idsOf('lockfiles') : [];
+    if (!ids.length && !locks.length) continue;
+    const ch = newChapter(nextId(), sc.kind, sc.title, [...ids, ...locks], hunks);
+    ch.collapsed = sc.collapsed || !ids.length;
+    if (locks.length) {
+      ch.folded = locks;
+      ch.summary = summaryOf('lockfiles');
+    } else if (sc.collapsed) ch.summary = summaryOf(sc.kind);
     chapters.push(ch);
   }
 

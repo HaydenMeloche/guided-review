@@ -127,6 +127,7 @@ export interface Chapter {
   orphanReasons: Record<string, string>; // supporting chapter: hunkId -> one-line reason
   untestedBranches: string[];
   collapsed: boolean; // low-priority kinds start collapsed to one-line summaries
+  folded?: string[]; // hunks read as one summary on the chapter's opening page (lockfiles, in the dependencies chapter); the rest follow it
   lowConfidence?: boolean; // flow edges from naming/model only
   optional?: boolean; // low-value chapter (import-only changes): not stepped into by n/p, not counted as unread
   checklist?: ChecklistItem[]; // team checklist items whose path pattern matches this chapter

@@ -95,7 +95,7 @@ describe('special chapters', () => {
     }
   });
 
-  it('orders special chapters after flows and before config, and lockfiles start collapsed', () => {
+  it('orders special chapters after flows and before config, with lockfiles folded into dependencies', () => {
     const parts = [
       one('db/migrations/001.sql', 'ALTER TABLE t ADD c int;', { kind: 'logic' }),
       one('.github/workflows/ci.yml', 'permissions: write-all'),
@@ -108,8 +108,31 @@ describe('special chapters', () => {
     const files = parts.map((p) => p.f);
     const hunks = Object.fromEntries(parts.map((p) => [p.h.id, p.h]));
     const { chapters } = buildChapters(files, hunks, buildSymbolIndex(files, hunks, ctx));
-    expect(chapters.map((c) => c.kind)).toEqual(['migrations', 'api', 'dependencies', 'lockfiles', 'infra', 'ci', 'config']);
-    expect(chapters.filter((c) => c.collapsed).map((c) => c.kind)).toEqual(['lockfiles']);
+    expect(chapters.map((c) => c.kind)).toEqual(['migrations', 'api', 'dependencies', 'infra', 'ci', 'config']);
+    expect(chapters.filter((c) => c.collapsed)).toEqual([]);
+    const deps = chapters.find((c) => c.kind === 'dependencies')!;
+    const [manifest, lock] = [parts[2].h.id, parts[3].h.id];
+    expect(deps.hunkIds).toEqual([manifest, lock]);
+    expect(deps.folded).toEqual([lock]);
+    expect(deps.summary).toContain('pnpm-lock.yaml');
+  });
+
+  it('narrates the folded lockfile hunks apart from the manifest, as one summary', () => {
+    const manifest = hunk('h_pkg', 'package.json', edit('    "zod": "^3.22.0",', '    "zod": "^4.0.0",'));
+    const lock = hunk('h_lock', 'pnpm-lock.yaml', [
+      { kind: 'del', text: '  zod@3.22.0:', oldLine: 10 },
+      { kind: 'add', text: '  zod@4.0.0:', newLine: 10 },
+    ]);
+    const t = tour([manifest, lock], [{ kind: 'dependencies', hunkIds: [manifest.id, lock.id], folded: [lock.id] }]);
+    expect(chapterBatches(t, t.chapters[0])).toEqual([[manifest.id], [lock.id]]);
+    const manifestPart = { ...t.chapters[0], hunkIds: [manifest.id] };
+    const lockPart = { ...t.chapters[0], hunkIds: [lock.id] };
+    expect(minorHunkIds(t, manifestPart)).toEqual([]);
+    expect(chapterPrompt(t, manifestPart)).toContain('end of life');
+    expect(minorHunkIds(t, lockPart)).toEqual([lock.id]);
+    const p = chapterPrompt(t, lockPart);
+    expect(p).toContain('Major version changes (1): zod 3.22.0 → 4.0.0');
+    expect(p).toContain('narrated separately');
   });
 
   it('asks each special chapter about meaning rather than the edit, with no minor summary', () => {

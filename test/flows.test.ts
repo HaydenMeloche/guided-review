@@ -47,9 +47,12 @@ describe('buildChapters', () => {
   it('pairs tests and sinks low-priority kinds in order', () => {
     expect(chapters.some((c) => c.kind === 'tests')).toBe(false);
     const kinds = chapters.map((c) => c.kind);
-    expect(kinds).toEqual(['flow', 'supporting', 'lockfiles', 'config']);
+    expect(kinds).toEqual(['flow', 'supporting', 'dependencies', 'config']);
     expect(chapters.find((c) => c.kind === 'config')!.collapsed).toBe(false);
-    expect(chapters.find((c) => c.kind === 'lockfiles')!.collapsed).toBe(true);
+    // Only a lockfile changed: the dependencies chapter is its summary.
+    const deps = chapters.find((c) => c.kind === 'dependencies')!;
+    expect(deps.collapsed).toBe(true);
+    expect(deps.folded).toEqual(deps.hunkIds);
     expect(chapters.map((c) => c.id)).toEqual(['c1', 'c2', 'c3', 'c4']);
   });
 

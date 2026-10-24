@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Text, useSelected } from '../themed.js';
 import type { Chapter, ChapterOrder, DiffFile, Draft, Hunk, Tour } from '../../types.js';
-import { changedLineCount, chapterState, meter, ORDER_LABEL, pad, progress, riskMark, stateMark, stateOf, truncate, type States } from '../nav.js';
+import { changedLineCount, chapterState, meter, ORDER_LABEL, pad, progress, riskMark, stateMark, stateOf, summaryHunkIds, truncate, type States } from '../nav.js';
 import { safe } from './text.js';
 import { ROLES } from '../theme.js';
 import { TONE_COLOR, type Flash } from '../flash.js';
@@ -151,6 +151,10 @@ export const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: C
             </>
           ) : chapter.collapsed ? (
             <Text dimColor>{` · ${plural(chapter.hunkIds.length, 'hunk')}, collapsed${chapter.optional ? ' · optional: not counted toward progress' : ''}`}</Text>
+          ) : chapter.folded?.length ? (
+            <Text
+              dimColor
+            >{` · summary of ${plural(summaryHunkIds(chapter).length, 'lockfile hunk')} · n for the other ${plural(chapter.hunkIds.length - summaryHunkIds(chapter).length, 'hunk')}`}</Text>
           ) : null}
           {props.unchanged ? <Text dimColor> · {props.unchanged} unchanged hidden</Text> : null}
           {chapter.entryPoint ? <Text dimColor> · entry {safe(chapter.entryPoint)}</Text> : null}
@@ -172,16 +176,16 @@ export const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: C
 export const CollapsedSummary = React.memo(function CollapsedSummary(props: {
   hunks: Tour['hunks'];
   files: Map<string, DiffFile>;
-  chapter: Chapter;
+  ids: string[]; // summaryHunkIds of the chapter
   states: States;
   sel: number;
   width: number;
   height: number;
 }) {
-  const { hunks, files, chapter, states, width } = props;
-  const total = chapter.hunkIds.length;
+  const { hunks, files, ids, states, width } = props;
+  const total = ids.length;
   const top = Math.max(0, Math.min(props.sel - Math.floor(props.height / 2), total - props.height));
-  const rows = chapter.hunkIds.slice(top, top + Math.max(0, props.height)).map((id, k) => {
+  const rows = ids.slice(top, top + Math.max(0, props.height)).map((id, k) => {
     const i = top + k;
     const h = hunks[id];
     const f = h ? files.get(h.file) : undefined;

@@ -24,7 +24,7 @@ export function positionAfterOrderChange(previous: Chapter[], position: { ci: nu
     next.findIndex((c) => (currentHunk && c.hunkIds.includes(currentHunk)) || c.id === currentChapter?.id),
   );
   const chapter = next[ci];
-  const hi = currentHunk && chapter?.hunkIds.includes(currentHunk) ? chapter.hunkIds.indexOf(currentHunk) : chapter?.collapsed ? -1 : 0;
+  const hi = currentHunk && chapter?.hunkIds.includes(currentHunk) ? chapter.hunkIds.indexOf(currentHunk) : opensOnSummary(chapter) ? -1 : 0;
   return { ci, hi };
 }
 
@@ -148,25 +148,41 @@ export function wrap(text: string, width: number): string[] {
   return out;
 }
 
-// Positions are a chapter and a hunk in it; hunk -1 is a collapsed chapter's summary.
-export const firstHunk = (chapters: Chapter[], ci: number) => (chapters[ci]?.collapsed ? -1 : 0);
+// Positions are a chapter and a hunk in it; hunk -1 is the summary page a chapter opens on when
+// it is collapsed or has folded hunks.
+export const opensOnSummary = (c: Chapter | undefined): boolean => !!c && (c.collapsed || !!c.folded?.length);
+export const firstHunk = (chapters: Chapter[], ci: number) => (opensOnSummary(chapters[ci]) ? -1 : 0);
+
+// The hunks a chapter's summary page lists: its folded ones, or all of a collapsed chapter's.
+export function summaryHunkIds(c: Chapter): string[] {
+  if (!c.folded?.length) return c.hunkIds;
+  const folded = new Set(c.folded);
+  return c.hunkIds.filter((id) => folded.has(id));
+}
+
+// n and p step through the folded hunks, opened from the summary, apart from the rest.
+const sameSide = (c: Chapter, a: number, b: number) => !c.folded?.length || c.folded.includes(c.hunkIds[a]) === c.folded.includes(c.hunkIds[b]);
 
 // Where n goes: the next hunk, else the start of the next chapter; undefined at the end of the
-// tour. n and p never step into optional chapters (import-only changes); ] and [ and the chapter
-// list still reach them.
+// tour. From a summary page, a chapter with folded hunks goes on to the others. n and p never
+// step into optional chapters (import-only changes); ] and [ and the chapter list still reach them.
 export function nextPos(chapters: Chapter[], ci: number, hi: number): { ci: number; hi: number } | undefined {
   const chapter = chapters[ci];
-  if (!(chapter.collapsed && hi < 0) && hi < chapter.hunkIds.length - 1) return { ci, hi: hi + 1 };
+  if (hi < 0 && !chapter.collapsed) {
+    const first = chapter.hunkIds.findIndex((id) => !chapter.folded?.includes(id));
+    if (first >= 0) return { ci, hi: first };
+  } else if (hi >= 0 && hi < chapter.hunkIds.length - 1 && sameSide(chapter, hi, hi + 1)) return { ci, hi: hi + 1 };
   const nc = chapters.findIndex((c, i) => i > ci && !c.optional);
   return nc >= 0 ? { ci: nc, hi: firstHunk(chapters, nc) } : undefined;
 }
 
-// Where p goes: the previous hunk, a collapsed chapter's summary, else the end of the previous chapter.
+// Where p goes: the previous hunk, the chapter's summary page, else the end of the previous chapter.
 export function prevPos(chapters: Chapter[], ci: number, hi: number): { ci: number; hi: number } | undefined {
-  if (hi > 0) return { ci, hi: hi - 1 };
-  if (hi === 0 && chapters[ci]?.collapsed) return { ci, hi: -1 };
+  const chapter = chapters[ci];
+  if (hi > 0 && sameSide(chapter, hi - 1, hi)) return { ci, hi: hi - 1 };
+  if (hi >= 0 && opensOnSummary(chapter)) return { ci, hi: -1 };
   const pci = chapters.findLastIndex((c, i) => i < ci && !c.optional);
   if (pci < 0) return undefined;
   const pc = chapters[pci];
-  return { ci: pci, hi: pc.collapsed ? -1 : pc.hunkIds.length - 1 };
+  return { ci: pci, hi: pc.collapsed ? -1 : pc.hunkIds.findLastIndex((id) => !pc.folded?.includes(id)) };
 }

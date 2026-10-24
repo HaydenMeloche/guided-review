@@ -13,7 +13,7 @@ import { runPipeline } from '../pipeline.js';
 import type { AgentRole, AgentRouting } from '../agent/types.js';
 import type { ViewSetting } from '../config.js';
 import { fileOrderChapters } from '../analysis/flows.js';
-import { applyMoves, ORDER_SEQUENCE, positionAfterOrderChange, sortChapters, stateOf, type States } from './nav.js';
+import { applyMoves, firstHunk, ORDER_SEQUENCE, positionAfterOrderChange, sortChapters, stateOf, type States } from './nav.js';
 import { hunkKeys } from '../review/hunkState.js';
 import { ChapterScreen, type Services } from './ChapterScreen.js';
 import { BriefingScreen } from './BriefingScreen.js';
@@ -563,14 +563,14 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const resume = (ci?: number) => {
     if (!tour) return;
     if (ci !== undefined) {
-      setPos(ci, chapters[ci]?.collapsed ? -1 : 0);
+      setPos(ci, firstHunk(chapters, ci));
       return setPhase('chapter');
     }
     const saved = store.getPosition(tour.repo, tour.pr);
     const sc = saved ? chapters.findIndex((c) => c.id === saved.chapterId) : -1;
     if (saved && sc >= 0) {
       const hi = saved.hunkId ? chapters[sc].hunkIds.indexOf(saved.hunkId) : -1;
-      setPos(sc, hi >= 0 ? hi : chapters[sc].collapsed ? -1 : 0);
+      setPos(sc, hi >= 0 ? hi : firstHunk(chapters, sc));
     } else {
       // First unread hunk in reading order.
       let found = false;
@@ -578,11 +578,11 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         if (chapters[c].optional) continue;
         const i = chapters[c].hunkIds.findIndex((id) => tour.hunks[id] && !tour.hunks[id].importOnly && stateOf(states, tour.hunks[id]) === 'unread');
         if (i >= 0) {
-          setPos(c, chapters[c].collapsed ? -1 : i);
+          setPos(c, chapters[c].collapsed || chapters[c].folded?.includes(chapters[c].hunkIds[i]) ? -1 : i);
           found = true;
         }
       }
-      if (!found) setPos(0, chapters[0]?.collapsed ? -1 : 0);
+      if (!found) setPos(0, firstHunk(chapters, 0));
     }
     setPhase('chapter');
   };

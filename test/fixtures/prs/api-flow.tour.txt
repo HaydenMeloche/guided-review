@@ -24,7 +24,7 @@ files:
    src/routes/orders.ts  @@ -1,8 +1,13 @@  +6 -1 · risk 3 · partial
      test test/orders.test.ts › refundOrder > refuses an order past the refund window (name-match)
 
-3. Lockfile changes  [lockfiles · collapsed]
+3. Dependencies and runtimes  [dependencies · collapsed]
    package-lock.json  @@ -3,6 +3,6 @@  +1 -1 · risk 0 · n/a
 
 4. Config, infra and docs  [config]

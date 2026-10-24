@@ -6,7 +6,8 @@ import type { ChapterKind, DiffFile, Hunk } from '../types.js';
 // effect of a migration, what an upgrade brings, whether an API change breaks clients.
 export type SpecialKind = Extract<ChapterKind, 'migrations' | 'api' | 'dependencies' | 'lockfiles' | 'infra' | 'ci'>;
 
-// In tour order. Lockfiles start collapsed: they can hold thousands of hunks, read as one summary.
+// In tour order. Lockfiles can hold thousands of hunks, read as one summary: they fold into the
+// dependencies chapter's opening page (see buildChapters), or open collapsed on their own in old tours.
 export const SPECIAL_CHAPTERS: { kind: SpecialKind; title: string; collapsed: boolean }[] = [
   { kind: 'migrations', title: 'Database migrations', collapsed: false },
   { kind: 'api', title: 'API contracts', collapsed: false },
