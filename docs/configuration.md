@@ -81,7 +81,7 @@ Pick a theme in either of these places. Both show the list beside a sample of th
 
 In the list, `j`/`k` (or the arrow keys) move and preview, and `Enter` chooses. Press `/` or `i` to search: typing filters the list by name, and `light` or `dark` keeps only those themes. Every word you type must match, so `git light` finds GitHub Light. While searching, `Esc` stops the search; otherwise it cancels.
 
-Without a config file, a theme chosen with `L` lasts until you quit. Themes need a terminal with 24-bit color for the best match; on other terminals the colors are approximated.
+Without a config file, a theme chosen with `L` lasts until you quit. Themes need a terminal with 24-bit color for the best match; on other terminals the colors are approximated, backgrounds use 256-color shades chosen to read, and the picker says so. With your terminal's colors, gr asks the terminal for its background, so diff tints and popups are light on a light terminal. `NO_COLOR` turns colors off. See [Terminals](terminals.md).
 
 ## Config file
 

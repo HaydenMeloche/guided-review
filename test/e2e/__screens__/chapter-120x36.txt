@@ -7,8 +7,8 @@
 
  ‹dim›   1    1 │ ‹/›  ‹c73›import ‹/›‹c145›{‹/›‹c73› ‹/›quote‹c145›,‹/›‹c73› type ‹/›LineItem‹c73› ‹/›‹c145›}‹/›‹c73› from ‹/›‹c222›'./pricing'‹/›‹c145›;‹/›
  ‹dim›   2    2 │ ‹/›
-‹cyan›▶‹/›‹dim›   3    3 │ ‹/›‹green›+ ‹/›‹c73›export‹/› ‹c73›function‹/› ‹c217›createOrder‹/›‹c145›(‹/›‹c183›items‹/›‹c73›:‹/› ‹c152›LineItem‹/›[]‹c145,bg:c65›,‹/›‹bg:c65› ‹/›‹c183,bg:c65›discountCode‹/›‹c73,bg:c65›?:‹/›‹bg:c65› ‹/›‹c152,bg:c65›string‹/›‹c145›)‹/› ‹c145›{‹/›
- ‹dim›   4    4 │ ‹/›‹green›+ ‹/›  ‹c73›const‹/› price ‹c73›=‹/› ‹c217›quote‹/›(items‹c145,bg:c65›,‹/›‹bg:c65› discountCode‹/›)‹c145›;‹/›
+‹cyan›▶‹/›‹dim›   3    3 │ ‹/›‹green›+ ‹/›‹c73›export‹/› ‹c73›function‹/› ‹c217›createOrder‹/›‹c145›(‹/›‹c183›items‹/›‹c73›:‹/› ‹c152›LineItem‹/›[]‹c145,bg:c28›,‹/›‹bg:c28› ‹/›‹c183,bg:c28›discountCode‹/›‹c73,bg:c28›?:‹/›‹bg:c28› ‹/›‹c152,bg:c28›string‹/›‹c145›)‹/› ‹c145›{‹/›
+ ‹dim›   4    4 │ ‹/›‹green›+ ‹/›  ‹c73›const‹/› price ‹c73›=‹/› ‹c217›quote‹/›(items‹c145,bg:c28›,‹/›‹bg:c28› discountCode‹/›)‹c145›;‹/›
  ‹dim›   5    5 │ ‹/›    ‹c73›return‹/› ‹c145›{‹/› id‹c145›:‹/› Date‹c73›.‹/›‹c217›now‹/›()‹c73›.‹/›‹c217›toString‹/›(‹c217›36‹/›)‹c145›,‹/› items‹c145›,‹/› price‹c145›,‹/› status‹c145›:‹/› ‹c222›'open'‹/› ‹c73›as‹/› ‹c73›const‹/› ‹c145›};‹/›
  ‹dim›   6    6 │ ‹/›  ‹c145›}‹/›
 

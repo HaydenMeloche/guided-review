@@ -6,6 +6,7 @@ import type { SvgColors } from '../diagram/svg.js';
 export interface Palette {
   name: string;
   type: 'dark' | 'light';
+  noColor?: boolean; // NO_COLOR: no colors or backgrounds at all, only bold, dim and inverse
   fg?: string; // default text; unset leaves the terminal's own
   muted?: string; // dimmed text, from the theme's comment color; unset falls back to the terminal's dim
   heading?: string; // section headings, from the theme's heading or keyword color
@@ -23,18 +24,45 @@ export interface Palette {
 export const ANSI_NAMES = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'gray'] as const;
 export type AnsiName = (typeof ANSI_NAMES)[number];
 
-// The default: the terminal's own colors, with rose-pine-moon for code.
+// The default: the terminal's own colors, with rose-pine-moon for code (github-light on a light
+// terminal). Its backgrounds (popups, diff tints) are derived from the terminal's background,
+// which gr asks the terminal for at startup (terminalBackground.ts); dark when it can't tell.
 export const TERMINAL_THEME = 'terminal';
 
-export const terminalPalette: Palette = {
-  name: TERMINAL_THEME,
-  type: 'dark',
-  ansi: Object.fromEntries(ANSI_NAMES.map((n) => [n, n])) as Record<AnsiName, string>,
+const DARK_TERMINAL: Pick<Palette, 'popup' | 'diffLine' | 'diffWord'> = {
   popup: '#1E1E2E',
   diffLine: { add: '#173B2A', del: '#42262C' },
   diffWord: { add: '#2B6B47', del: '#7A3442' },
-  syntax: 'rose-pine-moon',
 };
+
+// The terminal palette over a background: dark's own values, or tints mixed from the background.
+export function terminalPaletteFor(background?: { type: 'dark' | 'light'; hex?: string }, noColor = false): Palette {
+  const type = background?.type ?? 'dark';
+  const bg = background?.hex ?? (type === 'light' ? '#ffffff' : undefined);
+  const surfaces =
+    bg === undefined
+      ? DARK_TERMINAL
+      : {
+          popup: mix(bg, type === 'light' ? '#000000' : '#ffffff', type === 'light' ? 0.06 : 0.08),
+          diffLine: { add: mix(bg, FALLBACK_ANSI[type].green, 0.16), del: mix(bg, FALLBACK_ANSI[type].red, 0.16) },
+          diffWord: { add: mix(bg, FALLBACK_ANSI[type].green, 0.36), del: mix(bg, FALLBACK_ANSI[type].red, 0.36) },
+        };
+  return {
+    name: TERMINAL_THEME,
+    type,
+    ...(noColor ? { noColor } : {}),
+    ansi: Object.fromEntries(ANSI_NAMES.map((n) => [n, n])) as Record<AnsiName, string>,
+    ...surfaces,
+    syntax: type === 'light' ? 'github-light' : 'rose-pine-moon',
+  };
+}
+
+// The terminal palette in use; set once at startup, before the first frame.
+export let terminalPalette: Palette = terminalPaletteFor();
+
+export function setTerminalBackground(background: { type: 'dark' | 'light'; hex?: string } | undefined, noColor = false): void {
+  terminalPalette = terminalPaletteFor(background, noColor);
+}
 
 export interface ThemeInfo {
   id: string;
@@ -293,10 +321,53 @@ export type BorderTone = keyof typeof BORDER;
 // and text of a box the PR changes, yellow with the terminal's colors.
 export const ROLES = { heading: 'role:heading', title: 'role:title', place: 'role:place', line: 'role:line', changedBox: 'role:changed-box', changedText: 'role:changed-text' } as const;
 
+// How many colors the terminal shows. Below truecolor, each mixed background is rounded to the
+// nearest of 256 and a 16% tint becomes whatever cube color is closest, often the background
+// itself; these hand-picked cube colors read instead. Each is written as the hex that chalk's
+// rounding (each channel to the nearest fifth, grays to the 24-step ramp) turns into the code:
+// 22 and 52 for dark diff lines, 28 and 88 for their words, 194 and 224 and 157 and 217 on light.
+export type ColorDepth = 'truecolor' | '256' | '16';
+let depth: ColorDepth = 'truecolor';
+export const colorDepth = () => depth;
+export function setColorDepth(d: ColorDepth): void {
+  depth = d;
+}
+const CUBE: Record<'dark' | 'light', Partial<Record<string, string>>> = {
+  dark: {
+    'surface:line-add': '#003300',
+    'surface:line-del': '#330000',
+    'surface:word-add': '#006600',
+    'surface:word-del': '#660000',
+    'surface:popup': '#272727',
+    'surface:selection': '#464646',
+    'surface:range': '#313131',
+  },
+  light: {
+    'surface:line-add': '#ccffcc',
+    'surface:line-del': '#ffcccc',
+    'surface:word-add': '#99ff99',
+    'surface:word-del': '#ff9999',
+    'surface:popup': '#eaeaea',
+    'surface:selection': '#d6d6d6',
+    'surface:range': '#f5f5f5',
+  },
+};
+
+// The terminal's color depth from its environment, the way chalk and supports-color read it.
+export function detectColorDepth(env: NodeJS.ProcessEnv = process.env): ColorDepth {
+  if (env.FORCE_COLOR === '3' || /^(truecolor|24bit)$/i.test(env.COLORTERM ?? '')) return 'truecolor';
+  if (env.TERM_PROGRAM === 'iTerm.app' || env.TERM_PROGRAM === 'WezTerm' || env.TERM_PROGRAM === 'ghostty' || env.TERM_PROGRAM === 'vscode' || env.WT_SESSION) return 'truecolor';
+  if (/kitty|ghostty|wezterm|alacritty|foot|direct/i.test(env.TERM ?? '')) return 'truecolor';
+  if (env.TERM_PROGRAM === 'Apple_Terminal' || /256/.test(env.TERM ?? '') || env.FORCE_COLOR === '2') return '256';
+  return '16';
+}
+
 // A screen color through the palette: ANSI and surface names are remapped, anything else passes through.
 export function resolveColor(palette: Palette, color: string | undefined): string | undefined {
   if (!color) return color;
   if (Object.hasOwn(palette.ansi, color)) return palette.ansi[color as AnsiName];
+  // Only when the palette has the surface: a theme without a selection marks rows by inverting.
+  if (depth !== 'truecolor' && CUBE[palette.type][color] && (color !== SURFACES.selection || palette.selection) && (color !== SURFACES.range || palette.range)) return CUBE[palette.type][color];
   switch (color) {
     case SURFACES.popup:
       return palette.popup;

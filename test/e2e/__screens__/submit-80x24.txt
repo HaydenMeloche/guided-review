@@ -5,20 +5,20 @@
 ‹bright-black›▎ ‹/›
 ‹bright-black›▎ ‹/›‹red›○ No linked test · 2 possible untested behaviors · U: details‹/›
 
- ‹dim› ‹/›‹yellow,bg:c59›╭──────────────────────────────────────────────────────────────────────────╮‹/›
- ‹dim› ‹/›‹yellow,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b›Author preview‹/›‹bg:c59›                                                           ‹/›‹yellow,bg:c59›│‹/›
- ‹dim› ‹/›‹yellow,bg:c59›│‹/›‹bg:c59› This tour is a preview of your branch: there is no PR to post to yet.    ‹/›‹yellow,bg:c59›│‹/›‹c152,bg:c65›tr‹/›
- ‹dim› ‹/›‹yellow,bg:c59›│‹/›‹bg:c59› Flagged gaps and drafts stay local.                                      ‹/›‹yellow,bg:c59›│‹/›
- ‹dim› ‹/›‹yellow,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,dim›any key to go back‹/›‹bg:c59›                                                       ‹/›‹yellow,bg:c59›│‹/›
- ‹dim› ‹/›‹yellow,bg:c59›│‹/›‹bg:c59›                                                                          ‹/›‹yellow,bg:c59›│‹/›‹c222›op‹/›
- ‹dim› ‹/›‹yellow,bg:c59›│‹/›‹bg:c59›                                                                          ‹/›‹yellow,bg:c59›│‹/›
-‹cyan›▶‹/›‹dim› ‹/›‹yellow,bg:c59›│‹/›‹bg:c59›                                                                          ‹/›‹yellow,bg:c59›│‹/›
-  ‹yellow,bg:c59›╰──────────────────────────────────────────────────────────────────────────╯‹/›
+ ‹dim› ‹/›‹yellow,bg:c235›╭──────────────────────────────────────────────────────────────────────────╮‹/›
+ ‹dim› ‹/›‹yellow,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b›Author preview‹/›‹bg:c235›                                                           ‹/›‹yellow,bg:c235›│‹/›
+ ‹dim› ‹/›‹yellow,bg:c235›│‹/›‹bg:c235› This tour is a preview of your branch: there is no PR to post to yet.    ‹/›‹yellow,bg:c235›│‹/›‹c152,bg:c28›tr‹/›
+ ‹dim› ‹/›‹yellow,bg:c235›│‹/›‹bg:c235› Flagged gaps and drafts stay local.                                      ‹/›‹yellow,bg:c235›│‹/›
+ ‹dim› ‹/›‹yellow,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,dim›any key to go back‹/›‹bg:c235›                                                       ‹/›‹yellow,bg:c235›│‹/›
+ ‹dim› ‹/›‹yellow,bg:c235›│‹/›‹bg:c235›                                                                          ‹/›‹yellow,bg:c235›│‹/›‹c222›op‹/›
+ ‹dim› ‹/›‹yellow,bg:c235›│‹/›‹bg:c235›                                                                          ‹/›‹yellow,bg:c235›│‹/›
+‹cyan›▶‹/›‹dim› ‹/›‹yellow,bg:c235›│‹/›‹bg:c235›                                                                          ‹/›‹yellow,bg:c235›│‹/›
+  ‹yellow,bg:c235›╰──────────────────────────────────────────────────────────────────────────╯‹/›
 
 
 
 
 
-✎ ‹blue,bg:c59› question ‹/› Before tax?
+✎ ‹blue,bg:c235› question ‹/› Before tax?
  ‹cyan,b›n/p‹/› hunk   ‹cyan,b›]/[‹/› chapter   ‹dim›+8 more‹/›       ‹yellow›whitespace hidden   ‹/›‹cyan,b›esc‹/› back   ‹cyan,b›?‹/› keys
 

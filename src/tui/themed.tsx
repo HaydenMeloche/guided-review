@@ -31,6 +31,8 @@ export function Text(props: TextProps) {
   const inMuted = use(InMuted);
   // Dimmed text without its own color takes the theme's muted color instead of a faded foreground.
   const muted = props.dimColor && !props.color && palette.muted;
+  // NO_COLOR: no colors or backgrounds, only bold, dim and inverse.
+  if (palette.noColor) return <InkText {...props} color={undefined} backgroundColor={undefined} />;
   const color = muted || (resolveColor(palette, props.color) ?? (nested ? undefined : palette.fg));
   // Ink dims nested text along with its parent. A muted parent is not dimmed, so text inside it
   // with its own color (syntax spans on an expanded line) dims itself to keep that look.
@@ -44,6 +46,7 @@ export function Text(props: TextProps) {
 export function Box(props: ComponentProps<typeof InkBox>) {
   const palette = useTheme();
   const inherited = use(Surface);
+  if (palette.noColor) return <InkBox {...props} borderColor={undefined} backgroundColor={undefined} />;
   const backgroundColor = resolveColor(palette, props.backgroundColor);
   const surface = backgroundColor ?? (inherited === NO_BOX ? undefined : inherited) ?? palette.bg;
   const borderColor = resolveColor(palette, props.borderColor) ?? (props.borderStyle ? palette.fg : undefined);

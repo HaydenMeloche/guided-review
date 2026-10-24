@@ -299,6 +299,14 @@ async function main() {
   // Everything below starts the full-screen tour. Check for a terminal before
   // spending any gh or network calls on it.
   if (!process.stdin.isTTY || !process.stdout.isTTY) fail(`${NAME} is an interactive terminal app; run it in a terminal.`);
+  // How the terminal shows color, read once before any screen: its background (so the default
+  // palette's tints suit a light terminal), its color depth, and NO_COLOR.
+  const noColor = !!process.env.NO_COLOR;
+  {
+    const [{ detectBackground }, theme] = await Promise.all([import('./tui/terminalBackground.js'), import('./tui/theme.js')]);
+    theme.setColorDepth(theme.detectColorDepth());
+    theme.setTerminalBackground(await detectBackground(), noColor);
+  }
   const offer = updateCheck?.offer();
   if (offer) {
     const code = await promptForUpdate(offer);
@@ -346,7 +354,8 @@ async function main() {
   }
   // Loaded while the PR is resolved below. Only a name shiki doesn't have is the config's fault;
   // any other failure is reported as it is.
-  const name = themeName;
+  // NO_COLOR wins over a theme: the screens show no colors at all.
+  const name = noColor ? undefined : themeName;
   const paletteP = name
     ? import('./tui/theme.js').then(async ({ isTheme, loadPalette }) => {
         if (!(await isTheme(name))) fail(`unknown theme ${JSON.stringify(name)} in your config.\n\n  Run \`gr config\` to pick one.`);

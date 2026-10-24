@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useInput } from 'ink';
 import { Box, Text, useSelected, useTheme } from './themed.js';
-import { ROLES, SURFACES, type ThemeInfo } from './theme.js';
+import { ROLES, SURFACES, type ThemeInfo, colorDepth } from './theme.js';
 import { highlightDiffLines, type HunkHighlights, type SyntaxSpan } from './highlight.js';
 import { pad, riskMark, stateMark, truncate } from './nav.js';
 import { KeyBar } from './KeyBar.js';
@@ -109,6 +109,8 @@ export function ThemePicker(props: {
         ) : (
           <Text dimColor>/ to search</Text>
         )}
+        {/* Why a theme can look different here than in its screenshots. */}
+        {colorDepth() !== 'truecolor' ? <Text color="yellow">{`  ${colorDepth()} colors in this terminal: themes are approximated`}</Text> : null}
       </Text>
       <Box flexDirection="row" height={listH}>
         <Box flexDirection="column" width={listW}>
