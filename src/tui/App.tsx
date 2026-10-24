@@ -9,7 +9,7 @@ import type { Chapter, ChapterOrder, Draft, ExistingThread, Hunk, PRInfo, Reacti
 import { Store } from '../store/db.js';
 import { fetchHeadSha, fetchMergeStatus, fetchPR, fetchThreads, getMentionUsers, replyToThread, setCommentReaction, viewerLogin } from '../github/gh.js';
 import { ensureWorktree } from '../git/worktree.js';
-import { localPreview, type LocalPreview } from '../preview.js';
+import { localChanges, localPreview, type LocalPreview } from '../preview.js';
 import { runPipeline } from '../pipeline.js';
 import type { AgentRole, AgentRouting } from '../agent/types.js';
 import type { ViewSetting } from '../config.js';
@@ -200,6 +200,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   // gr preview's first load uses what the CLI read.
   const [local, setLocal] = useState<LocalPreview | undefined>(opts.preview);
   const localSource = useRef<{ cwd: string; first?: LocalPreview } | undefined>(opts.preview ? { cwd: opts.preview.worktree, first: opts.preview } : undefined);
+  // What l on the PR list would tour, for the list to offer while there is some.
+  const readLocalChanges = useMemo(() => (opts.localRepo ? () => localChanges(opts.localRepo!) : undefined), [opts.localRepo]);
   const [worktree, setWorktree] = useState<string>('');
   const [tour, setTour] = useState<Tour | undefined>();
   const [steps, setSteps] = useState<Step[]>([]);
@@ -866,6 +868,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
                 }
               : undefined
           }
+          readLocalChanges={readLocalChanges}
           onMerge={setMerging}
           onChecks={setChecking}
           onReviewers={setAskingReviewers}

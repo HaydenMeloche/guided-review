@@ -5,7 +5,7 @@
  ‹dim›number,title,url,updatedAt,author,repository,isDraft,labels failed: gh: not ‹/›
  ‹dim›available in e2e tests‹/›
  Press r to retry.
- ‹b›Review requests ‹/›‹b,dim›(0)‹/›
+ ‹magenta,b›Review requests‹/›‹dim› (0)‹/›‹magenta,dim› ──────────────────────────────────────────────────────────‹/›
  ‹dim›  Nothing is waiting on your review. gr review <number or URL> opens a specif…‹/›
 
 

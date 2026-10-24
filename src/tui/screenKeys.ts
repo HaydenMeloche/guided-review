@@ -12,12 +12,11 @@ export interface PickerKeyCtx {
   checks: boolean;
   reviewers: boolean; // the highlighted PR is yours
   theme: boolean;
-  local: boolean; // gr runs inside a git repository, so l can tour its branch
 }
 
 export const PICKER_KEYS: KeyDef<PickerKeyCtx>[] = [
   { keys: ['Enter'], group: 'Open', help: 'Open the tour, or the feedback on your own PR', bar: { shown: 'enter', label: 'open', when: (c) => c.items } },
-  { keys: ['l'], group: 'Open', help: 'Tour your local changes: the branch you have checked out, as gr preview does', bar: { shown: 'l', label: 'local changes', when: (c) => c.local } },
+  { keys: ['l'], group: 'Open', help: 'Tour your local changes, offered above the list while the branch you have checked out differs from the default branch' },
   { keys: ['j', 'k'], group: 'Move', help: 'Move through the list', bar: { shown: 'j/k', label: 'move', when: (c) => c.items } },
   { keys: ['g', 'G'], group: 'Move', help: 'First or last PR' },
   { keys: ['/'], group: 'Move', help: 'Filter by repo, title, author or label (esc clears it)', bar: { shown: '/', label: 'filter', when: (c) => c.filter } },

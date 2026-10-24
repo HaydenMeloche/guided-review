@@ -6,7 +6,7 @@
  ‹dim›r,repository,isDraft,labels failed: gh: not ‹/›        ‹bright-black›│‹/›
  ‹dim›available in e2e tests‹/›                              ‹bright-black›│‹/›
  Press r to retry.                                   ‹bright-black›│‹/›
- ‹b›Review requests ‹/›‹b,dim›(0)‹/›                                 ‹bright-black›│‹/›
+ ‹magenta,b›Review requests‹/›‹dim› (0)‹/›‹magenta,dim› ──────────────────────────────‹/›  ‹bright-black›│‹/›
  ‹dim›  Nothing is waiting on your review. gr review <n…‹/›  ‹bright-black›│‹/›
                                                      ‹bright-black›│‹/›
                                                      ‹bright-black›│‹/›

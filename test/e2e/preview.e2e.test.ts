@@ -115,8 +115,10 @@ describe('local changes from the PR list', () => {
   it('tours the checked-out branch on l and comes back to the list on q', async () => {
     const gr = startGr(box, ['--no-agent'], { cwd: repo });
     sessions.push(gr);
-    const list = await gr.waitFor(/Review requests \(0\)/);
-    expect(list).toContain('local changes');
+    await gr.waitFor(/Review requests \(0\)/);
+    // The checked-out branch is offered above the list once the picker has read it.
+    const list = await gr.waitFor('Local changes  l open tour');
+    expect(list).toContain('feature/discount');
     gr.press('l');
     const briefing = await gr.waitFor('Chapters · Guided order');
     expect(briefing).toContain('feature/discount (preview)');

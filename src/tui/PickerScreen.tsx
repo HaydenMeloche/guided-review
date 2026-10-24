@@ -23,6 +23,7 @@ import { hasSidePanel } from './breakpoints.js';
 import { TitleBar } from './TitleBar.js';
 import { writeClipboard } from '../util/clipboard.js';
 import { fileIcon } from './icons.js';
+import type { LocalChanges } from '../preview.js';
 
 export interface Target {
   repo: string;
@@ -40,6 +41,7 @@ const SPIN = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '�
 const BAR_W = 20;
 const REFRESH_MS = 2 * 60 * 1000; // the list refreshes itself this often
 const CLIPBOARD_MS = 1500;
+const LOCAL_CHANGES_MS = 5000; // how often the list looks for local changes to offer
 
 // Clipboard texts already opened or dismissed. Module-level, so returning to the picker
 // after a tour doesn't offer the same link again.
@@ -164,6 +166,7 @@ interface PickerProps {
   notice?: string;
   onPick: (t: Target, mode?: 'author') => void; // your own PRs open their feedback
   onLocal?: () => void; // l: tour the branch checked out where gr runs; unset outside a git repository
+  readLocalChanges?: () => Promise<LocalChanges | undefined>; // what l would tour, offered above the list while there is some
   onMerge?: (t: Target) => void; // M
   onChecks?: (t: Target) => void; // c: the PR's checks and their logs
   onReviewers?: (t: Target) => void; // A, on your own PR: who is asked to review, and asking more
@@ -200,6 +203,8 @@ export function PickerScreen(props: PickerProps) {
   const [localVersion, setLocalVersion] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [clip, setClip] = useState<{ text: string; target: Target }>();
+  // undefined until the first read; null when the checked-out branch matches the default one.
+  const [changes, setChanges] = useState<LocalChanges | null>();
   const [help, setHelp] = useState(false);
   const inflight = useRef(new Set<string>());
   // load() runs from a timer too, so it reads the list and selection through refs.
@@ -300,6 +305,30 @@ export function PickerScreen(props: PickerProps) {
       clearInterval(t);
     };
   }, [readClip]);
+
+  // Offer the local changes while there are some, as they come and go.
+  const { readLocalChanges } = props;
+  useEffect(() => {
+    if (!readLocalChanges) return;
+    let stopped = false;
+    let busy = false;
+    const check = async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        const c = await readLocalChanges().catch(() => undefined);
+        if (!stopped) setChanges((prev) => (JSON.stringify(prev) === JSON.stringify(c ?? null) ? prev : (c ?? null)));
+      } finally {
+        busy = false;
+      }
+    };
+    const t = setInterval(() => void check(), LOCAL_CHANGES_MS);
+    void check();
+    return () => {
+      stopped = true;
+      clearInterval(t);
+    };
+  }, [readLocalChanges]);
 
   const { merged } = props;
   const { rows, items } = useMemo(() => {
@@ -457,7 +486,12 @@ export function PickerScreen(props: PickerProps) {
       }
       if (input === 'r') return load();
       if (input === 'L' && props.onTheme) return props.onTheme();
-      if (input === 'l') return props.onLocal ? props.onLocal() : setHint('l tours local changes: run gr inside a git repository.');
+      if (input === 'l') {
+        if (!props.onLocal) return setHint('l tours local changes: run gr inside a git repository.');
+        // Before the first read says, l opens the tour anyway: the tour itself says what it found.
+        if (changes === null) return setHint('No local changes to tour: the checked-out branch matches the default branch.');
+        return props.onLocal();
+      }
       if (!items.length) return;
       if (input === ' ' && current) {
         const next = new Set(selected);
@@ -516,7 +550,8 @@ export function PickerScreen(props: PickerProps) {
   const bodyH = height - 3; // title, key bar, filter or status line
   // The Your PRs status line (and its gap) while they load or after they failed.
   const authoredLine = authoredState !== 'ready' && !!prs;
-  const listH = (clip ? bodyH - 4 : bodyH) - (authoredLine ? 2 : 0); // the pinned clipboard row and its gap
+  const offered = props.onLocal && changes ? changes : undefined; // the pinned local changes row
+  const listH = bodyH - (clip ? 3 : 0) - (offered ? 3 : 0) - (authoredLine ? 2 : 0); // the pinned sections
 
   // Keep the selection in view; each PR takes two rows. The window keeps its place and moves
   // only when the selection would leave it, so stepping within the view never jumps the list.
@@ -604,6 +639,7 @@ export function PickerScreen(props: PickerProps) {
       )}
       <Box flexDirection="row" height={bodyH}>
         <Box flexDirection="column" width={listW} flexShrink={0}>
+          {offered ? <LocalChangesRow changes={offered} width={listW} /> : null}
           {clip ? <ClipboardRow target={clip.target} listed={clipListed} preview={clipPreview} mine={clipMine} width={listW} /> : null}
           {err ? <ErrorBlock message={err} failed="Your review requests could not be loaded" width={listW} /> : null}
           {!prs && !err ? (
@@ -612,7 +648,7 @@ export function PickerScreen(props: PickerProps) {
             </Text>
           ) : null}
           {prs && !items.length && filter ? <Text dimColor>Nothing matches the filter.</Text> : null}
-          {empty ? <EmptyPicker clipboard={!!clip} local={!!props.onLocal} /> : null}
+          {empty ? <EmptyPicker clipboard={!!clip} repo={!!props.onLocal} /> : null}
           <Box flexDirection="column" height={empty ? 0 : Math.min(h, listH)} overflow="hidden" flexShrink={0}>
             {visible.map((r) => (
               // Rows keep their height: the box clips the last one rather than squeezing them all.
@@ -626,9 +662,7 @@ export function PickerScreen(props: PickerProps) {
                     {`  ${r.text}`}
                   </Text>
                 ) : r.kind === 'section' ? (
-                  <Text key={`section:${r.title}`} bold wrap="truncate">
-                    {r.title} <Text dimColor>({r.count})</Text>
-                  </Text>
+                  <SectionHeading key={`section:${r.title}`} title={r.title} note={`(${r.count})`} width={listW} />
                 ) : r.kind === 'repo' ? (
                   <Text key={`repo:${r.own ? 'own' : 'review'}:${r.repo}`} color={ROLES.heading} bold wrap="truncate">
                     {safe(r.repo)} <Text dimColor>({r.count})</Text>
@@ -681,7 +715,6 @@ export function PickerScreen(props: PickerProps) {
           checks: !!props.onChecks,
           reviewers: !!props.onReviewers && !!current && isAuthored(current),
           theme: !!props.onTheme,
-          local: !!props.onLocal,
         })}
         end={[
           ['?', 'keys'],
@@ -694,10 +727,11 @@ export function PickerScreen(props: PickerProps) {
   return screen;
 }
 
-// The empty PR list: the commands that work with nothing waiting, as a first step.
-function EmptyPicker(props: { clipboard: boolean; local: boolean }) {
+// The empty PR list: the commands that work with nothing waiting, as a first step. Inside a git
+// repository, local changes are offered above the list while there are some.
+function EmptyPicker(props: { clipboard: boolean; repo: boolean }) {
   const rows: [string, string][] = [
-    props.local ? ['l', 'tour your local changes, before there is a PR'] : ['gr preview', 'tour the branch you have checked out, before there is a PR'],
+    ...((props.repo ? [] : [['gr preview', 'tour the branch you have checked out, before there is a PR']]) as [string, string][]),
     ['gr review 1234', 'open a PR by number or URL'],
     ['gr feedback', 'work through the review on your own PR'],
     ...((props.clipboard ? [] : [['p', 'open a PR link you copy, as soon as it is on the clipboard']]) as [string, string][]),
@@ -723,31 +757,75 @@ export function keyFor(pr: Target): string {
   return `${pr.repo}#${pr.number}`;
 }
 
-// The copied PR, pinned above the list, in the color of what p acts on.
+// The copied PR, pinned above the list as a section of its own.
 function ClipboardRow(props: { target: Target; listed?: ReviewRequest; preview?: PRPreview | { error: string }; mine: boolean; width: number }) {
-  const { target, listed, preview, width } = props;
+  const { target, listed, preview } = props;
   const info = listed ?? (preview && !('error' in preview) ? preview : undefined);
   const meta = [target.repo, info ? (props.mine ? 'your PR' : `@${info.author}`) : '', preview && 'error' in preview ? `could not load: ${preview.error}` : ''].filter(Boolean).join(' · ');
-  const action = props.mine ? 'open feedback' : 'open tour';
   return (
-    <Box flexDirection="column" marginBottom={1}>
-      <Text color="cyan" bold>
-        {` ${G.clipboard} From clipboard`}
+    <PinnedSection
+      title="From clipboard"
+      keys={[
+        ['p', props.mine ? 'open feedback' : 'open tour'],
+        ['x', 'dismiss'],
+      ]}
+      line={`#${target.number} ${info?.title ?? ''}`}
+      meta={meta}
+      width={props.width}
+    />
+  );
+}
+
+// The branch checked out where gr runs, pinned above the list while it differs from the default branch.
+function LocalChangesRow(props: { changes: LocalChanges; width: number }) {
+  const { branch, base, commits, files, uncommitted } = props.changes;
+  const meta = [plural(files, 'file'), commits ? `${plural(commits, 'commit')} ahead of ${base}` : '', uncommitted ? 'uncommitted work' : ''].filter(Boolean).join(' · ');
+  return <PinnedSection title="Local changes" keys={[['l', 'open tour']]} line={branch} meta={meta} width={props.width} />;
+}
+
+// Each section of the list in its own color, so local changes, the PRs waiting on your review and
+// your own PRs read apart at a glance.
+const SECTION_COLORS: Record<string, string> = { 'Local changes': 'yellow', 'From clipboard': 'cyan', 'Review requests': 'magenta', 'Your PRs': 'green' };
+
+// A section's heading in its color, with its count or the keys that act on it, and a faint rule
+// in the same color out to the edge of the list.
+function SectionHeading(props: { title: string; note?: string; keys?: [string, string][]; width: number }) {
+  const color = SECTION_COLORS[props.title];
+  const keys = props.keys ?? [];
+  const used = props.title.length + (props.note ? props.note.length + 1 : 0) + keys.reduce((n, [k, label], i) => n + (i ? 3 : 2) + k.length + 1 + label.length, 0);
+  return (
+    <Text wrap="truncate">
+      <Text color={color} bold>
+        {props.title}
       </Text>
-      <Text wrap="truncate">
-        <Text color="cyan">▸</Text>
-        <Text bold>{truncate(safe(` #${target.number} ${info?.title ?? ''}`), width - 2)}</Text>
+      {props.note ? <Text dimColor>{` ${props.note}`}</Text> : null}
+      {keys.map(([k, label], i) => (
+        <Text key={k}>
+          <Text dimColor>{i ? ' · ' : '  '}</Text>
+          <Text color="cyan" bold>
+            {k}
+          </Text>
+          <Text dimColor>{` ${label}`}</Text>
+        </Text>
+      ))}
+      <Text color={color} dimColor>
+        {` ${G.rule.repeat(Math.max(0, props.width - used - 1))}`}
       </Text>
-      <Text wrap="truncate">
-        <Text dimColor>{`     ${truncate(safe(meta), Math.max(1, width - 1 - 5 - ` · p ${action} · x dismiss`.length))} · `}</Text>
-        <Text color="cyan" bold>
-          p
-        </Text>
-        <Text dimColor> {action} · </Text>
-        <Text color="cyan" bold>
-          x
-        </Text>
-        <Text dimColor> dismiss</Text>
+    </Text>
+  );
+}
+
+// A section above the list with one entry: its heading as the list's section headings are, with
+// the keys that act on it, and the entry where a PR's title and subtitle sit.
+function PinnedSection(props: { title: string; keys: [string, string][]; line: string; meta: string; width: number }) {
+  const { width } = props;
+  const oneLine = (text: string) => safe(text).replace(/\s+/g, ' '); // an error message can span lines
+  return (
+    <Box flexDirection="column" flexShrink={0}>
+      <SectionHeading title={props.title} keys={props.keys} width={width} />
+      <Text wrap="truncate">{pad(`   ${oneLine(props.line)}`, width)}</Text>
+      <Text dimColor wrap="truncate">
+        {truncate(`    ${oneLine(props.meta)}`, width)}
       </Text>
     </Box>
   );

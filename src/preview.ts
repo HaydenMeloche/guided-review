@@ -57,3 +57,41 @@ export async function localPreview(cwd: string): Promise<LocalPreview> {
     },
   };
 }
+
+// What l on the PR list would tour, read cheaply so the list can offer it only when there is
+// something to see.
+export interface LocalChanges {
+  branch: string;
+  base: string; // the default branch, as origin/main when it is origin's copy
+  commits: number; // since the merge base
+  files: number; // differing from the merge base, uncommitted and untracked ones included
+  uncommitted: boolean;
+}
+
+// The default branch, looked up once per repository: the lookup can ask GitHub or origin.
+const bases = new Map<string, Promise<{ name: string; ref: string } | undefined>>();
+
+// Undefined when nothing differs from the default branch, or there is no base to compare with.
+export async function localChanges(cwd: string): Promise<LocalChanges | undefined> {
+  const root = await localRepoRoot(cwd);
+  if (!root) return undefined;
+  let base = bases.get(root);
+  if (!base) bases.set(root, (base = defaultBaseRef(root, () => currentRepo(root).catch(() => undefined))));
+  const ref = await base;
+  if (!ref) return undefined;
+  const mergeBase = await mergeBaseOf(root, 'HEAD', ref.ref);
+  if (!mergeBase) return undefined;
+  const [branch, commits, changed, status] = await Promise.all([
+    git(root, ['rev-parse', '--abbrev-ref', 'HEAD']),
+    git(root, ['rev-list', '--count', `${mergeBase}..HEAD`]),
+    git(root, ['diff', '--name-only', '-z', '--no-ext-diff', mergeBase, '--']),
+    git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=normal']),
+  ]);
+  const untracked = status
+    .split('\0')
+    .filter((e) => e.startsWith('?? '))
+    .map((e) => e.slice(3));
+  const files = new Set([...changed.split('\0').filter(Boolean), ...untracked]).size;
+  if (!files) return undefined;
+  return { branch: branch.trim(), base: ref.ref.replace(/^refs\/(remotes\/|heads\/)/, ''), commits: Number(commits.trim()) || 0, files, uncommitted: !!status };
+}

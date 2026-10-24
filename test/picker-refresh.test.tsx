@@ -95,9 +95,9 @@ describe('picker clipboard', () => {
     vi.mocked(listReviewRequests).mockResolvedValue([pr(1, 'First')]);
     const onPick = vi.fn();
     const ui = picker({ clipboard: async () => 'https://github.com/other/repo/pull/482/files\n', onPick });
-    await waitFor(() => expect(ui.lastFrame()).toContain('From clipboard'));
-    expect(ui.lastFrame()).toContain('▸ #482');
-    expect(ui.lastFrame()).toContain('other/repo · p open tour · x dismiss');
+    await waitFor(() => expect(ui.lastFrame()).toContain('From clipboard  p open tour · x dismiss'));
+    expect(ui.lastFrame()).toContain('   #482');
+    expect(ui.lastFrame()).toContain('    other/repo');
     ui.stdin.write('p');
     await waitFor(() => expect(onPick).toHaveBeenCalledWith({ repo: 'other/repo', number: 482 }));
     ui.unmount();
@@ -109,16 +109,16 @@ describe('picker clipboard', () => {
     vi.mocked(listReviewRequests).mockResolvedValue([pr(1, 'First')]);
     vi.mocked(fetchPRPreview).mockResolvedValueOnce({ title: 'Fix retry backoff', author: 'sam' } as PRPreview);
     const ui = picker({ clipboard: async () => 'https://github.com/other/repo/pull/7' });
-    await waitFor(() => expect(ui.lastFrame()).toContain('▸ #7 Fix retry backoff'));
-    expect(ui.lastFrame()).toContain('other/repo · @sam · p open tour');
+    await waitFor(() => expect(ui.lastFrame()).toContain('   #7 Fix retry backoff'));
+    expect(ui.lastFrame()).toContain('other/repo · @sam');
     ui.unmount();
   });
 
   it('shows the title of a listed PR and dismisses with x', async () => {
     vi.mocked(listReviewRequests).mockResolvedValue([pr(1, 'First')]);
     const ui = picker({ clipboard: async () => 'acme/app#1' });
-    await waitFor(() => expect(ui.lastFrame()).toContain('▸ #1 First'));
-    expect(ui.lastFrame()).toContain('acme/app · @dev · p open tour');
+    await waitFor(() => expect(ui.lastFrame()).toContain('From clipboard'));
+    expect(ui.lastFrame()).toContain('acme/app · @dev');
     ui.stdin.write('x');
     await waitFor(() => expect(ui.lastFrame()).not.toContain('From clipboard'));
     ui.unmount();

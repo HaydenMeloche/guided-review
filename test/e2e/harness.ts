@@ -7,8 +7,9 @@ import xterm from '@xterm/headless';
 
 const GR = path.resolve(import.meta.dirname, '../../bin/gr.js');
 
-// An isolated world for one test: its own GR_HOME, HOME, CODEX_HOME, and a fake
-// `gh` first on PATH that logs its arguments and fails, as if no remote exists.
+// An isolated world for one test: its own GR_HOME, HOME, CODEX_HOME, a fake `gh` first on PATH
+// that logs its arguments and fails, as if no remote exists, and an empty clipboard, so a link
+// you copied doesn't show up on the PR list's screens.
 export interface Sandbox {
   root: string;
   env: NodeJS.ProcessEnv;
@@ -22,6 +23,7 @@ export function sandbox(): Sandbox {
   fs.mkdirSync(bin);
   const ghLog = path.join(root, 'gh.log');
   fs.writeFileSync(path.join(bin, 'gh'), '#!/bin/sh\necho "$*" >> "$GH_LOG"\necho "gh: not available in e2e tests" >&2\nexit 1\n', { mode: 0o755 });
+  for (const reader of ['pbpaste', 'wl-paste']) fs.writeFileSync(path.join(bin, reader), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
   const env: NodeJS.ProcessEnv = {
     PATH: `${bin}${path.delimiter}${process.env.PATH}`,
     HOME: path.join(root, 'home'),
