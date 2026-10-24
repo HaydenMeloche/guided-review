@@ -267,7 +267,7 @@ export function previousRouting(current: UserConfig | undefined): AgentRouting |
 }
 
 // Role settings setup writes or carries over; any other set by hand is replaced on save.
-const KEPT_ROLE_KEYS = new Set(['model', 'modelParams', 'maxOutputTokens']);
+const KEPT_ROLE_KEYS = new Set(['model', 'modelParams', 'maxOutputTokens', 'effort', 'fastMode']);
 
 // Whether saving a provider drops per-task overrides set by hand (another provider, endpoint,
 // key, or tool calling for one task).
@@ -293,12 +293,17 @@ export function buildConfig(current: UserConfig | undefined, model: ModelAnswers
     if (takesKey(model.provider) && model.keySource === 'env') connection.apiKeyEnv = model.apiKeyEnv.replace(/^\$/, '');
     if (takesKey(model.provider) && model.keySource === 'store') connection.apiKey = model.apiKey;
     config = presetUserConfig(model.provider, { fast: model.fast.trim(), strong: model.strong.trim(), fastParams: model.fastParams, strongParams: model.strongParams }, connection);
-    // Output caps set by hand stay while the provider does; setup doesn't ask for them.
+    // Output caps, effort, and fast mode set by hand stay while the provider does; setup doesn't
+    // ask for them.
     if (previous?.provider === model.provider) {
       if (previous.maxOutputTokens) config.maxOutputTokens = previous.maxOutputTokens;
+      if (previous.effort) config.effort = previous.effort;
+      if (previous.fastMode !== undefined) config.fastMode = previous.fastMode;
       for (const [role, settings] of Object.entries(config.roles ?? {})) {
-        const cap = previous.roles?.[role as keyof typeof previous.roles]?.maxOutputTokens;
-        if (cap) settings.maxOutputTokens = cap;
+        const kept = previous.roles?.[role as keyof typeof previous.roles];
+        if (kept?.maxOutputTokens) settings.maxOutputTokens = kept.maxOutputTokens;
+        if (kept?.effort) settings.effort = kept.effort;
+        if (kept?.fastMode !== undefined) settings.fastMode = kept.fastMode;
       }
     }
   }

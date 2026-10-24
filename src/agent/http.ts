@@ -1,9 +1,11 @@
 // A failure of the model service itself (as opposed to a bad answer). run() retries a transient
-// one with backoff and reports any other as the agent being unavailable.
+// one with backoff and reports any other as the agent being unavailable. retryAfterMs is the
+// wait the server asked for, when it named one.
 export class ModelError extends Error {
   constructor(
     message: string,
     readonly transient = false,
+    readonly retryAfterMs?: number,
   ) {
     super(message);
     this.name = 'ModelError';
@@ -15,8 +17,21 @@ const RETRYABLE = new Set([429, 500, 502, 503, 504, 529]);
 
 export const retryableStatus = (status: number) => RETRYABLE.has(status);
 
-export function httpModelError(status: number, detail: string): ModelError {
-  return new ModelError(`model API ${status}: ${detail}`, retryableStatus(status));
+export function httpModelError(status: number, detail: string, retryAfterMs?: number): ModelError {
+  return new ModelError(`model API ${status}: ${detail}`, retryableStatus(status), retryAfterMs);
+}
+
+// The delay a response asks for before a retry: `retry-after-ms`, or `retry-after` in seconds or
+// as an HTTP date. Undefined when there is none or it can't be read.
+export function retryAfterMs(headers: { get(name: string): string | null } | undefined, now = Date.now()): number | undefined {
+  const ms = headers?.get('retry-after-ms')?.trim();
+  if (ms && /^\d+(\.\d+)?$/.test(ms)) return Math.round(Number(ms));
+  const value = headers?.get('retry-after')?.trim();
+  if (!value) return undefined;
+  if (/^\d+(\.\d+)?$/.test(value)) return Math.round(Number(value) * 1000);
+  // HTTP dates end in GMT; anything else Date.parse might half-read is ignored.
+  const date = value.endsWith('GMT') ? Date.parse(value) : NaN;
+  return Number.isNaN(date) ? undefined : Math.max(0, date - now);
 }
 
 // Model endpoints carry the API key and the PR's code, so they must use HTTPS unless they are
@@ -38,7 +53,7 @@ export async function postModel(url: URL, key: string | undefined, body: { strea
     if (signal?.aborted) throw e;
     throw new ModelError(`model endpoint unavailable: ${e.message}`);
   });
-  if (!response.ok) throw httpModelError(response.status, (await response.text()).slice(0, 300));
+  if (!response.ok) throw httpModelError(response.status, (await response.text()).slice(0, 300), retryAfterMs(response.headers));
   return { response, streamed: body.stream && !!response.headers.get('content-type')?.includes('text/event-stream') };
 }
 

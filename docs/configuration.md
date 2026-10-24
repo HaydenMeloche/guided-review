@@ -42,6 +42,20 @@ With a token, `gr` also sends it to git as an HTTP header when it clones or fetc
 
 The OpenAI provider uses the Responses API, which supports read-only repository tools. OpenAI-compatible endpoints use Chat Completions. Both need an API key from the OpenAI platform.
 
+## Anthropic API fast mode
+
+With `"fastMode": true`, the `anthropic` provider sends its requests to the beta Messages endpoint with the `fast-mode-2026-02-01` beta and `speed: "fast"`, which streams output tokens much faster. Caching and the repository tools work as usual. It is off by default and setup never turns it on. Keep in mind:
+
+- It works only on the Claude API (the `anthropic` provider), not through Claude Code, Bedrock, or Vertex, and only on Opus 5.5, Opus 5, and Opus 4.8.
+- It costs roughly double the standard price.
+- It is meant for Q&A, where you wait on every answer; set it in `roles.qa`:
+
+  ```json
+  { "roles": { "qa": { "model": "claude-opus-5-5", "fastMode": true } } }
+  ```
+
+- Switching between fast and standard speed invalidates the prompt cache, so the first request after a switch is billed as uncached input.
+
 ## Codex
 
 The `codex` provider runs the [Codex CLI](https://github.com/openai/codex) (`codex exec`), so it uses whatever `codex login` set up: a ChatGPT plan or an API key. Setup lists Codex as found when `codex login status` says it is logged in.
@@ -94,6 +108,8 @@ Without a config file, a theme chosen with `L` lasts until you quit. Themes need
 | `apiKey` | The key itself. It takes precedence over `apiKeyEnv`. Use it when an environment variable is impractical. |
 | `modelParams` | Cursor only: the model's variant, as the parameter IDs and values Cursor lists, such as `{ "reasoning_effort": "low", "fast": "true", "context": "256k" }`. Without it, Cursor uses the model's default variant, which for some models is Max Mode, the most expensive. Set it beside `model`, at the top level or in a role; a role that names a different model doesn't inherit the top-level one. Setup writes it. |
 | `maxOutputTokens` | Maximum output tokens per model response for the Anthropic API (default 16000). Lower it for models with smaller output limits. |
+| `effort` | How much effort the model spends on a task: `low`, `medium`, `high`, `xhigh`, or `max`. Sent by the Anthropic API, Claude Code, Bedrock, and Vertex providers; others ignore it. Without it, the model uses its own default. Setup writes `"effort": "low"` for `briefing` and `narration` with those providers: summaries and narration need less deliberation than Q&A, and low effort means fewer thinking tokens and fewer tool calls, so tours finish sooner and cost less. Q&A is left at the model's default. Like other fields, a role's own `effort` wins over the top-level one. Changing it does not rebuild a cached tour. |
+| `fastMode` | Anthropic API only: `true` runs that task in [fast mode](#anthropic-api-fast-mode). Default `false`. Meant for the `qa` role. |
 | `toolCalling` | Set `false` for a compatible endpoint that cannot call functions. Generation still receives the supplied diff, but Q&A is limited to the selected code. |
 | `chapterOrder` | The chapter order a tour opens in: `guide` (default), `risk`, `size` (small first), or `file`. Also read with `--no-agent`. Press `f` during a tour to switch; a PR you have already opened reopens in the order you last used there. |
 | `hideWhitespace` | Whether diffs hide whitespace-only changes (default `true`). Pressing `w` during a tour switches it and saves the choice here, so the next tour opens the same way. Also read with `--no-agent`. |
@@ -155,3 +171,15 @@ A tour makes one briefing call, then narrates chapters with up to six model call
 - an interrupted tour resumes from the chapters it was missing.
 
 With the Anthropic API, the system prompt, tools, and conversation so far are sent with prompt caching, so later turns of a narration are billed mostly at the cached-input rate. Claude Code, Bedrock, Vertex, and OpenAI cache automatically. Claude Code, Codex, and Cursor plans count tours against your plan's usage limits.
+
+Each model call's measurements are saved with the tour: how long it took (retries included), input, output, cache-read, and cache-write tokens where the provider reports them, how many turns asked for tools, and the `effort` sent. Narration stops after eight model turns per chapter, the briefing after twelve.
+
+### Debugging model calls
+
+Set `GR_DEBUG_MODEL` to a file path to append one JSON line per model call, with the task (`role`), provider, model, effort, elapsed time, token counts, tool turns, and whether it fell back to the top-level model:
+
+```sh
+GR_DEBUG_MODEL=/tmp/gr-model.jsonl gr review 123
+```
+
+`GR_DEBUG_MODEL=1` writes the lines to stderr instead, which mixes them into the full-screen interface, so a file is usually better.

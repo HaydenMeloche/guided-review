@@ -159,8 +159,8 @@ export async function generateSuggestion(o: SuggestOptions): Promise<SuggestionR
   const original = originalLines(o.hunk, o.anchor);
 
   // Only the routing goes to runRole: the rest would ride along into every provider's config.
-  const { cwd, sessions, rememberSession, provider, model, baseUrl, apiKey, apiKeyEnv, toolCalling, maxOutputTokens, roles } = o;
-  const context: AgentContext = { cwd, sessions, rememberSession, provider, model, baseUrl, apiKey, apiKeyEnv, toolCalling, maxOutputTokens, roles };
+  const { cwd, sessions, rememberSession, provider, model, baseUrl, apiKey, apiKeyEnv, toolCalling, maxOutputTokens, effort, fastMode, roles } = o;
+  const context: AgentContext = { cwd, sessions, rememberSession, provider, model, baseUrl, apiKey, apiKeyEnv, toolCalling, maxOutputTokens, effort, fastMode, roles };
   let result;
   try {
     result = await runRole<RawSuggestion>('qa', suggestionPrompt(o, startLine, line), context, { schema: suggestionSchema, signal: o.signal, onText: o.onText, maxTurns: 8, session: false });

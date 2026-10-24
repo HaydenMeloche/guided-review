@@ -84,4 +84,20 @@ describe('OpenAI Responses provider', () => {
     expect(updates).toEqual(['Hello', 'Hello world']);
     expect(result.value).toBe('Hello world');
   });
+
+  it('reports usage from the response, with cached input counted apart', async () => {
+    const cwd = fixture();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        Response.json({
+          status: 'completed',
+          output: [{ type: 'message', content: [{ type: 'output_text', text: 'ok' }] }],
+          usage: { input_tokens: 300, output_tokens: 12, input_tokens_details: { cached_tokens: 200 } },
+        }),
+      ),
+    );
+    const result = await runOpenAI<string>('q', { provider: 'openai', model: 'gpt-x', cwd }, {}, 'sys');
+    expect(result.usage).toEqual({ inputTokens: 100, outputTokens: 12, cacheReadTokens: 200, toolTurns: 0 });
+  });
 });

@@ -1,10 +1,33 @@
-// Structured output: providers without a native JSON-schema mode are asked for JSON in the
-// prompt, and every provider's answer is checked against the schema before it is applied.
+// Structured output: providers with a native JSON-schema mode (the Anthropic API, the Claude
+// Agent SDK) are given the schema as the response format; the others are asked for JSON in the
+// prompt. Every provider's answer is checked against the schema before it is applied.
 
 export type JsonSchema = Record<string, unknown>;
 
 export function withSchemaInstruction(prompt: string, schema?: JsonSchema): string {
   return schema ? `${prompt}\n\nReturn only a JSON object matching this schema:\n${JSON.stringify(schema)}` : prompt;
+}
+
+// The Messages API's structured outputs accept a JSON schema subset: every object must say
+// additionalProperties: false, and numeric and string bounds are rejected. The bounds still
+// hold here (matchesSchema, and the pipeline clamps risk), so they are only left out of the
+// schema sent.
+const UNSUPPORTED_BOUNDS = ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'minLength', 'maxLength', 'pattern', 'minItems', 'maxItems'];
+
+export function structuredOutputSchema(schema: JsonSchema): JsonSchema {
+  const out: JsonSchema = {};
+  for (const [key, value] of Object.entries(schema)) {
+    if (UNSUPPORTED_BOUNDS.includes(key)) continue;
+    if (key === 'properties' && value && typeof value === 'object') {
+      out.properties = Object.fromEntries(Object.entries(value as Record<string, JsonSchema>).map(([name, child]) => [name, structuredOutputSchema(child)]));
+    } else if (key === 'items' && value && typeof value === 'object' && !Array.isArray(value)) {
+      out.items = structuredOutputSchema(value as JsonSchema);
+    } else {
+      out[key] = value;
+    }
+  }
+  if (out.type === 'object') out.additionalProperties = false;
+  return out;
 }
 
 export function parseJson(text: string): unknown {

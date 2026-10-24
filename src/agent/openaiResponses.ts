@@ -1,4 +1,4 @@
-import { resolveApiKey, type ProviderRunConfig } from './types.js';
+import { resolveApiKey, type CallUsage, type ProviderResult, type ProviderRunConfig } from './types.js';
 import { SessionStore } from './sessions.js';
 import { assertSecureEndpoint, ModelError, postModel, sseData } from './http.js';
 import { parseToolArgs, REPO_TOOLS } from './repoTools.js';
@@ -12,7 +12,19 @@ type ResponseItem = {
   content?: { type: string; text?: string }[];
   [key: string]: unknown;
 };
-type ModelResponse = { status?: string; error?: { message?: string }; output?: ResponseItem[] };
+type ResponseUsage = { input_tokens?: number; output_tokens?: number; input_tokens_details?: { cached_tokens?: number } };
+type ModelResponse = { status?: string; error?: { message?: string }; output?: ResponseItem[]; usage?: ResponseUsage };
+
+// input_tokens includes the cached ones; CallUsage counts them apart.
+function usageOf(usage: ResponseUsage | undefined): CallUsage | undefined {
+  if (!usage) return undefined;
+  const cached = usage.input_tokens_details?.cached_tokens;
+  return {
+    inputTokens: usage.input_tokens === undefined ? undefined : usage.input_tokens - (cached ?? 0),
+    outputTokens: usage.output_tokens,
+    cacheReadTokens: cached,
+  };
+}
 
 const conversations = new SessionStore<unknown>();
 const responseTools = REPO_TOOLS.map((tool) => ({ type: 'function', ...tool, strict: false }));
@@ -33,7 +45,7 @@ async function streamedResponse(response: Response, onText: (text: string) => vo
   return completed;
 }
 
-export async function runOpenAI<T>(prompt: string, config: ProviderRunConfig, opts: ModelOpts, systemPrompt: string): Promise<{ value: T; sessionId?: string }> {
+export async function runOpenAI<T>(prompt: string, config: ProviderRunConfig, opts: ModelOpts, systemPrompt: string): Promise<ProviderResult<T>> {
   if (!config.model) throw new Error('OpenAI provider requires a model ID');
   const url = new URL((config.baseUrl || 'https://api.openai.com/v1').replace(/\/+$/, '') + '/responses');
   assertSecureEndpoint(url);
@@ -70,7 +82,7 @@ export async function runOpenAI<T>(prompt: string, config: ProviderRunConfig, op
         .filter((part) => part.type === 'output_text')
         .map((part) => part.text || '')
         .join('');
-      return { text, streamed, calls: calls.map((call) => ({ id: call.call_id!, name: call.name!, input: parseToolArgs(call.arguments) })) };
+      return { text, streamed, usage: usageOf(answer.usage), calls: calls.map((call) => ({ id: call.call_id!, name: call.name!, input: parseToolArgs(call.arguments) })) };
     },
     results: (calls, outputs) => calls.map((call, i) => ({ type: 'function_call_output', call_id: call.id, output: outputs[i] })),
   });

@@ -3,7 +3,7 @@ import path from 'node:path';
 import { grHome } from './paths.js';
 import { TERMINAL_THEME } from './tui/theme.js';
 import type { ChapterOrder, FileKind, KindRule, RepoConfig } from './types.js';
-import { AGENT_ROLES, PROVIDERS, type AgentConfig, type AgentRouting, type Provider } from './agent/types.js';
+import { AGENT_ROLES, EFFORTS, PROVIDERS, type AgentConfig, type AgentRouting, type Effort, type Provider } from './agent/types.js';
 import { CODING_AGENT_VALUES, CUSTOM_AGENT, customCommandProblem, DEFAULT_CODING_AGENT, isCodingAgent, type CodingAgent, type CodingAgentSetting } from './codingAgent.js';
 
 export const KINDS: FileKind[] = ['logic', 'test', 'config', 'mechanical', 'generated', 'vendored'];
@@ -149,18 +149,26 @@ export const PRESET_MODELS: Partial<Record<Provider, ModelPair>> = {
   openai: { fast: 'gpt-6-luna', strong: 'gpt-6.1-sol' },
 };
 
+// Providers whose preset runs the briefing and narration at low effort: fewer thinking tokens
+// and tool calls on tasks that summarize. Q&A keeps the model's default.
+const LOW_EFFORT_PRESETS = new Set<Provider>(['anthropic', 'claude-code', 'bedrock', 'vertex']);
+
 export function presetUserConfig(provider: Provider, models: ModelPair, connection: Omit<AgentConfig, 'provider' | 'model' | 'modelParams'> = {}): UserConfig & AgentRouting {
   // When either task has a variant, both name theirs ({} for the default), so one can't inherit
   // the other's through the top level.
   const variants = !!(models.fastParams || models.strongParams);
-  const fast = { model: models.fast, ...(variants ? { modelParams: models.fastParams ?? {} } : {}) };
+  const fast: AgentConfig = {
+    model: models.fast,
+    ...(variants ? { modelParams: models.fastParams ?? {} } : {}),
+    ...(LOW_EFFORT_PRESETS.has(provider) ? { effort: 'low' as const } : {}),
+  };
   const strong = { model: models.strong, ...(variants ? { modelParams: models.strongParams ?? {} } : {}) };
   return {
     provider,
     ...strong,
     chapterOrder: DEFAULT_CHAPTER_ORDER,
     ...connection,
-    roles: { briefing: fast, narration: fast, qa: strong },
+    roles: { briefing: { ...fast }, narration: { ...fast }, qa: strong },
   };
 }
 
@@ -181,6 +189,14 @@ function parseAgentConfig(raw: Record<string, unknown>, where: string): AgentCon
   if (typeof raw.apiKeyEnv === 'string' && raw.apiKeyEnv) out.apiKeyEnv = raw.apiKeyEnv.replace(/^\$/, '');
   if (typeof raw.toolCalling === 'boolean') out.toolCalling = raw.toolCalling;
   if (Number.isInteger(raw.maxOutputTokens) && (raw.maxOutputTokens as number) > 0) out.maxOutputTokens = raw.maxOutputTokens as number;
+  if (raw.effort !== undefined) {
+    if (!EFFORTS.includes(raw.effort as Effort)) throw new UserConfigError(`${where}: unknown effort ${JSON.stringify(raw.effort)} (expected ${EFFORTS.join(', ')})`);
+    out.effort = raw.effort as Effort;
+  }
+  if (raw.fastMode !== undefined) {
+    if (typeof raw.fastMode !== 'boolean') throw new UserConfigError(`${where}: "fastMode" must be true or false`);
+    out.fastMode = raw.fastMode;
+  }
   if (raw.modelParams !== undefined) {
     const params = raw.modelParams;
     if (!params || typeof params !== 'object' || Array.isArray(params) || Object.values(params).some((v) => typeof v !== 'string')) {
@@ -317,8 +333,8 @@ export function loadGitHubConfig(): GitHubConfig | undefined {
 }
 
 function routingOf(config: UserConfig, provider: Provider | undefined): AgentRouting {
-  const { model, modelParams, baseUrl, apiKey, apiKeyEnv, toolCalling, maxOutputTokens, roles } = config;
-  const routing: AgentRouting = { provider, model, modelParams, baseUrl, apiKey, apiKeyEnv, toolCalling, maxOutputTokens, roles };
+  const { model, modelParams, baseUrl, apiKey, apiKeyEnv, toolCalling, maxOutputTokens, effort, fastMode, roles } = config;
+  const routing: AgentRouting = { provider, model, modelParams, baseUrl, apiKey, apiKeyEnv, toolCalling, maxOutputTokens, effort, fastMode, roles };
   return Object.fromEntries(Object.entries(routing).filter(([, v]) => v !== undefined));
 }
 

@@ -127,6 +127,26 @@ describe('setup answers', () => {
     expect(replacesOverrides(current, 'anthropic')).toBe(true);
   });
 
+  it('presets low effort for summaries and keeps effort and fast mode set by hand while the provider stays', () => {
+    const current: UserConfig = presetUserConfig('anthropic', { fast: 'claude-haiku-5-5', strong: 'claude-opus-5-5' });
+    expect(current.roles).toMatchObject({ briefing: { effort: 'low' }, narration: { effort: 'low' } });
+    expect(current.roles!.qa).not.toHaveProperty('effort');
+    current.roles!.narration!.effort = 'medium';
+    current.roles!.qa = { ...current.roles!.qa, fastMode: true };
+    expect(replacesOverrides(current, 'anthropic')).toBe(false);
+    const same = buildConfig(current, modelDefaults('anthropic', current as never), undefined, undefined);
+    expect(same.roles).toMatchObject({ briefing: { effort: 'low' }, narration: { effort: 'medium' }, qa: { fastMode: true } });
+    const other = buildConfig(current, modelDefaults('openai', current as never), undefined, undefined);
+    expect(other.roles?.narration).not.toHaveProperty('effort');
+    expect(other.roles?.qa).not.toHaveProperty('fastMode');
+  });
+
+  it('leaves effort and fast mode out of what the tour cache compares', () => {
+    const routing = presetUserConfig('anthropic', PRESET_MODELS.anthropic!);
+    const tuned = { ...routing, fastMode: true, roles: { ...routing.roles, narration: { ...routing.roles!.narration, effort: 'high' as const } } };
+    expect(routingIdentity(tuned as never)).toBe(routingIdentity(routing as never));
+  });
+
   it("doesn't let one task inherit the other's Cursor variant", () => {
     const routing = presetUserConfig('cursor', { fast: 'grok-4.7', strong: 'grok-4.7', strongParams: { reasoning_effort: 'high' } });
     expect(configForRole(routing as never, 'narration').modelParams).toEqual({});

@@ -47,7 +47,49 @@ describe('run: retry and backoff', () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(anthropic).toHaveBeenCalledTimes(3);
 
-    await expect(result).resolves.toEqual({ value: 'ok', sessionId: 's1' });
+    await expect(result).resolves.toEqual({ value: 'ok', sessionId: 's1', modelUsed: { provider: 'anthropic', model: 'claude-x', elapsedMs: 20_000 } });
+  });
+
+  it("waits the server's retry-after instead of the fixed step, capped at 60s", async () => {
+    vi.useFakeTimers();
+    anthropic
+      .mockRejectedValueOnce(new ModelError('model API 429', true, 2_000))
+      .mockRejectedValueOnce(new ModelError('model API 429', true, 600_000))
+      .mockResolvedValueOnce({ value: 'ok' });
+    const result = run<string>('q', options);
+    await vi.advanceTimersByTimeAsync(1_999);
+    expect(anthropic).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(anthropic).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(anthropic).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(anthropic).toHaveBeenCalledTimes(3);
+    await expect(result).resolves.toMatchObject({ value: 'ok', modelUsed: { elapsedMs: 62_000 } });
+  });
+
+  it('puts the provider usage, the effort sent, and the elapsed time in modelUsed', async () => {
+    anthropic.mockResolvedValue({ value: 'ok', usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 100, cacheWriteTokens: 20, toolTurns: 2 } });
+    const r = await run<string>('q', { ...options, effort: 'low', fastMode: true });
+    expect(r.modelUsed).toEqual({
+      provider: 'anthropic',
+      model: 'claude-x',
+      baseUrl: undefined,
+      effort: 'low',
+      fastMode: true,
+      inputTokens: 10,
+      outputTokens: 5,
+      cacheReadTokens: 100,
+      cacheWriteTokens: 20,
+      toolTurns: 2,
+      elapsedMs: expect.any(Number),
+    });
+  });
+
+  it('stamps no effort for a provider that does not send it', async () => {
+    openai.mockResolvedValue({ value: 'ok', usage: { toolTurns: 0 } });
+    const r = await run<string>('q', { cwd: '/repo', provider: 'openai', model: 'gpt-x', apiKey: 'k', effort: 'low', fastMode: true });
+    expect(r.modelUsed).toEqual({ provider: 'openai', model: 'gpt-x', baseUrl: undefined, toolTurns: 0, elapsedMs: expect.any(Number) });
   });
 
   it('gives up after the last backoff and reports the agent as unavailable', async () => {
@@ -108,7 +150,7 @@ describe('runRole: role routing and fallback', () => {
     openai.mockResolvedValue({ value: 'narrated', sessionId: 's' });
     const r = await runRole<string>('narration', 'p', routing, { maxTurns: 3 });
     expect(r.value).toBe('narrated');
-    expect(r.modelUsed).toEqual({ provider: 'openai', model: 'gpt-x', baseUrl: undefined });
+    expect(r.modelUsed).toEqual({ provider: 'openai', model: 'gpt-x', baseUrl: undefined, elapsedMs: expect.any(Number) });
     expect(anthropic).not.toHaveBeenCalled();
     expect(openai.mock.calls[0][1]).toMatchObject({ cwd: '/repo', provider: 'openai', model: 'gpt-x', maxTurns: 3 });
   });
@@ -118,7 +160,7 @@ describe('runRole: role routing and fallback', () => {
     anthropic.mockResolvedValue({ value: 'from default', sessionId: 's' });
     const r = await runRole<string>('narration', 'p', routing);
     expect(r.value).toBe('from default');
-    expect(r.modelUsed).toEqual({ provider: 'anthropic', model: 'claude-x', baseUrl: undefined, fallback: true });
+    expect(r.modelUsed).toEqual({ provider: 'anthropic', model: 'claude-x', baseUrl: undefined, fallback: true, elapsedMs: expect.any(Number) });
     expect(openai).toHaveBeenCalledTimes(1);
     expect(anthropic).toHaveBeenCalledTimes(1);
   });

@@ -14,6 +14,32 @@ export interface AgentConfig {
   // A Cursor model's variant, such as { reasoning_effort: 'low', fast: 'true' }. Without them
   // Cursor picks the model's default variant, which can be its most expensive one.
   modelParams?: Record<string, string>;
+  // How much effort the model spends (thinking and tool calls) on Anthropic and the Claude Agent
+  // SDK providers. Unset leaves the provider's default.
+  effort?: Effort;
+  // The Anthropic API's fast mode (beta): faster output at a higher price, on models that offer it.
+  fastMode?: boolean;
+}
+
+export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+export type Effort = (typeof EFFORTS)[number];
+
+// What a provider reports about one call. Token counts exclude cached input: inputTokens is the
+// uncached part, cacheReadTokens and cacheWriteTokens the rest. toolTurns counts model turns
+// that asked for tools.
+export interface CallUsage {
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  toolTurns?: number;
+}
+
+// What a provider adapter returns.
+export interface ProviderResult<T> {
+  value: T;
+  sessionId?: string;
+  usage?: CallUsage;
 }
 
 export const AGENT_ROLES = ['briefing', 'narration', 'qa'] as const;
@@ -23,11 +49,16 @@ export interface AgentRouting extends AgentConfig {
   roles?: Partial<Record<AgentRole, AgentConfig>>;
 }
 
-export interface ModelStamp {
+// The model a call ran on, with what it measured. elapsedMs is wall-clock time for the whole
+// call, retries included; effort and fastMode are set only when they were sent.
+export interface ModelStamp extends CallUsage {
   provider: NonNullable<AgentConfig['provider']>;
   model?: string;
   baseUrl?: string;
   fallback?: boolean;
+  effort?: Effort;
+  fastMode?: boolean;
+  elapsedMs?: number;
 }
 
 export function configForRole(routing: AgentRouting = {}, role: AgentRole): AgentConfig {

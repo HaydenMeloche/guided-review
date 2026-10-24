@@ -25,13 +25,13 @@ function fixture(): string {
 type Block = { type: 'text'; text: string } | { type: 'tool_use'; id: string; name: string; input: unknown };
 
 // A Messages API event stream that returns the given content blocks.
-function messageStream(blocks: Block[], stopReason: string): Response {
+function messageStream(blocks: Block[], stopReason: string, usage: Record<string, number> = { input_tokens: 1, output_tokens: 0 }): Response {
   const events: [string, unknown][] = [
     [
       'message_start',
       {
         type: 'message_start',
-        message: { id: 'msg_1', type: 'message', role: 'assistant', model: 'claude-test', content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 1, output_tokens: 0 } },
+        message: { id: 'msg_1', type: 'message', role: 'assistant', model: 'claude-test', content: [], stop_reason: null, stop_sequence: null, usage },
       },
     ],
   ];
@@ -186,6 +186,114 @@ describe('Anthropic provider', () => {
     await runAnthropic('Hi', { provider: 'anthropic', model: 'm', cwd, maxOutputTokens: 4096 }, {}, '');
     expect(JSON.parse(fetchMock.mock.calls[0][1].body).max_tokens).toBe(16000);
     expect(JSON.parse(fetchMock.mock.calls[1][1].body).max_tokens).toBe(4096);
+  });
+
+  it('sends effort as output_config.effort only when set', async () => {
+    const cwd = fixture();
+    const fetchMock = vi.fn().mockImplementation(async () => messageStream([{ type: 'text', text: 'ok' }], 'end_turn'));
+    vi.stubGlobal('fetch', fetchMock);
+    await runAnthropic('Hi', { provider: 'anthropic', model: 'm', cwd, effort: 'low' }, {}, '');
+    await runAnthropic('Hi', { provider: 'anthropic', model: 'm', cwd }, {}, '');
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).output_config).toEqual({ effort: 'low' });
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).not.toHaveProperty('output_config');
+  });
+
+  it('sends the answer schema as the structured output format instead of a prompt instruction', async () => {
+    const cwd = fixture();
+    const fetchMock = vi.fn().mockImplementation(async () => messageStream([{ type: 'text', text: '{"hunks":[{"id":"h1","risk":2}]}' }], 'end_turn'));
+    vi.stubGlobal('fetch', fetchMock);
+    const schema = {
+      type: 'object',
+      properties: {
+        hunks: {
+          type: 'array',
+          items: { type: 'object', properties: { id: { type: 'string' }, risk: { type: 'integer', minimum: 0, maximum: 3 } }, required: ['id'] },
+        },
+        note: { type: 'string', maxLength: 10 },
+      },
+      required: ['hunks'],
+    };
+    const result = await runAnthropic<{ hunks: { id: string }[] }>('Narrate', { provider: 'anthropic', model: 'm', cwd, effort: 'low' }, { schema }, 'Read only');
+    expect(result.value.hunks).toEqual([{ id: 'h1', risk: 2 }]);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.messages[0].content).toBe('Narrate');
+    expect(body.output_config).toEqual({
+      effort: 'low',
+      format: {
+        type: 'json_schema',
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            hunks: {
+              type: 'array',
+              items: { type: 'object', additionalProperties: false, properties: { id: { type: 'string' }, risk: { type: 'integer' } }, required: ['id'] },
+            },
+            note: { type: 'string' },
+          },
+          required: ['hunks'],
+        },
+      },
+    });
+  });
+
+  it('uses the beta endpoint with the fast mode header and speed when fastMode is on, keeping caching and tools', async () => {
+    const cwd = fixture();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(messageStream([{ type: 'tool_use', id: 'toolu_1', name: 'read_file', input: { path: 'example.ts' } }], 'tool_use'))
+      .mockResolvedValueOnce(messageStream([{ type: 'text', text: 'fast answer' }], 'end_turn'))
+      .mockResolvedValueOnce(messageStream([{ type: 'text', text: 'standard' }], 'end_turn'));
+    vi.stubGlobal('fetch', fetchMock);
+    const updates: string[] = [];
+    const result = await runAnthropic<string>('Q', { provider: 'anthropic', model: 'claude-opus-5-5', cwd, fastMode: true, effort: 'high' }, { onText: (t) => updates.push(t) }, 'Read only');
+    expect(result.value).toBe('fast answer');
+    expect(updates.at(-1)).toBe('fast answer');
+    for (const [url, init] of fetchMock.mock.calls.slice(0, 2)) {
+      expect(String(url)).toBe('https://api.anthropic.com/v1/messages?beta=true');
+      expect(new Headers(init.headers).get('anthropic-beta')).toBe('fast-mode-2026-02-01');
+      const body = JSON.parse(init.body);
+      expect(body).toMatchObject({ speed: 'fast', output_config: { effort: 'high' }, cache_control: { type: 'ephemeral' } });
+      expect(body).not.toHaveProperty('betas');
+      expect(body.system).toEqual([{ type: 'text', text: 'Read only', cache_control: { type: 'ephemeral' } }]);
+      expect(body.tools.map((t: { name: string }) => t.name)).toEqual(['read_file', 'search_repo', 'git_history']);
+    }
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).messages.at(-1).content[0]).toMatchObject({ type: 'tool_result', tool_use_id: 'toolu_1' });
+
+    await runAnthropic('Q', { provider: 'anthropic', model: 'claude-opus-5-5', cwd, fastMode: false }, {}, 'Read only');
+    const [url, init] = fetchMock.mock.calls[2];
+    expect(String(url)).toBe('https://api.anthropic.com/v1/messages');
+    expect(new Headers(init.headers).get('anthropic-beta')).toBeNull();
+    expect(JSON.parse(init.body)).not.toHaveProperty('speed');
+  });
+
+  it('sums token usage across turns and counts tool turns', async () => {
+    const cwd = fixture();
+    const usage = { input_tokens: 10, output_tokens: 3, cache_read_input_tokens: 500, cache_creation_input_tokens: 40 };
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(messageStream([{ type: 'tool_use', id: 'toolu_1', name: 'read_file', input: { path: 'example.ts' } }], 'tool_use', usage))
+        .mockResolvedValueOnce(messageStream([{ type: 'text', text: 'done' }], 'end_turn', usage)),
+    );
+    const result = await runAnthropic<string>('Q', { provider: 'anthropic', model: 'm', cwd }, {}, 'Read only');
+    // message_delta reports the final output count (1) for each turn.
+    expect(result.usage).toEqual({ inputTokens: 20, outputTokens: 2, cacheReadTokens: 1000, cacheWriteTokens: 80, toolTurns: 1 });
+  });
+
+  it("puts a rate limit's retry-after header on the ModelError", async () => {
+    const cwd = fixture();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ type: 'error', error: { type: 'rate_limit_error', message: 'slow down' } }), {
+          status: 429,
+          headers: { 'content-type': 'application/json', 'retry-after': '20' },
+        }),
+      ),
+    );
+    await expect(runAnthropic('Hi', { provider: 'anthropic', model: 'm', cwd }, {}, '')).rejects.toMatchObject({ name: 'ModelError', transient: true, retryAfterMs: 20_000 });
   });
 
   it('stops when the signal is aborted', async () => {

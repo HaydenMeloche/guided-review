@@ -306,7 +306,7 @@ gr cleanup                   # remove managed worktrees and prune old tours
 
 Providers, models, endpoints, and keys are not CLI options; they live in `~/.guided-review/config.json`. See [Configuration](configuration.md).
 
-Set `GR_DEBUG=1` to print stack traces on errors.
+Set `GR_DEBUG=1` to print stack traces on errors, and `GR_DEBUG_MODEL` to log every model call (see [Debugging model calls](configuration.md#debugging-model-calls)).
 
 Once a day, `gr` checks npm in the background for a newer version. Before a tour it opens an update screen with the release notes since your version: `Enter` installs the update and restarts `gr` where you were, `n` waits until tomorrow, and `s` skips that version. Other commands mention the update when they finish. It never checks in CI or for `gr build`. Set `GR_NO_UPDATE_CHECK=1` to turn it off.
 

@@ -68,7 +68,7 @@ describe('generateSuggestion', () => {
       assumptions: ['claim() runs in the same transaction'],
       citations: [{ path: 'src/cancel.ts', startLine: 3, endLine: 5 }],
       notes: [],
-      model: { provider: 'anthropic', model: 'claude-x', baseUrl: undefined },
+      model: { provider: 'anthropic', model: 'claude-x', baseUrl: undefined, elapsedMs: expect.any(Number) },
     });
     const [prompt, config, opts] = anthropic.mock.calls[0];
     expect(prompt).toContain('>>   41 +  inventory.quantity += quantity;');
@@ -177,13 +177,13 @@ describe('generateSuggestion', () => {
   it('uses the qa role override and falls back to the default model', async () => {
     const roles = { qa: { provider: 'openai' as const, model: 'gpt-x', apiKey: 'o' } };
     openai.mockResolvedValueOnce(output());
-    expect((await generateSuggestion(base({ roles }))).model).toEqual({ provider: 'openai', model: 'gpt-x', baseUrl: undefined });
+    expect((await generateSuggestion(base({ roles }))).model).toEqual({ provider: 'openai', model: 'gpt-x', baseUrl: undefined, elapsedMs: expect.any(Number) });
     expect(anthropic).not.toHaveBeenCalled();
 
     openai.mockRejectedValueOnce(new Error('unknown model gpt-x'));
     anthropic.mockResolvedValueOnce(output());
     const r = await generateSuggestion(base({ roles }));
-    expect(r.model).toEqual({ provider: 'anthropic', model: 'claude-x', baseUrl: undefined, fallback: true });
+    expect(r.model).toEqual({ provider: 'anthropic', model: 'claude-x', baseUrl: undefined, fallback: true, elapsedMs: expect.any(Number) });
     expect(anthropic.mock.calls[0][1]).toMatchObject({ keepSession: false });
   });
 });

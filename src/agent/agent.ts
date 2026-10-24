@@ -10,7 +10,19 @@ import { runAnthropic } from './anthropic.js';
 import { ModelError } from './http.js';
 import { checkSchema } from './output.js';
 import type { ModelOpts } from './toolLoop.js';
-import { configForRole, type AgentConfig, type AgentContext, type AgentRole, type AgentRouting, type ModelStamp, type ProviderRunConfig, resolveApiKey } from './types.js';
+import { logModelCall } from './debugLog.js';
+import {
+  configForRole,
+  type AgentConfig,
+  type AgentContext,
+  type AgentRole,
+  type AgentRouting,
+  type CallUsage,
+  type ModelStamp,
+  type ProviderResult,
+  type ProviderRunConfig,
+  resolveApiKey,
+} from './types.js';
 
 // The claude-code, bedrock, and vertex providers run on the Claude Agent SDK, which reuses the
 // Claude Code login (or the Bedrock / Vertex env). Other providers have their own adapters.
@@ -27,6 +39,24 @@ export interface RunResult<T> {
 
 const TRANSIENT = new Set(['rate_limit', 'overloaded', 'server_error']);
 const BACKOFF_MS = [5_000, 15_000, 40_000];
+// A server's retry-after is honoured up to this long.
+const MAX_RETRY_AFTER_MS = 60_000;
+
+// The providers that send `effort`; fastMode is Anthropic API only.
+const SENDS_EFFORT = new Set<AgentConfig['provider']>(['anthropic', 'claude-code', 'bedrock', 'vertex', undefined]);
+
+function stampOf(config: AgentConfig, usage: CallUsage | undefined, elapsedMs: number): ModelStamp {
+  const counts = Object.fromEntries(Object.entries(usage ?? {}).filter(([, v]) => typeof v === 'number' && Number.isFinite(v))) as CallUsage;
+  return {
+    provider: config.provider ?? 'claude-code',
+    model: config.model,
+    baseUrl: config.baseUrl,
+    ...(config.effort && SENDS_EFFORT.has(config.provider) ? { effort: config.effort } : {}),
+    ...(config.fastMode && config.provider === 'anthropic' ? { fastMode: true } : {}),
+    ...counts,
+    elapsedMs,
+  };
+}
 
 export class AgentUnavailableError extends Error {}
 
@@ -44,15 +74,19 @@ const sleep = (ms: number, signal?: AbortSignal) =>
     signal?.addEventListener('abort', onAbort, { once: true });
   });
 
-// Rate limits and overloads are retried with backoff before the agent counts as unavailable.
+// Rate limits and overloads are retried with backoff before the agent counts as unavailable. The
+// wait is the server's retry-after when it gives one (capped), or the next fixed step. The result's
+// modelUsed carries the call's measurements, timed across every attempt.
 export async function run<T>(prompt: string, options: ProviderRunConfig, opts: ModelOpts = {}): Promise<RunResult<T>> {
+  const started = Date.now();
   for (let attempt = 0; ; attempt++) {
     try {
-      return await runOnce<T>(prompt, options, opts);
+      const { value, sessionId, usage } = await runOnce<T>(prompt, options, opts);
+      return { value, ...(sessionId ? { sessionId } : {}), modelUsed: stampOf(options, usage, Date.now() - started) };
     } catch (e) {
       if (!(e instanceof ModelError)) throw e;
       if (!e.transient || attempt >= BACKOFF_MS.length || opts.signal?.aborted) throw new AgentUnavailableError(e.message);
-      await sleep(BACKOFF_MS[attempt], opts.signal);
+      await sleep(e.retryAfterMs !== undefined ? Math.min(e.retryAfterMs, MAX_RETRY_AFTER_MS) : BACKOFF_MS[attempt], opts.signal);
     }
   }
 }
@@ -65,18 +99,31 @@ export async function runRole<T>(role: AgentRole, prompt: string, context: Agent
   const fallback = configForRole({ ...routing, roles: undefined }, role);
   // Only Q&A sessions are ever resumed, so other roles' conversations are not kept.
   const keep = role === 'qa' && opts.session !== false;
+  const started = Date.now();
   const execute = async (config: AgentConfig, resume?: string) => {
     const result = await run<T>(prompt, { cwd, ...config, resume, maxTurns: opts.maxTurns, keepSession: keep }, opts);
     if (result.sessionId && keep) rememberSession?.(role, result.sessionId);
     return result;
   };
+  // elapsedMs covers the whole role call, a failed override before its fallback included.
+  const finish = (config: AgentConfig, result: RunResult<T>, isFallback: boolean): RunResult<T> => {
+    const modelUsed: ModelStamp = { ...(result.modelUsed ?? stampOf(config, undefined, 0)), ...(isFallback ? { fallback: true } : {}), elapsedMs: Date.now() - started };
+    logModelCall({ role, ...modelUsed });
+    return { ...result, modelUsed };
+  };
+  const failed = (config: AgentConfig, error: unknown, isFallback: boolean) =>
+    logModelCall({ role, ...stampOf(config, undefined, Date.now() - started), ...(isFallback ? { fallback: true } : {}), error: (error as Error).message });
   try {
-    const result = await execute(chosen, keep ? sessions?.qa : undefined);
-    return { ...result, modelUsed: { provider: chosen.provider ?? 'claude-code', model: chosen.model, baseUrl: chosen.baseUrl } };
+    return finish(chosen, await execute(chosen, keep ? sessions?.qa : undefined), false);
   } catch (error) {
+    failed(chosen, error, false);
     if (!routing.roles?.[role] || JSON.stringify(chosen) === JSON.stringify(fallback) || opts.signal?.aborted) throw error;
-    const result = await execute(fallback);
-    return { ...result, modelUsed: { provider: fallback.provider ?? 'claude-code', model: fallback.model, baseUrl: fallback.baseUrl, fallback: true } };
+    try {
+      return finish(fallback, await execute(fallback), true);
+    } catch (fallbackError) {
+      failed(fallback, fallbackError, true);
+      throw fallbackError;
+    }
   }
 }
 
@@ -85,7 +132,7 @@ export async function runRole<T>(role: AgentRole, prompt: string, context: Agent
 // signal, while a call's own request, SDK and parallel tool listeners go on its private signal.
 const CALL_LISTENER_LIMIT = 50;
 
-async function runOnce<T>(prompt: string, options: ProviderRunConfig, opts: ModelOpts): Promise<RunResult<T>> {
+async function runOnce<T>(prompt: string, options: ProviderRunConfig, opts: ModelOpts): Promise<ProviderResult<T>> {
   opts.signal?.throwIfAborted();
   const abortController = new AbortController();
   setMaxListeners(CALL_LISTENER_LIMIT, abortController.signal);
@@ -104,7 +151,7 @@ async function runOnce<T>(prompt: string, options: ProviderRunConfig, opts: Mode
   }
 }
 
-async function runClaude<T>(prompt: string, options: ProviderRunConfig, opts: ModelOpts, abortController: AbortController): Promise<RunResult<T>> {
+async function runClaude<T>(prompt: string, options: ProviderRunConfig, opts: ModelOpts, abortController: AbortController): Promise<ProviderResult<T>> {
   // Without a configured key, the SDK uses the Claude Code login or the ambient environment.
   const key = (options.provider ?? 'claude-code') === 'claude-code' && (options.apiKey || options.apiKeyEnv) ? resolveApiKey(options).key : undefined;
   const { query } = await import('@anthropic-ai/claude-agent-sdk');
@@ -115,6 +162,7 @@ async function runClaude<T>(prompt: string, options: ProviderRunConfig, opts: Mo
       model: options.model,
       resume: options.resume,
       maxTurns: options.maxTurns,
+      ...(options.effort ? { effort: options.effort } : {}),
       systemPrompt: SYSTEM_PROMPT,
       tools: READ_ONLY_TOOLS,
       // canUseTool only runs when the SDK would prompt; the hook sees every call, including
@@ -149,10 +197,18 @@ async function runClaude<T>(prompt: string, options: ProviderRunConfig, opts: Mo
     if (msg.type === 'assistant' && msg.error) throw new ModelError(`model error: ${msg.error}`, TRANSIENT.has(msg.error));
     if (msg.type === 'result') {
       if (msg.subtype !== 'success') throw new Error(`agent stopped: ${msg.subtype}`);
-      if (!opts.schema) return { value: msg.result as T, sessionId };
+      // The main loop's usage; num_turns counts model turns, the last of which answered.
+      const usage: CallUsage = {
+        inputTokens: msg.usage?.input_tokens,
+        outputTokens: msg.usage?.output_tokens,
+        cacheReadTokens: msg.usage?.cache_read_input_tokens,
+        cacheWriteTokens: msg.usage?.cache_creation_input_tokens,
+        toolTurns: typeof msg.num_turns === 'number' ? Math.max(0, msg.num_turns - 1) : undefined,
+      };
+      if (!opts.schema) return { value: msg.result as T, sessionId, usage };
       const output = (msg as { structured_output?: unknown }).structured_output;
       if (output === undefined) throw new Error('agent returned no structured output');
-      return { value: checkSchema<T>(output, opts.schema), sessionId };
+      return { value: checkSchema<T>(output, opts.schema), sessionId, usage };
     }
   }
   throw new Error('agent ended without a result');
@@ -285,7 +341,7 @@ export async function analyzeBriefing(tour: Tour, pr: PRInfo, cwd: string, confi
 }
 
 export async function analyzeChapter(tour: Tour, chapter: Chapter, cwd: string, config: AgentRouting = {}, signal?: AbortSignal) {
-  return runRole<ChapterResult>('narration', chapterPrompt(tour, chapter), { cwd, ...config }, { schema: chapterSchema, signal, maxTurns: 16 });
+  return runRole<ChapterResult>('narration', chapterPrompt(tour, chapter), { cwd, ...config }, { schema: chapterSchema, signal, maxTurns: 8 });
 }
 
 // ---------- Live Q&A ----------
