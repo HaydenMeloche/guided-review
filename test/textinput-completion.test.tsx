@@ -596,7 +596,7 @@ describe('CommentEditor with a completion list', () => {
     createdAt: '2026-01-01T00:00:00Z',
   };
 
-  it('Esc closes the list first and cancels the draft only on the second press', async () => {
+  it('Esc closes the list first, then asks, and discards the typed draft only on the third press', async () => {
     const onCancel = vi.fn();
     const onSave = vi.fn();
     const ui = render(<CommentEditor draft={draft} target="chapter" width={60} mentions={['alice']} onSave={onSave} onCancel={onCancel} />);
@@ -607,6 +607,9 @@ describe('CommentEditor with a completion list', () => {
     await waitFor(() => expect(ui.lastFrame()).not.toContain('▸ @alice'));
     expect(onCancel).not.toHaveBeenCalled();
     expect(ui.lastFrame()).toContain('ask @al');
+    ui.stdin.write(ESC);
+    await waitFor(() => expect(ui.lastFrame()).toContain('esc again to discard · enter to save'));
+    expect(onCancel).not.toHaveBeenCalled();
     ui.stdin.write(ESC);
     await waitFor(() => expect(onCancel).toHaveBeenCalledOnce());
     ui.unmount();

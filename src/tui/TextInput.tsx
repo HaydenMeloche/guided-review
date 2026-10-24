@@ -43,7 +43,7 @@ interface Results {
 }
 
 // Minimal editable text field: typing, paste, backspace, ←/→, Ctrl+A/E/U/W.
-// Shift+Enter or Ctrl+J inserts a newline. Enter calls onSubmit.
+// Ctrl+J (or Shift+Enter, where the terminal reports it) inserts a newline. Enter calls onSubmit.
 //
 // Completion: when a completer's trigger matches the text before the cursor, a list opens
 // under the field. ↑/↓ choose, Tab or Enter insert (Enter does not submit), Esc closes only

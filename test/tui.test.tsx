@@ -1108,7 +1108,7 @@ describe('lazy @mention users', () => {
     expect(loads).toBe(0);
     ui.stdin.write('c');
     await waitFor(() => expect(loads).toBe(1));
-    await waitFor(() => expect(ui.lastFrame()).toContain('enter: save draft'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('enter save'));
     ui.stdin.write('@zed');
     await waitFor(() => expect(ui.lastFrame()).toContain('zed-collaborator'));
     expect(loads).toBe(1);

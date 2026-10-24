@@ -9,6 +9,7 @@ import { truncate } from '../nav.js';
 import { age } from '../PickerScreen.js';
 import { VERDICT } from './FeedbackBriefing.js';
 import { sanitizeTerminal as safe } from '../../util/sanitize.js';
+import { Hints } from '../KeyBar.js';
 
 // A comment on the PR's conversation, queued like a thread reply. It starts by choosing what to
 // answer, a review summary or someone's comment, which it quotes and mentions; or a new comment.
@@ -68,9 +69,14 @@ export function CommentComposer(props: {
             placeholder="Write a comment for the PR's conversation…"
           />
         </Box>
-        <Text dimColor wrap="truncate">
-          Enter: queue · Shift+Enter: newline · Esc: cancel · an empty comment removes it
-        </Text>
+        <Hints
+          keys={[
+            ['enter', 'queue'],
+            ['ctrl+j', 'newline'],
+            ['esc', 'cancel'],
+          ]}
+          note="an empty comment removes it"
+        />
       </Box>
     );
   }

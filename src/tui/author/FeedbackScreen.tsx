@@ -10,7 +10,7 @@ import { SourcePane } from '../chapter/SourcePane.js';
 import { useFolds } from '../chapter/hunkView.js';
 import { AskOverlay } from '../AskOverlay.js';
 import { TextInput } from '../TextInput.js';
-import { Hints, KeyBar } from '../KeyBar.js';
+import { Hints, KeyBar, type Hint } from '../KeyBar.js';
 import { MdLineView, renderMarkdown, type MdLine } from '../markdown.js';
 import { mentionHighlight } from '../completion.js';
 import { pad, truncate } from '../nav.js';
@@ -459,9 +459,7 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
             highlightTokens={mentionRules}
             placeholder={props.agent ? 'Write a reply, or ^T to draft one (what you type guides it)…' : 'Write a reply…'}
           />
-          <Text dimColor wrap="truncate">
-            Enter: queue · Shift+Enter: newline · {props.agent ? '^T: draft with AI · ' : ''}^R: resolve after sending · Esc: cancel
-          </Text>
+          <Hints keys={[['enter', 'queue'], ['ctrl+j', 'newline'], ...((props.agent ? [['ctrl+t', 'draft with AI']] : []) as Hint[]), ['ctrl+r', 'resolve after sending'], ['esc', 'cancel']]} />
         </Box>
       );
     if (mode.kind === 'ai' || mode.kind === 'refine') {

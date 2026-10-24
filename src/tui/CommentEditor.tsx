@@ -14,6 +14,7 @@ import { SourcePreview } from './SourcePreview.js';
 import { anchorText, draftFrom, initComposer, isLineAnchor, linesWord, suggestionMetaFor, suggestionStillApplies, type ComposerEnv, type ComposerState, type SetComposer } from './composer.js';
 import { mergeRefs, referenceCompleter, refHighlight, refTarget } from './references.js';
 import { truncate } from './nav.js';
+import { KeyBar, type Hint } from './KeyBar.js';
 import { openInEditor } from '../util/editor.js';
 import { sanitizeTerminal } from '../util/sanitize.js';
 
@@ -26,6 +27,8 @@ const FULL_ROWS = 18;
 const INLINE_FALLBACK = 20; // rows assumed for the AI proposal when the owner gives none
 const AI_HINT = 'suggest a code change with AI';
 const AI_HINT_SHORT = 'suggest a fix with AI';
+const DISCARD_MS = 2000;
+const COMPACT_CHROME = 7;
 
 export type { SetComposer };
 
@@ -58,6 +61,13 @@ export function CommentEditor(props: {
   const set: SetComposer = props.setState ?? ((f) => setOwn(f));
   const patch = (p: Partial<ComposerState>) => set((s) => ({ ...s, ...p }));
   const [completing, setCompleting] = useState(false); // TextInput's list owns Esc while open
+  // Esc on typed text asks once: a second Esc within DISCARD_MS discards it.
+  const [discardArmed, setDiscardArmed] = useState(false);
+  useEffect(() => {
+    if (!discardArmed) return;
+    const t = setTimeout(() => setDiscardArmed(false), DISCARD_MS);
+    return () => clearTimeout(t);
+  }, [discardArmed]);
   const latest = useRef(st);
   latest.current = st;
 
@@ -124,8 +134,18 @@ export function CommentEditor(props: {
 
   useInput(
     (input, key) => {
-      if (key.escape) return completing ? undefined : props.onCancel();
-      if (key.ctrl && input === 'g' && canSuggest) return void editSuggestion();
+      if (key.escape) {
+        if (completing) return;
+        const typed = st.body.trim() !== props.draft.body.trim() || st.suggestion !== props.draft.suggestion;
+        if (!typed || discardArmed) return props.onCancel();
+        setDiscardArmed(true);
+        return patch({ msg: 'esc again to discard · enter to save' });
+      }
+      if (discardArmed) {
+        setDiscardArmed(false);
+        if (st.msg === 'esc again to discard · enter to save') patch({ msg: '' });
+      }
+      if (key.ctrl && input === 'g') return canSuggest ? void editSuggestion() : patch({ msg: 'A code suggestion needs a comment on a line or range.' });
       if (key.ctrl && input === 'd' && st.suggestion !== undefined) return set((s) => ({ ...s, suggestion: undefined, suggestionMeta: undefined, msg: 'Suggestion removed.' }));
       if (!env) return;
       if (key.ctrl && input === 't') return ai.open();
@@ -147,14 +167,15 @@ export function CommentEditor(props: {
       {tour ? <AnchorStatus tour={tour} state={st} /> : null}
     </Text>
   );
-  const labels = (
-    <Text>
+  // The labels, and what the chosen one does: it posts as a bold tag that groups the review.
+  const labels = (note: string) => (
+    <Text wrap="truncate">
       {LABELS.map((l) => (
         <Text key={l} color={LABEL_COLOR[l]} inverse={l === st.label}>
           {` ${l} `}
         </Text>
       ))}
-      <Text dimColor> (tab)</Text>
+      <Text dimColor>{`  posts as **[${st.label}]**${note ? ` · ${note}` : ''}`}</Text>
     </Text>
   );
   const listHeight = full ? Math.max(0, (props.height ?? 0) - 12) : props.listRows;
@@ -190,39 +211,45 @@ export function CommentEditor(props: {
     </Text>
   ) : null;
 
-  const footer =
-    st.msg || `enter: save draft · shift+enter: newline${canSuggest ? ' · ctrl+g: code suggestion in $EDITOR' : ''}${st.suggestion !== undefined ? ' · ctrl+d: drop suggestion' : ''} · esc: cancel`;
   const aiOpen = ai.ai && tour;
   const aiSection = (budget: number) =>
     ai.ai && tour ? <AiSuggestionView ai={ai.ai} tour={tour} state={st} width={inner} budget={budget} onInstruction={ai.setInstruction} onSubmit={() => void ai.generate()} /> : null;
-  // Ctrl+T says what it does; narrow composers get the short wording, and then lead with it so
-  // truncation cuts the @ hint rather than it.
   const offerAi = canSuggest && !!env?.agent && tour?.mode === 'agent';
-  const keysFor = (room: number) => {
-    if (!env) return '';
-    if (!offerAi) return '@ people/code';
-    const long = `@ people/code · ctrl+t ${AI_HINT}`;
-    if (long.length <= room) return long;
-    const short = `@ people/code · ctrl+t ${AI_HINT_SHORT}`;
-    return short.length <= room ? short : `ctrl+t ${AI_HINT_SHORT} · @ people/code`;
-  };
-  const fullKeys = () => {
-    const tail = ` · ${canSuggest ? 'ctrl+g $EDITOR · ' : ''}esc`;
-    return `enter save · ${keysFor(inner - 'enter save · '.length - tail.length)}${tail}`;
-  };
-  const sourceNote = st.suggestionMeta?.source === 'ai' ? 'AI suggestion · ' : '';
+  // Every key the text layer takes, most used first; the bar cuts what does not fit and says so.
+  const textKeys: Hint[] = [
+    ['enter', 'save'],
+    ...((offerAi ? [['ctrl+t', inner >= 90 ? AI_HINT : inner >= 60 ? AI_HINT_SHORT : 'AI fix']] : []) as Hint[]),
+    ...((env ? [['@', 'people/code']] : []) as Hint[]),
+    ['ctrl+j', 'newline'],
+    ['tab', 'label'],
+    ...((canSuggest ? [['ctrl+g', 'suggestion in $EDITOR']] : []) as Hint[]),
+    ...((st.suggestion !== undefined ? [['ctrl+d', 'drop suggestion']] : []) as Hint[]),
+    ['esc', 'cancel'],
+  ];
+  // The message, if any, takes the footer: a warning about to discard in yellow, the rest dim.
+  const footer = (keys: Hint[] | string) =>
+    st.msg ? (
+      <Text color={discardArmed ? 'yellow' : undefined} dimColor={!discardArmed} wrap="truncate">
+        {truncate(st.msg, inner)}
+      </Text>
+    ) : typeof keys === 'string' ? (
+      <Text dimColor wrap="truncate">
+        {truncate(keys, inner)}
+      </Text>
+    ) : (
+      <KeyBar width={inner} keys={keys} accent />
+    );
+  const sourceNote = st.suggestionMeta?.source === 'ai' ? 'AI suggestion' : '';
 
   if (full && env && tour) {
     return (
       <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1} width={width}>
         {header}
-        {labels}
+        {labels(sourceNote)}
         <Box marginTop={1}>{field(6)}</Box>
-        {targetLine}
+        {targetLine ?? <Text> </Text>}
         {aiOpen ? aiSection(Math.max(4, (props.height ?? 0) - 12)) : st.suggestion !== undefined ? <SuggestionDiff state={st} env={env} original={selected} width={inner} max={6} /> : null}
-        <Text dimColor wrap="truncate">
-          {truncate(st.msg || (ai.ai ? aiKeys(ai.ai) : fullKeys()), inner)}
-        </Text>
+        {footer(ai.ai ? aiKeys(ai.ai) : textKeys)}
       </Box>
     );
   }
@@ -232,40 +259,43 @@ export function CommentEditor(props: {
     return (
       <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1} width={width}>
         {header}
-        {labels}
+        {labels(sourceNote)}
         <Box marginTop={1}>{field(AI_BODY_ROWS)}</Box>
         {aiSection(props.aiRows ?? Math.max(4, (props.height ?? INLINE_FALLBACK) - aiChromeRows(st, width)))}
-        <Text dimColor wrap="truncate">
-          {truncate(st.msg || aiKeys(ai.ai!), inner)}
-        </Text>
+        {footer(aiKeys(ai.ai!))}
       </Box>
     );
 
+  // The compact composer fits the slot it was given: border, header, labels, gap, the target
+  // line's row (kept whether or not the cursor is on a reference, so nothing below jumps), and
+  // the footer take COMPACT_CHROME rows; the body and a suggestion share the rest.
+  const room = props.height ? Math.max(2, props.height - COMPACT_CHROME) : 12;
+  const suggestionRows = st.suggestion !== undefined ? Math.max(2, Math.min(8, room - 2)) : 0;
+  const bodyRows = Math.max(1, Math.min(8, room - suggestionRows));
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1} width={width}>
       {header}
-      {labels}
-      <Box marginTop={1}>{field(8)}</Box>
-      {targetLine}
+      {labels(sourceNote)}
+      <Box marginTop={1}>{field(bodyRows)}</Box>
+      {env && !completing ? (targetLine ?? <Text> </Text>) : null}
       {st.suggestion !== undefined ? (
-        <Box flexDirection="column" marginTop={1}>
-          <Text dimColor>suggestion (posted as a GitHub suggestion block):</Text>
-          {st.suggestion
-            .split('\n')
-            .slice(0, 8)
-            .map((l, i) => (
-              <Text key={i} color="green">
-                {'+ ' + sanitizeTerminal(l)}
-              </Text>
-            ))}
-        </Box>
+        env ? (
+          <SuggestionDiff state={st} env={env} original={selected} width={inner} max={Math.max(1, suggestionRows - 1)} gap={false} />
+        ) : (
+          <Box flexDirection="column">
+            <Text dimColor>suggestion (posted as a GitHub suggestion block):</Text>
+            {st.suggestion
+              .split('\n')
+              .slice(0, Math.max(1, suggestionRows - 1))
+              .map((l, i) => (
+                <Text key={i} color="green">
+                  {'+ ' + sanitizeTerminal(l)}
+                </Text>
+              ))}
+          </Box>
+        )
       ) : null}
-      {env ? (
-        <Text dimColor wrap="truncate">
-          {truncate(`${sourceNote}${keysFor(inner - sourceNote.length)}`, inner)}
-        </Text>
-      ) : null}
-      <Text dimColor>{footer}</Text>
+      {footer(textKeys)}
     </Box>
   );
 }
@@ -283,7 +313,7 @@ function AnchorStatus(props: { tour: NonNullable<ComposerEnv['tour']>; state: Co
   );
 }
 
-function SuggestionDiff(props: { state: ComposerState; env: ComposerEnv; original?: string; width: number; max: number }) {
+function SuggestionDiff(props: { state: ComposerState; env: ComposerEnv; original?: string; width: number; max: number; gap?: boolean }) {
   const { state: st, env, width } = props;
   const meta = st.suggestionMeta;
   const who = meta?.source === 'ai' ? 'AI proposal, accepted by you' : 'written by you';
@@ -292,9 +322,11 @@ function SuggestionDiff(props: { state: ComposerState; env: ComposerEnv; origina
   const status = applies.ok ? `applies to ${linesWord(st.anchor)}` : `plain code block: ${applies.reason}`;
   const minus = (props.original ?? '').split('\n').filter((l, i, all) => all.length > 1 || l);
   const plus = st.suggestion ? st.suggestion.split('\n') : [];
-  const rows = [...minus.map((l) => ['-', l] as const), ...plus.map((l) => ['+', l] as const)];
+  // Short of room, the replacement shows and the lines it replaces give way.
+  const all = [...minus.map((l) => ['-', l] as const), ...plus.map((l) => ['+', l] as const)];
+  const rows = all.length > props.max ? all.filter(([sign]) => sign === '+') : all;
   return (
-    <Box marginTop={1} flexDirection="column">
+    <Box marginTop={props.gap === false ? 0 : 1} flexDirection="column">
       <Text wrap="truncate">
         <Text bold>Suggestion</Text>
         <Text dimColor> · {truncate(`${who} · ${status}`, width - 12)}</Text>

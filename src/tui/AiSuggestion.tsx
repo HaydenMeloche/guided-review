@@ -183,11 +183,11 @@ export const aiChromeRows = (st: ComposerState, width: number) => 6 + Math.min(A
 const LIST_MIN_ROWS = 7; // the list's usual rows plus its hint line
 
 // The compact composer's rows other than an open list: border, header, labels, the body's
-// rows, a suggestion if any, and the key and footer lines.
+// rows, a suggestion if any, and the footer line.
 function listChromeRows(st: ComposerState, width: number): number {
   const body = Math.min(8, wrap(st.body + ' ', Math.max(10, width - 4)).length);
-  const suggestion = st.suggestion !== undefined ? 2 + Math.min(8, st.suggestion.split('\n').length) : 0;
-  return 6 + body + suggestion + 2;
+  const suggestion = st.suggestion !== undefined ? 1 + Math.min(8, st.suggestion.split('\n').length) : 0;
+  return 6 + body + suggestion + 1;
 }
 
 // The inline composer's slot under the code: its usual rows, or room for the AI line and its

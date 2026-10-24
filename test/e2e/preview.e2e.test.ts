@@ -82,7 +82,7 @@ describe('gr preview --no-agent', () => {
     first.press('n');
     await first.waitFor('0 draft comments');
     first.press('c');
-    await first.waitFor('enter: save draft');
+    await first.waitFor('enter save');
     first.type('Should the discount be clamped to 0..1?');
     await first.waitFor('clamped to 0..1?');
     first.press(KEY.enter);

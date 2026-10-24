@@ -453,7 +453,13 @@ export function MergeScreen(props: {
           <Spinner color="yellow" /> Merging…
         </Text>
       ) : mode === 'title' || mode === 'body' ? (
-        <Text dimColor>Enter: done · Shift+Enter: newline · Esc: done</Text>
+        <Hints
+          keys={[
+            ['enter', 'done'],
+            ['ctrl+j', 'newline'],
+            ['esc', 'done'],
+          ]}
+        />
       ) : (
         <KeyBar
           width={width - 2}

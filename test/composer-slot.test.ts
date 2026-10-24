@@ -25,13 +25,13 @@ describe('inline composer slot', () => {
     const st = { ...initComposer(draft), listOpen: true };
     const slot = inlineComposerSlot(st, tour, 40, 80);
     expect(slot.height).toBe(30);
-    expect(slot.listRows).toBe(30 - 9); // border, header, labels, margin, one body row, keys and footer
+    expect(slot.listRows).toBe(30 - 8); // border, header, labels, margin, one body row, and the footer
     // A short pane never shrinks the slot below its usual rows.
     expect(inlineComposerSlot(st, tour, 10, 80).height).toBe(INLINE_ROWS);
   });
 
   it('leaves room for a suggestion under the body', () => {
     const st = { ...initComposer(draft), listOpen: true, suggestion: 'a\nb' };
-    expect(inlineComposerSlot(st, tour, 40, 80).listRows).toBe(30 - 13);
+    expect(inlineComposerSlot(st, tour, 40, 80).listRows).toBe(30 - 11);
   });
 });

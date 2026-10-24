@@ -156,7 +156,7 @@ describe('comment composer', () => {
     await tick();
     ui.stdin.write('c');
     await waitFor(() => expect(ui.lastFrame()).toContain('Comment on src/orders/cancel.ts:3'));
-    expect(ui.lastFrame()).toContain('enter: save draft');
+    expect(ui.lastFrame()).toContain('enter save');
     expect(ui.lastFrame()).toContain('@ people/code');
     expect(ui.lastFrame()).not.toMatch(/ctrl\+[pt]/);
     expect(ui.lastFrame()).not.toContain('evidence');
@@ -494,6 +494,10 @@ describe('@ completion preview', () => {
     ui.stdin.write(ESC);
     await waitFor(() => expect(ui.lastFrame()).not.toContain('ƒ releaseInventory'));
     expect(cancelled).toBe(false);
+    // The comment has typed text: the next Esc asks, and one more discards it.
+    ui.stdin.write(ESC);
+    await waitFor(() => expect(ui.lastFrame()).toContain('esc again to discard'));
+    expect(cancelled).toBe(false);
     ui.stdin.write(ESC);
     await waitFor(() => expect(cancelled).toBe(true));
     ui.unmount();
@@ -645,9 +649,10 @@ describe('composer keys', () => {
         />,
       );
     for (const [width, height, says] of [
-      [120, 14, '@ people/code · ctrl+t suggest a code change with AI'],
-      [48, 14, '@ people/code · ctrl+t suggest a fix with AI'],
-      [120, 30, 'enter save · @ people/code · ctrl+t suggest a code change with AI · ctrl+g $EDITOR · esc'],
+      [120, 14, 'ctrl+t suggest a code change with AI'],
+      [70, 14, 'ctrl+t suggest a fix with AI'],
+      [48, 14, 'ctrl+t AI fix'],
+      [120, 30, 'enter save   ctrl+t suggest a code change with AI   @ people/code'],
     ] as const) {
       const ui = editor(width, height);
       await waitFor(() => expect(ui.lastFrame()).toContain(says));
