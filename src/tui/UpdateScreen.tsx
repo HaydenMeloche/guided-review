@@ -9,6 +9,7 @@ import { sanitizeTerminal as safe } from '../util/sanitize.js';
 import { loadThemeSetting } from '../config.js';
 import { commandLine, fetchReleaseNotes, installCommand, RELEASES_URL, runInstall, type Install, type ReleaseNotes, type UpdateOffer, type UpdateResult } from '../updateCheck.js';
 import { plural } from './plural.js';
+import { SCREEN_RENDER } from './renderOptions.js';
 
 // The update offered before a tour, full screen in the user's theme: what's new since the
 // installed version, then the install with its output as it runs. A failed install can be
@@ -266,7 +267,7 @@ export async function runUpdateScreen(offer: UpdateOffer): Promise<UpdateResult>
         app.unmount();
       }}
     />,
-    { alternateScreen: true, exitOnCtrlC: false },
+    { ...SCREEN_RENDER, exitOnCtrlC: false },
   );
   await app.waitUntilExit();
   ac.abort();

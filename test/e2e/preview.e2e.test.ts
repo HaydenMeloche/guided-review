@@ -16,8 +16,8 @@ afterEach(() => {
   box.cleanup();
 });
 
-function preview(args = ['--no-agent']): Session {
-  const session = startGr(box, ['preview', ...args], { cwd: repo });
+function preview(args = ['--no-agent'], env?: NodeJS.ProcessEnv): Session {
+  const session = startGr(box, ['preview', ...args], { cwd: repo, env });
   sessions.push(session);
   return session;
 }
@@ -77,14 +77,21 @@ describe('gr preview --no-agent', () => {
   });
 
   it('saves a draft comment on the selected line and keeps it across runs', async () => {
-    const first = preview();
+    // The headless terminal does not answer the kitty keyboard query, so the protocol is forced on.
+    const first = preview(['--no-agent'], { GR_KITTY_KEYBOARD: 'enabled' });
     await first.waitFor('Chapters · Guided order');
     first.press('n');
     await first.waitFor('0 draft comments');
     first.press('c');
     await first.waitFor('enter save');
-    first.type('Should the discount be clamped to 0..1?');
-    await first.waitFor('clamped to 0..1?');
+    first.type('Should the discount be clamped');
+    await first.waitFor('be clamped');
+    // Shift+Enter as the kitty keyboard protocol sends it (CSI 13;2u) adds a line, not a save.
+    first.press('\u001b[13;2u');
+    await first.idle();
+    first.type('to 0..1?');
+    await first.waitFor('to 0..1?');
+    expect(first.screen()).toContain('Should the discount be clamped');
     first.press(KEY.enter);
     await first.waitFor('✎ [question] Should the discount be clamped to 0..1?');
     // An unposted draft: Q asks first, and y quits.

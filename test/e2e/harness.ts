@@ -247,11 +247,11 @@ export const KEY = { enter: '\r', escape: '\u001b', tab: '\t' } as const;
 
 // Runs gr in a pseudo-terminal and mirrors its output into a headless xterm,
 // so tests read the screen the way a user would see it.
-export function startGr(box: Sandbox, args: string[], opts: { cwd: string; cols?: number; rows?: number }): Session {
+export function startGr(box: Sandbox, args: string[], opts: { cwd: string; cols?: number; rows?: number; env?: NodeJS.ProcessEnv }): Session {
   const cols = opts.cols ?? 120;
   const rows = opts.rows ?? 36;
   const term = new xterm.Terminal({ cols, rows, allowProposedApi: true });
-  const proc = pty.spawn(process.execPath, [GR, ...args], { cols, rows, cwd: opts.cwd, env: box.env });
+  const proc = pty.spawn(process.execPath, [GR, ...args], { cols, rows, cwd: opts.cwd, env: { ...box.env, ...opts.env } });
   let lastData = Date.now();
   let title = '';
   term.onTitleChange((t) => (title = t));

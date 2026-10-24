@@ -324,6 +324,8 @@ Set `GR_DEBUG=1` to print stack traces on errors, and `GR_DEBUG_MODEL` to log ev
 
 Once a day, `gr` checks npm in the background for a newer version. Before a tour it opens an update screen with the release notes since your version: `Enter` installs the update and restarts `gr` where you were, `n` waits until tomorrow, and `s` skips that version. Other commands mention the update when they finish. It never checks in CI or for `gr build`. Set `GR_NO_UPDATE_CHECK=1` to turn it off.
 
+What gr needs from your terminal, and what to set in tmux, is in [Terminals](terminals.md).
+
 ### Use from Claude Code or Codex
 
 - **Claude Code:** `gr install-claude-command` installs a `/guided-review` command that previews your local changes: the current branch against its merge base with the default branch, uncommitted work included, with no PR needed. It runs `guided-review open --preview`, which opens `gr preview` in a new tmux window (inside tmux) or a new Terminal window (macOS), and otherwise prints the command to run. The command is only allowed to run `guided-review open --preview`. If `~/.claude/commands/guided-review.md` already exists with different content, the installer stops; pass `--force` to replace it.

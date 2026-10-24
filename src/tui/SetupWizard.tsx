@@ -34,6 +34,7 @@ import {
   type SetupResult,
 } from '../setup.js';
 import { agentRouting } from '../config.js';
+import { SCREEN_RENDER } from './renderOptions.js';
 
 // gr's setup, full screen: a welcome card, the color theme (so every later screen is already
 // in it), the model provider with what detection found marked, its details when something is
@@ -1096,7 +1097,7 @@ export async function runSetupWizard(opts: { firstRun: boolean; current?: UserCo
         app.unmount();
       }}
     />,
-    { alternateScreen: true, exitOnCtrlC: false },
+    { ...SCREEN_RENDER, exitOnCtrlC: false },
   );
   // stdin stays unref'd: gr config then exits, and a tour or the editor after it takes stdin itself.
   await app.waitUntilExit();

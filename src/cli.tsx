@@ -27,6 +27,7 @@ import type { PRInfo } from './types.js';
 import { KEEP_TOURS_PER_PR, TOUR_MAX_AGE_DAYS } from './store/retention.js';
 import { AGENT_ROLES, configForRole, validateRouting } from './agent/types.js';
 import { packageInfo, promptForUpdate, startUpdateCheck } from './updateCheck.js';
+import { SCREEN_RENDER } from './tui/renderOptions.js';
 
 // node:sqlite prints an ExperimentalWarning on load; drop just that one so it
 // does not land on top of the TUI. The store, and the TUI that imports it, are
@@ -384,7 +385,7 @@ async function main() {
   const [{ render }, { App }] = await tui;
   (await import('./tui/glyphs.js')).setGlyphs(glyphs);
   opts = { ...opts, palette: await paletteP };
-  const app = render(<App {...opts} />, { alternateScreen: true, exitOnCtrlC: true });
+  const app = render(<App {...opts} />, { ...SCREEN_RENDER, exitOnCtrlC: true });
   await app.waitUntilExit();
   // Backstop: stray timers, sockets, or child processes must not keep gr alive
   // after the tour has closed.
