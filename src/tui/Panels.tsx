@@ -7,8 +7,6 @@ import { truncate } from './nav.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
 import { Hints } from './KeyBar.js';
 
-const box = (color: string) => ({ flexDirection: 'column' as const, borderStyle: 'round' as const, borderColor: color, paddingX: 1 });
-
 // ---------- Team checklist ----------
 
 const CHECK_MARK = { pass: { m: '✓', c: 'green' }, fail: { m: '✗', c: 'red' }, unknown: { m: '?', c: 'yellow' } } as const;
@@ -23,7 +21,7 @@ export function ChecklistPanel(props: { items: ChecklistItem[]; confirms: Record
     if ((input === ' ' || key.return) && it) props.onToggle(it.id, !props.confirms[it.id]);
   });
   return (
-    <Box {...box('green')} width={props.width}>
+    <Box flexDirection="column" paddingX={1} width={props.width}>
       <Text bold>
         Team checklist <Text dimColor>· agent pre-check, your confirmation</Text>
       </Text>

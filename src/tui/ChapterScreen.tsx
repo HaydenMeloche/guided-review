@@ -23,6 +23,7 @@ import { SourcePane } from './chapter/SourcePane.js';
 import { TestPane } from './chapter/TestPane.js';
 import { ChapterList, ChapterStrip, ChapterTitle, CollapsedSummary, DraftLine, EmptyChapter, Explanation, Header, MoveList } from './chapter/parts.js';
 import { HelpPopup } from './Help.js';
+import { ReviewPopup } from './ReviewPopup.js';
 import { reviewLegend } from './legend.js';
 import { anchorLines, crossesContext, describeAnchor, lineAnchor, newDraft, selectedCode, selRange, testLineAnchor } from './chapter/selection.js';
 import { CONTEXT_STEP, useFoldedCursor, useFolds, useHunkView } from './chapter/hunkView.js';
@@ -400,30 +401,45 @@ export function ChapterScreen(props: {
   // leave no handler active, so close it.
   if (overlay.kind !== 'none' && !slots.shown) close(); // React re-renders before committing
 
-  const overlayNode = (() => {
+  // The diagram, the move list, the checklist, and a chapter or node comment float over the
+  // screen, which stays in view around them: the diagram's job is to orient you in that code.
+  const floating = (() => {
     if (slots.popup === 'diagram') {
       const g = chapter.diagram ?? tour.overview!;
-      return (
-        <DiagramView
-          graph={g}
-          width={mainWidth}
-          height={height - 4}
-          onClose={() => close()}
-          onJump={(hid) => {
-            const c = chapters.findIndex((ch) => ch.hunkIds.includes(hid));
-            if (c >= 0) props.setPos(c, chapters[c].hunkIds.indexOf(hid));
-            close();
-          }}
-          onComment={(nodeId) => openComposer(draft({ type: 'node', chapterId: chapter.id, nodeId }))}
-        />
-      );
+      return {
+        tone: 'reading' as const,
+        width: Math.max(40, Math.floor(width * 0.85)),
+        height: Math.max(10, Math.floor(height * 0.8)),
+        node: (w: number, h: number) => (
+          <DiagramView
+            graph={g}
+            width={w}
+            height={h}
+            onClose={() => close()}
+            onJump={(hid) => {
+              const c = chapters.findIndex((ch) => ch.hunkIds.includes(hid));
+              if (c >= 0) props.setPos(c, chapters[c].hunkIds.indexOf(hid));
+              close();
+            }}
+            onComment={(nodeId) => openComposer(draft({ type: 'node', chapterId: chapter.id, nodeId }))}
+          />
+        ),
+      };
     }
-    if (slots.popup === 'comment') return commentEditor(mainWidth, plan.mainHeight);
-    if (overlay.kind === 'move') return <MoveList chapters={chapters} sel={overlay.sel} width={mainWidth} />;
+    if (slots.popup === 'comment' && overlay.kind === 'comment')
+      return { tone: 'input' as const, width: Math.min(96, width - 4), height: overlay.composer.ai ? Math.min(30, height - 4) : 18, node: (w: number, h: number) => commentEditor(w, h) };
+    if (overlay.kind === 'move')
+      return { tone: 'input' as const, width: Math.min(70, width - 4), height: chapters.length + 5, node: (w: number) => <MoveList chapters={chapters} sel={overlay.sel} width={w} /> };
     if (slots.popup === 'checklist' && chapter.checklist && svc) {
-      return <ChecklistPanel items={chapter.checklist} confirms={svc.confirms} width={mainWidth} onToggle={svc.setConfirm} onClose={() => close()} />;
+      const items = chapter.checklist;
+      return {
+        tone: 'input' as const,
+        width: Math.min(110, width - 4),
+        height: items.length * 2 + 4,
+        node: (w: number) => <ChecklistPanel items={items} confirms={svc.confirms} width={w} onToggle={svc.setConfirm} onClose={() => close()} />,
+      };
     }
-    return null;
+    return undefined;
   })();
 
   // The inline composer under a source or test line, `w` wide in a `pane` rows tall.
@@ -508,99 +524,97 @@ export function ChapterScreen(props: {
         {wide ? <ChapterList tour={tour} chapters={chapters} listed={listed} states={states} current={chapter.id} width={listWidth} height={plan.mainHeight} /> : null}
         {wide ? <Box width={1} /> : null}
         <Box flexDirection="column" width={mainWidth}>
-          {overlayNode ?? (
-            <>
-              <ChapterTitle chapter={chapter} hunk={hunk} hi={hi} isNew={!!hunk && delta.has(hunk.id)} unchanged={unchangedHunks} width={mainWidth} states={states} drawer={testDrawer} />
-              <Explanation lines={plan.explainLines} inferred={!!hunk?.narrationInferred} collapsed={collapsedView} updated={updated} width={mainWidth} />
-              {collapsedView ? (
-                <>
-                  <CollapsedSummary
-                    hunks={tour.hunks}
-                    files={filesByPath}
-                    chapter={chapter}
-                    states={states}
-                    sel={summarySel}
-                    width={mainWidth}
-                    height={bodyHeight - (slots.collapsedAsk ? askHeight : 0)}
+          <>
+            <ChapterTitle chapter={chapter} hunk={hunk} hi={hi} isNew={!!hunk && delta.has(hunk.id)} unchanged={unchangedHunks} width={mainWidth} states={states} drawer={testDrawer} />
+            <Explanation lines={plan.explainLines} inferred={!!hunk?.narrationInferred} collapsed={collapsedView} updated={updated} width={mainWidth} />
+            {collapsedView ? (
+              <>
+                <CollapsedSummary
+                  hunks={tour.hunks}
+                  files={filesByPath}
+                  chapter={chapter}
+                  states={states}
+                  sel={summarySel}
+                  width={mainWidth}
+                  height={bodyHeight - (slots.collapsedAsk ? askHeight : 0)}
+                />
+                {slots.collapsedAsk ? askPanel : null}
+              </>
+            ) : hunk ? (
+              <Box flexDirection={sideBySide ? 'row' : 'column'}>
+                {plan.sourcePaneShown ? (
+                  <SourcePane
+                    inline={
+                      slots.sourceInline === 'thread'
+                        ? {
+                            afterIdx: cursor,
+                            node: (
+                              <ThreadView
+                                threads={cursorThreads}
+                                width={srcWidth - 1}
+                                height={plan.threadHeight}
+                                mentions={mentions}
+                                startReply={overlay.kind === 'reply'}
+                                onReply={props.replyToThread}
+                                onReact={props.reactToComment}
+                                onNotice={(text) => setFlash(text, 'info')}
+                                onClose={() => close()}
+                              />
+                            ),
+                            height: plan.threadHeight,
+                          }
+                        : slots.sourceInline === 'comment'
+                          ? { afterIdx: sel[1], ...inlineComposer(srcWidth - 1, bodyHeight) }
+                          : slots.sourceInline === 'ask'
+                            ? { afterIdx: sel[1], node: askPanel, height: askHeight }
+                            : undefined
+                    }
+                    hunk={hunk}
+                    cursor={cursor}
+                    range={anchor !== null ? sel : null}
+                    raw={raw}
+                    split={splitView}
+                    partner={partner}
+                    hidden={hidden}
+                    ignoreWhitespace={ignoreWhitespace}
+                    scroll={scroll}
+                    setScroll={setScroll}
+                    threads={tour.existingThreads}
+                    drafts={props.drafts}
+                    root={svc?.root}
+                    headSha={tour.headSha}
+                    baseSha={tour.baseSha}
+                    width={srcWidth}
+                    height={bodyHeight}
                   />
-                  {slots.collapsedAsk ? askPanel : null}
-                </>
-              ) : hunk ? (
-                <Box flexDirection={sideBySide ? 'row' : 'column'}>
-                  {plan.sourcePaneShown ? (
-                    <SourcePane
-                      inline={
-                        slots.sourceInline === 'thread'
-                          ? {
-                              afterIdx: cursor,
-                              node: (
-                                <ThreadView
-                                  threads={cursorThreads}
-                                  width={srcWidth - 1}
-                                  height={plan.threadHeight}
-                                  mentions={mentions}
-                                  startReply={overlay.kind === 'reply'}
-                                  onReply={props.replyToThread}
-                                  onReact={props.reactToComment}
-                                  onNotice={(text) => setFlash(text, 'info')}
-                                  onClose={() => close()}
-                                />
-                              ),
-                              height: plan.threadHeight,
-                            }
-                          : slots.sourceInline === 'comment'
-                            ? { afterIdx: sel[1], ...inlineComposer(srcWidth - 1, bodyHeight) }
-                            : slots.sourceInline === 'ask'
-                              ? { afterIdx: sel[1], node: askPanel, height: askHeight }
-                              : undefined
-                      }
-                      hunk={hunk}
-                      cursor={cursor}
-                      range={anchor !== null ? sel : null}
-                      raw={raw}
-                      split={splitView}
-                      partner={partner}
-                      hidden={hidden}
-                      ignoreWhitespace={ignoreWhitespace}
-                      scroll={scroll}
-                      setScroll={setScroll}
-                      threads={tour.existingThreads}
-                      drafts={props.drafts}
-                      root={svc?.root}
-                      headSha={tour.headSha}
-                      baseSha={tour.baseSha}
-                      width={srcWidth}
-                      height={bodyHeight}
-                    />
-                  ) : null}
-                  {sideBySide ? <Box width={1} /> : null}
-                  {sideBySide ? (
-                    <Box
-                      flexDirection="column"
-                      width={plan.testWidth}
-                      flexShrink={0}
-                      height={bodyHeight}
-                      borderStyle="single"
-                      borderTop={false}
-                      borderBottom={false}
-                      borderRight={false}
-                      borderColor="gray"
-                      paddingLeft={1}
-                    >
-                      <Text bold dimColor>
-                        Tests
-                      </Text>
-                      {testPane}
-                    </Box>
-                  ) : (
-                    testPane
-                  )}
-                </Box>
-              ) : (
-                <Text dimColor>This chapter has no hunks.</Text>
-              )}
-            </>
-          )}
+                ) : null}
+                {sideBySide ? <Box width={1} /> : null}
+                {sideBySide ? (
+                  <Box
+                    flexDirection="column"
+                    width={plan.testWidth}
+                    flexShrink={0}
+                    height={bodyHeight}
+                    borderStyle="single"
+                    borderTop={false}
+                    borderBottom={false}
+                    borderRight={false}
+                    borderColor="gray"
+                    paddingLeft={1}
+                  >
+                    <Text bold dimColor>
+                      Tests
+                    </Text>
+                    {testPane}
+                  </Box>
+                ) : (
+                  testPane
+                )}
+              </Box>
+            ) : (
+              <Text dimColor>This chapter has no hunks.</Text>
+            )}
+          </>
         </Box>
       </Box>
       {slots.confirmDelete && cursorDraft ? (
@@ -616,6 +630,12 @@ export function ChapterScreen(props: {
       />
     </Box>
   );
+  if (floating && props.active !== false)
+    return (
+      <ReviewPopup background={screen} width={width} height={height} maxWidth={floating.width} maxHeight={floating.height} tone={floating.tone}>
+        {floating.node}
+      </ReviewPopup>
+    );
   // Help floats over the screen, which stays visible around it.
   if (overlay.kind === 'help' && props.active !== false)
     return <HelpPopup background={screen} width={width} height={height} title="chapter" sections={chapterHelp(!!props.agent)} legend={reviewLegend()} note={HELP_NOTE} onClose={close} />;

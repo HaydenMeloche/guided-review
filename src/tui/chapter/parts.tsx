@@ -249,7 +249,7 @@ export function Explanation(props: { lines: MdLine[]; inferred: boolean; collaps
 
 export function MoveList(props: { chapters: Chapter[]; sel: number; width: number }) {
   return (
-    <Box flexDirection="column" borderStyle="round" paddingX={1}>
+    <Box flexDirection="column" paddingX={1}>
       <Text bold>Move this hunk to…</Text>
       {props.chapters.map((c, i) => (
         <Text key={c.id} inverse={i === props.sel}>

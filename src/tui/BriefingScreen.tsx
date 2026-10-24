@@ -16,6 +16,7 @@ import type { Readiness } from '../review/merge.js';
 import { ReadinessLine } from './MergeScreen.js';
 import { Busy } from './Spinner.js';
 import { HelpPopup } from './Help.js';
+import { ReviewPopup } from './ReviewPopup.js';
 import { helpOf } from './keys.js';
 import { reviewLegend } from './legend.js';
 import { REVIEW_BRIEFING_KEYS, reviewBriefingBar } from './screenKeys.js';
@@ -154,20 +155,6 @@ export function BriefingScreen(props: {
     { isActive: props.active !== false && overlay === 'none' },
   );
 
-  if (overlay === 'diagram' && tour.overview) {
-    return (
-      <DiagramView
-        graph={tour.overview}
-        width={width}
-        height={height}
-        onClose={() => setOverlay('none')}
-        onJump={(hid) => {
-          const c = chapters.findIndex((ch) => ch.hunkIds.includes(hid));
-          props.onStart(c >= 0 ? c : undefined);
-        }}
-      />
-    );
-  }
   if (overlay === 'read') {
     return <Reader title={`#${tour.pr} — from the author`} markdown={tour.description ?? ''} width={width} height={height} onClose={() => setOverlay('none')} />;
   }
@@ -445,6 +432,26 @@ export function BriefingScreen(props: {
       />
     </Box>
   );
+  // The overview diagram floats over the briefing, which stays in view around it.
+  if (overlay === 'diagram' && tour.overview && props.active !== false) {
+    const graph = tour.overview;
+    return (
+      <ReviewPopup background={screen} width={width} height={height} maxWidth={Math.max(40, Math.floor(width * 0.85))} maxHeight={Math.max(10, Math.floor(height * 0.85))}>
+        {(w, h) => (
+          <DiagramView
+            graph={graph}
+            width={w}
+            height={h}
+            onClose={() => setOverlay('none')}
+            onJump={(hid) => {
+              const c = chapters.findIndex((ch) => ch.hunkIds.includes(hid));
+              props.onStart(c >= 0 ? c : undefined);
+            }}
+          />
+        )}
+      </ReviewPopup>
+    );
+  }
   if (overlay === 'help' && props.active !== false)
     return (
       <HelpPopup
