@@ -8,7 +8,7 @@ The same three keys move you back on every screen:
 
 - `Esc` closes the innermost thing that is open: a range selection, a filter, a popup. With nothing open it goes up one level, from a chapter to the briefing and from the briefing to the PR list. It never quits.
 - `q` goes up one level, like `Esc` with nothing open. On the PR list, and on the briefing of `gr preview` (which has no list), it quits.
-- `Q` quits from anywhere. If you have unposted drafts or queued replies, gr asks first; they stay saved for next time either way.
+- `Q` quits from anywhere. If the PR you have open has unposted drafts or queued replies, gr asks first; they stay saved for next time either way. A local tour has no PR to post to, so Q quits at once there.
 
 `?` lists the keys of the screen you are on, grouped by what they do (`h` works too, outside the diagram). The list scrolls with `j`/`k` on a short terminal. On the briefing and in a chapter, `Tab` turns to a second page that explains the marks: reading state, risk, test coverage, drafts, threads, and moved code. `Esc` closes it.
 

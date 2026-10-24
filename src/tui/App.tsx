@@ -80,7 +80,16 @@ interface ThemeControl {
   popup: (width: number, height: number) => ReactNode;
 }
 
-type Phase = 'pick' | 'load' | 'own' | 'briefing' | 'chapter' | 'submit' | 'edit' | 'author' | 'error';
+export type Phase = 'pick' | 'load' | 'own' | 'briefing' | 'chapter' | 'submit' | 'edit' | 'author' | 'error';
+
+// The PR whose unposted drafts and queued replies Q asks about: the one open now. None at the PR
+// list (q there has left the PR, though the last target stays), and none for a local tour, which
+// has nowhere to post them.
+export function quitAsksAbout(phase: Phase, tour: Pick<Tour, 'repo' | 'pr'> | undefined, target: Target | undefined, local: boolean): { repo: string; pr: number } | undefined {
+  if (phase === 'pick' || local) return undefined;
+  if (tour) return { repo: tour.repo, pr: tour.pr };
+  return target ? { repo: target.repo, pr: target.number } : undefined;
+}
 
 interface Step {
   name: string;
@@ -730,7 +739,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   // the question only makes sure the reviewer knows they are still waiting.
   const [quitAsk, setQuitAsk] = useState<string | undefined>();
   const requestQuit = () => {
-    const at = tour ? { repo: tour.repo, pr: tour.pr } : target ? { repo: target.repo, pr: target.number } : undefined;
+    const at = quitAsksAbout(phase, tour, target, !!localSource.current);
     const drafts = at ? store.listDrafts(at.repo, at.pr).filter((d) => !d.posted).length : 0;
     const replies = at ? store.listReplies(at.repo, at.pr).length : 0;
     if (quitAsk || (!drafts && !replies)) return quit();

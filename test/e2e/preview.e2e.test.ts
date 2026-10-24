@@ -100,11 +100,9 @@ describe('gr preview --no-agent', () => {
     expect(first.screen()).toContain('Should the discount be clamped');
     first.press(KEY.enter);
     await first.waitFor('question  Should the discount be clamped to 0..1?');
-    // An unposted draft: Q asks first, and y quits.
+    // A preview's drafts have no PR to post to, so Q quits without asking about them.
     first.press('Q');
-    await first.waitFor('Quit with 1 unposted draft?');
-    first.press('y');
-    await first.exited;
+    expect(await first.exited).toBe(0);
 
     const second = preview();
     await second.waitFor('Chapters · Guided order');
