@@ -220,6 +220,9 @@ export const KEYS: KeyRow[] = [
     bind: [{ mode: 'code', on: ['t'], do: 'focusTests', palette: 'Focus the linked tests' }],
     bar: [{ mode: 'code', key: 't', label: 'tests', when: (c) => c.tests }],
   },
+  { keys: 'tab / shift+tab', group: 'View', help: 'Move focus between the chapter list, the explanation, the code, and the tests' },
+  { keys: 'Focused list', group: 'View', help: 'j/k choose · enter open the chapter · esc back to the code' },
+  { keys: 'Focused explanation', group: 'View', help: 'j/k scroll · enter read it all · esc back to the code' },
   {
     keys: 'Focused tests',
     group: 'View',
@@ -230,7 +233,7 @@ export const KEYS: KeyRow[] = [
       { mode: 'tests', on: ['k', 'up'], do: 'testUp' },
       { mode: 'tests', on: ['J', 'pageDown'], do: 'testPageDown' },
       { mode: 'tests', on: ['K', 'pageUp'], do: 'testPageUp' },
-      { mode: 'tests', on: ['n', 'tab'], do: 'nextTest' },
+      { mode: 'tests', on: ['n'], do: 'nextTest' },
       { mode: 'tests', on: ['p'], do: 'prevTest' },
       { mode: 'tests', on: ['c'], do: 'commentTest' },
       { mode: 'tests', on: ['a'], do: 'askTest' },

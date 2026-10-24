@@ -1,6 +1,6 @@
  ‹dim›local/rich ‹/›‹b›#0 feature/discounts (preview)‹/›              ‹dim›  chapter 1/3 · hunk 1/3 · ▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks · Guided‹/›
 ‹cyan,b›1/3‹/›‹bright-black,bg:c235›╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮‹/›
-‹blue,b›cre‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b›Keys‹/›‹bg:c235,dim› · chapter · 1/2 · 29/41‹/›‹bg:c235›                                                                                   ‹/›‹bright-black,bg:c235›│‹/›
+‹blue,b›cre‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b›Keys‹/›‹bg:c235,dim› · chapter · 1/2 · 29/44‹/›‹bg:c235›                                                                                   ‹/›‹bright-black,bg:c235›│‹/›
 ‹bright-black›▎ ‹/›‹dim›P‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹yellow,bg:c235›? is now these keys · ask the model with a‹/›‹bg:c235›                                                                     ‹/›‹bright-black,bg:c235›│‹/›
 ‹bright-black›▎ ‹/› ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›Move       ‹/›‹cyan,bg:c235›n / p         ‹/›‹bg:c235›Next or previous hunk (n marks it read), on into the next chapter                     ‹/›‹bright-black,bg:c235›│‹/›
 ‹bright-black›▎ ‹/›‹red›○‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›N / P, ] / [  ‹/›‹bg:c235›Next or previous chapter, including optional chapters                                 ‹/›‹bright-black,bg:c235›│‹/›
@@ -15,6 +15,9 @@
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›y             ‹/›‹bg:c235›Reply to an existing review thread on the selected line                               ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›│‹/›‹bg:c235›                                                                                                                ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›View       ‹/›‹cyan,bg:c235›t             ‹/›‹bg:c235›Focus the test pane (narrow terminals: toggle source/tests)                           ‹/›‹bright-black,bg:c235›│‹/›
+   ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›tab / shift+tab‹/›‹bg:c235›Move focus between the chapter list, the explanation, the code, and the tests        ‹/›‹bright-black,bg:c235›│‹/›
+   ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›Focused list  ‹/›‹bg:c235›j/k choose · enter open the chapter · esc back to the code                            ‹/›‹bright-black,bg:c235›│‹/›
+   ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›Focused explanation‹/›‹bg:c235›j/k scroll · enter read it all · esc back to the code                            ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›Focused tests ‹/›‹bg:c235›n/p test · j/k line · c comment · t/Esc back to source                                ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›d             ‹/›‹bg:c235›Chapter diagram (select a node to jump to its code)                                   ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›+ / -         ‹/›‹bg:c235›Show 10 more or fewer lines of the file around the hunk                               ‹/›‹bright-black,bg:c235›│‹/›
@@ -28,9 +31,6 @@
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›r             ‹/›‹bg:c235›Raw unified diff for the hunk                                                         ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›T             ‹/›‹bg:c235›Hide or show the test pane beside the code                                            ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›U             ‹/›‹bg:c235›Expand or collapse possible test gaps in the explanation                              ‹/›‹bright-black,bg:c235›│‹/›
-   ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›m             ‹/›‹bg:c235›Move the hunk to another chapter                                                      ‹/›‹bright-black,bg:c235›│‹/›
-   ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›i             ‹/›‹bg:c235›Team checklist for this chapter                                                       ‹/›‹bright-black,bg:c235›│‹/›
-   ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›R             ‹/›‹bg:c235›Rebuild the tour on a newer PR head after the author pushes                           ‹/›‹bright-black,bg:c235›│‹/›
 hun‹bright-black,bg:c235›│‹/›‹bg:c235›  ‹/›‹cyan,bg:c235,b›j/k‹/›‹bg:c235› scroll   ‹/›‹cyan,bg:c235,b›tab‹/›‹bg:c235› marks   ‹/›‹cyan,bg:c235,b›esc‹/›‹bg:c235› close                                                                            ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯‹/›
 

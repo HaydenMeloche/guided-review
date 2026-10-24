@@ -3,7 +3,7 @@ import { useInput } from 'ink';
 import { Box, Text } from './themed.js';
 import { Confirm } from './Confirm.js';
 import type { Chapter, ChapterOrder, Draft, DraftAnchor, ExistingThread, Hunk, ReactionContent, ReadState, ThreadComment, Tour } from '../types.js';
-import { ChecklistPanel } from './Panels.js';
+import { ChecklistPanel, Reader } from './Panels.js';
 import { firstHunk, nextPos, pad, prevPos, progress, stateOf, truncate, type States } from './nav.js';
 import { DiagramView } from './DiagramView.js';
 import { CommentEditor, type SetComposer } from './CommentEditor.js';
@@ -12,7 +12,7 @@ import { ThreadView } from './ThreadView.js';
 import { AskOverlay } from './AskOverlay.js';
 import { MIN_SPLIT_WIDTH } from './paneWidths.js';
 import type { AgentContext } from '../agent/types.js';
-import { KeyBar } from './KeyBar.js';
+import { KeyBar, type Hint } from './KeyBar.js';
 import { initComposer, isLineAnchor, sameAnchor, type ComposerEnv, type ComposerState, type ReferenceServices } from './composer.js';
 import { generateSuggestion } from '../agent/suggest.js';
 import { clean, safe } from './chapter/text.js';
@@ -134,6 +134,11 @@ export function ChapterScreen(props: {
   const close = () => setOverlay(NONE);
   const show = (kind: Exclude<OverlayKind, 'none' | 'comment' | 'move'>) => setOverlay({ kind });
   const [summarySel, setSummarySel] = useState(0);
+  // Which pane has the keys besides the code and the tests (which keep their own testFocus):
+  // the chapter list or the explanation. Tab moves it; Esc brings it back to the code.
+  const [paneFocus, setPaneFocus] = useState<'code' | 'list' | 'explain'>('code');
+  const [listSel, setListSel] = useState(0);
+  const [explainScroll, setExplainScroll] = useState(0);
   // Esc folds the banner into a tag in the header; a new notice unfolds it.
   const [folded, setFolded] = useState<string>();
   const banner = props.banner && props.banner !== folded ? props.banner : undefined;
@@ -161,6 +166,7 @@ export function ChapterScreen(props: {
     raw,
     sidebar,
     short: shortExplanation,
+    explainScroll,
     listOpen: overlay.kind === 'comment' && !!overlay.composer.listOpen,
     explain: (w) => (chapter ? explanation({ tour, chapter, hunk, hi, collapsed: collapsedView, files: filesByPath, confirms: svc?.confirms, linkedTests: hasLinkedTests, showUntested }, w) : []),
   });
@@ -174,6 +180,7 @@ export function ChapterScreen(props: {
     setSummarySel(0);
     setShowUntested(false);
   }, [chapter?.id]);
+  useEffect(() => setExplainScroll(0), [chapter?.id, hunk?.id]);
 
   // An explanation that arrives while its hunk is on screen says so for a moment.
   const narration = hunk?.narration;
@@ -380,10 +387,47 @@ export function ChapterScreen(props: {
     },
     theme: () => props.onTheme?.(),
   };
+  // The panes Tab moves between, in screen order: the chapter list, the explanation, the code, and
+  // the tests, each only when it is on screen.
+  const panes = [...(wide ? ['list' as const] : []), ...(plan.explainLines.length ? ['explain' as const] : []), 'code' as const, ...(hasLinkedTests && hunk ? ['tests' as const] : [])];
+  const focusNow = testFocus ? 'tests' : paneFocus;
+  const focusPane = (p: (typeof panes)[number]) => {
+    setTestFocus(p === 'tests');
+    setPaneFocus(p === 'tests' ? 'code' : p);
+    if (p === 'list')
+      setListSel(
+        Math.max(
+          0,
+          listed.findIndex((c) => c.id === chapter?.id),
+        ),
+      );
+  };
   useInput(
     (input, key) => {
       // A held message has been seen once a key is pressed.
       dismissFlash();
+      if (key.tab) {
+        const at = Math.max(0, panes.indexOf(focusNow));
+        return focusPane(panes[(at + (key.shift ? panes.length - 1 : 1)) % panes.length]);
+      }
+      if (paneFocus === 'list' && !testFocus) {
+        if (input === 'j' || key.downArrow) return setListSel((s) => Math.min(listed.length - 1, s + 1));
+        if (input === 'k' || key.upArrow) return setListSel((s) => Math.max(0, s - 1));
+        if (key.return) {
+          const target = chapters.findIndex((c) => c.id === listed[listSel]?.id);
+          focusPane('code');
+          return target >= 0 ? props.setPos(target, firstHunk(chapters, target)) : setFlash('That chapter has no changes in this re-review.');
+        }
+        if (key.escape) return focusPane('code');
+      }
+      if (paneFocus === 'explain' && !testFocus) {
+        if (input === 'j' || key.downArrow) return setExplainScroll((s) => Math.min(plan.explainMaxScroll, s + 1));
+        if (input === 'k' || key.upArrow) return setExplainScroll((s) => Math.max(0, s - 1));
+        if (input === 'J' || key.pageDown) return setExplainScroll((s) => Math.min(plan.explainMaxScroll, s + 5));
+        if (input === 'K' || key.pageUp) return setExplainScroll((s) => Math.max(0, s - 5));
+        if (key.return) return show('reader');
+        if (key.escape) return focusPane('code');
+      }
       const action = keyAction(keyView, keyCtx, input, key);
       if (action) return actions[action]();
       const none = unboundKey(input, key);
@@ -485,6 +529,13 @@ export function ChapterScreen(props: {
     }
     if (slots.popup === 'comment' && overlay.kind === 'comment')
       return { tone: 'input' as const, width: Math.min(96, width - 4), height: overlay.composer.ai ? Math.min(30, height - 4) : 18, node: (w: number, h: number) => commentEditor(w, h) };
+    if (overlay.kind === 'reader')
+      return {
+        tone: 'reading' as const,
+        width: Math.min(110, width - 4),
+        height: height - 4,
+        node: (w: number, h: number) => <Reader title={`${chapter.title}${hunk ? ` · ${hunk.file}` : ''}`} lines={plan.explainAll} width={w} height={h} onClose={close} />,
+      };
     if (overlay.kind === 'end') {
       const p = progress(tour, hunk ? { ...states, ...Object.fromEntries(hunkKeys(hunk).map((k) => [k, stateOf(states, hunk) === 'unread' ? 'read' : stateOf(states, hunk)])) } : states);
       const verdict = suggestVerdict(tour, props.drafts, states);
@@ -637,12 +688,23 @@ export function ChapterScreen(props: {
       ) : null}
       {!wide ? <ChapterStrip tour={tour} chapters={chapters} ci={ci} hi={hunk ? hi : -1} order={props.order} width={width} /> : null}
       <Box flexDirection="row">
-        {wide ? <ChapterList tour={tour} chapters={chapters} listed={listed} states={states} current={chapter.id} width={listWidth} height={plan.mainHeight} /> : null}
+        {wide ? (
+          <ChapterList
+            tour={tour}
+            chapters={chapters}
+            listed={listed}
+            states={states}
+            current={chapter.id}
+            focusedRow={focusNow === 'list' ? listSel : undefined}
+            width={listWidth}
+            height={plan.mainHeight}
+          />
+        ) : null}
         {wide ? <Box width={1} /> : null}
         <Box flexDirection="column" width={mainWidth}>
           <>
             <ChapterTitle chapter={chapter} hunk={hunk} hi={hi} isNew={!!hunk && delta.has(hunk.id)} unchanged={unchangedHunks} width={mainWidth} states={states} drawer={testDrawer} />
-            <Explanation lines={plan.explainLines} inferred={!!hunk?.narrationInferred} collapsed={collapsedView} updated={updated} width={mainWidth} />
+            <Explanation lines={plan.explainLines} inferred={!!hunk?.narrationInferred} collapsed={collapsedView} updated={updated} focused={focusNow === 'explain'} width={mainWidth} />
             {collapsedView ? (
               <>
                 <CollapsedSummary
@@ -718,7 +780,7 @@ export function ChapterScreen(props: {
                     borderColor="gray"
                     paddingLeft={1}
                   >
-                    <Text bold dimColor>
+                    <Text bold dimColor={!testFocus} color={testFocus ? 'cyan' : undefined}>
                       Tests
                     </Text>
                     {testPane}
@@ -749,8 +811,22 @@ export function ChapterScreen(props: {
       <KeyBar
         width={width}
         status={overlay.kind === 'none' && hunk && !testFocus ? [raw && 'raw', splitView && 'split', ignoreWhitespace && 'whitespace hidden'].filter(Boolean).join(' · ') : undefined}
-        end={overlay.kind !== 'none' ? [] : barEnd(keyView, keyCtx)}
-        keys={overlay.kind !== 'none' ? [] : barKeys(keyView, keyCtx)}
+        end={overlay.kind !== 'none' ? [] : [...(panes.length > 1 ? [['tab', 'pane'] as Hint] : []), ...barEnd(keyView, keyCtx)]}
+        keys={
+          overlay.kind !== 'none'
+            ? []
+            : focusNow === 'list'
+              ? [
+                  ['j/k', 'choose'],
+                  ['enter', 'open chapter'],
+                ]
+              : focusNow === 'explain'
+                ? [
+                    ['j/k', 'scroll'],
+                    ['enter', 'read it all'],
+                  ]
+                : barKeys(keyView, keyCtx)
+        }
       />
     </Box>
   );

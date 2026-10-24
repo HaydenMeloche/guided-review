@@ -66,7 +66,11 @@ describe('chapterLayout heights', () => {
     const p = layout({ explain: () => Array.from({ length: 30 }, (_, i) => line(`l${i}`)) });
     expect(p.explainMax).toBe(24);
     expect(p.explainLines).toHaveLength(24);
-    expect(p.explainLines.at(-1)).toEqual(line('… more than fits: widen or heighten the terminal', { dim: true }));
+    expect(p.explainLines.at(-1)).toEqual(line('… 7 more lines · tab to it, then j/k to scroll or enter to read it all', { dim: true }));
+    // Scrolled, it shows a later window and says what is above.
+    const scrolled = layout({ explain: () => Array.from({ length: 30 }, (_, i) => line(`l${i}`)), explainScroll: 3 });
+    expect(scrolled.explainLines[0]).toEqual(line('l3'));
+    expect(scrolled.explainLines.at(-1)).toEqual(line('… 3 above, 4 more lines · tab to it, then j/k to scroll or enter to read it all', { dim: true }));
     expect(p.bodyHeight).toBe(9);
     expect(p.threadHeight).toBe(7);
     expect(p.askHeight).toBe(7);

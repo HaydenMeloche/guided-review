@@ -15,6 +15,9 @@
  ‹b,dim›Ask        ‹/›‹cyan›a             ‹/›Ask the model about the selection
 
  ‹b,dim›View       ‹/›‹cyan›t             ‹/›Focus the test pane (narrow terminals: toggle source/tests)
+ ‹dim›           ‹/›‹cyan,b›tab / shift+tab‹/›Move focus between the chapter list, the explanation, the code, and the…
+ ‹b,dim›           ‹/›‹cyan›Focused list  ‹/›j/k choose · enter open the chapter · esc back to the code
+ ‹b,dim›           ‹/›‹cyan›Focused explanation‹/›j/k scroll · enter read it all · esc back to the code
  ‹b,dim›           ‹/›‹cyan›Focused tests ‹/›n/p test · j/k line · c comment · a ask · t/Esc back to source
  ‹b,dim›           ‹/›‹cyan›d             ‹/›Chapter diagram (select a node to jump to its code)
  ‹b,dim›           ‹/›‹cyan›+ / -         ‹/›Show 10 more or fewer lines of the file around the hunk
@@ -43,9 +46,6 @@
  ‹b,dim›           ‹/›‹cyan›q             ‹/›go up a level
  ‹b,dim›           ‹/›‹cyan›Q             ‹/›quit
  ‹b,dim›           ‹/›‹cyan›?             ‹/›these keys
-
-
-
 
 
 

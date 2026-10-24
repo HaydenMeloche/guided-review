@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Text } from '../themed.js';
+import { Box, Text, useSelected } from '../themed.js';
 import type { Chapter, ChapterOrder, DiffFile, Draft, Hunk, Tour } from '../../types.js';
 import { changedLineCount, chapterState, meter, ORDER_LABEL, pad, progress, riskMark, stateMark, stateOf, truncate, type States } from '../nav.js';
 import { safe } from './text.js';
@@ -68,11 +68,21 @@ export const Header = React.memo(function Header(props: {
 // `listed` is every chapter to show; one not in `chapters` (left out of a re-review) is greyed.
 // Each row reads like the briefing's: its number, reading state, title, a small meter, the
 // count done, and a ▲ when it is risky.
-export const ChapterList = React.memo(function ChapterList(props: { tour: Tour; chapters: Chapter[]; listed: Chapter[]; states: States; current: string; width: number; height: number }) {
+export const ChapterList = React.memo(function ChapterList(props: {
+  tour: Tour;
+  chapters: Chapter[];
+  listed: Chapter[];
+  states: States;
+  current: string;
+  focusedRow?: number; // the list has focus (Tab): this row is selected for Enter
+  width: number;
+  height: number;
+}) {
   const { tour, chapters, listed, states, current, width } = props;
-  const at = listed.findIndex((c) => c.id === current);
+  const at = props.focusedRow ?? listed.findIndex((c) => c.id === current);
   const start = Math.max(0, Math.min(at - Math.floor(props.height / 2), listed.length - props.height));
   const numW = String(listed.length).length;
+  const selectedRow = useSelected();
   return (
     <Box flexDirection="column" width={width}>
       {listed.slice(start, start + props.height).map((full, k) => {
@@ -88,7 +98,7 @@ export const ChapterList = React.memo(function ChapterList(props: { tour: Tour; 
         const count = c.optional ? ' opt' : `${p.read + p.skipped}/${p.total}`.padStart(5);
         const titleW = Math.max(4, width - numW - 3 - (c.optional ? 5 : 10) - 2);
         return (
-          <Text key={c.id} inverse={here} dimColor={unchanged || (c.collapsed && !here)} wrap="truncate">
+          <Text key={c.id} inverse={here && props.focusedRow === undefined} {...selectedRow(props.focusedRow === start + k)} dimColor={unchanged || (c.collapsed && !here)} wrap="truncate">
             <Text dimColor={!here}>{String(start + k + 1).padStart(numW)}</Text> <Text color={unchanged ? undefined : st.color}>{st.mark}</Text> {pad(safe(c.title), titleW)}
             {c.optional ? null : (
               <>
@@ -261,9 +271,9 @@ export const ChapterStrip = React.memo(function ChapterStrip(props: { tour: Tour
 // An in-flow block with a left rule, not a box: it is always in the same place, so a frame and a
 // title would only cost rows. The rule is quiet, magenta for narration that is the model's
 // inference, and green for a moment when the explanation has just arrived.
-export function Explanation(props: { lines: MdLine[]; inferred: boolean; collapsed: boolean; updated?: boolean; width: number }) {
+export function Explanation(props: { lines: MdLine[]; inferred: boolean; collapsed: boolean; updated?: boolean; focused?: boolean; width: number }) {
   if (!props.lines.length) return null;
-  const rule = props.updated ? 'green' : props.inferred ? 'magenta' : 'gray';
+  const rule = props.focused ? 'cyan' : props.updated ? 'green' : props.inferred ? 'magenta' : 'gray';
   return (
     <Box flexDirection="column" flexShrink={0} width={props.width} marginBottom={1}>
       {props.lines.map((l, i) => (

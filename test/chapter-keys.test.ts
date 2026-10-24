@@ -46,7 +46,8 @@ describe('keyAction', () => {
   it('keeps focused tests to their own keys, b, and q', () => {
     expect(keyAction('tests', all, 'x', noKey)).toBeUndefined();
     expect(keyAction('tests', all, 'n', noKey)).toBe('nextTest');
-    expect(keyAction('tests', all, '', { tab: true } as Key)).toBe('nextTest');
+    // Tab moves focus between panes; the screen takes it before the key table.
+    expect(keyAction('tests', all, '', { tab: true } as Key)).toBeUndefined();
     expect(keyAction('tests', all, 't', noKey)).toBe('leaveTests');
     expect(keyAction('tests', all, '', { escape: true } as Key)).toBe('leaveTests');
     expect(keyAction('tests', all, 'b', noKey)).toBe('briefing');

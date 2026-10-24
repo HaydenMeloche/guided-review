@@ -1370,6 +1370,41 @@ describe('split view, test pane toggle and expanded context', () => {
     ui.unmount();
   });
 
+  it('moves focus with Tab: the chapter list opens a chapter, the explanation scrolls and opens whole', async () => {
+    const h1 = hunkFromDiff('src/a.ts', '-go();', '+stop();');
+    const h2 = hunkFromDiff('src/b.ts', '-x();', '+y();');
+    h1.narration = Array.from({ length: 40 }, (_, i) => `Sentence ${i}.`).join('\n\n');
+    const t = makeTour(
+      [h1, h2],
+      [
+        { hunkIds: [h1.id], title: 'First' },
+        { hunkIds: [h2.id], title: 'Second' },
+      ],
+      { files: filesFor([h1, h2]) },
+    );
+    const at: [number, number][] = [];
+    const ui = render(screen(t, { width: 150, height: 30, setPos: (ci, hi) => at.push([ci, hi]) }));
+    await waitFor(() => expect(ui.lastFrame()).toContain('Sentence 0.'));
+    // From the code, Shift+Tab goes back to the explanation.
+    ui.stdin.write('\u001b[Z');
+    await waitFor(() => expect(ui.lastFrame()).toContain('j/k scroll'));
+    ui.stdin.write('j');
+    await waitFor(() => expect(ui.lastFrame()).toMatch(/1 above/));
+    ui.stdin.write('\r');
+    await waitFor(() => expect(ui.lastFrame()).toContain('First · src/a.ts'));
+    expect(ui.lastFrame()).toContain('esc back');
+    ui.stdin.write('\u001b');
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('First · src/a.ts'));
+    // Back once more is the chapter list: j and Enter open the second chapter.
+    ui.stdin.write('\u001b[Z');
+    await waitFor(() => expect(ui.lastFrame()).toContain('open chapter'));
+    ui.stdin.write('j');
+    await tick();
+    ui.stdin.write('\r');
+    await waitFor(() => expect(at).toContainEqual([1, 0]));
+    ui.unmount();
+  });
+
   it('S shows the old line beside its replacement, and back', async () => {
     const h = hunkFromDiff('src/a.ts', ' keep();', '-const total = price;', '+const total = price * quantity - discount;', ' done();');
     const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });

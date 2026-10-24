@@ -2,6 +2,7 @@ import type { DiffLine } from '../../types.js';
 import { line, type MdLine } from '../markdown.js';
 import { codePaneWidths, MIN_SPLIT_WIDTH } from '../paneWidths.js';
 import { breakpoint, hasSidePanel } from '../breakpoints.js';
+import { plural } from '../plural.js';
 
 const TITLE_ROWS = 1;
 const LIST_WIDTH = 36;
@@ -21,7 +22,8 @@ export interface LayoutInput {
   hideTests: boolean;
   raw: boolean;
   sidebar?: boolean;
-  short?: boolean; // the explanation cut to its first lines (a saved preference) // the chapter list beside the chapter, on a wide terminal (\ toggles it)
+  short?: boolean; // the explanation cut to its first lines (a saved preference)
+  explainScroll?: number; // the explanation's first line on screen, when it has focus and scrolls // the chapter list beside the chapter, on a wide terminal (\ toggles it)
   listOpen: boolean; // the comment's @ list is open
   explain: (width: number) => MdLine[]; // the explanation's lines at its inner width
 }
@@ -62,12 +64,17 @@ export function chapterLayout(i: LayoutInput) {
   const collapsed = i.collapsedHunks !== undefined;
   const codeNeed = collapsed ? Math.min(i.collapsedHunks!, 10) : Math.min((i.hunkLines?.length ?? 0) + 1, 14);
   const explainMax = Math.max(4, Math.max(Math.floor(avail * 0.5), avail - codeNeed - 3) - 1);
+  // An explanation longer than its room shows a window of it, which scrolls when it has focus
+  // (Tab), and a note saying how to read the rest.
   const cap = i.short ? Math.min(explainMax, SHORT_LINES + 1) : explainMax;
+  const explainMaxScroll = Math.max(0, explainAll.length - (cap - 1));
+  const explainTop = Math.min(Math.max(0, i.explainScroll ?? 0), explainMaxScroll);
+  const hidden = explainAll.length - (cap - 1);
   const explainLines =
     explainAll.length > cap
       ? [
-          ...explainAll.slice(0, cap - 1),
-          line(i.short ? `… ${explainAll.length - cap + 1} more lines · the whole explanation is in the palette (:)` : '… more than fits: widen or heighten the terminal', { dim: true }),
+          ...explainAll.slice(explainTop, explainTop + cap - 1),
+          line(`… ${explainTop ? `${explainTop} above, ` : ''}${plural(Math.max(0, hidden - explainTop), 'more line')} · tab to it, then j/k to scroll or enter to read it all`, { dim: true }),
         ]
       : explainAll;
   const explainRows = explainLines.length ? explainLines.length + 1 : 0; // and a blank row under it
@@ -89,6 +96,8 @@ export function chapterLayout(i: LayoutInput) {
     headerRows,
     explainMax,
     explainLines,
+    explainAll,
+    explainMaxScroll: explainAll.length > cap ? explainMaxScroll : 0,
     bodyHeight,
     threadHeight: Math.min(Math.max(6, bodyHeight - 2), Math.max(8, Math.floor(bodyHeight * 0.7))),
     askHeight: Math.min(14, Math.max(5, bodyHeight - 2)),
@@ -100,7 +109,7 @@ export function chapterLayout(i: LayoutInput) {
   };
 }
 
-export type OverlayKind = 'none' | 'diagram' | 'comment' | 'thread' | 'reply' | 'ask' | 'move' | 'help' | 'checklist' | 'delete' | 'palette' | 'end';
+export type OverlayKind = 'none' | 'diagram' | 'comment' | 'thread' | 'reply' | 'ask' | 'move' | 'help' | 'checklist' | 'delete' | 'palette' | 'end' | 'reader';
 
 export interface SlotInput {
   overlay: OverlayKind;
@@ -137,6 +146,6 @@ export function overlaySlots(plan: ChapterLayout, o: SlotInput) {
     testInline,
     collapsedAsk,
     confirmDelete,
-    shown: overlay === 'help' || overlay === 'palette' || overlay === 'end' || confirmDelete || !!popup || collapsedAsk || !!sourceInline || !!testInline,
+    shown: overlay === 'help' || overlay === 'palette' || overlay === 'end' || overlay === 'reader' || confirmDelete || !!popup || collapsedAsk || !!sourceInline || !!testInline,
   } as const;
 }

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useInput } from 'ink';
 import { Box, Text } from './themed.js';
 import type { ChecklistItem } from '../types.js';
-import { MdLineView, renderMarkdown } from './markdown.js';
+import { MdLineView, renderMarkdown, type MdLine } from './markdown.js';
 import { truncate } from './nav.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
 import { Hints } from './KeyBar.js';
@@ -55,8 +55,9 @@ export function ChecklistPanel(props: { items: ChecklistItem[]; confirms: Record
 // ---------- Small prompts ----------
 
 // Full-screen scrollable text, e.g. the PR description.
-export function Reader(props: { title: string; markdown: string; width: number; height: number; onClose: () => void }) {
-  const lines = renderMarkdown(props.markdown, props.width - 4);
+// `lines`: text already laid out (the explanation), in place of `markdown`.
+export function Reader(props: { title: string; markdown?: string; lines?: MdLine[]; width: number; height: number; onClose: () => void }) {
+  const lines = props.lines ?? renderMarkdown(props.markdown ?? '', props.width - 4);
   const room = Math.max(3, props.height - 4);
   const [top, setTop] = useState(0);
   const maxTop = Math.max(0, lines.length - room);

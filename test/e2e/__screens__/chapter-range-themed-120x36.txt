@@ -32,5 +32,5 @@
 ‹bg:c59›                                                                                                                        ‹/›
 ‹bg:c59›                                                                                                                        ‹/›
 ‹c216,bg:c59,b›RANGE src/orders.ts:3–5‹/›‹c102,bg:c59› · c comment · a ask · esc clear‹/›‹bg:c59›                                                                 ‹/›
-‹c189,bg:c59› ‹/›‹c195,bg:c235,b› n/p ‹/›‹c189,bg:c59› hunk   ‹/›‹c195,bg:c235,b› ]/[ ‹/›‹c189,bg:c59› chapter   ‹/›‹c102,bg:c59›│   ‹/›‹c195,bg:c235,b› c ‹/›‹c189,bg:c59› comment on range   ‹/›‹c102,bg:c59›+4 more‹/›‹bg:c59›            ‹/›‹c216,bg:c59›whitespace hidden   ‹/›‹c195,bg:c235,b› esc ‹/›‹c189,bg:c59› back   ‹/›‹c195,bg:c235,b› ? ‹/›‹c189,bg:c59› keys   ‹/›
+‹c189,bg:c59› ‹/›‹c195,bg:c235,b› n/p ‹/›‹c189,bg:c59› hunk   ‹/›‹c195,bg:c235,b› ]/[ ‹/›‹c189,bg:c59› chapter   ‹/›‹c102,bg:c59›+5 more‹/›‹bg:c59›                          ‹/›‹c216,bg:c59›whitespace hidden   ‹/›‹c195,bg:c235,b› tab ‹/›‹c189,bg:c59› pane   ‹/›‹c195,bg:c235,b› esc ‹/›‹c189,bg:c59› back   ‹/›‹c195,bg:c235,b› ? ‹/›‹c189,bg:c59› keys   ‹/›
 ‹bg:c59›                                                                                                                        ‹/›

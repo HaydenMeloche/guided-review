@@ -20,5 +20,5 @@
 
 
 Draft saved (question). Nothing posts until you submit.
- ‹cyan,b›n/p‹/› hunk   ‹cyan,b›]/[‹/› chapter   ‹dim›+5 more‹/›       ‹yellow›whitespace hidden   ‹/›‹cyan,b›esc‹/› back   ‹cyan,b›?‹/› keys
+ ‹cyan,b›n/p‹/› hunk   ‹dim›+6 more‹/›          ‹yellow›whitespace hidden   ‹/›‹cyan,b›tab‹/› pane   ‹cyan,b›esc‹/› back   ‹cyan,b›?‹/› keys
 
