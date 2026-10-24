@@ -495,8 +495,11 @@ export function ChapterScreen(props: {
     for (const f of tour.files) {
       const ci = chapters.findIndex((c) => c.hunkIds.some((id) => tour.hunks[id]?.file === f.path));
       if (ci < 0) continue;
-      const hi = chapters[ci].hunkIds.findIndex((id) => tour.hunks[id]?.file === f.path);
-      toFile.push({ label: `Go to ${f.path}`, detail: `chapter ${ci + 1} · hunk ${hi + 1}`, run: () => props.setPos(ci, chapters[ci].collapsed ? -1 : hi) });
+      const c = chapters[ci];
+      const hi = c.hunkIds.findIndex((id) => tour.hunks[id]?.file === f.path);
+      // A collapsed chapter, or a folded lockfile hunk, is read as its summary.
+      const summary = c.collapsed || !!c.folded?.includes(c.hunkIds[hi]);
+      toFile.push({ label: `Go to ${f.path}`, detail: `chapter ${ci + 1} · ${summary ? 'summary' : `hunk ${hi + 1}`}`, run: () => props.setPos(ci, summary ? -1 : hi) });
     }
     return [...commands, ...toChapter, ...toFile];
   };

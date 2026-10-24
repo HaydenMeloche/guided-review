@@ -623,6 +623,45 @@ describe('ChapterScreen', () => {
     expect(writes).toBe(1);
     ui.unmount();
   });
+  it('goes to a folded lockfile from the palette on its summary page', async () => {
+    const manifest = hunkFromDiff('package.json', '-    "zod": "^3.22.0",', '+    "zod": "^4.0.0",');
+    const lock = hunkFromDiff('pnpm-lock.yaml', '-  zod@3.22.0:', '+  zod@4.0.0:');
+    const t = makeTour([manifest, lock], [{ kind: 'dependencies', title: 'Dependencies and runtimes', hunkIds: [manifest.id, lock.id], folded: [lock.id] }], { files: filesFor([manifest, lock]) });
+    const moves: [number, number][] = [];
+    const ui = render(
+      <ChapterScreen
+        tour={t}
+        chapters={t.chapters}
+        states={{}}
+        drafts={[]}
+        ci={0}
+        hi={0}
+        order="flow"
+        deltaOnly={false}
+        width={150}
+        height={40}
+        setPos={(ci, hi) => moves.push([ci, hi])}
+        setState={() => {}}
+        saveDraft={() => {}}
+        deleteDraft={() => {}}
+        moveHunk={() => {}}
+        toggleOrder={() => {}}
+        toggleDelta={() => {}}
+        openSubmit={() => {}}
+        openBriefing={() => {}}
+        openInAgent={() => {}}
+        quit={() => {}}
+      />,
+    );
+    await waitFor(() => expect(ui.lastFrame()).toContain('package.json'));
+    ui.stdin.write(':');
+    await tick();
+    ui.stdin.write('go pnpm-lock');
+    await waitFor(() => expect(ui.lastFrame()).toContain('chapter 1 · summary'));
+    ui.stdin.write('\r');
+    await waitFor(() => expect(moves).toEqual([[0, -1]]));
+    ui.unmount();
+  });
 });
 
 describe('ThreadView', () => {
