@@ -1019,17 +1019,18 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       repoIndex: indexFor,
     };
 
-    // Where n on the briefing picks up: the saved position, named for the key bar.
-    const resumeLabel = (() => {
+    // Where n on the briefing picks up: the saved position, named for the key bar. Read only when
+    // the briefing is drawn, not on every render of every screen.
+    const resumeLabel = () => {
       const saved = store.getPosition(tour.repo, tour.pr);
       const ci = saved ? chapters.findIndex((c) => c.id === saved.chapterId) : -1;
       if (!saved || ci < 0) return undefined;
       const hi = saved.hunkId ? chapters[ci].hunkIds.indexOf(saved.hunkId) : -1;
       return `resume · chapter ${ci + 1}${hi >= 0 ? `, hunk ${hi + 1}/${chapters[ci].hunkIds.length}` : ''}`;
-    })();
+    };
     const briefingScreen = (active: boolean) => (
       <BriefingScreen
-        resume={resumeLabel}
+        resume={resumeLabel()}
         notice={postedNotice?.key === `${tour.repo}#${tour.pr}` ? postedNotice.text : undefined}
         tour={tour}
         chapters={chapters}
