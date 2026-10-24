@@ -15,7 +15,7 @@ import { buildReviewPayload } from '../src/review/submit.js';
 import { ChapterScreen } from '../src/tui/ChapterScreen.js';
 import { ThreadView } from '../src/tui/ThreadView.js';
 import { SubmitScreen } from '../src/tui/SubmitScreen.js';
-import { BriefingScreen } from '../src/tui/BriefingScreen.js';
+import { BriefingScreen, stripFileRefs } from '../src/tui/BriefingScreen.js';
 import { ORDER_SEQUENCE, positionAfterOrderChange, progress, sortChapters, type States } from '../src/tui/nav.js';
 import { waitFor } from './helpers/waitFor.js';
 import { filesFor, hunkFromDiff, tour as makeTour } from './fixtures/tour.js';
@@ -804,7 +804,7 @@ describe('BriefingScreen and SubmitScreen', () => {
     const ui = render(<ReReviewBriefing />);
     await waitFor(() => expect(ui.lastFrame()).toContain('Changes only:'));
     const frame = ui.lastFrame()!;
-    expect(frame).toContain(`1 of ${changed.hunkIds.length} hunks changed`);
+    expect(frame).toContain(`1 of ${changed.hunkIds.length} changed`);
     expect(frame).toContain(unchanged.title);
     expect(frame).toContain('unchanged');
     // The re-review note sits just above the chapter list, not under the description.
@@ -1316,10 +1316,11 @@ describe('feedback round: guide, tests, inline comments, description', () => {
     await waitFor(() => expect(ui.lastFrame()).toContain('From the author'));
     expect(ui.lastFrame()).toContain('Adds invoices.');
     expect(ui.lastFrame()).not.toContain('template');
-    expect(ui.lastFrame()).toContain('See the doc (example.com).');
-    expect(ui.lastFrame()).toContain('r to read it all');
+    // Three lines on the briefing, and r for the rest.
+    expect(ui.lastFrame()).toMatch(/more lines · r read all/);
     ui.stdin.write('r');
     await waitFor(() => expect(ui.lastFrame()).toContain('from the author'));
+    expect(ui.lastFrame()).toContain('See the doc (example.com).');
     ui.unmount();
   });
 });
@@ -1564,3 +1565,12 @@ describe('split view, test pane toggle and expanded context', () => {
 function movedTo(file: string, line: number): MovedTo {
   return { file, line, kind: 'moved', indent: 0, also: [] };
 }
+
+describe('stripFileRefs', () => {
+  it('drops the file references the briefing model cites, and keeps other parentheses', () => {
+    expect(stripFileRefs('Adds discount codes (src/server.ts:31-42; src/orders.ts:16-50; scripts/sales_report.py:14-28). It also ships 0.4.0 (README.md:18-29).')).toBe(
+      'Adds discount codes. It also ships 0.4.0.',
+    );
+    expect(stripFileRefs('Retries (up to three times) on failure.')).toBe('Retries (up to three times) on failure.');
+  });
+});

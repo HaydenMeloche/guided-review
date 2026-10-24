@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useInput } from 'ink';
 import { Box, Text, useSelected, useTheme } from './themed.js';
 import { ROLES } from './theme.js';
-import type { Chapter, ChapterOrder, Tour } from '../types.js';
-import { chapterState, ORDER_LABEL, pad, progress, stateMark, type States } from './nav.js';
+import type { Chapter, ChapterOrder, Flag, Tour } from '../types.js';
+import { chapterState, meter, ORDER_LABEL, pad, progress, riskMark, stateMark, type States } from './nav.js';
 import { DiagramView } from './DiagramView.js';
 import { renderGraph } from '../diagram/text.js';
 import { MdLineView, renderMarkdown } from './markdown.js';
@@ -22,6 +22,33 @@ import { REVIEW_BRIEFING_KEYS, reviewBriefingBar } from './screenKeys.js';
 import { plural } from './plural.js';
 import { HELP_NOTE } from './ChapterScreen.js';
 import { G } from './glyphs.js';
+
+// Rows each block may take; the chapters get the rest of the screen.
+const BUDGET = { intent: 2, description: 3, flags: 3, reviews: 2, blast: 2 };
+const BRIEFING_PROSE = 88;
+
+// File references the briefing model puts in its summary, such as "(src/x.ts:31-42; y.ts:3)".
+// The chapter rows already know their files; in chapter narration, where the code is on
+// screen, they stay.
+export function stripFileRefs(text: string): string {
+  return text.replace(/\s*\((?:\s*[\w./@-]+\.[\w]+(?::\d+(?:-\d+)?)?\s*[;,]?)+\)/g, '');
+}
+
+// A flag as a row of the Watch for table: a short label, and its sentence as the detail.
+const FLAG_LABEL: Record<string, string> = {
+  'scope-creep': 'outside the stated scope',
+  'generated-out-of-sync': 'generated file may be stale',
+  'large-pr': 'large PR',
+  'no-entry-point': 'no entry point found',
+  'model-unavailable': 'model unavailable',
+  'missing-change': 'possibly missing change',
+  info: 'note',
+};
+function flagRow(f: Flag): { label: string; detail: string; color?: string; mark: string } {
+  const label = f.kind === 'generated-out-of-sync' && /lockfile/i.test(f.message) ? 'lockfile may be stale' : (FLAG_LABEL[f.kind] ?? f.kind.replace(/-/g, ' '));
+  const color = FLAG_COLOR[f.kind];
+  return { label, detail: f.message, color: color === 'gray' ? undefined : color, mark: color === 'gray' ? G.note : G.flag };
+}
 
 const FLAG_COLOR: Record<string, string> = {
   'scope-creep': 'magenta',
@@ -85,14 +112,24 @@ export function BriefingScreen(props: {
   const wide = !!tour.overview && width >= 120;
   const rightW = wide ? Math.min(natural + 2, Math.floor(width * 0.6)) : 0;
   const leftW = wide ? width - rightW - 4 : width - 2;
-  const intent = useMemo(() => renderMarkdown(tour.intent, leftW), [tour.intent, leftW]);
-  const descAll = useMemo(() => (tour.description?.trim() ? renderMarkdown(tour.description, leftW) : []), [tour.description, leftW]);
+  // Prose beside a list reads best at a briefing's measure, narrower than a reader's.
+  const proseW = Math.min(leftW, BRIEFING_PROSE);
+  const intent = useMemo(() => {
+    const all = renderMarkdown(stripFileRefs(tour.intent), proseW);
+    return all.length > BUDGET.intent ? [...all.slice(0, BUDGET.intent - 1), [...all[BUDGET.intent - 1], { text: ' …', dim: true }]] : all;
+  }, [tour.intent, proseW]);
+  const descAll = useMemo(() => (tour.description?.trim() ? renderMarkdown(tour.description, proseW) : []), [tour.description, proseW]);
 
   useInput(
     (input, key) => {
       if (input === 'j' || key.downArrow) return setSel((s) => Math.min(chapters.length - 1, s + 1));
       if (input === 'k' || key.upArrow) return setSel((s) => Math.max(0, s - 1));
       if (key.return) return props.onStart(sel);
+      // A chapter's number opens it.
+      if (/^[1-9]$/.test(input)) {
+        const row = rows[Number(input) - 1];
+        return row && row.ci >= 0 ? props.onStart(row.ci) : undefined;
+      }
       if (input === 'n' || input === ' ') return props.onStart();
       if (input === 'd' && tour.overview) return setOverlay('diagram');
       if (input === 'a') return setOverlay('ask');
@@ -142,18 +179,23 @@ export function BriefingScreen(props: {
     return <Reader title={`#${tour.pr} — reviewer feedback`} markdown={markdown} width={width} height={height} onClose={() => setOverlay('none')} />;
   }
   const rr = tour.rereview;
-  const blast = tour.blastRadius.filter((b) => b.callers.length).slice(0, 4);
 
   // Wide terminals: text on the left, the overview diagram on the right at its natural
   // size (up to 60% of the width). Narrow terminals stack the diagram under the text.
   const askHeight = overlay === 'ask' ? Math.min(14, Math.max(5, height - 10)) : 0;
   const bodyH = height - 4 - askHeight; // title, margin, status line, key bar
 
+  // The briefing is a dashboard with a text budget: the chapters (the one thing the keys act
+  // on) come first after the intent, and every other block gets a few rows, with the way to
+  // read the rest beside it.
   // Missing tests show on each hunk in the chapters, so the briefing leaves that flag out.
-  const flags = tour.flags.filter((f) => f.kind !== 'missing-tests').slice(0, 6);
+  const watch = [...tour.flags.filter((f) => f.kind !== 'missing-tests').map((f) => flagRow(f)), ...tour.notes.map((n) => ({ label: 'note', detail: n, color: undefined, mark: G.note }))];
+  const watchShown = watch.slice(0, BUDGET.flags);
   const otherReviews = (tour.existingReviews ?? []).filter((r) => r.author !== tour.author && r.author !== tour.viewer);
-  const reviews = otherReviews.slice(-3).reverse();
-  const rrRows = rr ? 1 + Math.min(5, rr.comments.length) + 1 : 0;
+  const reviews = otherReviews.slice(-BUDGET.reviews).reverse();
+  const blast = tour.blastRadius.filter((b) => b.callers.length).slice(0, BUDGET.blast);
+  const rrComments = rr ? rr.comments.slice(0, 3) : [];
+  const rrRows = rr ? 1 + rrComments.length + 1 : 0;
   // On a re-review showing only changes, every chapter is listed and the unchanged ones are greyed.
   const delta = !!rr && !!props.deltaOnly;
   const fullCount = (id: string) => (props.allChapters ?? chapters).find((c) => c.id === id)?.hunkIds.length ?? 0;
@@ -165,84 +207,29 @@ export function BriefingScreen(props: {
     0,
     rows.findIndex((r) => r.ci === sel),
   );
-  const otherRows =
-    intent.length +
-    1 +
-    (props.readiness ? 1 : 0) +
-    rrRows +
+  const desc = descAll.slice(0, BUDGET.description);
+  const topRows = (props.readiness ? 1 : 0) + intent.length + rrRows;
+  const restRows =
+    (watchShown.length ? watchShown.length + 2 + (watch.length > watchShown.length ? 1 : 0) : 0) +
+    (desc.length ? desc.length + 2 : 0) +
     (reviews.length ? reviews.length + 2 : 0) +
-    (flags.length ? flags.length + 1 : 0) +
-    tour.notes.length +
-    (blast.length ? blast.length + 2 : 0);
-  // Long chapter lists show a window around the selection instead of every chapter.
-  const chapterRoom = Math.max(5, bodyH - otherRows - 3 - 4);
+    (blast.length ? blast.length + 2 : 0) +
+    (tour.existingThreads.length ? 1 : 0);
+  // The chapters get what the other blocks leave, and never fewer than five rows.
+  const chapterRoom = Math.max(5, bodyH - topRows - 2 - restRows);
   const windowed = rows.length > chapterRoom;
   const shownCount = windowed ? chapterRoom - 1 : rows.length;
   const chStart = windowed ? Math.max(0, Math.min(selRow - Math.floor(shownCount / 2), rows.length - shownCount)) : 0;
-  const fixedRows = otherRows + shownCount + (windowed ? 1 : 0) + 3;
-  const diagramBelowH = wide ? 0 : Math.max(0, Math.min(16, bodyH - fixedRows - 8));
-  // heading + margin + the '… more' line
-  const descRoom = Math.max(3, bodyH - fixedRows - (diagramBelowH ? diagramBelowH + 1 : 0) - 4);
-  const desc = descAll.slice(0, descRoom);
+  const usedRows = topRows + 2 + shownCount + (windowed ? 1 : 0) + restRows;
+  const diagramBelowH = wide ? 0 : Math.max(0, Math.min(16, bodyH - usedRows - 1));
+  const numW = String(rows.length).length;
+  const labelW = Math.min(30, Math.max(0, ...watchShown.map((w) => w.label.length)) + 2);
 
   const left = (
     <Box flexDirection="column" width={leftW}>
       {props.readiness ? <ReadinessLine readiness={props.readiness} width={leftW} hint={!!props.onMerge} /> : null}
       {intent.map((l, i) => (
         <MdLineView key={i} line={l} />
-      ))}
-      {descAll.length ? (
-        <Box flexDirection="column" marginTop={1} flexShrink={0}>
-          <SectionHeading title="From the author" width={leftW} />
-          {desc.map((l, i) => (
-            <MdLineView key={i} line={l} />
-          ))}
-          {descAll.length > desc.length ? (
-            <Text>
-              <Text dimColor italic>{`… ${plural(descAll.length - desc.length, 'more line')}: `}</Text>
-              <Key k="r" />
-              <Text dimColor italic>
-                {' '}
-                to read it all
-              </Text>
-            </Text>
-          ) : null}
-        </Box>
-      ) : null}
-      {reviews.length ? (
-        <Box flexDirection="column" marginTop={1} flexShrink={0}>
-          <SectionHeading title="Other reviewers" width={leftW}>
-            <Text dimColor> · </Text>
-            <Key k="V" />
-            <Text dimColor> to read all {plural(otherReviews.length, 'review')}</Text>
-          </SectionHeading>
-          {reviews.map((r) => (
-            <Text key={r.id} wrap="truncate">
-              {safe(
-                `@${r.author} · ${r.state.toLowerCase().replace(/_/g, ' ')} · ${
-                  safe(r.body)
-                    .trim()
-                    .replace(/\s+/g, ' ')
-                    .slice(0, Math.max(12, leftW - 45)) || 'No summary left.'
-                }`,
-              )}
-            </Text>
-          ))}
-        </Box>
-      ) : null}
-      {flags.length ? (
-        <Box flexDirection="column" marginTop={1} flexShrink={0}>
-          {flags.map((f, i) => (
-            <Text key={i} color={FLAG_COLOR[f.kind] ?? 'gray'} wrap="truncate">
-              {safe(`${G.flag} ${f.kind.replace(/-/g, ' ')}: ${f.message}`)}
-            </Text>
-          ))}
-        </Box>
-      ) : null}
-      {tour.notes.map((n, i) => (
-        <Text key={i} dimColor wrap="truncate">
-          {safe(`${G.note} ${n}`)}
-        </Text>
       ))}
       {rr ? (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
@@ -275,9 +262,9 @@ export function BriefingScreen(props: {
               </>
             )}
           </Text>
-          {rr.comments.slice(0, 5).map((c, i) => (
+          {rrComments.map((c, i) => (
             <Text key={i} wrap="truncate">
-              <Text color={c.addressed ? 'green' : 'yellow'}>{c.addressed ? '✓ addressed ' : '○ open      '}</Text>
+              <Text color={c.addressed ? 'green' : 'yellow'}>{c.addressed ? `${G.done} addressed ` : `${G.untested} open      `}</Text>
               {safe(`${c.path ? `${c.path}:${c.line ?? ''} ` : ''}${c.body.replace(/\s+/g, ' ')}`)}
               <Text dimColor> — {safe(c.reason)}</Text>
             </Text>
@@ -292,44 +279,94 @@ export function BriefingScreen(props: {
           </Text>
           <Text bold dimColor>
             {' '}
-            · {prog.read + prog.skipped}/{prog.total} hunks done
-          </Text>
-        </SectionHeading>
-        <Text>
-          <Text dimColor>
-            {props.order === 'flow'
-              ? 'Recommended reading path through the changed flows'
-              : props.order === 'risk'
-                ? 'Highest-risk chapters first'
-                : props.order === 'size'
-                  ? 'Fewest changed lines first'
-                  : 'Files in path order'}
-            {' · '}
+            · {prog.read + prog.skipped}/{prog.total} hunks done ·{' '}
           </Text>
           <Key k="f" />
-          <Text dimColor> to change</Text>
-        </Text>
-        {rows.slice(chStart, chStart + shownCount).map(({ chapter: c, ci }) => {
+        </SectionHeading>
+        {rows.slice(chStart, chStart + shownCount).map(({ chapter: c, ci }, k) => {
           const unchanged = ci < 0;
           const st = stateMark(chapterState(tour, c, states));
-          const count = !delta
-            ? `${plural(c.hunkIds.length, 'hunk')}`
-            : unchanged
-              ? `${plural(c.hunkIds.length, 'hunk')} · unchanged`
-              : `${c.hunkIds.length} of ${plural(fullCount(c.id), 'hunk')} changed`;
-          const meta = ` ${count}${c.optional ? ' · optional' : c.kind !== 'flow' ? ` · ${c.kind}` : ''}`;
+          const p = progress(tour, states, c.hunkIds);
+          const m = meter(p.read + p.skipped, p.total, 4);
+          const risk = Math.max(0, ...c.hunkIds.map((id) => tour.hunks[id]?.risk ?? 0));
+          const rk = risk >= 2 ? riskMark(risk) : undefined;
+          const count = c.optional ? 'optional' : !delta ? `${p.read + p.skipped}/${p.total}` : unchanged ? 'unchanged' : `${c.hunkIds.length} of ${fullCount(c.id)} changed`;
+          const tail = `  ${c.optional || unchanged ? '' : `${m.filled}${m.rest} `}${count.padStart(5)} ${rk ? rk.mark : ' '}`;
           const selected = !unchanged && ci === sel;
           const quiet = unchanged || (c.collapsed && !selected);
+          const n = String(chStart + k + 1).padStart(numW);
           return (
             <Text key={c.id} {...selectedRow(selected)} dimColor={quiet} wrap="truncate">
+              <Text color={selected ? 'cyan' : undefined} dimColor={!selected}>{` ${n} `}</Text>
               <Text color={unchanged ? undefined : st.color}>{st.mark}</Text>{' '}
-              <Text color={quiet || selected ? undefined : ROLES.title}>{pad(safe(c.title), Math.max(20, leftW - meta.length - 3))}</Text>
-              <Text dimColor>{meta}</Text>
+              <Text color={quiet || selected ? undefined : ROLES.title}>{pad(safe(c.title), Math.max(12, leftW - tail.length - numW - 5))}</Text>
+              {c.optional || unchanged ? null : (
+                <>
+                  {'  '}
+                  <Text color="green">{m.filled}</Text>
+                  <Text dimColor>{m.rest}</Text>
+                </>
+              )}
+              <Text dimColor>{` ${count.padStart(5)} `}</Text>
+              {rk ? <Text color={rk.color}>{rk.mark}</Text> : ' '}
             </Text>
           );
         })}
         {windowed ? <Text dimColor>{`  ${chStart ? `… ${chStart} above · ` : ''}${rows.length - chStart - shownCount} more below`}</Text> : null}
       </Box>
+      {watchShown.length ? (
+        <Box flexDirection="column" marginTop={1} flexShrink={0}>
+          <SectionHeading title="Watch for" width={leftW} />
+          {watchShown.map((w, i) => (
+            <Text key={i} wrap="truncate">
+              {' '}
+              <Text color={w.color} dimColor={!w.color}>{`${w.mark} `}</Text>
+              <Text color={w.color} dimColor={!w.color}>
+                {pad(w.label, labelW)}
+              </Text>
+              <Text dimColor>{safe(w.detail)}</Text>
+            </Text>
+          ))}
+          {watch.length > watchShown.length ? <Text dimColor>{`   +${watch.length - watchShown.length} more`}</Text> : null}
+        </Box>
+      ) : null}
+      {descAll.length ? (
+        <Box flexDirection="column" marginTop={1} flexShrink={0}>
+          <SectionHeading title="From the author" width={leftW}>
+            {descAll.length > desc.length ? (
+              <>
+                <Text dimColor>{` · ${plural(descAll.length - desc.length, 'more line')} · `}</Text>
+                <Key k="r" />
+                <Text dimColor> read all</Text>
+              </>
+            ) : null}
+          </SectionHeading>
+          {desc.map((l, i) => (
+            <MdLineView key={i} line={l} />
+          ))}
+        </Box>
+      ) : null}
+      {reviews.length ? (
+        <Box flexDirection="column" marginTop={1} flexShrink={0}>
+          <SectionHeading title="Other reviewers" width={leftW}>
+            <Text dimColor> · </Text>
+            <Key k="V" />
+            <Text dimColor> to read all {plural(otherReviews.length, 'review')}</Text>
+          </SectionHeading>
+          {reviews.map((r) => (
+            <Text key={r.id} wrap="truncate">
+              {safe(
+                `@${r.author} · ${r.state.toLowerCase().replace(/_/g, ' ')} · ${
+                  safe(r.body)
+                    .trim()
+                    .replace(/\s+/g, ' ')
+                    .slice(0, Math.max(12, leftW - 45)) || 'No summary left.'
+                }`,
+              )}
+            </Text>
+          ))}
+        </Box>
+      ) : null}
       {blast.length ? (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
           <SectionHeading title="Blast radius" width={leftW} />
@@ -397,7 +434,7 @@ export function BriefingScreen(props: {
         keys={reviewBriefingBar({
           start: props.resume ?? 'start',
           agent: !!props.agent,
-          readDescription: descAll.length <= desc.length,
+          readDescription: descAll.length <= BUDGET.description,
           diagram: !(wide && tour.overview),
           feedback: !!props.onFeedback,
           checks: !!props.onChecks,

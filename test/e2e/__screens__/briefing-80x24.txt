@@ -2,23 +2,23 @@
 
  feature/discounts (preview). Add discount codes to quotes and orders
 
+ ‹b›Chapters‹/›‹cyan,b› · Guided order‹/›‹b,dim› · 0/5 hunks done · ‹/›‹cyan›f‹/› ‹dim›─────────────────────────────────‹/›
+ ‹cyan,inv› 1 ‹/›‹bright-black,inv›·‹/›‹inv› createOrder                                                 ‹/›‹dim,inv›▱▱▱▱   0/3 ‹/›‹yellow,inv›▲‹/›
+ ‹dim› 2 ‹/›‹bright-black›·‹/› Dependencies and runtimes                                   ‹dim›▱▱▱▱   0/1 ‹/›
+ ‹dim› 3 ‹/›‹bright-black›·‹/› Config, infra and docs                                      ‹dim›▱▱▱▱   0/1 ‹/›
+
+ ‹b›Watch for‹/› ‹dim›────────────────────────────────────────────────────────────────────‹/›
+  ‹yellow›▲ lockfile may be stale  ‹/›‹dim›package.json changed but no lockfile changed; if de…‹/›
+
  ‹b›From the author‹/› ‹dim›──────────────────────────────────────────────────────────────‹/›
  Add discount codes to quotes and orders
 
- ‹yellow›▲ generated out of sync: package.json changed but no lockfile changed; if dep…‹/›
-
- ‹b›Chapters‹/›‹cyan,b› · Guided order‹/›‹b,dim› · 0/5 hunks done‹/› ‹dim›─────────────────────────────────────‹/›
- ‹dim›Recommended reading path through the changed flows · ‹/›‹cyan,b›f‹/›‹dim› to change‹/›
- ‹bright-black,inv›·‹/›‹inv› createOrder                                                        ‹/›‹dim,inv› 3 hunks‹/›
- ‹bright-black›·‹/› Dependencies and runtimes                            ‹dim› 1 hunk · dependencies‹/›
- ‹bright-black›·‹/› Config, infra and docs                                     ‹dim› 1 hunk · config‹/›
-
-
-
-
-
-
-
-
+   ‹yellow,b›╔═════════════╗‹/›
+   ‹yellow,b›║‹/› ‹yellow,b›createOrder‹/› ‹yellow,b›║‹/›
+   ‹yellow,b›╚══════╤══════╝‹/›
+          │
+          ├───────────────┐
+          ▼               ▼
+ ‹yellow,b›╔════════════════╗‹/›   ‹yellow,b›╔═══════╗‹/›
 
   ‹cyan,b›n‹/›‹dim› start‹/›   ‹cyan,b›enter‹/›‹dim› open‹/›   ‹cyan,b›j/k‹/›‹dim› select‹/›   ‹dim›+4 more‹/›                  ‹cyan,b›?‹/›‹dim› keys‹/›   ‹cyan,b›q‹/›‹dim› quit‹/›

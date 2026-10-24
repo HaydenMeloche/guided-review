@@ -54,6 +54,7 @@ export const REVIEW_BRIEFING_KEYS: KeyDef<ReviewBriefingKeyCtx>[] = [
   { keys: ['n'], group: 'Read', help: 'Start reading, or resume where you left off', bar: { shown: 'n', label: (c) => c.start } },
   { keys: ['Enter'], group: 'Read', help: 'Open the selected chapter', bar: { shown: 'enter', label: 'open' } },
   { keys: ['j', 'k'], group: 'Read', help: 'Select a chapter', bar: { shown: 'j/k', label: 'select' } },
+  { keys: ['1', '2', '3', '4', '5', '6', '7', '8', '9'], doc: ['1'], name: '1–9', group: 'Read', help: 'Open the chapter with that number' },
   { keys: ['f'], group: 'Read', help: 'Cycle Guided, Risk first, Small first and File order' },
   { keys: ['D'], group: 'Read', help: 'Re-review: only new and changed hunks, or the full review' },
   { keys: ['a'], group: 'Ask', help: 'Ask the model about the whole PR', bar: { shown: 'a', label: 'ask about the PR', when: (c) => c.agent } },

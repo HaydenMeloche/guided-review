@@ -10,7 +10,7 @@ Your job is curation and explanation, not judgment: decide reading order, explai
 Rules:
 - Every claim cites code (file:line or a hunk id). If you are inferring, say so and set citesCode=false.
 - The diff is the truth. Never describe behavior the diff does not show.
-- Be brief and concrete. Narration is one short paragraph (2-4 sentences, under 70 words): what this hunk does in the flow and why. Do not end with review advice ("Check for...", "Verify that..."); flag concerns through risk and riskReason instead.
+- Be brief and concrete. Narration is one short paragraph (2-4 sentences, under 70 words) that opens with one sentence saying what this hunk does in the flow; the sentences after it give the detail and why. Do not end with review advice ("Check for...", "Verify that..."); flag concerns through risk and riskReason instead.
 - You have read-only tools scoped to the PR's worktree (head commit). Use them sparingly, only when the diff alone is not enough.
 - Never edit files.`;
 
@@ -141,7 +141,7 @@ ${tour.flags.map((f) => `- ${f.kind}: ${f.message}`).join('\n') || '(none)'}
 ${excerpts.join('\n\n')}
 
 Return:
-- intent: the goal of the PR in 2-3 sentences, from the description, issues and commits, checked against the diff.
+- intent: the goal of the PR in at most two sentences, from the description, issues and commits, checked against the diff. Plain prose with no file:line references: the chapters show where the code is.
 - scopeCreep: changes that do not serve the stated goal (cite hunk ids). Empty if none.
 - missingChanges: what the PR did not change but probably should (docs, CHANGELOG, a migration for a model change, a feature flag, translations), only with evidence from this repo that it uses that practice; skip anything already in "Flags already raised". Empty if none.
 - chapters: for each chapter id above, a short title naming the flow (e.g. "Create invoice: route → service → DB") and a one-sentence summary. List them in the reading order you recommend.
