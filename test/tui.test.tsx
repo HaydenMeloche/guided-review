@@ -361,7 +361,7 @@ describe('ChapterScreen', () => {
     hunk.tests = [{ testFile: 'test/invoice.test.ts', testName: 'creates invoice', startLine: 1, lines: ['it("creates invoice", () => {})'], source: 'name-match', confidence: 0.65 }];
     let opened = 0;
     const ui = render(<Harness tour={tour} onDraft={() => {}} onState={() => {}} onBriefing={() => opened++} />);
-    await waitFor(() => expect(ui.lastFrame()).toMatch(/b\s+briefing/));
+    await waitFor(() => expect(ui.lastFrame()).toMatch(/esc\s+back/));
     ui.stdin.write('b');
     await waitFor(() => expect(opened).toBe(1));
     ui.stdin.write('t');
@@ -1246,13 +1246,13 @@ describe('feedback round: guide, tests, inline comments, description', () => {
     const h = hunkFromDiff('src/a.ts', '-go();', '+stop();');
     const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
     const ui = render(screen(t, 0, 60));
-    await waitFor(() => expect(ui.lastFrame()).toMatch(/h all keys\s*$/m));
+    await waitFor(() => expect(ui.lastFrame()).toMatch(/h keys\s*$/m));
     expect(ui.lastFrame()).toContain('n/p hunk');
     expect(ui.lastFrame()).not.toContain('e thread');
     expect(ui.lastFrame()).toContain('whitespace hidden');
     ui.stdin.write('w');
     await waitFor(() => expect(ui.lastFrame()).not.toContain('whitespace hidden'));
-    expect(ui.lastFrame()).toMatch(/h all keys\s*$/m);
+    expect(ui.lastFrame()).toMatch(/h keys\s*$/m);
     ui.unmount();
   });
 

@@ -90,7 +90,6 @@ export function ChapterScreen(props: {
   onTheme?: () => void; // L: the color theme picker
   services?: Services;
   references?: ReferenceServices; // recent locations, repo index; tests may leave it out
-  back?: () => void; // q: back to the PR list; unset, q quits
   quit: () => void;
 }) {
   const { tour, chapters, states, ci, hi, width, height } = props;
@@ -232,7 +231,6 @@ export function ChapterScreen(props: {
   };
   const actions: Record<Action, () => void> = {
     briefing: () => props.openBriefing(),
-    back: () => (props.back ?? props.quit)(),
     quit: () => props.quit(),
     // Tests
     leaveTests: () => setTestFocus(false),
@@ -268,7 +266,8 @@ export function ChapterScreen(props: {
     pageDown: () => moveCursor(10),
     pageUp: () => moveCursor(-10),
     range: () => setAnchor((a) => (a === null ? cursor : null)),
-    clearRange: () => setAnchor(null),
+    // Esc closes the innermost thing: an open range, else the chapter, back to the briefing.
+    escape: () => (anchor !== null ? setAnchor(null) : props.openBriefing()),
     skip: () => next('skipped'),
     defer: () => {
       setFlash('Deferred: it stays on the submit screen as unread work.');
@@ -360,7 +359,7 @@ export function ChapterScreen(props: {
 
   if (!chapter) {
     if (overlay.kind !== 'none') close(); // see slots.shown below
-    return <EmptyChapter deltaOnly={props.deltaOnly} back={!!props.back} width={width} />;
+    return <EmptyChapter deltaOnly={props.deltaOnly} width={width} />;
   }
 
   // Linked tests that are not beside the code (a narrow terminal, T, or a split diff) get a tab

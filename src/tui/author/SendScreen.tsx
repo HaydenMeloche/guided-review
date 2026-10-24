@@ -29,6 +29,7 @@ export function SendScreen(props: {
   onDelete: (q: QueuedReply) => void;
   onSent: (notice: string, sentThreadIds: string[]) => void;
   onBack: () => void;
+  onQuit?: () => void; // Q
 }) {
   const { tour, width } = props;
   const byId = useMemo(() => new Map(props.items.map((i) => [i.thread.id, i])), [props.items]);
@@ -112,6 +113,7 @@ export function SendScreen(props: {
         return setMode('list');
       }
       if (key.escape || input === 'q') return props.onBack();
+      if (input === 'Q') return props.onQuit?.();
       if (input === 'j' || key.downArrow) return setSel((s) => Math.min(Math.max(0, rows.length + props.candidates.length - 1), s + 1));
       if (input === 'k' || key.upArrow) return setSel((s) => Math.max(0, s - 1));
       if (input === 'e' && onReply && rows[sel]) return props.onEdit(rows[sel].threadId);

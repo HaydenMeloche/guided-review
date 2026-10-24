@@ -49,7 +49,7 @@ export function BriefingScreen(props: {
   onFeedback?: () => void; // t: the feedback on your own PR (author mode)
   onChecks?: () => void; // c: the PR's checks and their logs
   onTheme?: () => void; // L: the color theme picker
-  onBack?: () => void; // q: back to the PR list; unset, q quits
+  onBack?: () => void; // esc, q: back to the PR list; unset (a preview), q quits
   onQuit: () => void;
 }) {
   const { tour, chapters, states, width, height } = props;
@@ -99,6 +99,8 @@ export function BriefingScreen(props: {
       if (input === 'L' && props.onTheme) return props.onTheme();
       if (input === 'r' && tour.description?.trim()) return setOverlay('read');
       if (input === 'V' && tour.existingReviews?.some((r) => r.author !== tour.author && r.author !== tour.viewer)) return setOverlay('reviews');
+      // Esc and q go up a level; in a preview the briefing is the top, where only q quits.
+      if (key.escape) return props.onBack?.();
       if (input === 'q') return (props.onBack ?? props.onQuit)();
       if (input === 'Q') return props.onQuit();
     },

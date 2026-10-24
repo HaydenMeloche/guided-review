@@ -45,6 +45,7 @@ export function MergeScreen(props: {
   height: number;
   onDone: (notice: string) => void;
   onCancel: () => void;
+  onQuit?: () => void; // Q
 }) {
   const { width } = props;
   const [mode, setMode] = useState<Mode>('loading');
@@ -227,6 +228,7 @@ export function MergeScreen(props: {
         return setMode('review');
       }
       if (mode === 'error' || mode === 'loading') {
+        if (input === 'Q') return props.onQuit?.();
         if (key.escape || input === 'q') props.onCancel();
         return;
       }
@@ -234,6 +236,7 @@ export function MergeScreen(props: {
         abort.current?.abort();
         return props.onCancel();
       }
+      if (input === 'Q') return props.onQuit?.();
       if (input === 'r' && readiness?.canMarkReady) return setMode('ready-confirm');
       if (input === 'u' && readiness?.canUpdateBranch) return setMode('update-confirm');
       if (!readiness?.canMerge) return;

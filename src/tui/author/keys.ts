@@ -124,4 +124,5 @@ export const SEND_KEYS: KeyDef<SendKeyCtx>[] = [
   { keys: ['x'], bar: { shown: 'x', label: 'delete' } },
   { keys: ['r'], bar: { shown: 'r', label: 're-request', when: (c) => c.candidates } },
   { keys: ['q'], alias: true },
+  { keys: ['Q'], alias: true },
 ];

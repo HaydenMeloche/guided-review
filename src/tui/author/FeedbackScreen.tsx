@@ -137,8 +137,7 @@ function NoFeedback(props: Props) {
     (input, key) => {
       if (input === 'n' || input === 'p' || key.return) return setPressed(true);
       if (input === 'H') return props.onToggleHidden();
-      if (input === 'b') return props.onBriefing();
-      if (input === 'q') return (props.onBack ?? props.onQuit)();
+      if (input === 'b' || input === 'q' || key.escape) return props.onBriefing();
       if (input === 'Q') return props.onQuit();
     },
     { isActive: props.active },
@@ -146,7 +145,7 @@ function NoFeedback(props: Props) {
   return (
     <Box flexDirection="column" paddingX={1}>
       <Text color={pressed ? 'yellow' : undefined}>No feedback to show{props.showHidden ? '' : ' (resolved threads are hidden: H shows them)'}.</Text>
-      <Text dimColor>H: show resolved · b: briefing · q: back</Text>
+      <Text dimColor>H: show resolved · esc: briefing · Q: quit</Text>
     </Box>
   );
 }
@@ -407,8 +406,8 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
       if (input === 'Y' && props.onCopyUrl) return void props.onCopyUrl().then(setFlash);
       if (input === 'R') return props.onRefresh();
       if (input === 'L' && props.onTheme) return props.onTheme();
-      if (input === 'b') return props.onBriefing();
-      if (input === 'q') return (props.onBack ?? props.onQuit)();
+      if (input === 'b' || input === 'q') return props.onBriefing();
+      if (key.escape && mode.kind === 'browse') return props.onBriefing();
       if (input === 'Q') return props.onQuit();
     },
     { isActive: props.active && (mode.kind === 'browse' || mode.kind === 'react' || mode.kind === 'resolve' || mode.kind === 'ai') },
@@ -617,7 +616,14 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
               })
             : []
         }
-        end={mode.kind === 'browse' ? [['q', props.onBack ? 'PR list' : 'quit']] : []}
+        end={
+          mode.kind === 'browse'
+            ? [
+                ['esc', 'briefing'],
+                ['Q', 'quit'],
+              ]
+            : []
+        }
       />
     </Box>
   );

@@ -287,7 +287,8 @@ export function AuthorMode(props: {
   useInput(
     (input, key) => {
       if (input === 'r' || input === 'R') return refresh();
-      if (input === 'q' || key.escape) return (props.onBack ?? props.onQuit)();
+      if (key.escape) return props.onBack?.();
+      if (input === 'q') return (props.onBack ?? props.onQuit)();
       if (input === 'Q') return props.onQuit();
     },
     { isActive: props.active && !live },
@@ -404,6 +405,7 @@ export function AuthorMode(props: {
         height={height}
         repo={tour.repo}
         number={tour.pr}
+        onQuit={props.onQuit}
         onClose={(changed) => {
           setReviewersOpen(false);
           if (changed) refreshPending();
@@ -421,6 +423,7 @@ export function AuthorMode(props: {
         number={tour.pr}
         loaded={{ headSha: live.merge?.headSha ?? tour.headSha, checks: live.merge?.checks.items ?? [], refreshing: checksRefreshing, onRefresh: refreshChecks }}
         onClose={() => setChecksOpen(false)}
+        onQuit={props.onQuit}
       />
     );
   }
@@ -435,6 +438,7 @@ export function AuthorMode(props: {
         tour={tour}
         agent={agent}
         onCancel={() => setMerging(false)}
+        onQuit={props.onQuit}
         onDone={(n) => {
           setMerging(false);
           props.onMerged(n);
@@ -524,6 +528,7 @@ export function AuthorMode(props: {
               void load();
             }}
             onBack={() => setScreen(sendFrom)}
+            onQuit={props.onQuit}
           />
         )}
       </ReviewPopup>

@@ -53,6 +53,9 @@ describe('gr preview --no-agent', () => {
     gr.press('n');
     const end = await gr.waitFor('End of the tour');
     expect(end).toContain('1/1 hunks');
+    // q goes up to the briefing; a preview has no PR list, so q there quits.
+    gr.press('q');
+    await gr.waitFor('Chapters · Guided order');
     gr.press('q');
     expect(await gr.exited).toBe(0);
   });
@@ -64,7 +67,7 @@ describe('gr preview --no-agent', () => {
     await first.waitFor('Chapter 1/1');
     first.press('n');
     await first.waitFor('End of the tour');
-    first.press('q');
+    first.press('Q');
     await first.exited;
 
     const second = preview();
@@ -82,7 +85,10 @@ describe('gr preview --no-agent', () => {
     await first.waitFor('clamped to 0..1?');
     first.press(KEY.enter);
     await first.waitFor('✎ [question] Should the discount be clamped to 0..1?');
-    first.press('q');
+    // An unposted draft: Q asks first, and y quits.
+    first.press('Q');
+    await first.waitFor('Quit with 1 unposted draft?');
+    first.press('y');
     await first.exited;
 
     const second = preview();

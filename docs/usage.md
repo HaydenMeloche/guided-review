@@ -2,9 +2,17 @@
 
 How to pick a PR, read a tour, ask questions, draft comments, review again after a push, respond to the review on your own PR, merge, and preview your own branch. For installation and setup, see the [README](../README.md).
 
+## Moving around
+
+The same three keys move you back on every screen:
+
+- `Esc` closes the innermost thing that is open: a range selection, a filter, a popup. With nothing open it goes up one level, from a chapter to the briefing and from the briefing to the PR list. It never quits.
+- `q` goes up one level, like `Esc` with nothing open. On the PR list, and on the briefing of an author preview (which has no list), it quits.
+- `Q` quits from anywhere. If you have unposted drafts or queued replies, gr asks first; they stay saved for next time either way.
+
 ## Pick a PR
 
-The picker lists your review requests under **Review requests**, grouped by repository. Press `/` to filter by repo, title, author, or label; `j`/`k` to move; `Enter` to open; `o` to open the selected PR in a browser; `r` to refresh; or `L` to choose a [color theme](configuration.md#color-themes). The list also refreshes itself every two minutes, keeping your place. When the clipboard holds a PR link (for example, one copied from Slack), the picker offers it: `p` opens its tour (or, for your own PR, its [feedback](#respond-to-a-review)) and `x` dismisses it. Press `Space` to select PRs, `a` to select all PRs shown by the filter, and `d` to download the selected tours before opening them. With no selection, `d` downloads the highlighted tour. Downloads run one at a time and show progress in the picker; completed tours are cached for later opening. On a wide terminal, the preview shows the description, changed files, checks (failing and running ones by name), review decision, whether the PR is ready to merge, and whether a local tour or drafts already exist.
+The picker lists your review requests under **Review requests**, grouped by repository. Press `/` to filter by repo, title, author, or label (`Esc` clears the filter, then the selection); `j`/`k` to move; `Enter` to open; `o` to open the selected PR in a browser; `r` to refresh; or `L` to choose a [color theme](configuration.md#color-themes). The list also refreshes itself every two minutes, keeping your place. When the clipboard holds a PR link (for example, one copied from Slack), the picker offers it: `p` opens its tour (or, for your own PR, its [feedback](#respond-to-a-review)) and `x` dismisses it. Press `Space` to select PRs, `a` to select all PRs shown by the filter, and `d` to download the selected tours before opening them. With no selection, `d` downloads the highlighted tour. Downloads run one at a time and show progress in the picker; completed tours are cached for later opening. On a wide terminal, the preview shows the description, changed files, checks (failing and running ones by name), review decision, whether the PR is ready to merge, and whether a local tour or drafts already exist.
 
 Below the review requests, **Your PRs** lists your own open PRs that need you: ones with unresolved threads, a review submitted since your latest commit, changes requested, ready to merge, or ready for review with nobody asked to review them (`no reviewers requested`; this applies only to repositories you don't own, so it stays quiet on your own). A line under them counts the rest, which wait on reviewers (drafts included); `w` shows them too, marked `waiting on review`, and hides them again. Each row says which, such as `2 open thread(s) · new review` or `✓ ready to merge`, colored so the state stands out: approved and ready to merge in green, changes requested in red, open threads in yellow. The row also says `✗ checks failing` or `● checks running`. gr reads up to 200 of your open PRs and says `Showing the first 200 of your open PRs.` when there are more. It reads the first 100 review threads of each PR, so a PR with more shows a count like `100+ unresolved`. `Enter` on one opens its feedback (see [Respond to a review](#respond-to-a-review)). `M` on any PR opens the [merge dialog](#merge-a-pr), and `c` its [checks](#checks). `A` on one of your PRs shows [who is asked to review it](#ask-for-reviews) and asks more people.
 
@@ -79,7 +87,7 @@ Upgrade highlights and package overviews come from a changelog in the worktree w
 | `o` | Open your coding agent in the PR's checkout, with the hunk, your draft comments on its file, and the file's review threads as its first prompt. Choose the agent in `gr config` (Claude Code by default). |
 | `b` / `s` / `h` | Return to the briefing (description and overview diagram), open submit, or show key help. `b` also works while the test pane has focus. |
 | `L` | Choose a color theme. `/` searches the list by name. Moving through the list applies each theme as the cursor stops, so the screen behind it shows what it looks like; `Enter` keeps it and saves it as `theme` in your config, and `Esc` goes back to the one you had. The PR list and the briefing take `L` too. See [Color themes](configuration.md#color-themes). |
-| `q` / `Q` | Go back to the PR list (progress is saved), or quit Guided Review. In an author preview of a local branch there is no list, so `q` quits. |
+| `Esc` / `q` / `Q` | Go back to the briefing (progress is saved), or quit Guided Review. `Esc` first clears a range selection. |
 
 Hunks in a file that are at most six unchanged lines apart are shown as one hunk, with the lines between them read from the PR head and dimmed. GitHub's diff splits them, so code moved a short distance would otherwise appear as an unrelated addition and removal. A block of three or more lines removed in one place and added unchanged in another (indentation aside) is marked with where its other half is, for example `↕ 7 lines moved from line 66`. Marking errs toward leaving code unmarked: a block needs a line of real text that the PR removes or adds only once, so common lines such as `if err != nil {` never pair on their own, and text that a changed file keeps elsewhere is treated as boilerplate. Imports and license headers that follow a file being replaced or split are not marked. Between files, a block must be whole declarations or a longer run of code, unless the PR is already moving code between those two files. Lines removed from several places and added in one are marked `merged`, lines added in several places `copied`, and a block that only changed its indent where it was `re-indented in place`. A move split by a small edit gets one note, for example `↕ 13 lines merged into loanids.go:27, split by 2 other lines`.
 
@@ -214,7 +222,7 @@ When a comment links to a file in the PR's repository, such as the code referenc
 | `Y` | Copy the PR's link to the clipboard, here and on the feedback briefing. Without a clipboard tool (`pbcopy`, `wl-copy` or `xclip`, `clip.exe`), as over SSH, gr asks the terminal to copy it (OSC 52), which most terminals allow. |
 | `L` | Change the color theme. |
 | `R` | Read the feedback again, or after you push (gr notices within a minute), rebuild on the new head. Triage and queued replies are kept: they belong to the thread, not the commit. |
-| `b` / `q` / `Q` | Return to the feedback briefing, go back to the PR list, or quit. |
+| `b`, `q`, `Esc` / `Q` | Return to the feedback briefing, or quit. |
 
 ### Send
 

@@ -29,7 +29,6 @@ export interface KeyCtx {
 
 export type Action =
   | 'briefing'
-  | 'back'
   | 'quit'
   | 'next'
   | 'prev'
@@ -40,7 +39,7 @@ export type Action =
   | 'pageDown'
   | 'pageUp'
   | 'range'
-  | 'clearRange'
+  | 'escape'
   | 'comment'
   | 'commentFlow'
   | 'thread'
@@ -138,10 +137,7 @@ export const KEYS: KeyRow[] = [
   {
     keys: 'v',
     help: 'Start or end a range selection',
-    bind: [
-      { mode: 'code', on: ['v'], do: 'range', when: hunk },
-      { mode: 'code', on: ['escape'], do: 'clearRange' },
-    ],
+    bind: [{ mode: 'code', on: ['v'], do: 'range', when: hunk }],
     bar: [{ mode: 'code', key: 'v', label: (c) => (c.selecting ? 'end range' : 'range') }],
   },
   {
@@ -286,10 +282,11 @@ export const KEYS: KeyRow[] = [
   { keys: 'h', bind: [{ mode: 'code', on: ['h'], do: 'help' }] },
   { keys: 'L', help: 'Color theme (previews as you move through the list)', bind: [{ mode: 'code', on: ['L'], do: 'theme', when: (c) => c.theme }] },
   {
-    keys: 'q / Q',
-    help: 'Back to the PR list / quit (progress is saved)',
+    keys: 'esc / q, Q',
+    help: 'Back to the briefing (esc first clears a range) / quit (progress is saved)',
     bind: [
-      { mode: 'any', on: ['q'], do: 'back' },
+      { mode: 'code', on: ['escape'], do: 'escape' },
+      { mode: 'any', on: ['q'], do: 'briefing' },
       { mode: 'any', on: ['Q'], do: 'quit' },
     ],
   },
@@ -350,5 +347,5 @@ export function barEnd(view: View, c: KeyCtx): [string, string][] {
       ['t/esc', 'back to code'],
       ['b', 'briefing'],
     ];
-  return [...(c.rereview ? [['D', c.deltaOnly ? 'full review' : 'changes only'] as [string, string]] : []), ['b', 'briefing'], ['h', 'all keys']];
+  return [...(c.rereview ? [['D', c.deltaOnly ? 'full review' : 'changes only'] as [string, string]] : []), ['esc', 'back'], ['h', 'keys']];
 }

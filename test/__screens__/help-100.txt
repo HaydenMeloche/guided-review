@@ -28,5 +28,5 @@
  ‹cyan,b›i              ‹/›Team checklist for this chapter
  ‹cyan,b›b / s          ‹/›Briefing / submit screen
  ‹cyan,b›L              ‹/›Color theme (previews as you move through the list)
- ‹cyan,b›q / Q          ‹/›Back to the PR list / quit (progress is saved)
+ ‹cyan,b›esc / q, Q     ‹/›Back to the briefing (esc first clears a range) / quit (progress is saved)
  ‹dim›any key to close‹/›

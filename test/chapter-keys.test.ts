@@ -47,7 +47,16 @@ describe('keyAction', () => {
     expect(keyAction('tests', all, 't', noKey)).toBe('leaveTests');
     expect(keyAction('tests', all, '', { escape: true } as Key)).toBe('leaveTests');
     expect(keyAction('tests', all, 'b', noKey)).toBe('briefing');
-    expect(keyAction('tests', all, 'q', noKey)).toBe('back');
+    expect(keyAction('tests', all, 'q', noKey)).toBe('briefing');
+    expect(keyAction('tests', all, 'Q', noKey)).toBe('quit');
+  });
+
+  it('goes up a level on esc and q, and quits only on Q', () => {
+    const esc = { escape: true } as Key;
+    expect(keyAction('code', off, '', esc)).toBe('escape');
+    expect(keyAction('collapsed', off, '', esc)).toBe('escape');
+    expect(keyAction('code', off, 'q', noKey)).toBe('briefing');
+    expect(keyAction('code', off, 'Q', noKey)).toBe('quit');
   });
 
   it('reads arrows and page keys as j/k and J/K', () => {
@@ -128,14 +137,14 @@ describe('docs', () => {
 });
 
 describe('barEnd', () => {
-  it('offers the way back from the tests, or D, b and h', () => {
+  it('offers the way back from the tests, or D, esc and h', () => {
     expect(barEnd('tests', all)).toEqual([
       ['t/esc', 'back to code'],
       ['b', 'briefing'],
     ]);
     expect(barEnd('code', off)).toEqual([
-      ['b', 'briefing'],
-      ['h', 'all keys'],
+      ['esc', 'back'],
+      ['h', 'keys'],
     ]);
     expect(barEnd('collapsed', { ...off, rereview: true })[0]).toEqual(['D', 'changes only']);
     expect(barEnd('code', { ...off, rereview: true, deltaOnly: true })[0]).toEqual(['D', 'full review']);

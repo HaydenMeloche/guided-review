@@ -159,3 +159,21 @@ describe('a PR merged this session', () => {
     ui.unmount();
   });
 });
+
+describe('Esc in the picker', () => {
+  it('clears the selection and never quits; q quits', async () => {
+    const onQuit = vi.fn();
+    const ui = render(<PickerScreen store={store} width={120} height={24} onPick={() => {}} onQuit={onQuit} readClipboard={async () => undefined} downloads={{}} onDownload={() => {}} />);
+    await waitFor(() => expect(ui.lastFrame()).toContain('Review me'));
+    ui.stdin.write(' ');
+    await waitFor(() => expect(ui.lastFrame()).toContain('☑'));
+    ui.stdin.write('\u001b');
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('☑'));
+    ui.stdin.write('\u001b');
+    await waitFor(() => expect(ui.lastFrame()).toContain('q quits'));
+    expect(onQuit).not.toHaveBeenCalled();
+    ui.stdin.write('q');
+    await waitFor(() => expect(onQuit).toHaveBeenCalledTimes(1));
+    ui.unmount();
+  });
+});

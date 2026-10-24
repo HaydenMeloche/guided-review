@@ -116,6 +116,7 @@ export function FeedbackBriefing(props: {
       if (input === 'g' && props.comments.length) return setOverlay('comments');
       if (input === 'r' && tour.description?.trim()) return setOverlay('description');
       if (input === 'L' && props.onTheme) return props.onTheme();
+      if (key.escape) return props.onBack?.();
       if (input === 'q') return (props.onBack ?? props.onQuit)();
       if (input === 'Q') return props.onQuit();
     },

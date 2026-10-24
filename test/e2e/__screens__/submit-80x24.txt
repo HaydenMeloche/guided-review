@@ -20,5 +20,5 @@
 
 
 ‹yellow›Draft saved (question). Nothing posts until you submit.‹/›
- ‹b›n/p‹/›‹dim› hunk‹/›   ‹b›c‹/›‹dim› comment‹/›             ‹yellow›whitespace hidden   ‹/›‹b›b‹/›‹dim› briefing‹/›   ‹b›h‹/›‹dim› all keys‹/›
+ ‹b›n/p‹/›‹dim› hunk‹/›   ‹b›c‹/›‹dim› comment‹/›   ‹b›E‹/›‹dim› edit draft‹/›    ‹yellow›whitespace hidden   ‹/›‹b›esc‹/›‹dim› back‹/›   ‹b›h‹/›‹dim› keys‹/›
 

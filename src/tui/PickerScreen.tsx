@@ -424,7 +424,13 @@ export function PickerScreen(props: PickerProps) {
   useInput(
     (input, key) => {
       setHint('');
-      if (key.escape || input === 'q') return props.onQuit();
+      if (input === 'q' || input === 'Q') return props.onQuit();
+      // Esc closes what is open, and never quits: the filter, then the selection.
+      if (key.escape) {
+        if (filter) return setFilter('');
+        if (selected.size) return setSelected(new Set());
+        return setHint('q quits');
+      }
       if (clip && (input === 'p' || input === 'x')) {
         if (input === 'p' && !open(clip.target, clipMine)) return;
         dismissedClips.add(clip.text);

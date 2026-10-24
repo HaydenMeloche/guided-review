@@ -14,7 +14,7 @@ export const CHECK_POLL_MS = 20_000;
 
 // The checks popup for a PR no screen has loaded: it reads the PR's checks itself, and again
 // while any is running.
-export function ChecksLoader(props: { repo: string; number: number; width: number; height: number; onClose: () => void }) {
+export function ChecksLoader(props: { repo: string; number: number; width: number; height: number; onClose: () => void; onQuit?: () => void }) {
   const [status, setStatus] = useState<MergeStatus>();
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(true);
@@ -40,6 +40,7 @@ export function ChecksLoader(props: { repo: string; number: number; width: numbe
   useInput(
     (input, key) => {
       if (key.escape || input === 'q' || input === 'c') props.onClose();
+      if (input === 'Q') props.onQuit?.();
       if (input === 'R') read();
     },
     { isActive: !status },
@@ -82,6 +83,7 @@ export function ChecksScreen(props: {
   height: number;
   onRefresh: () => void;
   onClose: () => void;
+  onQuit?: () => void; // Q
   open?: (url: string) => Promise<void>; // tests stub the browser
 }) {
   const { width, height } = props;
@@ -120,6 +122,7 @@ export function ChecksScreen(props: {
   };
 
   useInput((input, key) => {
+    if (input === 'Q') return props.onQuit?.();
     if (log) {
       const lines = log.lines ?? [];
       const max = Math.max(0, lines.length - viewH);

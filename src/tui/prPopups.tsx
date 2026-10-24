@@ -20,10 +20,13 @@ export function MergePopup(props: {
   agent?: AgentContext;
   onCancel: () => void;
   onDone: (notice: string) => void;
+  onQuit?: () => void;
 }) {
   return (
     <ReviewPopup background={props.background} width={props.width} height={props.height} maxWidth={100} maxHeight={32}>
-      {(w, h) => <MergeScreen repo={props.repo} number={props.number} tour={props.tour} agent={props.agent} width={w} height={h} onCancel={props.onCancel} onDone={props.onDone} />}
+      {(w, h) => (
+        <MergeScreen repo={props.repo} number={props.number} tour={props.tour} agent={props.agent} width={w} height={h} onCancel={props.onCancel} onDone={props.onDone} onQuit={props.onQuit} />
+      )}
     </ReviewPopup>
   );
 }
@@ -38,25 +41,36 @@ export function ChecksPopup(props: {
   number: number;
   loaded?: { headSha: string; checks: CheckItem[]; refreshing: boolean; onRefresh: () => void };
   onClose: () => void;
+  onQuit?: () => void;
 }) {
   const { loaded } = props;
   return (
     <ReviewPopup background={props.background} width={props.width} height={props.height} maxWidth={140} maxHeight={Math.max(20, props.height - 2)}>
       {(w, h) =>
         loaded ? (
-          <ChecksScreen repo={props.repo} headSha={loaded.headSha} checks={loaded.checks} refreshing={loaded.refreshing} width={w} height={h} onRefresh={loaded.onRefresh} onClose={props.onClose} />
+          <ChecksScreen
+            repo={props.repo}
+            headSha={loaded.headSha}
+            checks={loaded.checks}
+            refreshing={loaded.refreshing}
+            width={w}
+            height={h}
+            onRefresh={loaded.onRefresh}
+            onClose={props.onClose}
+            onQuit={props.onQuit}
+          />
         ) : (
-          <ChecksLoader repo={props.repo} number={props.number} width={w} height={h} onClose={props.onClose} />
+          <ChecksLoader repo={props.repo} number={props.number} width={w} height={h} onClose={props.onClose} onQuit={props.onQuit} />
         )
       }
     </ReviewPopup>
   );
 }
 
-export function ReviewersPopup(props: { background: ReactNode; width: number; height: number; repo: string; number: number; onClose: (changed: boolean) => void }) {
+export function ReviewersPopup(props: { background: ReactNode; width: number; height: number; repo: string; number: number; onClose: (changed: boolean) => void; onQuit?: () => void }) {
   return (
     <ReviewPopup background={props.background} width={props.width} height={props.height} maxWidth={90} maxHeight={26}>
-      {(w, h) => <ReviewersScreen repo={props.repo} number={props.number} width={w} height={h} onClose={props.onClose} />}
+      {(w, h) => <ReviewersScreen repo={props.repo} number={props.number} width={w} height={h} onClose={props.onClose} onQuit={props.onQuit} />}
     </ReviewPopup>
   );
 }

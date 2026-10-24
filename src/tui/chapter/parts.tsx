@@ -236,7 +236,7 @@ export function MoveList(props: { chapters: Chapter[]; sel: number; width: numbe
 }
 
 // A tour, or a re-review's changes, with nothing to show.
-export function EmptyChapter(props: { deltaOnly: boolean; back: boolean; width: number }) {
+export function EmptyChapter(props: { deltaOnly: boolean; width: number }) {
   return (
     <Box flexDirection="column">
       <Text>{props.deltaOnly ? 'Nothing changed since your last review. Press D to show the whole tour.' : 'This PR has no changes to review.'}</Text>
@@ -245,13 +245,8 @@ export function EmptyChapter(props: { deltaOnly: boolean; back: boolean; width: 
         keys={[
           ['D', 'whole tour'],
           ['s', 'submit'],
-          ['b', 'briefing'],
-          ...((props.back
-            ? [
-                ['q', 'PR list'],
-                ['Q', 'quit'],
-              ]
-            : [['q', 'quit']]) as [string, string][]),
+          ['q', 'briefing'],
+          ['Q', 'quit'],
         ]}
       />
     </Box>

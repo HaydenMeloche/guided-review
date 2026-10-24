@@ -89,7 +89,8 @@ export function TourIntro(props: {
     const t = setInterval(() => setElapsed(Date.now() - start), FRAME_MS);
     return () => clearInterval(t);
   }, []);
-  useInput((input) => {
+  useInput((input, key) => {
+    if (key.escape) props.onBack?.();
     if (input === 'q') (props.onBack ?? props.onQuit)();
     if (input === 'Q') props.onQuit();
   });

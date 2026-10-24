@@ -22,7 +22,7 @@ interface Loaded {
 // Who is asked to review a PR and who has: a asks more people or teams (with @ completion
 // from the repository's collaborators), x withdraws a request nobody has answered, r asks a
 // reviewer again. Each change goes to GitHub at once, and GitHub notifies whoever is asked.
-export function ReviewersScreen(props: { repo: string; number: number; width: number; height: number; onClose: (changed: boolean) => void }) {
+export function ReviewersScreen(props: { repo: string; number: number; width: number; height: number; onClose: (changed: boolean) => void; onQuit?: () => void }) {
   const { repo, number, width, height } = props;
   const selectedRow = useSelected();
   const [loaded, setLoaded] = useState<Loaded>();
@@ -147,6 +147,7 @@ export function ReviewersScreen(props: { repo: string; number: number; width: nu
       // A request in flight finishes first: closing now would lose its answer, and the picker
       // would not know to read the list again.
       if (key.escape || input === 'q') return busy ? undefined : props.onClose(changed);
+      if (input === 'Q') return busy ? undefined : props.onQuit?.();
       if (busy || !loaded) return;
       if (input === 'j' || key.downArrow) return setSel((s) => Math.min(rows.length - 1, s + 1));
       if (input === 'k' || key.upArrow) return setSel((s) => Math.max(0, s - 1));

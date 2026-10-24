@@ -33,6 +33,7 @@ export function SubmitScreen(props: {
   host?: string; // web host for links; githubWebHost() by default
   onPosted: (ids: string[], review: { id: number; url: string }, moved: { draftId: string; note: string }[]) => void;
   onBack: () => void;
+  onQuit?: () => void; // Q
 }) {
   const { tour, states, width } = props;
   const pending = useMemo(() => props.drafts.filter((d) => !d.posted), [props.drafts]);
@@ -84,6 +85,7 @@ export function SubmitScreen(props: {
         return setMode('list');
       }
       if (key.escape || input === 'q') return props.onBack();
+      if (input === 'Q') return props.onQuit?.();
       if (input === 'j' || key.downArrow) return setSel((s) => Math.min(Math.max(0, ordered.length - 1), s + 1));
       if (input === 'k' || key.upArrow) return setSel((s) => Math.max(0, s - 1));
       if (input === 'e' && ordered[sel]) return props.onEdit(ordered[sel]);
