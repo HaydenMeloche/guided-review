@@ -276,10 +276,22 @@ export const SURFACES = {
   wordDel: 'surface:word-del',
 } as const;
 
+// Color roles: each color means one thing on every screen.
+// - act (cyan): keys you can press now, the cursor, the selected row. Only what responds to input.
+// - title (ROLES.heading, blue with the terminal's colors): chapter titles, section headings.
+// - place (ROLES.place, plain with the terminal's colors): file paths and symbol names.
+// - model (magenta): the ask panel, AI proposals and drafts, inferred narration. Nothing else.
+// - quiet (dim): borders, line numbers, counts, timestamps; never what says where you are.
+// Green and red are good and bad, yellow needs attention.
+//
+// Borders are quiet unless a box floats or takes input, and then their color says what it is for.
+export const BORDER = { input: 'cyan', model: 'magenta', decision: 'yellow', reading: 'gray' } as const;
+export type BorderTone = keyof typeof BORDER;
+
 // Text roles: a heading is blue with the terminal's colors; the rest are plain text there.
 // `line` is a diagram's arrows and unchanged boxes; `changedBox` and `changedText` are the frame
 // and text of a box the PR changes, yellow with the terminal's colors.
-export const ROLES = { heading: 'role:heading', title: 'role:title', line: 'role:line', changedBox: 'role:changed-box', changedText: 'role:changed-text' } as const;
+export const ROLES = { heading: 'role:heading', title: 'role:title', place: 'role:place', line: 'role:line', changedBox: 'role:changed-box', changedText: 'role:changed-text' } as const;
 
 // A screen color through the palette: ANSI and surface names are remapped, anything else passes through.
 export function resolveColor(palette: Palette, color: string | undefined): string | undefined {
@@ -295,6 +307,7 @@ export function resolveColor(palette: Palette, color: string | undefined): strin
     case ROLES.heading:
       return palette.heading ?? palette.ansi.blue;
     case ROLES.title:
+    case ROLES.place:
       return palette.title;
     case ROLES.line:
       return palette.muted;

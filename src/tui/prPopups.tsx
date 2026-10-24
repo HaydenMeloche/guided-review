@@ -23,7 +23,7 @@ export function MergePopup(props: {
   onQuit?: () => void;
 }) {
   return (
-    <ReviewPopup background={props.background} width={props.width} height={props.height} maxWidth={100} maxHeight={32}>
+    <ReviewPopup background={props.background} width={props.width} height={props.height} maxWidth={100} maxHeight={32} tone="decision">
       {(w, h) => (
         <MergeScreen repo={props.repo} number={props.number} tour={props.tour} agent={props.agent} width={w} height={h} onCancel={props.onCancel} onDone={props.onDone} onQuit={props.onQuit} />
       )}
@@ -69,7 +69,7 @@ export function ChecksPopup(props: {
 
 export function ReviewersPopup(props: { background: ReactNode; width: number; height: number; repo: string; number: number; onClose: (changed: boolean) => void; onQuit?: () => void }) {
   return (
-    <ReviewPopup background={props.background} width={props.width} height={props.height} maxWidth={90} maxHeight={26}>
+    <ReviewPopup background={props.background} width={props.width} height={props.height} maxWidth={90} maxHeight={26} tone="input">
       {(w, h) => <ReviewersScreen repo={props.repo} number={props.number} width={w} height={h} onClose={props.onClose} onQuit={props.onQuit} />}
     </ReviewPopup>
   );

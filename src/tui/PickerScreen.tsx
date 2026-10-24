@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useInput } from 'ink';
-import { Box, Text } from './themed.js';
+import { Box, Text, useSelected } from './themed.js';
 import { fetchPRPreview, AUTHORED_LIMIT, listAuthoredPRs, listReviewRequests, parsePRArg, viewerLogin, type AuthoredPR, type PRPreview, type ReviewRequest } from '../github/gh.js';
 import type { Store } from '../store/db.js';
 import { KeyBar } from './ChapterScreen.js';
@@ -17,6 +17,7 @@ import { plural } from './plural.js';
 import { PICKER_KEYS, pickerBar } from './screenKeys.js';
 import { G } from './glyphs.js';
 import { ErrorBlock } from './ErrorBlock.js';
+import { ROLES } from './theme.js';
 
 export interface Target {
   repo: string;
@@ -612,7 +613,7 @@ export function PickerScreen(props: PickerProps) {
                     {r.title} <Text dimColor>({r.count})</Text>
                   </Text>
                 ) : r.kind === 'repo' ? (
-                  <Text key={`repo:${r.own ? 'own' : 'review'}:${r.repo}`} color="cyan" bold wrap="truncate">
+                  <Text key={`repo:${r.own ? 'own' : 'review'}:${r.repo}`} color={ROLES.heading} bold wrap="truncate">
                     {safe(r.repo)} <Text dimColor>({r.count})</Text>
                   </Text>
                 ) : (
@@ -704,8 +705,7 @@ export function keyFor(pr: Target): string {
   return `${pr.repo}#${pr.number}`;
 }
 
-// The copied PR, pinned above the list. Magenta, so it stands apart from the cyan list,
-// green notices and yellow hints.
+// The copied PR, pinned above the list, in the color of what p acts on.
 function ClipboardRow(props: { target: Target; listed?: ReviewRequest; preview?: PRPreview | { error: string }; mine: boolean; width: number }) {
   const { target, listed, preview, width } = props;
   const info = listed ?? (preview && !('error' in preview) ? preview : undefined);
@@ -713,20 +713,20 @@ function ClipboardRow(props: { target: Target; listed?: ReviewRequest; preview?:
   const action = props.mine ? 'open feedback' : 'open tour';
   return (
     <Box flexDirection="column" marginBottom={1}>
-      <Text color="magenta" bold>
+      <Text color="cyan" bold>
         {` ${G.clipboard} From clipboard`}
       </Text>
       <Text wrap="truncate">
-        <Text color="magenta">▸</Text>
+        <Text color="cyan">▸</Text>
         <Text bold>{truncate(safe(` #${target.number} ${info?.title ?? ''}`), width - 2)}</Text>
       </Text>
       <Text wrap="truncate">
         <Text dimColor>{`     ${truncate(safe(meta), Math.max(1, width - 1 - 5 - ` · p ${action} · x dismiss`.length))} · `}</Text>
-        <Text color="magenta" bold>
+        <Text color="cyan" bold>
           p
         </Text>
         <Text dimColor> {action} · </Text>
-        <Text color="magenta" bold>
+        <Text color="cyan" bold>
           x
         </Text>
         <Text dimColor> dismiss</Text>
@@ -790,6 +790,9 @@ export function authorBadges(pr: AuthoredPR): Badge[] {
 
 const PRRow = React.memo(function PRRow(props: { pr: ReviewRequest | AuthoredPR; selected: boolean; marked: boolean; width: number; local?: Local; job?: DownloadJob; spin?: string }) {
   const { pr, selected, marked, width, job } = props;
+  // The selected PR takes the selection surface, as every other list does; the bar stays as a
+  // second cue that ties its two rows together.
+  const selectedRow = useSelected()(selected);
   const drafts = props.local?.drafts ?? 0;
   const toured = !!props.local?.tourHead;
   const who: Badge[] = isAuthored(pr) ? authorBadges(pr) : [{ text: `@${pr.author}` }];
@@ -820,14 +823,14 @@ const PRRow = React.memo(function PRRow(props: { pr: ReviewRequest | AuthoredPR;
           : undefined;
   return (
     <Box flexDirection="column">
-      <Text wrap="truncate">
+      <Text wrap="truncate" {...selectedRow}>
         {bar}
         <Text color={glyph.color}>{glyph.text}</Text>
-        <Text bold={selected} color={selected ? 'cyan' : undefined} dimColor={pr.isDraft && !selected}>
+        <Text bold={selected} dimColor={pr.isDraft && !selected}>
           {pad(` #${pr.number} ${pr.title}`, width - 2)}
         </Text>
       </Text>
-      <Text wrap="truncate">
+      <Text wrap="truncate" {...selectedRow}>
         {bar}
         {status ? (
           <Text color={status.color}>{truncate(`   ${safe(status.text)}`, width - 1)}</Text>

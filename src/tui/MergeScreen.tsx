@@ -17,7 +17,7 @@ import { truncate, wrap } from './nav.js';
 import { plural } from './plural.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
 
-const LEVEL_COLOR: Record<Readiness['level'], string> = { ready: 'green', warn: 'yellow', blocked: 'red', merged: 'magenta', closed: 'gray' };
+const LEVEL_COLOR: Record<Readiness['level'], string> = { ready: 'green', warn: 'yellow', blocked: 'red', merged: 'blue', closed: 'gray' };
 
 // The readiness line other screens show: a mark and the summary.
 export function ReadinessLine(props: { readiness?: Readiness; width: number; hint?: boolean }) {
@@ -268,7 +268,7 @@ export function MergeScreen(props: {
 
   const head = (
     <Text bold wrap="truncate">
-      Merge · <Text color="cyan">{safe(props.repo)}</Text> #{props.number} {status ? truncate(safe(status.title), width - 24) : ''}
+      Merge · <Text dimColor>{safe(props.repo)}</Text> #{props.number} {status ? truncate(safe(status.title), width - 24) : ''}
     </Text>
   );
   if (help) return <Help title="merge" sections={helpOf(MERGE_KEYS)} width={width} height={props.height} onClose={() => setHelp(false)} />;

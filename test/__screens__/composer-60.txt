@@ -1,7 +1,7 @@
 ‹cyan›╭──────────────────────────────────────────────────────────╮‹/›
 ‹cyan›│‹/› ‹b›Comment‹/› ‹dim›on src/pricing.ts:2‹/›                              ‹cyan›│‹/›
-‹cyan›│‹/› ‹red› blocking ‹/›‹magenta,inv› question ‹/›‹cyan› suggestion ‹/›‹bright-black› nit ‹/›‹dim›  posts as **[ques…‹/› ‹cyan›│‹/›
+‹cyan›│‹/› ‹red,bg:#1e1e2e› blocking ‹/› ‹blue,bg:#1e1e2e,b,inv› question ‹/› ‹cyan,bg:#1e1e2e› suggestion ‹/› ‹bright-black,bg:#1e1e2e› nit ‹/›‹dim›  posts as **[q…‹/› ‹cyan›│‹/›
 ‹cyan›│‹/›                                                          ‹cyan›│‹/›
 ‹cyan›│‹/› Should this apply before tax?‹inv› ‹/›                           ‹cyan›│‹/›
-‹cyan›│‹/›  ‹cyan,b›enter‹/›‹dim› save‹/›   ‹cyan,b›ctrl+j‹/›‹dim› newline‹/›   ‹cyan,b›tab‹/›‹dim› label‹/›   ‹dim›+2 more‹/›       ‹cyan›│‹/›
+‹cyan›│‹/›  ‹cyan,b›enter‹/› save   ‹cyan,b›ctrl+j‹/› newline   ‹cyan,b›tab‹/› label   ‹dim›+2 more‹/›       ‹cyan›│‹/›
 ‹cyan›╰──────────────────────────────────────────────────────────╯‹/›

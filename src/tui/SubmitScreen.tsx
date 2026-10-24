@@ -8,7 +8,7 @@ import { postReview, type ReviewPayload } from '../github/gh.js';
 import { githubWebHost } from '../github/auth.js';
 import { progress, truncate, type States } from './nav.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
-import { LABEL_COLOR } from './CommentEditor.js';
+import { LabelChip } from './CommentEditor.js';
 import { TextInput } from './TextInput.js';
 import { KeyBar } from './KeyBar.js';
 import { PostPreview } from './PostPreview.js';
@@ -136,7 +136,7 @@ export function SubmitScreen(props: {
   return (
     <Box flexDirection="column" width={width} height={props.height} paddingX={1}>
       <Text bold wrap="truncate">
-        Submit review · <Text color="cyan">{safe(tour.repo)}</Text> #{tour.pr} {truncate(tour.title, width - 30)}
+        Submit review · <Text dimColor>{safe(tour.repo)}</Text> #{tour.pr} {truncate(tour.title, width - 30)}
       </Text>
       <Box marginTop={1} flexDirection="column">
         <Text>
@@ -189,7 +189,8 @@ export function SubmitScreen(props: {
           return (
             <Text key={d.id} wrap="truncate">
               <Text inverse={i === sel}>
-                <Text color={LABEL_COLOR[d.label]}>{header.padEnd(11)}</Text>
+                {header ? <LabelChip label={d.label} /> : null}
+                {' '.repeat(Math.max(1, 13 - (header ? header.length + 2 : 0)))}
                 {text}
               </Text>
               {note ? <Text dimColor>{`  ${note}`}</Text> : null}

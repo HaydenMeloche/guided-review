@@ -47,4 +47,4 @@
                                                                          ‹bright-black›│‹/›
                                                                          ‹bright-black›│‹/›
                                                                          ‹bright-black›│‹/›
-  ‹cyan,b›/‹/›‹dim› filter‹/›   ‹dim›│   ‹/›‹cyan,b›r‹/›‹dim› refresh‹/›   ‹cyan,b›L‹/›‹dim› theme‹/›                                                                                                                                                 ‹cyan,b›?‹/›‹dim› keys‹/›   ‹cyan,b›q‹/›‹dim› quit‹/›
+  ‹cyan,b›/‹/› filter   ‹dim›│   ‹/›‹cyan,b›r‹/› refresh   ‹cyan,b›L‹/› theme                                                                                                                                                 ‹cyan,b›?‹/› keys   ‹cyan,b›q‹/› quit

@@ -1,1 +1,1 @@
- ‹dim›+9 more‹/›      ‹yellow›whitespace hidden   ‹/›‹b›b‹/›‹dim› briefing‹/›   ‹b›h‹/›‹dim› all keys‹/›
+ ‹dim›+9 more‹/›      ‹yellow›whitespace hidden   ‹/›‹cyan,b›b‹/› briefing   ‹cyan,b›h‹/› all keys

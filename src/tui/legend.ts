@@ -13,7 +13,7 @@ export function reviewLegend(): MdLine[] {
     row('Risk', mark(riskMark(3), 'high'), mark(riskMark(2), 'medium'), mark(riskMark(1), 'low')),
     row('Tests', mark(COVERAGE.tested, 'tested'), mark(COVERAGE.partial, 'partly tested'), mark(COVERAGE.untested, 'untested')),
     [],
-    row('On a line', mark({ mark: G.draft, color: 'cyan' }, 'your draft'), mark({ mark: G.thread, color: 'cyan' }, 'review thread'), mark({ mark: G.moved, color: 'magenta' }, 'moved code')),
+    row('On a line', mark({ mark: G.draft, color: 'cyan' }, 'your draft'), mark({ mark: G.thread, color: 'cyan' }, 'review thread'), mark({ mark: G.moved, color: 'blue' }, 'moved code')),
     row('', mark({ mark: G.cursor, color: 'cyan' }, 'cursor'), mark({ mark: G.range, color: 'blue' }, 'range')),
     row('Hunks', [{ text: 'NEW', color: 'yellow', bold: true }, { text: ' changed since your last review' }]),
   ];

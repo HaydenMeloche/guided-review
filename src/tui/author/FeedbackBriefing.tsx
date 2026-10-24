@@ -157,7 +157,7 @@ export function FeedbackBriefing(props: {
   if (props.since)
     add(
       'since',
-      <Text color="magenta" wrap="truncate">
+      <Text color="cyan" wrap="truncate">
         {truncate(`↻ ${safe(props.since)}`, rightW)}
       </Text>,
     );
@@ -266,7 +266,7 @@ export function FeedbackBriefing(props: {
   if (props.queued)
     add(
       'queued',
-      <Text color="magenta" wrap="truncate">
+      <Text color="cyan" wrap="truncate">
         {(() => {
           const replies = props.queued - (props.commentQueued ? 1 : 0);
           return [replies ? `${replies} repl${replies === 1 ? 'y' : 'ies'}` : '', props.commentQueued ? 'a comment' : ''].filter(Boolean).join(' and ');

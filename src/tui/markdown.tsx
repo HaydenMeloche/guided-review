@@ -28,7 +28,7 @@ type Style = Omit<Span, 'text'>;
 
 const CODE_COLOR = 'cyan';
 const HEADING_COLOR = ROLES.heading; // blue with the terminal's colors
-const ALERT_COLOR: Record<string, string> = { NOTE: 'blue', TIP: 'green', IMPORTANT: 'magenta', WARNING: 'yellow', CAUTION: 'red' };
+const ALERT_COLOR: Record<string, string> = { NOTE: 'blue', TIP: 'green', IMPORTANT: 'blue', WARNING: 'yellow', CAUTION: 'red' };
 
 // ---------- inline ----------
 

@@ -1,4 +1,4 @@
- ‹cyan,b›local/rich‹/›‹b› #0 feature/discounts (preview)‹/›‹dim›  by you · 99706cfb · plain mode‹/›
+ ‹dim›local/rich‹/›‹b› #0 feature/discounts (preview)‹/›‹dim›  by you · 99706cfb · plain mode‹/›
 
  feature/discounts (preview). Add discount codes to quotes and orders                  ‹bright-black›│‹/› ‹b›Overview‹/›‹dim› · ‹/›‹cyan,b›d‹/›‹dim› to explore‹/› ‹dim›──────‹/›
           ‹cyan,bg:c59›╭──────────────────────────────────────────────────────────────────────────────────────────────────╮‹/›
@@ -19,7 +19,7 @@
           ‹cyan,bg:c59›│‹/›‹bg:c59›   GitHub Dark Default      ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹blue,bg:c59›│‹/›‹bg:c59› Retries up to ‹/›‹cyan,bg:c59›attempts‹/›‹bg:c59› times on a server error.                ‹/›‹blue,bg:c59›│‹/›‹cyan,bg:c59›│‹/›
           ‹cyan,bg:c59›│‹/›‹bg:c59›   GitHub Dark Dimmed       ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹blue,bg:c59›│‹/›‹bg:c59› ‹/›‹yellow,bg:c59›◐ partly tested · ‹/›‹red,bg:c59›○ no test for the give-up path‹/›‹bg:c59›               ‹/›‹blue,bg:c59›│‹/›‹cyan,bg:c59›│‹/›
           ‹cyan,bg:c59›│‹/›‹bg:c59›   GitHub Dark High Contrast‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹blue,bg:c59›╰────────────────────────────────────────────────────────────────╯‹/›‹cyan,bg:c59›│‹/›
-          ‹cyan,bg:c59›│‹/›‹bg:c59›   Gruvbox Dark Hard        ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c59,dim› src/client.ts ‹/›‹magenta,bg:c59,dim›[question]‹/›‹bg:c59›                                         ‹/›‹cyan,bg:c59›│‹/›
+          ‹cyan,bg:c59›│‹/›‹bg:c59›   Gruvbox Dark Hard        ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c59,dim› src/client.ts ‹/›‹blue,bg:c59,dim›[question]‹/›‹bg:c59›                                         ‹/›‹cyan,bg:c59›│‹/›
           ‹cyan,bg:c59›│‹/›‹bg:c59›   Gruvbox Dark Medium      ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c59,dim› 12 ‹/›‹bg:c59›  export async function fetchWithRetry(url: string, attempts …‹/›‹cyan,bg:c59›│‹/›
           ‹cyan,bg:c59›│‹/›‹bg:c59›   Gruvbox Dark Soft        ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c59,dim› 13 ‹/›‹red,bg:c59›-‹/›‹bg:c59›   return fetch(url);                                        ‹/›‹cyan,bg:c59›│‹/›
           ‹cyan,bg:c59›│‹/›‹bg:c59›   Horizon                  ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c23,dim› 13 ‹/›‹green,bg:c23›+‹/›‹bg:c23›   for (let i = 0; i < attempts; i++) {                      ‹/›‹cyan,bg:c59›│‹/›
@@ -29,8 +29,8 @@
           ‹cyan,bg:c59›│‹/›‹bg:c59›   LaserWave                ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c59,dim› 17 ‹/›‹bg:c59›    throw new Error(`gave up on ${url}`);                     ‹/›‹cyan,bg:c59›│‹/›
           ‹cyan,bg:c59›│‹/›‹bg:c59›   Material Theme           ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c59,dim› 18 ‹/›‹bg:c59›  }                                                           ‹/›‹cyan,bg:c59›│‹/›
           ‹cyan,bg:c59›│‹/›‹bg:c59,dim› no config file: enter uses the theme until you quit (gr config saves one)‹/›‹bg:c59›                        ‹/›‹cyan,bg:c59›│‹/›
-          ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›j/k‹/›‹bg:c59,dim› preview‹/›‹bg:c59›   ‹/›‹cyan,bg:c59,b›/‹/›‹bg:c59,dim› search‹/›‹bg:c59›   ‹/›‹cyan,bg:c59,b›enter‹/›‹bg:c59,dim› choose‹/›‹bg:c59›   ‹/›‹cyan,bg:c59,b›esc‹/›‹bg:c59,dim› cancel‹/›‹bg:c59›                                               ‹/›‹cyan,bg:c59›│‹/›
+          ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›j/k‹/›‹bg:c59› preview   ‹/›‹cyan,bg:c59,b›/‹/›‹bg:c59› search   ‹/›‹cyan,bg:c59,b›enter‹/›‹bg:c59› choose   ‹/›‹cyan,bg:c59,b›esc‹/›‹bg:c59› cancel                                               ‹/›‹cyan,bg:c59›│‹/›
           ‹cyan,bg:c59›╰──────────────────────────────────────────────────────────────────────────────────────────────────╯‹/›
                                                                                        ‹bright-black›│‹/›
 
-  ‹cyan,b›n‹/›‹dim› start‹/›   ‹cyan,b›enter‹/›‹dim› open‹/›   ‹cyan,b›j/k‹/›‹dim› select‹/›   ‹dim›│   ‹/›‹cyan,b›r‹/›‹dim› read description‹/›   ‹dim›│   ‹/›‹cyan,b›s‹/›‹dim› submit‹/›   ‹dim›│   ‹/›‹cyan,b›L‹/›‹dim› theme‹/›              ‹cyan,b›?‹/›‹dim› keys‹/›   ‹cyan,b›q‹/›‹dim› quit‹/›
+  ‹cyan,b›n‹/› start   ‹cyan,b›enter‹/› open   ‹cyan,b›j/k‹/› select   ‹dim›│   ‹/›‹cyan,b›r‹/› read description   ‹dim›│   ‹/›‹cyan,b›s‹/› submit   ‹dim›│   ‹/›‹cyan,b›L‹/› theme              ‹cyan,b›?‹/› keys   ‹cyan,b›q‹/› quit

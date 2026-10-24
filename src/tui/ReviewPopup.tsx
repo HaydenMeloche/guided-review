@@ -1,8 +1,17 @@
 import type { ReactNode } from 'react';
 import { Box } from './themed.js';
-import { SURFACES } from './theme.js';
+import { BORDER, SURFACES, type BorderTone } from './theme.js';
 
-export function ReviewPopup(props: { background: ReactNode; width: number; height: number; maxWidth: number; maxHeight: number; children?: (width: number, height: number) => ReactNode }) {
+// `tone`: what the popup is for, which its border color says (reading when unset).
+export function ReviewPopup(props: {
+  background: ReactNode;
+  width: number;
+  height: number;
+  maxWidth: number;
+  maxHeight: number;
+  tone?: BorderTone;
+  children?: (width: number, height: number) => ReactNode;
+}) {
   const popupWidth = Math.min(props.maxWidth, Math.max(4, props.width - 2));
   const popupHeight = Math.min(props.maxHeight, Math.max(4, props.height - 2));
   return (
@@ -18,7 +27,7 @@ export function ReviewPopup(props: { background: ReactNode; width: number; heigh
           flexDirection="column"
           overflow="hidden"
           borderStyle="round"
-          borderColor="cyan"
+          borderColor={BORDER[props.tone ?? 'reading']}
           backgroundColor={SURFACES.popup}
         >
           {props.children(popupWidth - 2, popupHeight - 2)}

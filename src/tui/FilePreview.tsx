@@ -68,7 +68,7 @@ export function FilePreview(props: { links: (FileLink & { label?: string })[]; f
     if (shown) rows.push(<Text key={`gap${k}`}> </Text>);
     rows.push(
       <Text key={`h${k}`} wrap="truncate">
-        {link.label ? <Text color="magenta">{`${truncate(safe(link.label), Math.max(8, Math.floor(width / 3)))} → `}</Text> : null}
+        {link.label ? <Text color="cyan">{`${truncate(safe(link.label), Math.max(8, Math.floor(width / 3)))} → `}</Text> : null}
         <Text bold color="cyan">
           {truncate(safe(where), Math.max(8, width - 14 - (link.label ? Math.min(link.label.length, Math.floor(width / 3)) + 3 : 0)))}
         </Text>

@@ -1,1 +1,1 @@
- ‹b›n/p‹/›‹dim› hunk‹/›   ‹b›c‹/›‹dim› comment‹/›   ‹b›v‹/›‹dim› range‹/›   ‹dim›+6 more‹/›             ‹yellow›whitespace hidden   ‹/›‹b›b‹/›‹dim› briefing‹/›   ‹b›h‹/›‹dim› all keys‹/›
+ ‹cyan,b›n/p‹/› hunk   ‹cyan,b›c‹/› comment   ‹cyan,b›v‹/› range   ‹dim›+6 more‹/›             ‹yellow›whitespace hidden   ‹/›‹cyan,b›b‹/› briefing   ‹cyan,b›h‹/› all keys

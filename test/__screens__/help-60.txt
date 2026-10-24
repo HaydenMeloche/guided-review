@@ -57,4 +57,4 @@
 
 
 
-  ‹cyan,b›esc‹/›‹dim› close‹/›
+  ‹cyan,b›esc‹/› close

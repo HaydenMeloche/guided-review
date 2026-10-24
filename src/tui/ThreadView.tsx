@@ -7,6 +7,7 @@ import { TextInput } from './TextInput.js';
 import { mentionHighlight } from './completion.js';
 import { sanitizeTerminal } from '../util/sanitize.js';
 import { Confirm } from './Confirm.js';
+import { BORDER } from './theme.js';
 import { Hints } from './KeyBar.js';
 import { Spinner } from './Spinner.js';
 
@@ -57,7 +58,7 @@ export function ThreadView(props: {
       const counts = (comment.reactionGroups ?? [])
         .filter((group) => group.reactors.totalCount > 0)
         .map((group) => `${REACTIONS.find((reaction) => reaction.content === group.content)?.emoji ?? group.content}${group.reactors.totalCount}${group.viewerHasReacted ? '*' : ''}`);
-      if (counts.length) out.push([{ text: `  ${counts.join('  ')}`, color: 'magenta' }]);
+      if (counts.length) out.push([{ text: `  ${counts.join('  ')}`, dim: true }]);
       out.push([]);
     }
     return { lines: out, commentStarts: starts };
@@ -138,7 +139,7 @@ export function ThreadView(props: {
   };
 
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1} width={props.width} height={props.height} overflow="hidden">
+    <Box flexDirection="column" borderStyle="round" borderColor={composing ? BORDER.input : BORDER.reading} paddingX={1} width={props.width} height={props.height} overflow="hidden">
       <Text bold>
         {composing ? 'Reply to review thread' : 'Review thread'} {props.threads.length > 1 ? `${selected + 1}/${props.threads.length} · ` : '· '}
         {Math.min(lines.length, scroll + visible)}/{lines.length} lines

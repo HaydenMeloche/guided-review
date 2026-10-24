@@ -1,6 +1,6 @@
-‹cyan,b›local/rich ‹/›‹b›#0 feature/discounts (preview)  ‹/› ‹dim›▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks · Guided‹/›
+‹dim›local/rich ‹/›‹b›#0 feature/discounts (preview)  ‹/› ‹dim›▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks · Guided‹/›
 ‹dim›Guided order · Chapter 1/3: [createOrder] · ·‹/›
-‹cyan,b›createOrder‹/›‹dim› · hunk 1/3 · ‹/›‹bright-black›· ‹/›src/orders.ts:1‹red›  ○ untested‹/›‹dim› · entry exported API (cr…‹/›
+‹blue,b›createOrder‹/›‹dim› · hunk 1/3 · ‹/›‹bright-black›· ‹/›src/orders.ts:1‹red›  ○ untested‹/›‹dim› · entry exported API (cr…‹/›
 ‹bright-black›▎ ‹/›‹dim›Plain mode: no narration.‹/›
 ‹bright-black›▎ ‹/›
 ‹bright-black›▎ ‹/›‹red›○ No linked test · 2 possible untested behaviors · U: details‹/›
@@ -20,5 +20,5 @@
 
 
 ‹dim›✎ 0 draft comments‹/›
- ‹b›n/p‹/›‹dim› hunk‹/›   ‹b›]/[‹/›‹dim› chapter‹/›   ‹dim›+6 more‹/›       ‹yellow›whitespace hidden   ‹/›‹b›esc‹/›‹dim› back‹/›   ‹b›?‹/›‹dim› keys‹/›
+ ‹cyan,b›n/p‹/› hunk   ‹cyan,b›]/[‹/› chapter   ‹dim›+6 more‹/›       ‹yellow›whitespace hidden   ‹/›‹cyan,b›esc‹/› back   ‹cyan,b›?‹/› keys
 

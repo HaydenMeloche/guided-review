@@ -3,6 +3,7 @@ import { Box, Text } from '../themed.js';
 import type { Chapter, ChapterOrder, DiffFile, Draft, Hunk, Tour } from '../../types.js';
 import { changedLineCount, chapterState, meter, ORDER_LABEL, pad, progress, riskMark, stateMark, stateOf, truncate, type States } from '../nav.js';
 import { safe } from './text.js';
+import { ROLES } from '../theme.js';
 import { TONE_COLOR, type Flash } from '../flash.js';
 import { draftsAt } from './lineNotes.js';
 import { MdLineView, type MdLine } from '../markdown.js';
@@ -10,6 +11,7 @@ import { plural } from '../plural.js';
 import { Hints, KeyBar } from '../KeyBar.js';
 import { Busy } from '../Spinner.js';
 import { G } from '../glyphs.js';
+import { LabelChip } from '../CommentEditor.js';
 
 export const COVERAGE = {
   get tested() {
@@ -38,9 +40,7 @@ export const Header = React.memo(function Header(props: { tour: Tour; prog: Retu
   const pushed = props.pushed ? '↑ new head · R ' : '';
   return (
     <Text wrap="truncate">
-      <Text color="cyan" bold>
-        {repo}
-      </Text>
+      <Text dimColor>{repo}</Text>
       <Text bold>{pad(left, Math.max(10, width - right.length - repo.length - (badge ? badge.length + 1 : 0) - busy.length - pushed.length - 1))}</Text>
       {props.busy ? <Busy text={`${props.busy} `} /> : null}
       {pushed ? <Text color="yellow">{pushed}</Text> : null}{' '}
@@ -98,7 +98,7 @@ export const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: C
     <Box width={props.width} flexShrink={0}>
       <Box flexShrink={1} flexGrow={1}>
         <Text wrap="truncate">
-          <Text bold color="cyan">
+          <Text bold color={ROLES.heading}>
             {truncate(safe(chapter.title), Math.floor(props.width * 0.45))}
           </Text>
           {hunk ? (
@@ -181,10 +181,21 @@ export function DraftLine(props: { drafts: Draft[]; hunk?: Hunk; cursor: number;
     );
   const l = props.hunk?.lines[props.cursor];
   const here = props.hunk && l ? draftsAt(props.drafts, props.hunk, l.kind === 'del' ? l.oldLine : l.newLine, l.kind === 'del' ? 'LEFT' : 'RIGHT') : [];
-  const text = here.length ? `${G.draft} ${here.map((d) => `[${d.label}] ${d.body.replace(/\s+/g, ' ')}`).join('  ')}` : `${G.draft} ${plural(pending.length, 'draft comment')}`;
+  if (here.length)
+    return (
+      <Text wrap="truncate">
+        {`${G.draft} `}
+        {here.map((d) => (
+          <Text key={d.id}>
+            <LabelChip label={d.label} />
+            {` ${safe(d.body.replace(/\s+/g, ' '))}  `}
+          </Text>
+        ))}
+      </Text>
+    );
   return (
-    <Text dimColor={!here.length} wrap="truncate">
-      {truncate(text, props.width)}
+    <Text dimColor wrap="truncate">
+      {truncate(`${G.draft} ${plural(pending.length, 'draft comment')}`, props.width)}
     </Text>
   );
 }

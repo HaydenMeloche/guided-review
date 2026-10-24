@@ -1,4 +1,4 @@
- ‹cyan,b›local/rich‹/›‹b› #0 feature/discounts (preview)‹/›‹dim›  by you · 99706cfb · plain mode‹/›
+ ‹dim›local/rich‹/›‹b› #0 feature/discounts (preview)‹/›‹dim›  by you · 99706cfb · plain mode‹/›
 
  feature/discounts (preview). Add discount codes to quotes and orders
 
@@ -21,4 +21,4 @@
           ▼               ▼
  ‹yellow,b›╔════════════════╗‹/›   ‹yellow,b›╔═══════╗‹/›
 
-  ‹cyan,b›n‹/›‹dim› start‹/›   ‹cyan,b›enter‹/›‹dim› open‹/›   ‹cyan,b›j/k‹/›‹dim› select‹/›   ‹dim›+4 more‹/›                  ‹cyan,b›?‹/›‹dim› keys‹/›   ‹cyan,b›q‹/›‹dim› quit‹/›
+  ‹cyan,b›n‹/› start   ‹cyan,b›enter‹/› open   ‹cyan,b›j/k‹/› select   ‹dim›+4 more‹/›                  ‹cyan,b›?‹/› keys   ‹cyan,b›q‹/› quit

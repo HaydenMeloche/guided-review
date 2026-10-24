@@ -42,7 +42,7 @@ const REACTIONS: { content: ReactionContent; emoji: string }[] = [
   { content: 'EYES', emoji: '👀' },
 ];
 
-const TRIAGE_COLOR: Record<Triage, string> = { will: 'cyan', done: 'green', wont: 'red', discuss: 'magenta' };
+const TRIAGE_COLOR: Record<Triage, string> = { will: 'cyan', done: 'green', wont: 'red', discuss: 'blue' };
 
 type Mode =
   | { kind: 'browse' }
@@ -251,18 +251,18 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
       const mine = c.author === tour.author;
       out.push([
         { text: k === comment ? '▸ ' : '  ', color: 'cyan' },
-        { text: `@${safe(c.author)}`, bold: true, color: mine ? 'magenta' : undefined },
+        { text: `@${safe(c.author)}`, bold: true, color: mine ? 'cyan' : undefined },
         { text: `${mine ? ' (you)' : ''} · ${age(c.createdAt)}`, dim: true },
       ]);
       out.push(...renderMarkdown(c.body, Math.max(10, inner - 2)).map((l): MdLine => [{ text: '  ' }, ...l]));
       const counts = (c.reactionGroups ?? [])
         .filter((g) => g.reactors.totalCount > 0)
         .map((g) => `${REACTIONS.find((r) => r.content === g.content)?.emoji ?? g.content}${g.reactors.totalCount}${g.viewerHasReacted ? '*' : ''}`);
-      if (counts.length) out.push([{ text: `  ${counts.join('  ')}`, color: 'magenta' }]);
+      if (counts.length) out.push([{ text: `  ${counts.join('  ')}`, dim: true }]);
       out.push([]);
     }
     if (queued && mode.kind !== 'reply') {
-      out.push([{ text: `Queued reply${queued.resolve ? ', then resolve' : ''} · sends with s`, bold: true, color: 'magenta' }]);
+      out.push([{ text: `Queued reply${queued.resolve ? ', then resolve' : ''} · sends with s`, bold: true, color: 'cyan' }]);
       out.push(...renderMarkdown(queued.body, Math.max(10, inner - 2)).map((l): MdLine => [{ text: '  ' }, ...l]));
     }
     return { lines: out, starts: at };
@@ -445,7 +445,7 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
   const editor = (() => {
     if (mode.kind === 'reply')
       return (
-        <Box flexDirection="column" borderStyle="round" borderColor="magenta" paddingX={1} height={editorRows}>
+        <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1} height={editorRows}>
           <Text bold>
             Reply to {safe(reviewers || 'the thread')} <Text dimColor>· queued, not posted · {reply.resolve ? '[x]' : '[ ]'} resolve after sending (^R)</Text>
           </Text>

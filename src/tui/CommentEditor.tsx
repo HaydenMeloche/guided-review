@@ -14,12 +14,23 @@ import { SourcePreview } from './SourcePreview.js';
 import { anchorText, draftFrom, initComposer, isLineAnchor, linesWord, suggestionMetaFor, suggestionStillApplies, type ComposerEnv, type ComposerState, type SetComposer } from './composer.js';
 import { mergeRefs, referenceCompleter, refHighlight, refTarget } from './references.js';
 import { truncate } from './nav.js';
+import { SURFACES } from './theme.js';
 import { KeyBar, type Hint } from './KeyBar.js';
 import { openInEditor } from '../util/editor.js';
 import { sanitizeTerminal } from '../util/sanitize.js';
 
 const LABELS: CommentLabel[] = ['blocking', 'question', 'suggestion', 'nit'];
-export const LABEL_COLOR: Record<CommentLabel, string> = { blocking: 'red', question: 'magenta', suggestion: 'cyan', nit: 'gray' };
+export const LABEL_COLOR: Record<CommentLabel, string> = { blocking: 'red', question: 'blue', suggestion: 'cyan', nit: 'gray' };
+
+// A comment's label as a colored chip, the same in the composer, under the line, and on the
+// submit screen, so a blocking comment looks the same in all three.
+export function LabelChip(props: { label: CommentLabel; selected?: boolean }) {
+  return (
+    <Text backgroundColor={SURFACES.popup} color={LABEL_COLOR[props.label]} inverse={props.selected} bold={props.selected}>
+      {` ${props.label} `}
+    </Text>
+  );
+}
 
 // Below this many rows the composer is the compact inline editor; above it, the full one
 // with the suggestion diff.
@@ -170,9 +181,10 @@ export function CommentEditor(props: {
   // The labels, and what the chosen one does: it posts as a bold tag that groups the review.
   const labels = (note: string) => (
     <Text wrap="truncate">
-      {LABELS.map((l) => (
-        <Text key={l} color={LABEL_COLOR[l]} inverse={l === st.label}>
-          {` ${l} `}
+      {LABELS.map((l, i) => (
+        <Text key={l}>
+          {i ? ' ' : ''}
+          <LabelChip label={l} selected={l === st.label} />
         </Text>
       ))}
       <Text dimColor>{`  posts as **[${st.label}]**${note ? ` · ${note}` : ''}`}</Text>

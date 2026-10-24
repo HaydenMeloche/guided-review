@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, usePreviewing, useTheme } from '../themed.js';
 import type { DiffLine, Draft, ExistingThread, Hunk } from '../../types.js';
 import { truncate } from '../nav.js';
-import { LABEL_COLOR } from '../CommentEditor.js';
+import { LabelChip, LABEL_COLOR } from '../CommentEditor.js';
 import type { HunkHighlights } from '../highlight.js';
 import { highlightHunkCached, hunkHighlightKey, peekHunkHighlights } from '../highlightCache.js';
 import { wordDiff, type CharRange, type Fold } from '../../diff/lines.js';
@@ -113,11 +113,17 @@ export const SourcePane = React.memo(function SourcePane(props: {
       for (const d of draftsAt(props.drafts, hunk, line, l.kind === 'del' ? 'LEFT' : 'RIGHT')) {
         out.push({
           idx: i,
-          node: <Text color={LABEL_COLOR[d.label]}>{truncate(`          ${G.draft} [${d.label}]${d.posted ? ' (posted)' : ''} ${clean(d.body).replace(/\s+/g, ' ')}`, width)}</Text>,
+          node: (
+            <Text wrap="truncate">
+              {'          '}
+              <LabelChip label={d.label} />
+              <Text color={LABEL_COLOR[d.label]}>{truncate(` ${G.draft}${d.posted ? ' (posted)' : ''} ${clean(d.body).replace(/\s+/g, ' ')}`, Math.max(1, width - 12 - d.label.length))}</Text>
+            </Text>
+          ),
         });
       }
       const moved = movedNote(hunk, j);
-      if (moved) out.push({ idx: i, node: <Text color="magenta">{truncate(`          ${moved}`, width)}</Text> });
+      if (moved) out.push({ idx: i, node: <Text color="blue">{truncate(`          ${moved}`, width)}</Text> });
     };
     if (props.split) {
       // Old on the left, new on the right; a removed line shares its replacement's row.

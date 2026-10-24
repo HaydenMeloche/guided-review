@@ -94,7 +94,7 @@ describe.each(SIZES)('screens at %ix%i', (cols, rows) => {
     gr.type('Before tax?');
     await gr.waitFor('Before tax?');
     gr.press(KEY.enter);
-    await gr.waitFor('✎ [question]');
+    await gr.waitFor(' question  ✎');
     await snap(gr, 'chapter-draft', cols, rows);
 
     gr.press('s');

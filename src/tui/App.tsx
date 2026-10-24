@@ -734,7 +734,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const live = !quitAsk;
   // Every screen sits in the same popup frame, so asking to quit never remounts it.
   return (
-    <ReviewPopup background={screens()} width={width} height={height} maxWidth={Math.min(width - 2, 72)} maxHeight={4}>
+    <ReviewPopup background={screens()} width={width} height={height} maxWidth={Math.min(width - 2, 72)} maxHeight={4} tone="decision">
       {quitAsk
         ? (w) => (
             <Box flexDirection="column" paddingX={1}>
@@ -760,7 +760,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     // A screen with the theme picker over it while open. The element tree is the same either way,
     // so opening the picker never remounts the screen and loses its state.
     const withThemePicker = (screen: (active: boolean) => ReactNode) => (
-      <ReviewPopup background={screen(!theme.open && live)} width={width} height={height} maxWidth={100} maxHeight={30}>
+      <ReviewPopup background={screen(!theme.open && live)} width={width} height={height} maxWidth={100} maxHeight={30} tone="input">
         {theme.open ? theme.popup : undefined}
       </ReviewPopup>
     );
@@ -1053,7 +1053,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     if (phase === 'briefing') return withThemePicker(briefingScreen);
     if (phase === 'edit' && editing && editState) {
       return (
-        <ReviewPopup background={submitBackground()} width={width} height={height} maxWidth={96} maxHeight={editState.ai ? 30 : 16}>
+        <ReviewPopup background={submitBackground()} width={width} height={height} maxWidth={96} maxHeight={editState.ai ? 30 : 16} tone="input">
           {(dialogWidth, dialogHeight) => (
             <CommentEditor
               draft={editing}
@@ -1077,13 +1077,13 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     if (phase === 'submit') {
       if (opts.preview) {
         return (
-          <ReviewPopup background={submitBackground()} width={width} height={height} maxWidth={76} maxHeight={9}>
+          <ReviewPopup background={submitBackground()} width={width} height={height} maxWidth={76} maxHeight={9} tone="decision">
             {() => <PreviewSubmit onBack={() => setPhase(submitFrom)} />}
           </ReviewPopup>
         );
       }
       return (
-        <ReviewPopup background={submitBackground()} width={width} height={height} maxWidth={104} maxHeight={34}>
+        <ReviewPopup background={submitBackground()} width={width} height={height} maxWidth={104} maxHeight={34} tone="decision">
           {(dialogWidth, dialogHeight) => (
             <SubmitScreen
               tour={tour}

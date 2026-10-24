@@ -1,4 +1,4 @@
- ‹cyan,b›local/rich‹/›‹b› #0 feature/discounts (preview)‹/›‹dim›  by you · 99706cfb · plain mode‹/›
+ ‹dim›local/rich‹/›‹b› #0 feature/discounts (preview)‹/›‹dim›  by you · 99706cfb · plain mode‹/›
 
  feature/discounts (preview). Add discount codes to quotes and orders                  ‹bright-black›│‹/› ‹b›Overview‹/›‹dim› · ‹/›‹cyan,b›d‹/›‹dim› to explore‹/› ‹dim›──────‹/›
                                                                                        ‹bright-black›│‹/›   ‹yellow,b›╔═════════════╗‹/›
@@ -33,4 +33,4 @@
                                                                                        ‹bright-black›│‹/›
                                                                                        ‹bright-black›│‹/›
 
-  ‹cyan,b›n‹/›‹dim› start‹/›   ‹cyan,b›enter‹/›‹dim› open‹/›   ‹cyan,b›j/k‹/›‹dim› select‹/›   ‹dim›│   ‹/›‹cyan,b›r‹/›‹dim› read description‹/›   ‹dim›│   ‹/›‹cyan,b›s‹/›‹dim› submit‹/›   ‹dim›│   ‹/›‹cyan,b›L‹/›‹dim› theme‹/›              ‹cyan,b›?‹/›‹dim› keys‹/›   ‹cyan,b›q‹/›‹dim› quit‹/›
+  ‹cyan,b›n‹/› start   ‹cyan,b›enter‹/› open   ‹cyan,b›j/k‹/› select   ‹dim›│   ‹/›‹cyan,b›r‹/› read description   ‹dim›│   ‹/›‹cyan,b›s‹/› submit   ‹dim›│   ‹/›‹cyan,b›L‹/› theme              ‹cyan,b›?‹/› keys   ‹cyan,b›q‹/› quit

@@ -469,7 +469,7 @@ export function AuthorMode(props: {
       setMentionsWanted(false);
     };
     return (
-      <ReviewPopup background={background} width={width} height={height} maxWidth={100} maxHeight={24}>
+      <ReviewPopup background={background} width={width} height={height} maxWidth={100} maxHeight={24} tone="input">
         {(w, h) => (
           <CommentComposer
             sources={conversationSources(live.reviews, live.comments, tour.author)}
@@ -492,7 +492,7 @@ export function AuthorMode(props: {
   if (screen === 'send') {
     const candidates = rerequestCandidates(reviewers);
     return (
-      <ReviewPopup background={background} width={width} height={height} maxWidth={104} maxHeight={30}>
+      <ReviewPopup background={background} width={width} height={height} maxWidth={104} maxHeight={30} tone="decision">
         {(w, h) => (
           <SendScreen
             tour={tour}

@@ -1,6 +1,6 @@
-‹c195,bg:c59,b›local/rich ‹/›‹c189,bg:c59,b›#0 feature/discounts (preview)                                          ‹/›‹c189,bg:c59› ‹/›‹c102,bg:c59›▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹c189,bg:c59,b› 0%‹/›‹c102,bg:c59› · 0/5 hunks · Guided‹/›
+‹c102,bg:c59›local/rich ‹/›‹c189,bg:c59,b›#0 feature/discounts (preview)                                          ‹/›‹c189,bg:c59› ‹/›‹c102,bg:c59›▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹c189,bg:c59,b› 0%‹/›‹c102,bg:c59› · 0/5 hunks · Guided‹/›
 ‹c102,bg:c59›Guided order · Chapter 1/3: [createOrder] · ·‹/›‹bg:c59›                                                                           ‹/›
-‹c195,bg:c59,b›createOrder‹/›‹c102,bg:c59› · hunk 1/3 · · ‹/›‹c189,bg:c59›src/orders.ts:1‹/›‹c211,bg:c59›  ○ untested‹/›‹c102,bg:c59› · entry exported API (createOrder)‹/›‹bg:c59›                               ‹/›
+‹c117,bg:c59,b›createOrder‹/›‹c102,bg:c59› · hunk 1/3 · · ‹/›‹c189,bg:c59›src/orders.ts:1‹/›‹c211,bg:c59›  ○ untested‹/›‹c102,bg:c59› · entry exported API (createOrder)‹/›‹bg:c59›                               ‹/›
 ‹c102,bg:c59›▎ Plain mode: no narration.‹/›‹bg:c59›                                                                                             ‹/›
 ‹c102,bg:c59›▎ ‹/›‹c189,bg:c59› ‹/›‹bg:c59›                                                                                                                     ‹/›
 ‹c102,bg:c59›▎ ‹/›‹c211,bg:c59›○ No linked test · 2 possible untested behaviors · U: details‹/›‹bg:c59›                                                         ‹/›
@@ -32,5 +32,5 @@
 ‹bg:c59›                                                                                                                        ‹/›
 ‹bg:c59›                                                                                                                        ‹/›
 ‹c102,bg:c59›✎ 0 draft comments‹/›‹bg:c59›                                                                                                      ‹/›
-‹c189,bg:c59› ‹/›‹c189,bg:c59,b›n/p‹/›‹c102,bg:c59› hunk‹/›‹c189,bg:c59›   ‹/›‹c189,bg:c59,b›]/[‹/›‹c102,bg:c59› chapter‹/›‹c189,bg:c59›   ‹/›‹c102,bg:c59›│   ‹/›‹c189,bg:c59,b›c‹/›‹c102,bg:c59› comment on range‹/›‹c189,bg:c59›   ‹/›‹c189,bg:c59,b›v‹/›‹c102,bg:c59› end range‹/›‹c189,bg:c59›   ‹/›‹c102,bg:c59›+4 more‹/›‹bg:c59›        ‹/›‹c216,bg:c59›whitespace hidden   ‹/›‹c189,bg:c59,b›esc‹/›‹c102,bg:c59› back‹/›‹c189,bg:c59›   ‹/›‹c189,bg:c59,b›?‹/›‹c102,bg:c59› keys‹/›‹c189,bg:c59›   ‹/›
+‹c189,bg:c59› ‹/›‹c195,bg:c59,b› n/p ‹/›‹c189,bg:c59› hunk   ‹/›‹c195,bg:c59,b› ]/[ ‹/›‹c189,bg:c59› chapter   ‹/›‹c102,bg:c59›│   ‹/›‹c195,bg:c59,b› c ‹/›‹c189,bg:c59› comment on range   ‹/›‹c102,bg:c59›+5 more‹/›‹bg:c59›            ‹/›‹c216,bg:c59›whitespace hidden   ‹/›‹c195,bg:c59,b› esc ‹/›‹c189,bg:c59› back   ‹/›‹c195,bg:c59,b› ? ‹/›‹c189,bg:c59› keys   ‹/›
 ‹bg:c59›                                                                                                                        ‹/›

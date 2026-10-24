@@ -396,9 +396,7 @@ export function BriefingScreen(props: {
       <Box>
         <Box flexShrink={1}>
           <Text wrap="truncate">
-            <Text color="cyan" bold>
-              {safe(tour.repo)}
-            </Text>
+            <Text dimColor>{safe(tour.repo)}</Text>
             <Text bold color={ROLES.title}>
               {' '}
               #{tour.pr} {safe(tour.title)}
