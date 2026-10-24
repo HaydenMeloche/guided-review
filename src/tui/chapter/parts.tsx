@@ -171,12 +171,24 @@ export const CollapsedSummary = React.memo(function CollapsedSummary(props: {
   );
 });
 
-export function DraftLine(props: { drafts: Draft[]; hunk?: Hunk; cursor: number; flash?: Flash; width: number }) {
+// The row above the key bar: a message after a key press when there is one, else an open range
+// (yellow, with what it is for), else your drafts on the cursor line, else where you are: the
+// hunk, the line, the drafts waiting, how the hunk is tested.
+export function StatusRow(props: { drafts: Draft[]; hunk?: Hunk; cursor: number; flash?: Flash; range?: string; position?: string; width: number }) {
   const pending = props.drafts.filter((d) => !d.posted);
   if (props.flash)
     return (
-      <Text color={TONE_COLOR[props.flash.tone]} wrap="truncate">
+      <Text color={TONE_COLOR[props.flash.tone]} dimColor={props.flash.tone === 'quiet'} wrap="truncate">
         {truncate(props.flash.text, props.width)}
+      </Text>
+    );
+  if (props.range)
+    return (
+      <Text wrap="truncate">
+        <Text color="yellow" bold>
+          {`RANGE ${safe(props.range)}`}
+        </Text>
+        <Text dimColor> · c comment · a ask · esc clear</Text>
       </Text>
     );
   const l = props.hunk?.lines[props.cursor];
@@ -193,9 +205,12 @@ export function DraftLine(props: { drafts: Draft[]; hunk?: Hunk; cursor: number;
         ))}
       </Text>
     );
+  const cov = props.hunk ? COVERAGE[props.hunk.coverage] : undefined;
   return (
-    <Text dimColor wrap="truncate">
-      {truncate(`${G.draft} ${plural(pending.length, 'draft comment')}`, props.width)}
+    <Text wrap="truncate">
+      {props.position ? <Text>{props.position}</Text> : null}
+      <Text dimColor>{`${props.position ? ' · ' : ''}${G.draft} ${plural(pending.length, 'draft')}`}</Text>
+      {cov?.text ? <Text color={cov.color}>{` · ${cov.mark} ${cov.text}`}</Text> : null}
     </Text>
   );
 }

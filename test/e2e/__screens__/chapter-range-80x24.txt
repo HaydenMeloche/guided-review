@@ -19,6 +19,6 @@
 
 
 
-‹dim›✎ 0 draft comments‹/›
+‹yellow,b›RANGE src/orders.ts:4–6‹/›‹dim› · c comment · a ask · esc clear‹/›
  ‹cyan,b›n/p‹/› hunk   ‹cyan,b›]/[‹/› chapter   ‹dim›+5 more‹/›       ‹yellow›whitespace hidden   ‹/›‹cyan,b›esc‹/› back   ‹cyan,b›?‹/› keys
 

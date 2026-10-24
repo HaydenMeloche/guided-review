@@ -31,6 +31,6 @@
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›m             ‹/›‹bg:c235›Move the hunk to another chapter                                                      ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›i             ‹/›‹bg:c235›Team checklist for this chapter                                                       ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›R             ‹/›‹bg:c235›Rebuild the tour on a newer PR head after the author pushes                           ‹/›‹bright-black,bg:c235›│‹/›
-‹dim›✎ 0‹/›‹bright-black,bg:c235›│‹/›‹bg:c235›  ‹/›‹cyan,bg:c235,b›j/k‹/›‹bg:c235› scroll   ‹/›‹cyan,bg:c235,b›tab‹/›‹bg:c235› marks   ‹/›‹cyan,bg:c235,b›esc‹/›‹bg:c235› close                                                                            ‹/›‹bright-black,bg:c235›│‹/›
+hun‹bright-black,bg:c235›│‹/›‹bg:c235›  ‹/›‹cyan,bg:c235,b›j/k‹/›‹bg:c235› scroll   ‹/›‹cyan,bg:c235,b›tab‹/›‹bg:c235› marks   ‹/›‹cyan,bg:c235,b›esc‹/›‹bg:c235› close                                                                            ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯‹/›
 

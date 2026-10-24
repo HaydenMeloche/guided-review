@@ -13,14 +13,14 @@ import { CHECK_MARK, checkLabel, duration, outcomeText, sortChecks } from '../..
 import { Reader } from '../Panels.js';
 import { KeyBar, Key } from '../KeyBar.js';
 import { HelpPopup } from '../Help.js';
-import { helpOf } from '../keys.js';
+import { helpOf, readsKey } from '../keys.js';
 import { SectionHeading } from '../BriefingScreen.js';
 import { pad, truncate, wrap } from '../nav.js';
 import { MdLineView, renderMarkdown } from '../markdown.js';
 import { age } from '../PickerScreen.js';
 import { plural } from '../plural.js';
 import { sanitizeTerminal as safe } from '../../util/sanitize.js';
-import { TONE_COLOR, useFlash } from '../flash.js';
+import { TONE_COLOR, unboundKey, useFlash } from '../flash.js';
 import { G } from '../glyphs.js';
 import { Busy } from '../Spinner.js';
 
@@ -122,6 +122,8 @@ export function FeedbackBriefing(props: {
       if (key.escape) return props.onBack?.();
       if (input === 'q') return (props.onBack ?? props.onQuit)();
       if (input === 'Q') return props.onQuit();
+      const none = unboundKey(input, key);
+      if (none && !readsKey(BRIEFING_KEYS, input)) setFlash(none, 'quiet');
     },
     { isActive: props.active && overlay === 'none' },
   );
@@ -432,7 +434,7 @@ export function FeedbackBriefing(props: {
         </Box>
       )}
       {flash ? (
-        <Text color={TONE_COLOR[flash.tone]} wrap="truncate">
+        <Text color={TONE_COLOR[flash.tone]} dimColor={flash.tone === 'quiet'} wrap="truncate">
           {safe(flash.text)}
         </Text>
       ) : props.writing || props.analyzing ? (

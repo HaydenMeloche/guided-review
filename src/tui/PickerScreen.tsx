@@ -12,12 +12,13 @@ import { readClipboard } from '../util/clipboard.js';
 import { CHECK_MARK, checkLabel, outcomeText, sortChecks } from '../review/checks.js';
 import { MdLineView, line, renderMarkdown } from './markdown.js';
 import { HelpPopup } from './Help.js';
-import { helpOf } from './keys.js';
+import { helpOf, readsKey } from './keys.js';
 import { plural } from './plural.js';
 import { PICKER_KEYS, pickerBar } from './screenKeys.js';
 import { G } from './glyphs.js';
 import { ErrorBlock } from './ErrorBlock.js';
 import { ROLES } from './theme.js';
+import { unboundKey } from './flash.js';
 
 export interface Target {
   repo: string;
@@ -479,6 +480,8 @@ export function PickerScreen(props: PickerProps) {
       }
       if (input === 'c' && current && props.onChecks) props.onChecks({ repo: current.repo, number: current.number });
       if (input === 'A' && current && isAuthored(current) && props.onReviewers) props.onReviewers({ repo: current.repo, number: current.number });
+      const none = unboundKey(input, key);
+      if (none && !readsKey(PICKER_KEYS, input)) setHint(none);
     },
     { isActive: !filtering && !help && props.active !== false },
   );

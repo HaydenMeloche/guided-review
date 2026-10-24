@@ -81,7 +81,7 @@ describe('gr preview --no-agent', () => {
     const first = preview(['--no-agent'], { GR_KITTY_KEYBOARD: 'enabled' });
     await first.waitFor('Chapters · Guided order');
     first.press('n');
-    await first.waitFor('0 draft comments');
+    await first.waitFor('0 drafts');
     first.press('c');
     await first.waitFor('enter save');
     first.type('Should the discount be clamped');

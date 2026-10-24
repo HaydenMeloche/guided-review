@@ -19,6 +19,6 @@
 ‹bg:c59›                                                                                ‹/›
 ‹bg:c59›                                                                                ‹/›
 ‹bg:c59›                                                                                ‹/›
-‹c102,bg:c59›✎ 0 draft comments‹/›‹bg:c59›                                                              ‹/›
+‹c216,bg:c59,b›RANGE src/orders.ts:3–5‹/›‹c102,bg:c59› · c comment · a ask · esc clear‹/›‹bg:c59›                         ‹/›
 ‹c189,bg:c59› ‹/›‹c195,bg:c235,b› n/p ‹/›‹c189,bg:c59› hunk   ‹/›‹c102,bg:c59›+6 more‹/›‹bg:c59›               ‹/›‹c216,bg:c59›whitespace hidden   ‹/›‹c195,bg:c235,b› esc ‹/›‹c189,bg:c59› back   ‹/›‹c195,bg:c235,b› ? ‹/›‹c189,bg:c59› keys   ‹/›
 ‹bg:c59›                                                                                ‹/›

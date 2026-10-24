@@ -18,7 +18,7 @@ import { age } from '../PickerScreen.js';
 import { STATE_COLOR, chapterMark } from './FeedbackBriefing.js';
 import { THREAD_KEYS, threadBar } from './keys.js';
 import { HelpPopup } from '../Help.js';
-import { helpOf } from '../keys.js';
+import { helpOf, readsKey } from '../keys.js';
 import { sanitizeTerminal as safe } from '../../util/sanitize.js';
 import { githubWebHost } from '../../github/auth.js';
 import { findFileLinks, type FileLink } from '../../review/fileLinks.js';
@@ -26,7 +26,7 @@ import { codeTerms, resolveCodeRefs, type CodeRef } from '../../review/codeRefs.
 import type { RepoIndex } from '../../analysis/repoIndex.js';
 import { plural } from '../plural.js';
 import { FilePreview } from '../FilePreview.js';
-import { TONE_COLOR, useFlash } from '../flash.js';
+import { TONE_COLOR, unboundKey, useFlash } from '../flash.js';
 
 // The file preview needs room beside the thread; narrower terminals keep the thread full width.
 const PREVIEW_MIN_WIDTH = 110;
@@ -433,6 +433,8 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
       if (input === 'b' || input === 'q') return props.onBriefing();
       if (key.escape && mode.kind === 'browse') return props.onBriefing();
       if (input === 'Q') return props.onQuit();
+      const none = mode.kind === 'browse' ? unboundKey(input, key) : undefined;
+      if (none && !readsKey(THREAD_KEYS, input)) setFlash(none, 'quiet');
     },
     { isActive: props.active && (mode.kind === 'browse' || mode.kind === 'react' || mode.kind === 'triage' || mode.kind === 'resolve' || mode.kind === 'ai') },
   );
@@ -639,7 +641,7 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
       {mode.kind === 'resolve' ? (
         <Confirm yes={item.thread.isResolved ? 'unresolve' : 'resolve'}>{item.thread.isResolved ? 'Unresolve' : 'Resolve'} this thread on GitHub now?</Confirm>
       ) : flash ? (
-        <Text color={TONE_COLOR[flash.tone]} wrap="truncate">
+        <Text color={TONE_COLOR[flash.tone]} dimColor={flash.tone === 'quiet'} wrap="truncate">
           {' '}
           {safe(flash.text)}
         </Text>

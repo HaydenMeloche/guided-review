@@ -21,7 +21,7 @@ import { useMentions } from './chapter/mentions.js';
 import { linkedTests } from './chapter/linkedTests.js';
 import { SourcePane } from './chapter/SourcePane.js';
 import { TestPane } from './chapter/TestPane.js';
-import { ChapterList, ChapterStrip, ChapterTitle, CollapsedSummary, DraftLine, EmptyChapter, Explanation, Header, MoveList } from './chapter/parts.js';
+import { ChapterList, ChapterStrip, ChapterTitle, CollapsedSummary, EmptyChapter, Explanation, Header, MoveList, StatusRow } from './chapter/parts.js';
 import { HelpPopup } from './Help.js';
 import { ReviewPopup } from './ReviewPopup.js';
 import { reviewLegend } from './legend.js';
@@ -30,11 +30,20 @@ import { CONTEXT_STEP, useFoldedCursor, useFolds, useHunkView } from './chapter/
 import { barEnd, barKeys, chapterHelp, keyAction, paletteCommands, type Action, type KeyCtx, type View } from './chapter/keys.js';
 import { CommandPalette, type PaletteItem } from './CommandPalette.js';
 import { explanation } from './chapter/guide.js';
-import { useFlash } from './flash.js';
+import { unboundKey, useFlash } from './flash.js';
 import { plural } from './plural.js';
 import { chapterLayout, overlaySlots, type OverlayKind } from './chapter/layout.js';
+import { G } from './glyphs.js';
+import { hunkKeys } from '../review/hunkState.js';
 
 export { KeyBar };
+
+// "src/x.ts:27–31": an open range, by its lines on the side they are on.
+function rangeLabel(hunk: Hunk, sel: [number, number]): string {
+  const at = (i: number) => hunk.lines[i]?.newLine ?? hunk.lines[i]?.oldLine;
+  const [a, b] = [at(sel[0]), at(sel[1])];
+  return `${hunk.file}:${a === b ? a : `${a}–${b}`}`;
+}
 
 // For one release: ? used to ask the model.
 export const HELP_NOTE = '? is now these keys · ask the model with a';
@@ -277,7 +286,13 @@ export function ChapterScreen(props: {
       next();
     },
     // Code
-    next: () => next(collapsedView ? undefined : 'read'),
+    next: () => {
+      if (!collapsedView && hunk && chapter) {
+        const p = progress(tour, { ...states, ...Object.fromEntries(hunkKeys(hunk).map((k) => [k, 'read'])) }, chapter.hunkIds);
+        setFlash(`${G.read} hunk ${hi + 1} read · ${p.read + p.skipped}/${p.total} in this chapter`, 'info');
+      }
+      next(collapsedView ? undefined : 'read');
+    },
     prev: () => go(prevPos(chapters, ci, hi)),
     nextChapter: () => go(ci < chapters.length - 1 ? { ci: ci + 1, hi: firstHunk(chapters, ci + 1) } : undefined),
     prevChapter: () => go(ci > 0 ? { ci: ci - 1, hi: firstHunk(chapters, ci - 1) } : undefined),
@@ -357,7 +372,9 @@ export function ChapterScreen(props: {
       // A held message has been seen once a key is pressed.
       dismissFlash();
       const action = keyAction(keyView, keyCtx, input, key);
-      if (action) actions[action]();
+      if (action) return actions[action]();
+      const none = unboundKey(input, key);
+      if (none) setFlash(none, 'quiet');
     },
     { isActive: props.active !== false && overlay.kind === 'none' },
   );
@@ -663,7 +680,15 @@ export function ChapterScreen(props: {
       {slots.confirmDelete && cursorDraft ? (
         <Confirm yes="delete">{truncate(`Delete this draft? [${cursorDraft.label}] ${clean(cursorDraft.body).replace(/\s+/g, ' ')}`, width - 26)}</Confirm>
       ) : (
-        <DraftLine drafts={props.drafts} hunk={hunk} cursor={cursor} flash={flash} width={width} />
+        <StatusRow
+          drafts={props.drafts}
+          hunk={hunk}
+          cursor={cursor}
+          flash={flash}
+          range={anchor !== null && hunk ? rangeLabel(hunk, sel) : undefined}
+          position={hunk ? `hunk ${hi + 1}/${chapter.hunkIds.length} · line ${cursorLine?.newLine ?? cursorLine?.oldLine ?? ''}` : undefined}
+          width={width}
+        />
       )}
       <KeyBar
         width={width}

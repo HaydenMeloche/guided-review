@@ -12,6 +12,8 @@ The same three keys move you back on every screen:
 
 `?` lists the keys of the screen you are on, grouped by what they do (`h` works too, outside the diagram). The list scrolls with `j`/`k` on a short terminal. On the briefing and in a chapter, `Tab` turns to a second page that explains the marks: reading state, risk, test coverage, drafts, threads, and moved code. `Esc` closes it.
 
+A key that does nothing on the screen you are on says so (`no action for x here`), so a key press never goes unanswered.
+
 `?` used to ask the model; asking is now `a`, and reacting to a comment in a thread is `+`.
 
 ## Pick a PR
@@ -36,7 +38,7 @@ The terminal's window title names the PR and where you are in it, such as `gr ·
 
 <p align="center"><img src="images/briefing.webp" alt="The briefing screen: a summary of the PR, the author's description, flagged gaps, an overview diagram, chapters in reading order, and blast radius" width="900"></p>
 
-A **chapter** shows an explanation, code hunk, risk and test status, existing review threads, and linked tests. One row names the chapter, the hunk, where it is, and how it is tested; the explanation sits under it behind a quiet rule, its first sentence in the normal weight and the rest dimmer. With a theme, the cursor's row takes the selection color and a range a lighter tint; a long line that wraps shows `↪` where its line numbers were. Wide terminals put code and tests side by side; narrow terminals let `t` toggle between them. Generated, vendored, and mechanical changes start collapsed into summaries. Import-only changes form an optional chapter that normal `n`/`p` navigation skips.
+A **chapter** shows an explanation, code hunk, risk and test status, existing review threads, and linked tests. The row above the key bar says where you are (the hunk, the line, your drafts waiting, how the hunk is tested), shows an open range in yellow with its lines (`RANGE src/pricing.ts:27–31`), and carries messages after a key press: plain ones fade, warnings (yellow) and errors (red) stay until your next key. `n` says the hunk it marked read and how much of the chapter is done. One row names the chapter, the hunk, where it is, and how it is tested; the explanation sits under it behind a quiet rule, its first sentence in the normal weight and the rest dimmer. With a theme, the cursor's row takes the selection color and a range a lighter tint; a long line that wraps shows `↪` where its line numbers were. Wide terminals put code and tests side by side; narrow terminals let `t` toggle between them. Generated, vendored, and mechanical changes start collapsed into summaries. Import-only changes form an optional chapter that normal `n`/`p` navigation skips.
 
 <p align="center"><img src="images/ask.webp" alt="A question about a changed line, answered inline below the code with file and line references" width="900"></p>
 

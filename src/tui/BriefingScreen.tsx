@@ -18,12 +18,13 @@ import { Busy } from './Spinner.js';
 import { HelpPopup } from './Help.js';
 import { ReviewPopup } from './ReviewPopup.js';
 import { CommandPalette, type PaletteItem } from './CommandPalette.js';
-import { helpOf } from './keys.js';
 import { reviewLegend } from './legend.js';
 import { REVIEW_BRIEFING_KEYS, reviewBriefingBar } from './screenKeys.js';
 import { plural } from './plural.js';
 import { HELP_NOTE } from './ChapterScreen.js';
 import { G } from './glyphs.js';
+import { TONE_COLOR, unboundKey, useFlash } from './flash.js';
+import { helpOf, readsKey } from './keys.js';
 
 // Rows each block may take; the chapters get the rest of the screen.
 const BUDGET = { intent: 2, description: 3, flags: 3, reviews: 2, blast: 2 };
@@ -93,6 +94,7 @@ export function BriefingScreen(props: {
   const { tour, chapters, states, width, height } = props;
   const selectedRow = useSelected();
   const [sel, setSel] = useState(0);
+  const { flash, show: showFlash, dismiss: dismissFlash } = useFlash();
   const [overlay, setOverlay] = useState<'none' | 'diagram' | 'ask' | 'read' | 'reviews' | 'help' | 'palette'>('none');
   useEffect(() => setSel(0), [props.order]);
   // D keeps the selected chapter when it is in both lists.
@@ -124,6 +126,7 @@ export function BriefingScreen(props: {
 
   useInput(
     (input, key) => {
+      dismissFlash();
       if (input === 'j' || key.downArrow) return setSel((s) => Math.min(chapters.length - 1, s + 1));
       if (input === 'k' || key.upArrow) return setSel((s) => Math.max(0, s - 1));
       if (key.return) return props.onStart(sel);
@@ -153,6 +156,8 @@ export function BriefingScreen(props: {
       if (key.escape) return props.onBack?.();
       if (input === 'q') return (props.onBack ?? props.onQuit)();
       if (input === 'Q') return props.onQuit();
+      const none = unboundKey(input, key);
+      if (none && !readsKey(REVIEW_BRIEFING_KEYS, input)) showFlash(none, 'quiet');
     },
     { isActive: props.active !== false && overlay === 'none' },
   );
@@ -412,7 +417,13 @@ export function BriefingScreen(props: {
         ) : null}
       </Box>
       {overlay === 'ask' ? <AskOverlay target="the whole PR" agent={props.agent} aiOff={props.aiOff} width={width - 2} height={askHeight} onClose={() => setOverlay('none')} /> : null}
-      <Text> </Text>
+      {flash ? (
+        <Text color={TONE_COLOR[flash.tone]} dimColor={flash.tone === 'quiet'} wrap="truncate">
+          {flash.text}
+        </Text>
+      ) : (
+        <Text> </Text>
+      )}
       <KeyBar
         width={width}
         accent

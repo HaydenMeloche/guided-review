@@ -386,14 +386,12 @@ describe('comment composer', () => {
     ui.unmount();
   });
 
-  it('A does nothing in the chapter screen', async () => {
+  it('A does nothing in the chapter screen, and says so', async () => {
     const ui = render(<Harness tour={fixture()} />);
     await tick();
-    const before = ui.lastFrame();
-    expect(before).not.toMatch(/pin/i);
+    expect(ui.lastFrame()).not.toMatch(/pin/i);
     ui.stdin.write('A');
-    await tick(60);
-    expect(ui.lastFrame()).toBe(before);
+    await waitFor(() => expect(ui.lastFrame()).toContain('no action for A here · ? lists the keys'));
     ui.stdin.write('?');
     await waitFor(() => expect(ui.lastFrame()).toContain('Focus the test pane'));
     expect(ui.lastFrame()).not.toMatch(/pin/i);

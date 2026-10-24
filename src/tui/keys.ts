@@ -29,6 +29,11 @@ export function barOf<C>(defs: KeyDef<C>[], ctx: C): Hint[] {
   return out;
 }
 
+// Whether a table reads this typed character, for telling a key that does nothing here.
+export function readsKey<C>(defs: KeyDef<C>[], input: string): boolean {
+  return defs.some((d) => d.keys.includes(input));
+}
+
 // The key names the docs must mention.
 export function docKeys<C>(defs: KeyDef<C>[]): string[] {
   return [...new Set(defs.filter((d) => !d.alias).flatMap((d) => d.doc ?? d.keys))];

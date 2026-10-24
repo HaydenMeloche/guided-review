@@ -19,6 +19,6 @@
  ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›d             ‹/›‹bg:c235›Chapter diagram (select a node to jump to its co… ‹/›‹bright-black,bg:c235›│‹/›
  ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›+ / -         ‹/›‹bg:c235›Show 10 more or fewer lines of the file around t… ‹/›‹bright-black,bg:c235›│‹/›
  ‹bright-black,bg:c235›│‹/›‹bg:c235›                                                                            ‹/›‹bright-black,bg:c235›│‹/›
-‹dim›✎‹/›‹bright-black,bg:c235›│‹/›‹bg:c235›  ‹/›‹cyan,bg:c235,b›j/k‹/›‹bg:c235› scroll   ‹/›‹cyan,bg:c235,b›tab‹/›‹bg:c235› marks   ‹/›‹cyan,bg:c235,b›esc‹/›‹bg:c235› close                                        ‹/›‹bright-black,bg:c235›│‹/›
+h‹bright-black,bg:c235›│‹/›‹bg:c235›  ‹/›‹cyan,bg:c235,b›j/k‹/›‹bg:c235› scroll   ‹/›‹cyan,bg:c235,b›tab‹/›‹bg:c235› marks   ‹/›‹cyan,bg:c235,b›esc‹/›‹bg:c235› close                                        ‹/›‹bright-black,bg:c235›│‹/›
  ‹bright-black,bg:c235›╰────────────────────────────────────────────────────────────────────────────╯‹/›
 

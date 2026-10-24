@@ -31,6 +31,6 @@
 
 
 
-‹dim›✎ 0 draft comments‹/›
+hunk 1/3 · line 4‹dim› · ✎ 0 drafts‹/›‹red› · ○ untested‹/›
  ‹cyan,b›n/p‹/› hunk   ‹cyan,b›]/[‹/› chapter   ‹dim›│   ‹/›‹cyan,b›c‹/› comment   ‹cyan,b›v‹/› range   ‹dim›│   ‹/›‹cyan,b›d‹/› diagram   ‹dim›+2 more‹/›     ‹yellow›whitespace hidden   ‹/›‹cyan,b›esc‹/› back   ‹cyan,b›?‹/› keys
 
