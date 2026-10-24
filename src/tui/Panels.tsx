@@ -58,7 +58,7 @@ export function ChecklistPanel(props: { items: ChecklistItem[]; confirms: Record
 
 // Full-screen scrollable text, e.g. the PR description.
 export function Reader(props: { title: string; markdown: string; width: number; height: number; onClose: () => void }) {
-  const lines = renderMarkdown(props.markdown, Math.min(props.width - 4, 100));
+  const lines = renderMarkdown(props.markdown, props.width - 4);
   const room = Math.max(3, props.height - 4);
   const [top, setTop] = useState(0);
   const maxTop = Math.max(0, lines.length - room);

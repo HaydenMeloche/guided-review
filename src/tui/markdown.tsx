@@ -355,7 +355,12 @@ function preclean(md: string): string {
     .replace(/(^|\s):[a-z0-9_+-]+:(?=\s|$)/g, '$1');
 }
 
-export function renderMarkdown(md: string, width: number): MdLine[] {
+// The widest prose runs: lines much longer than this are hard to follow from one to the next.
+// Code and diffs keep the full width; prose does not.
+export const PROSE_WIDTH = 100;
+
+export function renderMarkdown(md: string, columns: number): MdLine[] {
+  const width = Math.min(columns, PROSE_WIDTH);
   const out: MdLine[] = [];
   try {
     blockLines(lexer(preclean(md), { gfm: true }), Math.max(10, width), out);
