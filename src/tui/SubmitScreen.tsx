@@ -17,6 +17,7 @@ import { Help } from './Help.js';
 import { helpOf } from './keys.js';
 import { plural } from './plural.js';
 import { SUBMIT_KEYS, submitBar } from './screenKeys.js';
+import { Working } from './Spinner.js';
 
 type Event = ReviewPayload['event'];
 
@@ -224,7 +225,7 @@ export function SubmitScreen(props: {
       ) : mode === 'confirm-delete' ? (
         <Confirm yes="delete">Delete this draft?</Confirm>
       ) : mode === 'posting' ? (
-        <Text color="yellow">Posting…</Text>
+        <Working label={`posting the review to ${safe(tour.repo)}#${tour.pr}`} color="yellow" />
       ) : (
         <KeyBar
           width={width}

@@ -8,6 +8,8 @@ import type { AgentContext } from '../agent/types.js';
 import { line, MdLineView, renderMarkdown, wrapSpans, type MdLine } from './markdown.js';
 import { wrap } from './nav.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
+import { Working } from './Spinner.js';
+import { Hints } from './KeyBar.js';
 
 // Streamed text is applied at most this often (about 30 fps): each update re-renders Ink,
 // which costs far more than parsing the token.
@@ -134,7 +136,35 @@ export function AskOverlay(props: {
           placeholder={turns.length ? 'ask a follow-up…' : (props.placeholder ?? 'e.g. "why is this nullable?" or "what calls this?"')}
         />
       )}
-      <Text dimColor>{!props.agent ? 'esc: close' : busy ? 'thinking… (esc to stop)' : turns.length ? 'enter: follow up · ↑/↓: scroll · esc: close' : 'enter: ask · esc: close'}</Text>
+      {busy && props.agent ? (
+        // Until the answer starts, a spinner and the seconds so far; once it streams, the answer
+        // shows the progress itself.
+        turns.at(-1)?.answer ? (
+          <Text dimColor>answering · esc stops it</Text>
+        ) : (
+          <Text>
+            <Working label="thinking" color="magenta" />
+            <Text dimColor> · esc stops it</Text>
+          </Text>
+        )
+      ) : (
+        <Hints
+          keys={
+            !props.agent
+              ? [['esc', 'close']]
+              : turns.length
+                ? [
+                    ['enter', 'follow up'],
+                    ['↑/↓', 'scroll'],
+                    ['esc', 'close'],
+                  ]
+                : [
+                    ['enter', 'ask'],
+                    ['esc', 'close'],
+                  ]
+          }
+        />
+      )}
     </Box>
   );
 }

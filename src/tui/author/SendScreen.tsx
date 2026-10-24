@@ -14,6 +14,7 @@ import { VERDICT } from './FeedbackBriefing.js';
 import { plural } from '../plural.js';
 import { sanitizeTerminal as safe } from '../../util/sanitize.js';
 import { G } from '../glyphs.js';
+import { Working } from '../Spinner.js';
 
 // Everything author mode sends, in one place: the queued replies (posted together as one
 // review, so reviewers get one notification), a comment on the PR's conversation, the threads to
@@ -209,7 +210,7 @@ export function SendScreen(props: {
       ) : mode === 'confirm-delete' ? (
         <Confirm yes="delete">Delete this queued {rows[sel] === comment ? 'comment' : 'reply'}?</Confirm>
       ) : mode === 'sending' ? (
-        <Text color="yellow">{progress || 'Sending…'}</Text>
+        <Working label={progress || 'sending'} color="yellow" />
       ) : (
         <KeyBar width={width - 2} keys={sendBar({ candidates: props.candidates.length > 0 })} end={[['?', 'keys']]} />
       )}

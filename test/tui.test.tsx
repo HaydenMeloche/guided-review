@@ -414,7 +414,7 @@ describe('ChapterScreen', () => {
     expect(ui.lastFrame()).toContain(chapter.title);
     expect(ui.lastFrame()).toContain(hunk.file);
     expect(ui.lastFrame()).toContain(hunk.lines.find((line) => line.kind !== 'ctx')!.text.slice(0, 30));
-    expect(ui.lastFrame()).toContain('enter: ask');
+    expect(ui.lastFrame()).toContain('enter ask');
     ui.stdin.write('\u001b');
     await waitFor(() => expect(ui.lastFrame()).not.toContain('Ask about'));
     expect(ui.lastFrame()).toContain('hunk 1/');
@@ -444,7 +444,7 @@ describe('ChapterScreen', () => {
     ui.stdin.write('why nullable');
     await tick();
     ui.stdin.write('\r');
-    await waitFor(() => expect(ui.lastFrame()).toContain('enter: follow up'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('enter follow up'));
     ui.stdin.write('who calls it');
     await tick();
     ui.stdin.write('\r');

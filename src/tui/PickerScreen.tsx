@@ -21,6 +21,7 @@ import { ROLES } from './theme.js';
 import { unboundKey } from './flash.js';
 import { hasSidePanel } from './breakpoints.js';
 import { TitleBar } from './TitleBar.js';
+import { writeClipboard } from '../util/clipboard.js';
 
 export interface Target {
   repo: string;
@@ -474,7 +475,14 @@ export function PickerScreen(props: PickerProps) {
       if (input === 'g') setSel(0);
       if (input === 'G') setSel(items.length - 1);
       if (key.return && current) open(current);
-      if (input === 'o' && current) openExternal(current.url).catch((e: unknown) => setHint(`Could not open ${current.url}: ${(e as Error).message}`));
+      // With no browser to open (as over SSH), the link is copied instead, and the hint says so.
+      if (input === 'o' && current)
+        openExternal(current.url).catch(() =>
+          writeClipboard(current.url).then(
+            (how) => setHint(`No browser to open here: ${how === 'tool' ? 'copied' : 'asked your terminal to copy'} ${current.url}`),
+            () => setHint(`Could not open or copy ${current.url}`),
+          ),
+        );
       if (input === 'M' && current && props.onMerge) props.onMerge({ repo: current.repo, number: current.number });
       if (input === 'w' && authored.some((p) => !needsAuthor(p))) {
         showWaitingPref = !showWaiting;

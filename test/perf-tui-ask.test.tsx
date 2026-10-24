@@ -29,7 +29,7 @@ const { ask } = await import('../src/agent/agent.js');
 
 async function typeQuestion() {
   const ui = render(<AskOverlay target="x" agent={{ cwd: '/tmp' }} width={200} height={40} onClose={() => {}} />);
-  await waitFor(() => expect(ui.lastFrame()).toContain('enter: ask'));
+  await waitFor(() => expect(ui.lastFrame()).toContain('enter ask'));
   ui.stdin.write('why?');
   await waitFor(() => expect(ui.lastFrame()).toContain('why?'));
   return ui;
@@ -65,7 +65,7 @@ describe('Ask streaming', () => {
       betweenTokens = () => new Promise<void>((r) => setImmediate(r));
     }
     await waitFor(() => expect(ui.lastFrame()).toContain('DONE.'), SLOW);
-    await waitFor(() => expect(ui.lastFrame()).toContain('enter: follow up'), SLOW);
+    await waitFor(() => expect(ui.lastFrame()).toContain('enter follow up'), SLOW);
     // At most one flush per window, plus the busy and final frames. One render per token
     // would be over 200 frames.
     const windows = Math.ceil((TOKENS * TOKEN_MS) / ASK_FLUSH_MS);
@@ -77,7 +77,7 @@ describe('Ask streaming', () => {
   it('keeps the last streamed text when the result carries no value', async () => {
     finalValue = '';
     const ui = await askOnce();
-    await waitFor(() => expect(ui.lastFrame()).toContain('enter: follow up'), SLOW);
+    await waitFor(() => expect(ui.lastFrame()).toContain('enter follow up'), SLOW);
     expect(ui.lastFrame()).toContain('DONE.');
     expect(ui.lastFrame()).toContain('w199');
     ui.unmount();
@@ -89,8 +89,8 @@ describe('Ask without an agent', () => {
     vi.mocked(ask).mockClear();
     const ui = render(<AskOverlay target="x" aiOff="AI is off for this review." width={200} height={40} onClose={() => {}} />);
     await waitFor(() => expect(ui.lastFrame()).toContain('AI is off for this review.'));
-    expect(ui.lastFrame()).toContain('esc: close');
-    expect(ui.lastFrame()).not.toContain('enter: ask');
+    expect(ui.lastFrame()).toContain('esc close');
+    expect(ui.lastFrame()).not.toContain('enter ask');
     ui.stdin.write('why?\r');
     await new Promise((r) => setImmediate(r));
     expect(ask).not.toHaveBeenCalled();

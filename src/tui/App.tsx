@@ -201,6 +201,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const [pos, setPosState] = useState({ ci: 0, hi: 0 });
   const [banner, setBanner] = useState<string | undefined>();
   const [pickerNotice, setPickerNotice] = useState<string | undefined>();
+  // The last review posted, shown on that PR's briefing too: the PR list is not the only way back.
+  const [postedNotice, setPostedNotice] = useState<{ key: string; text: string }>();
   const [newHead, setNewHead] = useState<string | undefined>();
   const [editing, setEditing] = useState<Draft | undefined>();
   const [editState, setEditState] = useState<ComposerState>();
@@ -970,6 +972,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     const briefingScreen = (active: boolean) => (
       <BriefingScreen
         resume={resumeLabel}
+        notice={postedNotice?.key === `${tour.repo}#${tour.pr}` ? postedNotice.text : undefined}
         tour={tour}
         chapters={chapters}
         allChapters={allChapters}
@@ -1119,7 +1122,9 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
               onPosted={(ids, review, moved) => {
                 store.markPosted(ids);
                 setDrafts(store.listDrafts(tour.repo, tour.pr));
-                setPickerNotice(`Posted review for ${tour.repo}#${tour.pr}: ${review.url}${moved.length ? ` · ${plural(moved.length, 'comment')} re-anchored` : ''}`);
+                const notice = `Posted review for ${tour.repo}#${tour.pr}: ${review.url}${moved.length ? ` · ${plural(moved.length, 'comment')} re-anchored` : ''}`;
+                setPickerNotice(notice);
+                setPostedNotice({ key: `${tour.repo}#${tour.pr}`, text: notice });
                 setPhase('pick');
               }}
               onBack={() => setPhase(submitFrom)}

@@ -13,6 +13,7 @@ import { pad, truncate } from './nav.js';
 import { plural } from './plural.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
 import { TONE_COLOR, useFlash } from './flash.js';
+import { writeClipboard } from '../util/clipboard.js';
 
 // While checks are running, how often their state is read again.
 export const CHECK_POLL_MS = 20_000;
@@ -90,6 +91,7 @@ export function ChecksScreen(props: {
   onClose: () => void;
   onQuit?: () => void; // Q
   open?: (url: string) => Promise<void>; // tests stub the browser
+  copy?: (text: string) => Promise<'tool' | 'terminal'>; // and the clipboard
 }) {
   const { width, height } = props;
   const selectedRow = useSelected();
@@ -105,7 +107,12 @@ export function ChecksScreen(props: {
     if (!c.url) return setFlash('This check has no page to open.');
     void (props.open ?? openExternal)(c.url).then(
       () => setFlash('Opened in your browser.', 'info'),
-      () => setFlash(`Couldn't open a browser: ${c.url}`),
+      // No browser here (as over SSH): copy the link instead, and say so.
+      () =>
+        void (props.copy ?? writeClipboard)(c.url!).then(
+          (how) => setFlash(`No browser to open here: ${how === 'tool' ? 'copied' : 'asked your terminal to copy'} ${c.url}`, 'info'),
+          () => setFlash(`Couldn't open or copy ${c.url}`),
+        ),
     );
   };
   const readLog = (c: CheckItem) => {

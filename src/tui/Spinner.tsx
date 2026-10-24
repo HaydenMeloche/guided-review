@@ -24,3 +24,19 @@ export function Busy(props: { text: string }) {
     </Text>
   );
 }
+
+// A spinner with the seconds a request has run, for model calls that can take twenty: a static
+// "thinking…" reads as hung. `label` follows the spinner; `color` is the spinner's.
+export function Working(props: { label: string; color?: string }) {
+  const [start] = useState(Date.now());
+  const [now, setNow] = useState(start);
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <Text>
+      <Spinner color={props.color} /> <Text dimColor>{`${props.label} · ${Math.floor((now - start) / 1000)}s`}</Text>
+    </Text>
+  );
+}

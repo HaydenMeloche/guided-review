@@ -83,6 +83,7 @@ export function BriefingScreen(props: {
   active?: boolean;
   onStart: (ci?: number) => void;
   resume?: string; // where n picks up, when a position is saved
+  notice?: string; // news to show until a key is pressed, such as a review just posted
   onSubmit: () => void;
   readiness?: Readiness; // whether the PR can merge; unset in a preview or until it arrives
   onMerge?: () => void; // M: merge the PR
@@ -96,6 +97,8 @@ export function BriefingScreen(props: {
   const selectedRow = useSelected();
   const [sel, setSel] = useState(0);
   const { flash, show: showFlash, dismiss: dismissFlash } = useFlash();
+  const [noticeSeen, setNoticeSeen] = useState<string>();
+  const notice = props.notice && props.notice !== noticeSeen ? props.notice : undefined;
   const [overlay, setOverlay] = useState<'none' | 'diagram' | 'ask' | 'read' | 'reviews' | 'help' | 'palette'>('none');
   useEffect(() => setSel(0), [props.order]);
   // D keeps the selected chapter when it is in both lists.
@@ -128,6 +131,7 @@ export function BriefingScreen(props: {
   useInput(
     (input, key) => {
       dismissFlash();
+      if (notice) setNoticeSeen(notice);
       if (input === 'j' || key.downArrow) return setSel((s) => Math.min(chapters.length - 1, s + 1));
       if (input === 'k' || key.upArrow) return setSel((s) => Math.max(0, s - 1));
       if (key.return) return props.onStart(sel);
@@ -414,6 +418,10 @@ export function BriefingScreen(props: {
       {flash ? (
         <Text color={TONE_COLOR[flash.tone]} dimColor={flash.tone === 'quiet'} wrap="truncate">
           {flash.text}
+        </Text>
+      ) : notice ? (
+        <Text color="green" wrap="truncate">
+          {safe(notice)}
         </Text>
       ) : (
         <Text> </Text>
