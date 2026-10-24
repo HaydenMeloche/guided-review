@@ -1,6 +1,6 @@
 ‹dim›local/rich ‹/›‹b›#0 feature/discounts (preview)                                          ‹/› ‹dim›▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks · Guided‹/›
-‹dim›Gui‹/›‹bright-black,bg:c235›╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮‹/›
-‹blue,b›cre‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b›Keys‹/›‹bg:c235,dim› · chapter · 1/2 · 29/40‹/›‹bg:c235›                                                                                   ‹/›‹bright-black,bg:c235›│‹/›
+‹cyan,b›1/3‹/›‹bright-black,bg:c235›╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮‹/›
+‹blue,b›cre‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b›Keys‹/›‹bg:c235,dim› · chapter · 1/2 · 29/41‹/›‹bg:c235›                                                                                   ‹/›‹bright-black,bg:c235›│‹/›
 ‹bright-black›▎ ‹/›‹dim›P‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹yellow,bg:c235›? is now these keys · ask the model with a‹/›‹bg:c235›                                                                     ‹/›‹bright-black,bg:c235›│‹/›
 ‹bright-black›▎ ‹/› ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›Move       ‹/›‹cyan,bg:c235›n / p         ‹/›‹bg:c235›Next or previous hunk (n marks it read), on into the next chapter                     ‹/›‹bright-black,bg:c235›│‹/›
 ‹bright-black›▎ ‹/›‹red›○‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›N / P, ] / [  ‹/›‹bg:c235›Next or previous chapter, including optional chapters                                 ‹/›‹bright-black,bg:c235›│‹/›

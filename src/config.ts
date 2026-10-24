@@ -115,6 +115,8 @@ export type UserConfig = Omit<AgentRouting, 'provider'> & {
   chapterOrder?: ChapterOrderSetting;
   hideWhitespace?: boolean;
   splitDiff?: boolean;
+  sidebar?: boolean;
+  shortExplanation?: boolean;
   theme?: string;
   glyphs?: GlyphSetting;
   codingAgent?: CodingAgent;
@@ -242,8 +244,11 @@ export function loadChapterOrder(raw = readUserConfigFile()): ChapterOrder {
 }
 
 // Diff view settings a key toggles during a tour and saves for the next one.
-export type ViewSetting = 'hideWhitespace' | 'splitDiff';
-const VIEW_DEFAULTS: Record<ViewSetting, boolean> = { hideWhitespace: true, splitDiff: false };
+// sidebar: the chapter list beside a chapter on a wide terminal. shortExplanation: the explanation
+// above the code cut to its first lines.
+export type ViewSetting = 'hideWhitespace' | 'splitDiff' | 'sidebar' | 'shortExplanation';
+export const VIEW_SETTINGS: ViewSetting[] = ['hideWhitespace', 'splitDiff', 'sidebar', 'shortExplanation'];
+const VIEW_DEFAULTS: Record<ViewSetting, boolean> = { hideWhitespace: true, splitDiff: false, sidebar: true, shortExplanation: false };
 
 function parseViewSetting(raw: Record<string, unknown>, key: ViewSetting, where: string): boolean | undefined {
   if (raw[key] === undefined) return undefined;
@@ -378,7 +383,7 @@ export function loadUserConfig(raw = readUserConfigFile()): UserConfig {
   const out: UserConfig = noModel ? { ...parsed, provider: NO_PROVIDER, ...(parsed.provider ? { lastProvider: parsed.provider } : {}) } : parsed;
   const chapterOrder = parseChapterOrder(raw, file);
   if (chapterOrder) out.chapterOrder = chapterOrder;
-  for (const key of ['hideWhitespace', 'splitDiff'] as const) {
+  for (const key of VIEW_SETTINGS) {
     const value = parseViewSetting(raw, key, file);
     if (value !== undefined) out[key] = value;
   }

@@ -23,6 +23,7 @@ import { sanitizeTerminal as safe } from '../../util/sanitize.js';
 import { TONE_COLOR, unboundKey, useFlash } from '../flash.js';
 import { G } from '../glyphs.js';
 import { Busy } from '../Spinner.js';
+import { hasSidePanel } from '../breakpoints.js';
 
 export const VERDICT: Record<string, { text: string; color: string; mark: string }> = {
   APPROVED: { text: 'approved', color: 'green', mark: '✓' },
@@ -147,7 +148,7 @@ export function FeedbackBriefing(props: {
   // Wide terminals: the PR on the left (what it does, the author's description, the feedback
   // chapters), and the feedback on the right (reviews, state, themes), as the review briefing
   // puts the overview beside its text. Narrow terminals stack the feedback above the PR.
-  const wide = width >= 120;
+  const wide = hasSidePanel(width);
   const leftW = wide ? Math.floor((width - 2) * 0.55) : width - 2;
   const rightW = wide ? width - 2 - leftW - 3 : width - 2;
   const bodyH = height - 4 - (props.banner ? 1 : 0); // title, the gap under it, progress line, key bar

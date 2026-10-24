@@ -58,6 +58,8 @@ export interface AppOptions {
   chapterOrder?: ChapterOrder; // the user's default; a PR's saved order wins
   hideWhitespace?: boolean; // the user's saved w setting; on when unset
   splitDiff?: boolean; // the user's saved S setting; off when unset
+  sidebar?: boolean; // the user's saved \ setting; on when unset
+  shortExplanation?: boolean; // the explanation cut to its first lines; off when unset
   saveViewSetting?: (key: ViewSetting, value: boolean) => void; // records a w or S toggle for next time
   noAgent?: boolean;
   fresh?: boolean;
@@ -192,6 +194,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const [order, setOrder] = useState<ChapterOrder>(opts.chapterOrder ?? 'flow');
   const [hideWhitespace, setHideWhitespace] = useState(opts.hideWhitespace ?? true);
   const [splitDiff, setSplitDiff] = useState(opts.splitDiff ?? false);
+  const [sidebar, setSidebar] = useState(opts.sidebar ?? true);
+  const [shortExplanation, setShortExplanation] = useState(opts.shortExplanation ?? false);
   const [hideTestPane, setHideTestPane] = useState(false);
   const [deltaOnly, setDeltaOnly] = useState(false);
   const [pos, setPosState] = useState({ ci: 0, hi: 0 });
@@ -1033,6 +1037,10 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         toggleWhitespace={() => toggleView('hideWhitespace', hideWhitespace, setHideWhitespace)}
         splitDiff={splitDiff}
         toggleSplit={() => toggleView('splitDiff', splitDiff, setSplitDiff)}
+        sidebar={sidebar}
+        toggleSidebar={() => toggleView('sidebar', sidebar, setSidebar)}
+        shortExplanation={shortExplanation}
+        toggleExplanation={() => toggleView('shortExplanation', shortExplanation, setShortExplanation)}
         hideTestPane={hideTestPane}
         toggleTestPane={() => setHideTestPane((h) => !h)}
         toggleDelta={toggleDelta}

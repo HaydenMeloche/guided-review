@@ -25,6 +25,7 @@ import { HELP_NOTE } from './ChapterScreen.js';
 import { G } from './glyphs.js';
 import { TONE_COLOR, unboundKey, useFlash } from './flash.js';
 import { helpOf, readsKey } from './keys.js';
+import { hasSidePanel } from './breakpoints.js';
 
 // Rows each block may take; the chapters get the rest of the screen.
 const BUDGET = { intent: 2, description: 3, flags: 3, reviews: 2, blast: 2 };
@@ -113,7 +114,7 @@ export function BriefingScreen(props: {
   // Per-render work over the whole tour is memoized, so j/k only re-renders the list.
   const prog = useMemo(() => progress(tour, states), [tour, states]);
   const natural = useMemo(() => (tour.overview ? Math.max(0, ...renderGraph(tour.overview, Math.floor(width * 0.6)).lines.map((l) => l.length)) : 0), [tour.overview, width]);
-  const wide = !!tour.overview && width >= 120;
+  const wide = !!tour.overview && hasSidePanel(width);
   const rightW = wide ? Math.min(natural + 2, Math.floor(width * 0.6)) : 0;
   const leftW = wide ? width - rightW - 4 : width - 2;
   // Prose beside a list reads best at a briefing's measure, narrower than a reader's.

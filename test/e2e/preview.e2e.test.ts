@@ -45,8 +45,8 @@ describe('gr preview --no-agent', () => {
     const gr = preview();
     await gr.waitFor('Chapters · Guided order');
     gr.press('n');
-    const chapter = await gr.waitFor('Chapter 1/1');
-    expect(chapter).toContain('Chapter 1/1: [total]');
+    const chapter = await gr.waitFor(/^1\/1 total/m);
+    expect(chapter).toContain('1/1 total · hunk 1/1 · last chapter');
     expect(chapter).toContain('src/invoice.ts:1');
     expect(chapter).toContain('return sum - sum * discount;');
     expect(chapter).toContain('0/1 hunks');
@@ -64,7 +64,7 @@ describe('gr preview --no-agent', () => {
     const first = preview();
     await first.waitFor('Chapters · Guided order');
     first.press('n');
-    await first.waitFor('Chapter 1/1');
+    await first.waitFor(/^1\/1 total/m);
     first.press('n');
     await first.waitFor('End of the tour');
     first.press('Q');
@@ -93,7 +93,7 @@ describe('gr preview --no-agent', () => {
     await first.waitFor('to 0..1?');
     expect(first.screen()).toContain('Should the discount be clamped');
     first.press(KEY.enter);
-    await first.waitFor(' question  ✎ Should the discount be clamped to 0..1?');
+    await first.waitFor('question  Should the discount be clamped to 0..1?');
     // An unposted draft: Q asks first, and y quits.
     first.press('Q');
     await first.waitFor('Quit with 1 unposted draft?');
@@ -103,7 +103,7 @@ describe('gr preview --no-agent', () => {
     const second = preview();
     await second.waitFor('Chapters · Guided order');
     second.press('n');
-    await second.waitFor(' question  ✎ Should the discount be clamped to 0..1?');
+    await second.waitFor('question  Should the discount be clamped to 0..1?');
   });
 });
 

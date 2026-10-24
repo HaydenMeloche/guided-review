@@ -1,5 +1,5 @@
 ‹dim›local/rich ‹/›‹b›#0 feature/discounts (preview)                                          ‹/› ‹dim›▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks · Guided‹/›
-‹dim›Gui‹/›‹bright-black,bg:c235›╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮‹/›
+‹cyan,b›1/3‹/›‹bright-black,bg:c235›╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮‹/›
 ‹blue,b›cre‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b›Marks‹/›‹bg:c235,dim› · chapter · 2/2‹/›‹bg:c235›                                                                                          ‹/›‹bright-black,bg:c235›│‹/›
 ‹bright-black›▎ ‹/›‹dim›P‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹yellow,bg:c235›? is now these keys · ask the model with a‹/›‹bg:c235›                                                                     ‹/›‹bright-black,bg:c235›│‹/›
 ‹bright-black›▎ ‹/› ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›Reading    ‹/›‹green,bg:c235›✓‹/›‹bg:c235› read   ‹/›‹bright-black,bg:c235›–‹/›‹bg:c235› skipped   ‹/›‹yellow,bg:c235›◇‹/›‹bg:c235› deferred   ‹/›‹bright-black,bg:c235›·‹/›‹bg:c235› unread                                                          ‹/›‹bright-black,bg:c235›│‹/›

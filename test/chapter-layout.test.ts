@@ -29,10 +29,12 @@ describe('chapterLayout widths', () => {
     ['130, tests hidden', { width: 130, hideTests: true }, { sideBySide: false, testsStacked: false, srcWidth: 130 }],
     ['130, @ list open', { width: 130, listOpen: true }, { sideBySide: false, srcWidth: 130 }],
     ['130, no linked tests', { width: 130, linkedTests: false }, { sideBySide: false, srcWidth: 130 }],
-    ['180', { width: 180 }, { wide: true, listWidth: 32, mainWidth: 147, sideBySide: true }],
-    ['180, split of long lines sits beside the tests', { width: 180, split: true, hunkLines: code(5, 60) }, { sideBySide: true, testsStacked: false, srcWidth: 106, testWidth: 40, splitView: true }],
+    ['180', { width: 180 }, { wide: true, listWidth: 36, mainWidth: 143, sideBySide: true }],
+    ['180, split of long lines sits beside the tests', { width: 180, split: true, hunkLines: code(5, 60) }, { sideBySide: true, testsStacked: false, srcWidth: 102, testWidth: 40, splitView: true }],
     ['180, split but raw', { width: 180, split: true, raw: true, hunkLines: code(5, 60) }, { sideBySide: true, splitView: false }],
-    ['200, split of short lines', { width: 200, split: true }, { wide: true, mainWidth: 167, sideBySide: false, testsStacked: true, splitView: true }],
+    ['140 has the chapter list', { width: 140 }, { wide: true, listWidth: 36, mainWidth: 103, sideBySide: false }],
+    ['140 with the list hidden', { width: 140, sidebar: false }, { wide: false, mainWidth: 140, sideBySide: true }],
+    ['200, split of short lines', { width: 200, split: true }, { wide: true, mainWidth: 163, sideBySide: false, testsStacked: true, splitView: true }],
   ] as const)('%s', (_, input, want) => {
     expect(layout(input)).toMatchObject(want);
   });
@@ -73,7 +75,7 @@ describe('chapterLayout heights', () => {
   it('lays out the explanation at its inner width', () => {
     let asked = 0;
     layout({ width: 180, explain: (w) => ((asked = w), []) });
-    expect(asked).toBe(145);
+    expect(asked).toBe(141);
   });
 
   it('never squeezes the code below six rows', () => {

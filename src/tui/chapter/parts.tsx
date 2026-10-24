@@ -60,25 +60,38 @@ export const Header = React.memo(function Header(props: { tour: Tour; prog: Retu
 });
 
 // `listed` is every chapter to show; one not in `chapters` (left out of a re-review) is greyed.
+// Each row reads like the briefing's: its number, reading state, title, a small meter, the
+// count done, and a ▲ when it is risky.
 export const ChapterList = React.memo(function ChapterList(props: { tour: Tour; chapters: Chapter[]; listed: Chapter[]; states: States; current: string; width: number; height: number }) {
   const { tour, chapters, listed, states, current, width } = props;
   const at = listed.findIndex((c) => c.id === current);
   const start = Math.max(0, Math.min(at - Math.floor(props.height / 2), listed.length - props.height));
+  const numW = String(listed.length).length;
   return (
     <Box flexDirection="column" width={width}>
-      {listed.slice(start, start + props.height).map((full) => {
+      {listed.slice(start, start + props.height).map((full, k) => {
         const shown = chapters.find((d) => d.id === full.id);
         const unchanged = !shown;
         const c = shown ?? full;
         const here = c.id === current;
         const st = stateMark(chapterState(tour, c, states));
-        const rk = riskMark(Math.max(0, ...c.hunkIds.map((id) => tour.hunks[id]?.risk ?? 0)));
+        const risk = Math.max(0, ...c.hunkIds.map((id) => tour.hunks[id]?.risk ?? 0));
+        const rk = risk >= 2 ? riskMark(risk) : undefined;
         const p = progress(tour, states, c.hunkIds);
+        const m = meter(p.read + p.skipped, p.total, 4);
+        const count = c.optional ? ' opt' : `${p.read + p.skipped}/${p.total}`.padStart(5);
+        const titleW = Math.max(4, width - numW - 3 - (c.optional ? 5 : 10) - 2);
         return (
-          <Text key={c.id} inverse={here} dimColor={unchanged || (c.collapsed && !here)}>
-            <Text color={unchanged ? undefined : st.color}>{st.mark}</Text>
-            <Text color={unchanged ? undefined : rk.color}>{rk.mark}</Text> {pad(safe(c.title), width - 9)}
-            <Text dimColor>{c.optional ? ' opt ' : `${String(p.read + p.skipped).padStart(2)}/${String(p.total).padEnd(2)}`}</Text>
+          <Text key={c.id} inverse={here} dimColor={unchanged || (c.collapsed && !here)} wrap="truncate">
+            <Text dimColor={!here}>{String(start + k + 1).padStart(numW)}</Text> <Text color={unchanged ? undefined : st.color}>{st.mark}</Text> {pad(safe(c.title), titleW)}
+            {c.optional ? null : (
+              <>
+                {' '}
+                <Text color="green">{m.filled}</Text>
+                <Text dimColor>{m.rest}</Text>
+              </>
+            )}
+            <Text dimColor>{count}</Text> {rk ? <Text color={rk.color}>{rk.mark}</Text> : ' '}
           </Text>
         );
       })}
@@ -215,27 +228,25 @@ export function StatusRow(props: { drafts: Draft[]; hunk?: Hunk; cursor: number;
   );
 }
 
-// Narrow terminals show the chapters as one line of state marks instead of the list.
-export const ChapterStrip = React.memo(function ChapterStrip(props: {
-  tour: Tour;
-  chapters: Chapter[];
-  listed: Chapter[];
-  states: States;
-  current: string;
-  order: ChapterOrder;
-  ci: number;
-  width: number;
-}) {
-  const { tour, chapters, states } = props;
-  const strip = props.listed
-    .map((c) => {
-      const shown = chapters.find((d) => d.id === c.id);
-      return c.id === props.current ? `[${c.title}]` : shown ? stateMark(chapterState(tour, shown, states)).mark : '·';
-    })
-    .join(' ');
+// Below the sidebar's width, one line says where you are and what comes next, in place of the
+// chapter list: "1/7 Order API: route → pricing · hunk 4/8 · next: Supporting changes (2) · ]".
+export const ChapterStrip = React.memo(function ChapterStrip(props: { tour: Tour; chapters: Chapter[]; ci: number; hi: number; order: ChapterOrder; width: number }) {
+  const { chapters, ci } = props;
+  const c = chapters[ci];
+  const nextChapter = chapters.slice(ci + 1).find((x) => !x.optional) ?? chapters[ci + 1];
+  const hunkAt = props.hi >= 0 && c ? ` · hunk ${props.hi + 1}/${c.hunkIds.length}` : '';
+  const tail = nextChapter ? ` · next: ${safe(nextChapter.title)} (${nextChapter.hunkIds.length}) · ` : ` · last chapter · ${ORDER_LABEL[props.order]} order`;
   return (
-    <Text dimColor wrap="truncate">
-      {truncate(`${ORDER_LABEL[props.order]} order · Chapter ${props.ci + 1}/${chapters.length}: ${strip}`, props.width)}
+    <Text wrap="truncate">
+      <Text color="cyan" bold>{`${ci + 1}/${chapters.length} `}</Text>
+      <Text bold>{truncate(safe(c?.title ?? ''), Math.max(10, Math.floor(props.width * 0.45)))}</Text>
+      <Text dimColor>{hunkAt}</Text>
+      <Text dimColor>{tail}</Text>
+      {nextChapter ? (
+        <Text color="cyan" bold>
+          ]
+        </Text>
+      ) : null}
     </Text>
   );
 });

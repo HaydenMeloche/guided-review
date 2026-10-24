@@ -1,8 +1,11 @@
 import type { DiffLine } from '../../types.js';
 import { line, type MdLine } from '../markdown.js';
 import { codePaneWidths, MIN_SPLIT_WIDTH } from '../paneWidths.js';
+import { breakpoint, hasSidePanel } from '../breakpoints.js';
 
 const TITLE_ROWS = 1;
+const LIST_WIDTH = 36;
+const SHORT_LINES = 2; // a short explanation's lines before its note
 const FOOTER_ROWS = 3;
 
 export interface LayoutInput {
@@ -17,6 +20,8 @@ export interface LayoutInput {
   split: boolean; // the reader wants old and new side by side
   hideTests: boolean;
   raw: boolean;
+  sidebar?: boolean;
+  short?: boolean; // the explanation cut to its first lines (a saved preference) // the chapter list beside the chapter, on a wide terminal (\ toggles it)
   listOpen: boolean; // the comment's @ list is open
   explain: (width: number) => MdLine[]; // the explanation's lines at its inner width
 }
@@ -25,9 +30,9 @@ export type ChapterLayout = ReturnType<typeof chapterLayout>;
 
 // Where everything on the chapter screen goes and how big it is, for one terminal size and view.
 export function chapterLayout(i: LayoutInput) {
-  const wide = i.width >= 180; // the chapter list sits on the left
-  const roomForTests = i.width >= 130; // tests can sit beside the code
-  const listWidth = wide ? 32 : 0;
+  const wide = i.sidebar !== false && breakpoint(i.width) === 'wide'; // the chapter list sits on the left
+  const roomForTests = hasSidePanel(i.width - (wide ? LIST_WIDTH + 1 : 0)); // tests can sit beside the code
+  const listWidth = wide ? LIST_WIDTH : 0;
   const mainWidth = i.width - listWidth - (wide ? 1 : 0);
   const panes = codePaneWidths(
     mainWidth - 1,
@@ -57,7 +62,14 @@ export function chapterLayout(i: LayoutInput) {
   const collapsed = i.collapsedHunks !== undefined;
   const codeNeed = collapsed ? Math.min(i.collapsedHunks!, 10) : Math.min((i.hunkLines?.length ?? 0) + 1, 14);
   const explainMax = Math.max(4, Math.max(Math.floor(avail * 0.5), avail - codeNeed - 3) - 1);
-  const explainLines = explainAll.length > explainMax ? [...explainAll.slice(0, explainMax - 1), line('… more than fits: widen or heighten the terminal', { dim: true })] : explainAll;
+  const cap = i.short ? Math.min(explainMax, SHORT_LINES + 1) : explainMax;
+  const explainLines =
+    explainAll.length > cap
+      ? [
+          ...explainAll.slice(0, cap - 1),
+          line(i.short ? `… ${explainAll.length - cap + 1} more lines · the whole explanation is in the palette (:)` : '… more than fits: widen or heighten the terminal', { dim: true }),
+        ]
+      : explainAll;
   const explainRows = explainLines.length ? explainLines.length + 1 : 0; // and a blank row under it
   const bodyHeight = Math.max(6, avail - explainRows);
 

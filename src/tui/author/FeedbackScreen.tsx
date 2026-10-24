@@ -27,9 +27,10 @@ import type { RepoIndex } from '../../analysis/repoIndex.js';
 import { plural } from '../plural.js';
 import { FilePreview } from '../FilePreview.js';
 import { TONE_COLOR, unboundKey, useFlash } from '../flash.js';
+import { REGULAR } from '../breakpoints.js';
 
 // The file preview needs room beside the thread; narrower terminals keep the thread full width.
-const PREVIEW_MIN_WIDTH = 110;
+const PREVIEW_MIN_WIDTH = REGULAR;
 
 const REACTIONS: { content: ReactionContent; emoji: string }[] = [
   { content: 'THUMBS_UP', emoji: '👍' },

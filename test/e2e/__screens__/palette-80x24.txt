@@ -1,22 +1,22 @@
 ‹dim›local/rich ‹/›‹b›#0 feature/discounts (preview)  ‹/› ‹dim›▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks · Guided‹/›
-‹dim›Guided order · Chapter 1/3: [createOrder] · ·‹/›
+‹cyan,b›1/3 ‹/›‹b›createOrder‹/›‹dim› · hunk 1/3 · next: Dependencies and runtimes (1) · ‹/›‹cyan,b›]‹/›
 ‹blue,b›cr‹/›‹cyan,bg:c235›╭──────────────────────────────────────────────────────────────────────────╮‹/›‹dim›r…‹/›
 ‹bright-black›▎ ‹/›‹cyan,bg:c235›│‹/›‹bg:c235› ‹/›‹cyan,bg:c235,b›: ‹/›‹bg:c235,inv› ‹/›‹bg:c235,dim›a command, a file, or a chapter‹/›‹bg:c235›                                       ‹/›‹cyan,bg:c235›│‹/›
-‹bright-black›▎ ‹/›‹cyan,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,inv› Briefing                                           ‹/›‹cyan,bg:c235,inv›                  b‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
-‹bright-black›▎ ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Next hunk, marking this one read                   ‹/›‹cyan,bg:c235›                  n‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
-  ‹cyan,bg:c235›│‹/›‹bg:c235›  Previous hunk                                      ‹/›‹cyan,bg:c235›                  p‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
+‹bright-black›▎ ‹/›‹cyan,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,inv› Show or hide the chapter list                      ‹/›‹cyan,bg:c235,inv›                  \‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
+‹bright-black›▎ ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Briefing                                           ‹/›‹cyan,bg:c235›                  b‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
+  ‹cyan,bg:c235›│‹/›‹bg:c235›  Next hunk, marking this one read                   ‹/›‹cyan,bg:c235›                  n‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
+ ‹dim› ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Previous hunk                                      ‹/›‹cyan,bg:c235›                  p‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
  ‹dim› ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Next chapter                                       ‹/›‹cyan,bg:c235›                  N‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
- ‹dim› ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Previous chapter                                   ‹/›‹cyan,bg:c235›                  P‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
- ‹dim› ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Comment on the line or range                       ‹/›‹cyan,bg:c235›                  c‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›‹c152,bg:c28›tr‹/›
+ ‹dim› ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Previous chapter                                   ‹/›‹cyan,bg:c235›                  P‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›‹c152,bg:c28›tr‹/›
+ ‹dim› ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Comment on the line or range                       ‹/›‹cyan,bg:c235›                  c‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
  ‹dim› ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Comment on the whole chapter                       ‹/›‹cyan,bg:c235›                  C‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
- ‹dim› ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Select a range of lines                            ‹/›‹cyan,bg:c235›                  v‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
- ‹dim› ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Read the review threads on this line               ‹/›‹cyan,bg:c235›                  e‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›‹c222›op‹/›
- ‹dim› ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Ask the model about the selection                  ‹/›‹cyan,bg:c235›                  a‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
-‹cyan›▶‹/›‹dim› ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Focus the linked tests                             ‹/›‹cyan,bg:c235›                  t‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
+ ‹dim› ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Select a range of lines                            ‹/›‹cyan,bg:c235›                  v‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›‹c222›op‹/›
+ ‹dim› ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Read the review threads on this line               ‹/›‹cyan,bg:c235›                  e‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
+‹cyan›▶‹/›‹dim› ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Ask the model about the selection                  ‹/›‹cyan,bg:c235›                  a‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
+  ‹cyan,bg:c235›│‹/›‹bg:c235›  Focus the linked tests                             ‹/›‹cyan,bg:c235›                  t‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
   ‹cyan,bg:c235›│‹/›‹bg:c235›  Chapter diagram                                    ‹/›‹cyan,bg:c235›                  d‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
   ‹cyan,bg:c235›│‹/›‹bg:c235›  More lines around the hunk                         ‹/›‹cyan,bg:c235›                  +‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
   ‹cyan,bg:c235›│‹/›‹bg:c235›  Fewer lines around the hunk                        ‹/›‹cyan,bg:c235›                  -‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
-  ‹cyan,bg:c235›│‹/›‹bg:c235›  Skip this hunk                                     ‹/›‹cyan,bg:c235›                  x‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
   ‹cyan,bg:c235›│‹/›‹bg:c235› ‹/›‹cyan,bg:c235,b›↑↓‹/›‹bg:c235› choose   ‹/›‹cyan,bg:c235,b›enter‹/›‹bg:c235› run   ‹/›‹cyan,bg:c235,b›esc‹/›‹bg:c235› close                                        ‹/›‹cyan,bg:c235›│‹/›
   ‹cyan,bg:c235›│‹/›‹bg:c235›                                                                          ‹/›‹cyan,bg:c235›│‹/›
 hu‹cyan,bg:c235›╰──────────────────────────────────────────────────────────────────────────╯‹/›

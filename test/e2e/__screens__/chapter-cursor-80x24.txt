@@ -1,5 +1,5 @@
 ‹dim›local/rich ‹/›‹b›#0 feature/discounts (preview)  ‹/› ‹dim›▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks · Guided‹/›
-‹dim›Guided order · Chapter 1/3: [createOrder] · ·‹/›
+‹cyan,b›1/3 ‹/›‹b›createOrder‹/›‹dim› · hunk 1/3 · next: Dependencies and runtimes (1) · ‹/›‹cyan,b›]‹/›
 ‹blue,b›createOrder‹/›‹dim› · hunk 1/3 · ‹/›‹bright-black›· ‹/›src/orders.ts:1‹red›  ○ untested‹/›‹dim› · entry exported API (cr…‹/›
 ‹bright-black›▎ ‹/›‹dim›Plain mode: no narration.‹/›
 ‹bright-black›▎ ‹/›

@@ -82,7 +82,9 @@ export type Action =
   | 'summaryUp'
   | 'expand'
   | 'skipChapter'
-  | 'palette';
+  | 'palette'
+  | 'sidebar'
+  | 'explanation';
 
 // A printable key, or one of Ink's named keys.
 const NAMED = { up: 'upArrow', down: 'downArrow', pageUp: 'pageUp', pageDown: 'pageDown', return: 'return', escape: 'escape', tab: 'tab' } as const satisfies Record<string, keyof Key>;
@@ -304,6 +306,14 @@ export const KEYS: KeyRow[] = [
     bind: [{ mode: 'code', on: ['L'], do: 'theme', when: (c) => c.theme, palette: 'Color theme' }],
   },
   {
+    keys: '\\',
+    group: 'Settings',
+    help: 'Show or hide the chapter list beside the chapter (wide terminals)',
+    bind: [{ mode: 'any', on: ['\\'], do: 'sidebar', palette: 'Show or hide the chapter list' }],
+  },
+  // Palette only: no key of its own.
+  { keys: '', bind: [{ mode: 'code', on: [], do: 'explanation', palette: 'Short or whole explanation' }] },
+  {
     keys: ':',
     group: 'Go',
     help: 'Command palette: every action here, and go to a file or chapter',
@@ -413,6 +423,6 @@ export function chapterHelp(ai: boolean): { title: string; rows: [string, string
 export function paletteCommands(view: View, c: KeyCtx): { label: string; key: string; action: Action }[] {
   const out: { label: string; key: string; action: Action }[] = [];
   for (const mode of SEARCH[view])
-    for (const b of BINDINGS) if (b.mode === mode && b.palette && (b.when?.(c) ?? true) && !out.some((o) => o.action === b.do)) out.push({ label: b.palette, key: b.on[0], action: b.do });
+    for (const b of BINDINGS) if (b.mode === mode && b.palette && (b.when?.(c) ?? true) && !out.some((o) => o.action === b.do)) out.push({ label: b.palette, key: b.on[0] ?? '', action: b.do });
   return out;
 }

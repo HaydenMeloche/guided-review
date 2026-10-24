@@ -35,6 +35,7 @@ import { plural } from './plural.js';
 import { chapterLayout, overlaySlots, type OverlayKind } from './chapter/layout.js';
 import { G } from './glyphs.js';
 import { hunkKeys } from '../review/hunkState.js';
+import { WIDE } from './breakpoints.js';
 
 export { KeyBar };
 
@@ -98,6 +99,10 @@ export function ChapterScreen(props: {
   toggleWhitespace?: () => void;
   splitDiff?: boolean; // old and new side by side; the screen keeps its own when unset
   toggleSplit?: () => void;
+  sidebar?: boolean; // the chapter list beside the chapter, when wide; likewise
+  toggleSidebar?: () => void;
+  shortExplanation?: boolean; // the explanation cut to its first lines; likewise
+  toggleExplanation?: () => void;
   hideTestPane?: boolean; // keep linked tests out of the way (t still opens them); likewise
   toggleTestPane?: () => void;
   toggleDelta: () => void;
@@ -120,6 +125,8 @@ export function ChapterScreen(props: {
   const [ignoreWhitespace, toggleWhitespace] = useSetting(props.hideWhitespace, props.toggleWhitespace, true);
   const [wantSplit, toggleSplit] = useSetting(props.splitDiff, props.toggleSplit, false);
   const [hideTests, toggleTestPane] = useSetting(props.hideTestPane, props.toggleTestPane, false);
+  const [sidebar, toggleSidebar] = useSetting(props.sidebar, props.toggleSidebar, true);
+  const [shortExplanation, toggleExplanation] = useSetting(props.shortExplanation, props.toggleExplanation, false);
   const [showUntested, setShowUntested] = useState(false);
   const [overlay, setOverlay] = useState<Overlay>(NONE);
   const close = () => setOverlay(NONE);
@@ -150,6 +157,8 @@ export function ChapterScreen(props: {
     split: wantSplit,
     hideTests,
     raw,
+    sidebar,
+    short: shortExplanation,
     listOpen: overlay.kind === 'comment' && !!overlay.composer.listOpen,
     explain: (w) => (chapter ? explanation({ tour, chapter, hunk, hi, collapsed: collapsedView, files: filesByPath, confirms: svc?.confirms, linkedTests: hasLinkedTests, showUntested }, w) : []),
   });
@@ -346,6 +355,8 @@ export function ChapterScreen(props: {
       setFlash('X is going away: ctrl+x in the comment deletes your draft.', 'info');
     },
     palette: () => show('palette'),
+    sidebar: () => (width >= WIDE ? toggleSidebar() : setFlash(`The chapter list needs ${WIDE} columns; this terminal has ${width}.`)),
+    explanation: () => toggleExplanation(),
     commentFlow: () => openComposer(draft({ type: 'chapter', chapterId: chapter.id })),
     ask: () => {
       if (hunk && cursorLine?.newLine !== undefined) noteRecent.current?.({ path: hunk.file, line: cursorLine.newLine, why: 'ask' });
@@ -579,7 +590,7 @@ export function ChapterScreen(props: {
           {pad(` ${banner} · esc hides this`, width)}
         </Text>
       ) : null}
-      {!wide ? <ChapterStrip tour={tour} chapters={chapters} listed={listed} states={states} current={chapter.id} order={props.order} ci={ci} width={width} /> : null}
+      {!wide ? <ChapterStrip tour={tour} chapters={chapters} ci={ci} hi={hunk ? hi : -1} order={props.order} width={width} /> : null}
       <Box flexDirection="row">
         {wide ? <ChapterList tour={tour} chapters={chapters} listed={listed} states={states} current={chapter.id} width={listWidth} height={plan.mainHeight} /> : null}
         {wide ? <Box width={1} /> : null}

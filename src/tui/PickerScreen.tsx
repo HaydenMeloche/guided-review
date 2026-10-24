@@ -19,6 +19,7 @@ import { G } from './glyphs.js';
 import { ErrorBlock } from './ErrorBlock.js';
 import { ROLES } from './theme.js';
 import { unboundKey } from './flash.js';
+import { hasSidePanel } from './breakpoints.js';
 
 export interface Target {
   repo: string;
@@ -497,7 +498,7 @@ export function PickerScreen(props: PickerProps) {
 
   // Nothing to review and no PRs of your own: say what gr can do instead.
   const empty = !!prs && !prs.length && !items.length && !filter && !err && authoredState !== 'loading';
-  const wide = width >= 110;
+  const wide = hasSidePanel(width);
   const listW = wide ? Math.min(70, Math.max(48, Math.floor(width * 0.42))) : width - 2;
   const previewW = wide ? width - listW - 5 : 0;
   const bodyH = height - 3; // title, key bar, filter or status line

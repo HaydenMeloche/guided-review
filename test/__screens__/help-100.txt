@@ -33,6 +33,7 @@
  ‹b,dim›           ‹/›‹cyan›R             ‹/›Rebuild the tour on a newer PR head after the author pushes
  ‹b,dim›           ‹/›‹cyan›o             ‹/›Open the hunk in your coding agent (set in gr config)
  ‹b,dim›           ‹/›‹cyan›L             ‹/›Color theme (previews as you move through the list)
+ ‹b,dim›           ‹/›‹cyan›\             ‹/›Show or hide the chapter list beside the chapter (wide terminals)
 
  ‹b,dim›Go         ‹/›‹cyan›:             ‹/›Command palette: every action here, and go to a file or chapter
  ‹b,dim›           ‹/›‹cyan›b / s         ‹/›Briefing / submit screen
@@ -42,7 +43,6 @@
  ‹b,dim›           ‹/›‹cyan›q             ‹/›go up a level
  ‹b,dim›           ‹/›‹cyan›Q             ‹/›quit
  ‹b,dim›           ‹/›‹cyan›?             ‹/›these keys
-
 
 
 

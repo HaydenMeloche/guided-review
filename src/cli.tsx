@@ -338,6 +338,8 @@ async function main() {
   let chapterOrder: AppOptions['chapterOrder'];
   let hideWhitespace: boolean;
   let splitDiff: boolean;
+  let sidebar: boolean;
+  let shortExplanation: boolean;
   let themeName: string | undefined;
   let glyphs: GlyphSetting;
   let codingAgent: AppOptions['codingAgent'];
@@ -345,6 +347,8 @@ async function main() {
     chapterOrder = loadChapterOrder(config);
     hideWhitespace = loadViewSetting('hideWhitespace', config);
     splitDiff = loadViewSetting('splitDiff', config);
+    sidebar = loadViewSetting('sidebar', config);
+    shortExplanation = loadViewSetting('shortExplanation', config);
     themeName = loadThemeSetting(config);
     glyphs = loadGlyphSetting(config);
     codingAgent = loadCodingAgent(config);
@@ -368,6 +372,8 @@ async function main() {
     chapterOrder,
     hideWhitespace,
     splitDiff,
+    sidebar,
+    shortExplanation,
     saveViewSetting,
     saveTheme: config ? saveThemeSetting : undefined,
     codingAgent,
