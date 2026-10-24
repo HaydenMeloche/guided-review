@@ -4,6 +4,7 @@ import { highlightFileLines, type SyntaxSpan } from './highlight.js';
 import { readLines } from './references.js';
 import { truncate } from './nav.js';
 import { sanitizeTerminal } from '../util/sanitize.js';
+import { G } from './glyphs.js';
 
 // Read-only source around a location in the worktree: the preview beside
 // the @ completion list. Reads are bounded (safeReadFile) and every line is sanitized.
@@ -66,7 +67,7 @@ export function SourcePreview(props: {
       {lines.slice(top, top + rows).map((raw, k) => {
         const n = top + k + 1;
         const code = clean(raw).slice(0, codeW);
-        const mark = props.cursor === n ? '▶' : inRange(n) ? '┃' : ' ';
+        const mark = props.cursor === n ? G.cursor : inRange(n) ? G.range : ' ';
         return (
           <Text key={n} wrap="truncate">
             <Text color={props.cursor === n ? 'cyan' : 'blue'}>{mark}</Text>

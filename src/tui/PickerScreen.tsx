@@ -15,6 +15,7 @@ import { HelpPopup } from './Help.js';
 import { helpOf } from './keys.js';
 import { plural } from './plural.js';
 import { PICKER_KEYS, pickerBar } from './screenKeys.js';
+import { G } from './glyphs.js';
 
 export interface Target {
   repo: string;
@@ -677,7 +678,7 @@ function ClipboardRow(props: { target: Target; listed?: ReviewRequest; preview?:
   return (
     <Box flexDirection="column" marginBottom={1}>
       <Text color="magenta" bold>
-        {' ⎘ From clipboard'}
+        {` ${G.clipboard} From clipboard`}
       </Text>
       <Text wrap="truncate">
         <Text color="magenta">▸</Text>
@@ -760,18 +761,18 @@ const PRRow = React.memo(function PRRow(props: { pr: ReviewRequest | AuthoredPR;
     ...who,
     ...[age(pr.updatedAt), pr.isDraft ? 'draft' : '', ...pr.labels.slice(0, 2), toured ? 'toured' : '', drafts ? `${plural(drafts, 'draft comment')}` : ''].filter(Boolean).map((text) => ({ text })),
   ];
-  const bar = selected ? <Text color="cyan">▌</Text> : <Text> </Text>;
+  const bar = selected ? <Text color="cyan">{G.selected}</Text> : <Text> </Text>;
   // A mark wins over the download glyph: it's what the next `d` will act on.
   const glyph = marked
-    ? { text: '☑' }
+    ? { text: G.marked }
     : job?.state === 'running'
       ? { text: props.spin ?? SPIN[0], color: 'cyan' }
       : job?.state === 'queued'
-        ? { text: '◌', color: 'gray' }
+        ? { text: G.queued, color: 'gray' }
         : job?.state === 'done'
-          ? { text: '✓', color: 'green' }
+          ? { text: G.done, color: 'green' }
           : job?.state === 'failed'
-            ? { text: '✗', color: 'red' }
+            ? { text: G.failed, color: 'red' }
             : { text: ' ' };
   const status =
     job?.state === 'running'

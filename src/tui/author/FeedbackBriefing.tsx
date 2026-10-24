@@ -21,6 +21,8 @@ import { age } from '../PickerScreen.js';
 import { plural } from '../plural.js';
 import { sanitizeTerminal as safe } from '../../util/sanitize.js';
 import { TONE_COLOR, useFlash } from '../flash.js';
+import { G } from '../glyphs.js';
+import { Busy } from '../Spinner.js';
 
 export const VERDICT: Record<string, { text: string; color: string; mark: string }> = {
   APPROVED: { text: 'approved', color: 'green', mark: '✓' },
@@ -163,7 +165,7 @@ export function FeedbackBriefing(props: {
     add(
       `note${k}`,
       <Text dimColor wrap="truncate">
-        {truncate(`ℹ ${safe(n)}`, rightW)}
+        {truncate(`${G.note} ${safe(n)}`, rightW)}
       </Text>,
     );
   gap('g0');
@@ -284,7 +286,7 @@ export function FeedbackBriefing(props: {
     add(
       'silent',
       <Text color="yellow" wrap="truncate">
-        ⚑ {plural(props.silent, 'won’t-do thread')} {props.silent === 1 ? 'has' : 'have'} no reply yet
+        {G.flag} {plural(props.silent, 'won’t-do thread')} {props.silent === 1 ? 'has' : 'have'} no reply yet
       </Text>,
     );
   if (props.themes?.length || props.analyzing) {
@@ -434,7 +436,7 @@ export function FeedbackBriefing(props: {
           {safe(flash.text)}
         </Text>
       ) : props.writing || props.analyzing ? (
-        <Text color="yellow">⟳ {safe(props.writing ?? props.analyzing ?? '')}</Text>
+        <Busy text={safe(props.writing ?? props.analyzing ?? '')} />
       ) : props.following ? (
         <Text dimColor>Following outdated threads to the current head…</Text>
       ) : (

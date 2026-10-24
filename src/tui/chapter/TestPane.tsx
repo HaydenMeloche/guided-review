@@ -5,6 +5,8 @@ import { truncate } from '../nav.js';
 import { highlightDiffLines, highlightSourceLines, type HunkHighlights } from '../highlight.js';
 import { codeChunks } from './text.js';
 import { DIFF_BACKGROUND, SyntaxText } from './SyntaxText.js';
+import { GUTTER, PLAIN_GUTTER } from '../paneWidths.js';
+import { G } from '../glyphs.js';
 
 const LINK_TEXT = { coverage: 'coverage run', 'name-match': 'name match', naming: 'naming guess' } as const;
 
@@ -66,7 +68,7 @@ export function TestPane(props: {
     const selected = props.focused && codeIndex === props.cursor;
     if (selected) cursorRow = lines.length;
     codeIndex++;
-    return <Text color={selected ? 'cyan' : undefined}>{selected ? '▶' : ' '}</Text>;
+    return <Text color={selected ? 'cyan' : undefined}>{selected ? G.cursor : ' '}</Text>;
   };
   if (covers) {
     lines.push(
@@ -76,12 +78,12 @@ export function TestPane(props: {
     );
     covers.lines.forEach((l, i) => {
       const caret = marker();
-      codeChunks(l, width - 6).forEach((code, part) =>
+      codeChunks(l, width - PLAIN_GUTTER).forEach((code, part) =>
         lines.push(
           <Text key={`c${i}_${part}`}>
             {part === 0 ? caret : ' '}
-            <Text dimColor>{part === 0 ? String(covers.startLine + i).padStart(4) : ' '.repeat(4)} </Text>
-            <SyntaxText text={code} spans={highlights?.[i]} column={part * Math.max(1, width - 6)} />
+            <Text dimColor>{`${part === 0 ? String(covers.startLine + i).padStart(4) : ' '.repeat(4)} │ `}</Text>
+            <SyntaxText text={code} spans={highlights?.[i]} column={part * Math.max(1, width - PLAIN_GUTTER)} />
           </Text>,
         ),
       );
@@ -123,14 +125,14 @@ export function TestPane(props: {
               const caret = marker();
               const sign = l.kind === 'add' ? '+' : l.kind === 'del' ? '-' : ' ';
               const color = l.kind === 'add' ? 'green' : l.kind === 'del' ? 'red' : undefined;
-              codeChunks(l.text, width - 12).forEach((code, part) =>
+              codeChunks(l.text, width - GUTTER).forEach((code, part) =>
                 lines.push(
                   <Text key={`d${ti}_${di}_${i}_${part}`}>
                     {part === 0 ? caret : ' '}
                     <Text backgroundColor={DIFF_BACKGROUND[l.kind]}>
-                      <Text dimColor>{part === 0 ? `${l.oldLine ?? ''}`.padStart(4) + ' ' + `${l.newLine ?? ''}`.padStart(4) : ' '.repeat(9)} </Text>
-                      <Text color={color}>{part === 0 ? sign : ' '}</Text>
-                      <SyntaxText text={code} spans={diffHighlights?.[di]?.[i]} column={part * Math.max(1, width - 12)} />
+                      <Text dimColor>{`${part === 0 ? `${l.oldLine ?? ''}`.padStart(4) + ' ' + `${l.newLine ?? ''}`.padStart(4) : ' '.repeat(9)} │ `}</Text>
+                      <Text color={color}>{`${part === 0 ? sign : ' '} `}</Text>
+                      <SyntaxText text={code} spans={diffHighlights?.[di]?.[i]} column={part * Math.max(1, width - GUTTER)} />
                     </Text>
                   </Text>,
                 ),
@@ -140,12 +142,12 @@ export function TestPane(props: {
         } else {
           t.lines.forEach((l, i) => {
             const caret = marker();
-            codeChunks(l, width - 6).forEach((code, part) =>
+            codeChunks(l, width - PLAIN_GUTTER).forEach((code, part) =>
               lines.push(
                 <Text key={`l${ti}_${i}_${part}`}>
                   {part === 0 ? caret : ' '}
-                  <Text dimColor>{part === 0 ? String(t.startLine + i).padStart(4) : ' '.repeat(4)} </Text>
-                  <SyntaxText text={code} spans={highlights?.[i]} column={part * Math.max(1, width - 6)} />
+                  <Text dimColor>{`${part === 0 ? String(t.startLine + i).padStart(4) : ' '.repeat(4)} │ `}</Text>
+                  <SyntaxText text={code} spans={highlights?.[i]} column={part * Math.max(1, width - PLAIN_GUTTER)} />
                 </Text>,
               ),
             );

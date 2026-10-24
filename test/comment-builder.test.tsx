@@ -354,7 +354,7 @@ describe('comment composer', () => {
     ui.stdin.write('c');
     await waitFor(() => expect(ui.lastFrame()).toContain('Comment on'));
     ui.stdin.write('@');
-    await waitFor(() => expect(ui.lastFrame()).toContain('◷ src/jobs/retries.ts:2'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('◇ src/jobs/retries.ts:2'));
     // Down past the people to the declarations: the list keeps five rows above its two hint lines.
     for (let i = 0; i < 3; i++) {
       ui.stdin.write(DOWN);
@@ -362,8 +362,8 @@ describe('comment composer', () => {
     }
     await waitFor(() => expect(ui.lastFrame()).toContain('▸ ƒ releaseInventory'));
     const frame = ui.lastFrame();
-    expect(ofText(frame, '◷ src/jobs/retries.ts:2')).toBeGreaterThan(-1);
-    expect(ofText(frame, '◷ src/jobs/retries.ts:2')).toBeLessThan(ofText(frame, 'ƒ releaseInventory'));
+    expect(ofText(frame, '◇ src/jobs/retries.ts:2')).toBeGreaterThan(-1);
+    expect(ofText(frame, '◇ src/jobs/retries.ts:2')).toBeLessThan(ofText(frame, 'ƒ releaseInventory'));
     ui.unmount();
   });
 

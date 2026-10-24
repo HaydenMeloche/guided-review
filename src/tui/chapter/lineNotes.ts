@@ -2,6 +2,7 @@ import type { DiffLine, Draft, ExistingThread, Hunk } from '../../types.js';
 import type { Fold } from '../../diff/lines.js';
 import { safe } from './text.js';
 import { plural } from '../plural.js';
+import { G } from '../glyphs.js';
 
 export function threadAt(threads: ExistingThread[], file: string, line?: number, side: 'LEFT' | 'RIGHT' = 'RIGHT') {
   if (line === undefined) return [];
@@ -72,7 +73,10 @@ function notesFor(hunk: Hunk): Map<number, string> {
       const shown = places.slice(0, 2).map(where).join(', ');
       return `; also ${side === 'add' ? 'added' : 'removed'} at ${shown}${places.length > 2 ? ` and ${places.length - 2} more` : ''}`;
     };
-    notes.set(last, `↕ ${lines} ${at.kind} ${l.kind === 'del' ? (at.kind === 'merged' ? 'into' : 'to') : 'from'} ${where(at)}${indent ? `, ${indent}` : ''}${gap}${also('add')}${also('del')}`);
+    notes.set(
+      last,
+      `${G.moved} ${lines} ${at.kind} ${l.kind === 'del' ? (at.kind === 'merged' ? 'into' : 'to') : 'from'} ${where(at)}${indent ? `, ${indent}` : ''}${gap}${also('add')}${also('del')}`,
+    );
   }
   return notes;
 }

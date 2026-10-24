@@ -9,13 +9,20 @@ import { MdLineView, type MdLine } from '../markdown.js';
 import { plural } from '../plural.js';
 import { Hints, KeyBar } from '../KeyBar.js';
 import { Busy } from '../Spinner.js';
+import { G } from '../glyphs.js';
 
 export const COVERAGE = {
-  tested: { mark: '●', color: 'green', text: 'tested' },
-  partial: { mark: '◐', color: 'yellow', text: 'partly tested' },
-  untested: { mark: '○', color: 'red', text: 'untested' },
+  get tested() {
+    return { mark: G.tested, color: 'green', text: 'tested' };
+  },
+  get partial() {
+    return { mark: G.partial, color: 'yellow', text: 'partly tested' };
+  },
+  get untested() {
+    return { mark: G.untested, color: 'red', text: 'untested' };
+  },
   'n/a': { mark: ' ', color: 'gray', text: '' },
-} as const;
+};
 
 // `busy`: background work, shown quietly at the right; `pushed`: a folded new-head notice.
 export const Header = React.memo(function Header(props: { tour: Tour; prog: ReturnType<typeof progress>; order: ChapterOrder; deltaOnly: boolean; width: number; busy?: string; pushed?: boolean }) {
@@ -181,7 +188,7 @@ export function DraftLine(props: { drafts: Draft[]; hunk?: Hunk; cursor: number;
     );
   const l = props.hunk?.lines[props.cursor];
   const here = props.hunk && l ? draftsAt(props.drafts, props.hunk, l.kind === 'del' ? l.oldLine : l.newLine, l.kind === 'del' ? 'LEFT' : 'RIGHT') : [];
-  const text = here.length ? `✎ ${here.map((d) => `[${d.label}] ${d.body.replace(/\s+/g, ' ')}`).join('  ')}` : `✎ ${plural(pending.length, 'draft comment')}`;
+  const text = here.length ? `${G.draft} ${here.map((d) => `[${d.label}] ${d.body.replace(/\s+/g, ' ')}`).join('  ')}` : `${G.draft} ${plural(pending.length, 'draft comment')}`;
   return (
     <Text dimColor={!here.length} wrap="truncate">
       {truncate(text, props.width)}

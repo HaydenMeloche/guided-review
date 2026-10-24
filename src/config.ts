@@ -116,6 +116,7 @@ export type UserConfig = Omit<AgentRouting, 'provider'> & {
   hideWhitespace?: boolean;
   splitDiff?: boolean;
   theme?: string;
+  glyphs?: GlyphSetting;
   codingAgent?: CodingAgent;
   codingAgentCommand?: string; // with "codingAgent": "custom"
   github?: GitHubConfig;
@@ -265,6 +266,23 @@ export function saveViewSetting(key: ViewSetting, value: boolean): void {
   fs.chmodSync(file, 0o600);
 }
 
+// A setting that takes one of a few names.
+function parseChoice<T extends string>(raw: Record<string, unknown>, key: string, choices: readonly T[], where: string): T | undefined {
+  const value = raw[key];
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string' || !(choices as readonly string[]).includes(value)) throw new UserConfigError(`${where}: unknown ${key} ${JSON.stringify(value)} (expected ${choices.join(' or ')})`);
+  return value as T;
+}
+
+export const GLYPH_SETTINGS = ['unicode', 'ascii'] as const;
+export type GlyphSetting = (typeof GLYPH_SETTINGS)[number];
+
+// The marks the screens draw, readable without a model provider: unicode when unset, ascii for
+// terminals and fonts without the shapes.
+export function loadGlyphSetting(raw = readUserConfigFile()): GlyphSetting {
+  return (raw && parseChoice(raw, 'glyphs', GLYPH_SETTINGS, userConfigPath())) ?? 'unicode';
+}
+
 function parseTheme(raw: Record<string, unknown>, where: string): string | undefined {
   if (raw.theme === undefined) return undefined;
   if (typeof raw.theme !== 'string' || !raw.theme) throw new UserConfigError(`${where}: "theme" must be a theme name`);
@@ -366,6 +384,8 @@ export function loadUserConfig(raw = readUserConfigFile()): UserConfig {
   }
   const theme = parseTheme(raw, file);
   if (theme) out.theme = theme;
+  const glyphs = parseChoice(raw, 'glyphs', GLYPH_SETTINGS, file);
+  if (glyphs) out.glyphs = glyphs;
   const codingAgent = parseCodingAgent(raw, file);
   if (codingAgent) {
     out.codingAgent = codingAgent.agent;

@@ -166,9 +166,9 @@ describe('Esc in the picker', () => {
     const ui = render(<PickerScreen store={store} width={120} height={24} onPick={() => {}} onQuit={onQuit} readClipboard={async () => undefined} downloads={{}} onDownload={() => {}} />);
     await waitFor(() => expect(ui.lastFrame()).toContain('Review me'));
     ui.stdin.write(' ');
-    await waitFor(() => expect(ui.lastFrame()).toContain('☑'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('■'));
     ui.stdin.write('\u001b');
-    await waitFor(() => expect(ui.lastFrame()).not.toContain('☑'));
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('■'));
     ui.stdin.write('\u001b');
     await waitFor(() => expect(ui.lastFrame()).toContain('q quits'));
     expect(onQuit).not.toHaveBeenCalled();

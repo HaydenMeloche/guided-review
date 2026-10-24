@@ -5,7 +5,7 @@
  ‹b›From the author‹/› ‹dim›──────────────────────────────────────────────────────────────‹/›
  Add discount codes to quotes and orders
 
- ‹yellow›⚑ generated out of sync: package.json changed but no lockfile changed; if dep…‹/›
+ ‹yellow›▲ generated out of sync: package.json changed but no lockfile changed; if dep…‹/›
 
  ‹b›Chapters‹/›‹cyan,b› · Guided order‹/›‹b,dim› · 0/5 hunks done‹/› ‹dim›─────────────────────────────────────‹/›
  ‹dim›Recommended reading path through the changed flows · ‹/›‹cyan,b›f‹/›‹dim› to change‹/›

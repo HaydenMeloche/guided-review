@@ -21,6 +21,7 @@ import { reviewLegend } from './legend.js';
 import { REVIEW_BRIEFING_KEYS, reviewBriefingBar } from './screenKeys.js';
 import { plural } from './plural.js';
 import { HELP_NOTE } from './ChapterScreen.js';
+import { G } from './glyphs.js';
 
 const FLAG_COLOR: Record<string, string> = {
   'scope-creep': 'magenta',
@@ -233,14 +234,14 @@ export function BriefingScreen(props: {
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
           {flags.map((f, i) => (
             <Text key={i} color={FLAG_COLOR[f.kind] ?? 'gray'} wrap="truncate">
-              {safe(`⚑ ${f.kind.replace(/-/g, ' ')}: ${f.message}`)}
+              {safe(`${G.flag} ${f.kind.replace(/-/g, ' ')}: ${f.message}`)}
             </Text>
           ))}
         </Box>
       ) : null}
       {tour.notes.map((n, i) => (
         <Text key={i} dimColor wrap="truncate">
-          {safe(`ℹ ${n}`)}
+          {safe(`${G.note} ${n}`)}
         </Text>
       ))}
       {rr ? (

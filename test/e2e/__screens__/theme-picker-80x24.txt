@@ -3,9 +3,9 @@
  ‹cyan,bg:c59›│‹/›‹bg:c59,b› Color theme ‹/›‹bg:c59,dim›· 1/66  / to search‹/›‹bg:c59›                                            ‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59,inv› ● Terminal colors            ‹/›‹bg:c59›  ‹/›‹cyan,bg:c59,b›acme/api‹/›‹bg:c59,b› #482 Retry requests that fail‹/›‹bg:c59,dim›  by …‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59›   Andromeeda               ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   Retries a request up to ‹/›‹cyan,bg:c59›attempts‹/›‹bg:c59› times when…‹/›‹cyan,bg:c59›│‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59›   Aurora X                 ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹yellow,bg:c59›⚑ large pr: 1,240 changed lines across 18 f…‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›   Aurora X                 ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹yellow,bg:c59›▲ large pr: 1,240 changed lines across 18 f…‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59›   Ayu Dark                 ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c59,b›Chapters‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›· Guided order‹/›‹bg:c59,b,dim› · 4/9 hunks done‹/›‹bg:c59› ‹/›‹bg:c59,dim›───‹/›‹cyan,bg:c59›│‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59›   Ayu Mirage               ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹yellow,bg:c59›◷▲‹/›‹bg:c59› Client configuration           ‹/›‹bg:c59,dim› 2 hunks‹/›‹bg:c59›  ‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›   Ayu Mirage               ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹yellow,bg:c59›◇▲‹/›‹bg:c59› Client configuration           ‹/›‹bg:c59,dim› 2 hunks‹/›‹bg:c59›  ‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59›   Catppuccin Frappé        ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c59,dim›── Chapter ─────────────────────────────────‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59›   Catppuccin Macchiato     ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹bg:c59,b›Retry failed requests          ‹/›‹bg:c59› ‹/›‹green,bg:c59›▰▰▰▰‹/›‹bg:c59,dim›▱▱▱▱ 4/9‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59›   Catppuccin Mocha         ‹/›‹bg:c59,dim› ‹/›‹bg:c59›   ‹/›‹blue,bg:c59›╭──────────────────────────────────────────╮‹/›‹cyan,bg:c59›│‹/›

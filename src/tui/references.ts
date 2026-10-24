@@ -6,6 +6,7 @@ import { linesHash, refLabel, refSpans } from '../review/refs.js';
 import type { BlastItem, CallerRef, CodeRef, ExistingThread, Hunk, TestLink, Tour } from '../types.js';
 import { languageOf } from '../util/language.js';
 import { ACTIONS_HINT, mentionItems, referenceTrigger, type Completer, type CompletionItem, type HintPart, type TokenRule } from './completion.js';
+import { G } from './glyphs.js';
 
 // Building the CodeRefs behind code references in the comment composer (an inline code span
 // holding a ref's label): from symbols, files, ranges, tests, callers and threads, plus the
@@ -229,7 +230,7 @@ export const threadRows = (tour: Pick<Tour, 'url' | 'headSha' | 'existingThreads
 export const recentRows = (list: RecentLocation[], sha: string): RefRow[] =>
   list.map((r) => {
     const input = r.line !== undefined ? rangeInput(r.path, sha, r.line, r.endLine ?? r.line) : fileInput(r.path, sha);
-    return { key: `rc:${r.path}:${r.line ?? ''}`, label: `◷ ${where(input)}`, detail: `recent · ${r.why}`, input };
+    return { key: `rc:${r.path}:${r.line ?? ''}`, label: `${G.recent} ${where(input)}`, detail: `recent · ${r.why}`, input };
   });
 
 // Call sites found by name, never resolved: always "possible".

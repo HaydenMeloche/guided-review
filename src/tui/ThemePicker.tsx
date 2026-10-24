@@ -8,6 +8,7 @@ import { KeyBar } from './KeyBar.js';
 import { SectionHeading } from './BriefingScreen.js';
 import { plural } from './plural.js';
 import type { DiffLine } from '../types.js';
+import { G } from './glyphs.js';
 
 const PREVIEW_DELAY_MS = 150;
 
@@ -219,7 +220,7 @@ function ThemeSample(props: { width: number; height: number }) {
         <Text dimColor> · </Text>fixes the flaky deploys in <Text color="cyan">#470</Text>
       </SectionHeading>
       <Text color="yellow" wrap="truncate">
-        ⚑ large pr: 1,240 changed lines across 18 files
+        {G.flag} large pr: 1,240 changed lines across 18 files
       </Text>
       <SectionHeading title="Chapters" width={w}>
         {' '}
@@ -244,8 +245,8 @@ function ThemeSample(props: { width: number; height: number }) {
       })}
       {rule('Chapter')}
       <Text wrap="truncate">
-        <Text bold>{pad('Retry failed requests', Math.max(1, w - 13))}</Text> <Text color="green">▰▰▰▰</Text>
-        <Text dimColor>▱▱▱▱ 4/9</Text>
+        <Text bold>{pad('Retry failed requests', Math.max(1, w - 13))}</Text> <Text color="green">{G.meterOn.repeat(4)}</Text>
+        <Text dimColor>{G.meterOff.repeat(4)} 4/9</Text>
       </Text>
       <Box flexDirection="column" borderStyle="round" borderColor="blue" paddingX={1} width={w} flexShrink={0}>
         <Text bold color="blue">

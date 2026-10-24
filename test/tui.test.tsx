@@ -161,8 +161,8 @@ describe('ChapterScreen', () => {
     ];
     const ui = render(<Harness tour={tour} onDraft={() => {}} onState={() => {}} />);
     await waitFor(() => expect(ui.lastFrame()).toContain('● new'));
-    expect(ui.lastFrame()).toContain("+it('creates invoice'");
-    expect(ui.lastFrame()).toContain('+  expect(createInvoice())');
+    expect(ui.lastFrame()).toContain("+ it('creates invoice'");
+    expect(ui.lastFrame()).toContain('+   expect(createInvoice())');
     ui.unmount();
   });
 
@@ -179,7 +179,7 @@ describe('ChapterScreen', () => {
       const frame = ui.lastFrame()!;
       const row = frame.split('\n').find((line) => /│\s*Tests/.test(line));
       if (!row) throw new Error(frame);
-      return row.indexOf('│');
+      return row.search(/│\s*Tests/);
     };
     const shortBoundary = boundary();
     ui.stdin.write('t');
@@ -260,7 +260,7 @@ describe('ChapterScreen', () => {
     await waitFor(() => expect(ui.lastFrame()).toContain('expect(createInvoice())'));
     expect(ui.lastFrame()).not.toContain(second);
     ui.stdin.write('j');
-    await waitFor(() => expect(ui.lastFrame()).toMatch(/▶\s*\s*2\s*\+/));
+    await waitFor(() => expect(ui.lastFrame()).toMatch(/▶\s*2\s*│\s*\+/));
     ui.stdin.write('c');
     await waitFor(() => expect(ui.lastFrame()).toContain(`Comment on ${testFile}:2`));
     const commentRows = ui.lastFrame()!.split('\n');
@@ -1229,14 +1229,14 @@ describe('feedback round: guide, tests, inline comments, description', () => {
     const h = hunkFromDiff('src/a.ts', ' if (x) {', '-go();', '-stop();', '+  go();', '+  halt();', ' }');
     const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
     const ui = render(screen(t));
-    await waitFor(() => expect(ui.lastFrame()).toContain('~  go();'));
-    expect(ui.lastFrame()).not.toContain('-go();');
-    expect(ui.lastFrame()).toContain('-stop();');
-    expect(ui.lastFrame()).toContain('+  halt();');
+    await waitFor(() => expect(ui.lastFrame()).toContain('~   go();'));
+    expect(ui.lastFrame()).not.toContain('- go();');
+    expect(ui.lastFrame()).toContain('- stop();');
+    expect(ui.lastFrame()).toContain('+   halt();');
     ui.stdin.write('w');
-    await waitFor(() => expect(ui.lastFrame()).toContain('-go();'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('- go();'));
     ui.stdin.write('w');
-    await waitFor(() => expect(ui.lastFrame()).not.toContain('-go();'));
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('- go();'));
     ui.unmount();
   });
 
@@ -1244,10 +1244,10 @@ describe('feedback round: guide, tests, inline comments, description', () => {
     const h = hunkFromDiff('src/a.ts', ' x', '-total = price;', '+total = price * qty;', ' y');
     const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
     const ui = render(screen(t));
-    await waitFor(() => expect(ui.lastFrame()).toContain('+total = price * qty;'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('+ total = price * qty;'));
     expect(ui.lastFrame()).not.toContain('-total = price;');
     // Old and new line numbers both show on the folded line.
-    expect(ui.lastFrame()).toMatch(/2 +2 \+total = price \* qty;/);
+    expect(ui.lastFrame()).toMatch(/2 +2 │ \+ total = price \* qty;/);
     ui.unmount();
   });
 
@@ -1372,7 +1372,7 @@ describe('split view, test pane toggle and expanded context', () => {
     const h = hunkFromDiff('src/a.ts', ' keep();', '-const total = price;', '+const total = price * quantity - discount;', ' done();');
     const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
     const ui = render(screen(t));
-    await waitFor(() => expect(ui.lastFrame()).toContain('+const total = price * quantity'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('+ const total = price * quantity'));
     expect(
       ui
         .lastFrame()!
@@ -1385,7 +1385,7 @@ describe('split view, test pane toggle and expanded context', () => {
         ui
           .lastFrame()!
           .split('\n')
-          .some((r) => r.includes('-const total = price;') && r.includes('+const total = price * quantity')),
+          .some((r) => r.includes('- const total = price;') && r.includes('+ const total = price * quantity')),
       ).toBe(true),
     );
     expect(ui.lastFrame()).toContain('split');
@@ -1439,7 +1439,7 @@ describe('split view, test pane toggle and expanded context', () => {
         .lastFrame()!
         .split('\n')
         .find((r) => r.includes('▶')),
-    ).toContain('-old();');
+    ).toContain('- old();');
     for (let i = 0; i < 9; i++) ui.stdin.write('k');
     await tick();
     ui.stdin.write('c');
@@ -1474,7 +1474,7 @@ describe('split view, test pane toggle and expanded context', () => {
     h.lines[4].expanded = true;
     const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
     const ui = render(screen(t));
-    await waitFor(() => expect(ui.lastFrame()).toContain('+B();'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('+ B();'));
     ui.stdin.write('v');
     await tick();
     for (let i = 0; i < 5; i++) ui.stdin.write('j');
@@ -1503,7 +1503,7 @@ describe('split view, test pane toggle and expanded context', () => {
     const h = hunkFromDiff('src/big.txt', ' x();', '+y();', ' x();');
     const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
     const ui = render(screen(t, { services: { root, confirms: {}, setConfirm: () => {} } }));
-    await waitFor(() => expect(ui.lastFrame()).toContain('+y();'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('+ y();'));
     ui.stdin.write('+');
     await waitFor(() => expect(ui.lastFrame()).toContain('over 1 MB'));
     ui.unmount();
@@ -1515,7 +1515,7 @@ describe('split view, test pane toggle and expanded context', () => {
     const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h], {}, { 'src/new.ts': 'added' }) });
     // No checkout needed: a new file has no context whether or not one is ready.
     const ui = render(screen(t));
-    await waitFor(() => expect(ui.lastFrame()).toContain('+b();'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('+ b();'));
     ui.stdin.write('+');
     await waitFor(() => expect(ui.lastFrame()).toContain('this file is new'));
     ui.unmount();

@@ -8,7 +8,9 @@ import { highlightHunkCached, hunkHighlightKey, peekHunkHighlights } from '../hi
 import { wordDiff, type CharRange, type Fold } from '../../diff/lines.js';
 import { clean, codeChunks } from './text.js';
 import { DIFF_BACKGROUND, SyntaxText, WORD_BACKGROUND } from './SyntaxText.js';
+import { GUTTER, SPLIT_GUTTER } from '../paneWidths.js';
 import { draftsAt, movedNote, threadAt } from './lineNotes.js';
+import { G } from '../glyphs.js';
 
 export const SourcePane = React.memo(function SourcePane(props: {
   inline?: { afterIdx: number; node: React.ReactNode; height: number }; // comment editor under the selected line
@@ -99,23 +101,26 @@ export const SourcePane = React.memo(function SourcePane(props: {
           idx: i,
           node: (
             <Text color="cyan">
-              {truncate(`         ┊ ${threads.length} review ${threads.length === 1 ? 'thread' : 'threads'} · ${threads.reduce((n, t) => n + t.comments.length, 0)} comments · e to read`, width)}
+              {truncate(
+                `          ${G.thread} ${threads.length} review ${threads.length === 1 ? 'thread' : 'threads'} · ${threads.reduce((n, t) => n + t.comments.length, 0)} comments · e to read`,
+                width,
+              )}
             </Text>
           ),
         });
       for (const d of draftsAt(props.drafts, hunk, line, l.kind === 'del' ? 'LEFT' : 'RIGHT')) {
         out.push({
           idx: i,
-          node: <Text color={LABEL_COLOR[d.label]}>{truncate(`         ✎ [${d.label}]${d.posted ? ' (posted)' : ''} ${clean(d.body).replace(/\s+/g, ' ')}`, width)}</Text>,
+          node: <Text color={LABEL_COLOR[d.label]}>{truncate(`          ${G.draft} [${d.label}]${d.posted ? ' (posted)' : ''} ${clean(d.body).replace(/\s+/g, ' ')}`, width)}</Text>,
         });
       }
       const moved = movedNote(hunk, j);
-      if (moved) out.push({ idx: i, node: <Text color="magenta">{truncate(`         ${moved}`, width)}</Text> });
+      if (moved) out.push({ idx: i, node: <Text color="magenta">{truncate(`          ${moved}`, width)}</Text> });
     };
     if (props.split) {
       // Old on the left, new on the right; a removed line shares its replacement's row.
       const half = Math.max(8, Math.floor((width - 2) / 2));
-      const codeW = Math.max(1, half - 6);
+      const codeW = Math.max(1, half - SPLIT_GUTTER);
       const cells = (j: number | undefined, side: 'old' | 'new'): React.ReactNode[] => {
         if (j === undefined) return [];
         const l = hunk.lines[j];
@@ -127,9 +132,9 @@ export const SourcePane = React.memo(function SourcePane(props: {
         const emphasis = reindented || l.kind === 'ctx' ? undefined : words[j]?.filter(([s, e]) => !props.ignoreWhitespace || text.slice(s, e).trim());
         return codeChunks(l.text, codeW).map((code, part) => (
           <Text key={`${side}${part}`} backgroundColor={reindented ? undefined : DIFF_BACKGROUND[l.kind]} dimColor={l.expanded}>
-            <Text dimColor>{part === 0 ? no : '    '} </Text>
+            <Text dimColor>{`${part === 0 ? no : '    '} │ `}</Text>
             <Text color={color} dimColor={reindented}>
-              {part === 0 ? sign : ' '}
+              {`${part === 0 ? sign : ' '} `}
             </Text>
             <SyntaxText text={code} spans={highlights?.[j]} column={part * codeW} emphasis={emphasis} emphasisColor={WORD_BACKGROUND[l.kind]} />
             {' '.repeat(Math.max(0, codeW - code.length))}
@@ -170,16 +175,16 @@ export const SourcePane = React.memo(function SourcePane(props: {
       const color = reindented ? undefined : l.kind === 'add' ? 'green' : l.kind === 'del' ? 'red' : undefined;
       const text = clean(l.text);
       const emphasis = reindented || l.kind === 'ctx' ? undefined : words[i]?.filter(([s, e]) => !props.ignoreWhitespace || text.slice(s, e).trim());
-      codeChunks(l.text, width - 12).forEach((code, part) =>
+      codeChunks(l.text, width - GUTTER).forEach((code, part) =>
         out.push({
           idx: i,
           node: (
             <Text backgroundColor={DIFF_BACKGROUND[kind]} dimColor={l.expanded}>
-              <Text dimColor>{part === 0 ? no : ' '.repeat(9)} </Text>
+              <Text dimColor>{`${part === 0 ? no : ' '.repeat(9)} │ `}</Text>
               <Text color={color} dimColor={reindented}>
-                {part === 0 ? sign : ' '}
+                {`${part === 0 ? sign : ' '} `}
               </Text>
-              <SyntaxText text={code} spans={highlights?.[i]} column={part * Math.max(1, width - 12)} emphasis={emphasis} emphasisColor={WORD_BACKGROUND[l.kind]} />
+              <SyntaxText text={code} spans={highlights?.[i]} column={part * Math.max(1, width - GUTTER)} emphasis={emphasis} emphasisColor={WORD_BACKGROUND[l.kind]} />
             </Text>
           ),
         }),
@@ -206,7 +211,7 @@ export const SourcePane = React.memo(function SourcePane(props: {
     const isCursor = r.idx === cursor && first;
     return (
       <Box key={k}>
-        <Text color={isCursor ? 'cyan' : inRange ? 'blue' : undefined}>{isCursor ? '▶' : inRange ? '┃' : ' '}</Text>
+        <Text color={isCursor ? 'cyan' : inRange ? 'blue' : undefined}>{isCursor ? G.cursor : inRange ? G.range : ' '}</Text>
         {r.node}
       </Box>
     );

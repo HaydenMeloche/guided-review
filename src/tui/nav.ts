@@ -1,6 +1,7 @@
 import type { Chapter, ChapterOrder, Hunk, ReadState, Tour } from '../types.js';
 import { sanitizeTerminal } from '../util/sanitize.js';
 import { hunkKeys, stateOf, type States } from '../review/hunkState.js';
+import { G } from './glyphs.js';
 
 export const ORDER_SEQUENCE: ChapterOrder[] = ['flow', 'risk', 'size', 'file'];
 export const ORDER_LABEL: Record<ChapterOrder, string> = { flow: 'Guided', risk: 'Risk first', size: 'Small first', file: 'File' };
@@ -81,26 +82,26 @@ export function progress(tour: Tour, states: States, only?: string[]): Progress 
 export function meter(done: number, total: number, cells: number): { filled: string; rest: string; percent: number } {
   const fraction = total ? Math.min(1, done / total) : 1;
   const n = Math.round(fraction * cells);
-  return { filled: '▰'.repeat(n), rest: '▱'.repeat(cells - n), percent: Math.round(fraction * 100) };
+  return { filled: G.meterOn.repeat(n), rest: G.meterOff.repeat(cells - n), percent: Math.round(fraction * 100) };
 }
 
 export function riskMark(risk: number): { mark: string; color: string } {
-  if (risk >= 3) return { mark: '▲', color: 'red' };
-  if (risk === 2) return { mark: '▲', color: 'yellow' };
-  if (risk === 1) return { mark: '△', color: 'gray' };
+  if (risk >= 3) return { mark: G.risk, color: 'red' };
+  if (risk === 2) return { mark: G.risk, color: 'yellow' };
+  if (risk === 1) return { mark: G.lowRisk, color: 'gray' };
   return { mark: ' ', color: 'gray' };
 }
 
 export function stateMark(s: ReadState): { mark: string; color: string } {
   switch (s) {
     case 'read':
-      return { mark: '✓', color: 'green' };
+      return { mark: G.read, color: 'green' };
     case 'skipped':
-      return { mark: '⤼', color: 'gray' };
+      return { mark: G.skipped, color: 'gray' };
     case 'deferred':
-      return { mark: '◷', color: 'yellow' };
+      return { mark: G.deferred, color: 'yellow' };
     default:
-      return { mark: '·', color: 'gray' };
+      return { mark: G.unread, color: 'gray' };
   }
 }
 

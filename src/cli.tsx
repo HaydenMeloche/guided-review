@@ -9,6 +9,7 @@ import {
   agentRouting,
   loadChapterOrder,
   loadCodingAgent,
+  loadGlyphSetting,
   loadThemeSetting,
   loadUserConfig,
   loadViewSetting,
@@ -17,6 +18,7 @@ import {
   saveViewSetting,
   userConfigPath,
   UserConfigError,
+  type GlyphSetting,
 } from './config.js';
 import { editRepoConfig, setup } from './setup.js';
 import { installClaudeCommand, installCodexSkill, type SkillInstallResult } from './codexSkill.js';
@@ -328,12 +330,14 @@ async function main() {
   let hideWhitespace: boolean;
   let splitDiff: boolean;
   let themeName: string | undefined;
+  let glyphs: GlyphSetting;
   let codingAgent: AppOptions['codingAgent'];
   try {
     chapterOrder = loadChapterOrder(config);
     hideWhitespace = loadViewSetting('hideWhitespace', config);
     splitDiff = loadViewSetting('splitDiff', config);
     themeName = loadThemeSetting(config);
+    glyphs = loadGlyphSetting(config);
     codingAgent = loadCodingAgent(config);
   } catch (error) {
     if (!(error instanceof UserConfigError)) throw error;
@@ -378,6 +382,7 @@ async function main() {
   }
 
   const [{ render }, { App }] = await tui;
+  (await import('./tui/glyphs.js')).setGlyphs(glyphs);
   opts = { ...opts, palette: await paletteP };
   const app = render(<App {...opts} />, { alternateScreen: true, exitOnCtrlC: true });
   await app.waitUntilExit();

@@ -11,6 +11,7 @@ import {
   loadUserConfig,
   loadThemeSetting,
   loadViewSetting,
+  loadGlyphSetting,
   parseRepoConfig,
   PRESET_MODELS,
   presetUserConfig,
@@ -190,6 +191,17 @@ describe('user config', () => {
     expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual({ provider: 'openai', apiKeyEnv: 'KEY', custom: { a: 1 }, hideWhitespace: false });
     expect(fs.statSync(file).mode & 0o777).toBe(0o600);
     expect(loadViewSetting('hideWhitespace')).toBe(false);
+  });
+
+  it('reads the glyph set without a provider: unicode by default, or ascii', () => {
+    const file = configFile();
+    expect(loadGlyphSetting()).toBe('unicode');
+    fs.writeFileSync(file, '{"glyphs":"ascii"}\n');
+    expect(loadGlyphSetting()).toBe('ascii');
+    fs.writeFileSync(file, '{"provider":"openai","glyphs":"ascii"}\n');
+    expect(loadUserConfig().glyphs).toBe('ascii');
+    fs.writeFileSync(file, '{"glyphs":"emoji"}\n');
+    expect(() => loadGlyphSetting()).toThrow(/unknown glyphs "emoji" \(expected unicode or ascii\)/);
   });
 
   it('reads and saves the color theme without a provider and leaves the rest of the config alone', () => {

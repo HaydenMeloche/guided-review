@@ -77,8 +77,8 @@ describe('picker tour downloads', () => {
     await loaded(ui);
     ui.stdin.write('a');
     await waitFor(() => {
-      expect(ui.lastFrame()).toContain('☑ #1');
-      expect(ui.lastFrame()).toContain('☑ #2');
+      expect(ui.lastFrame()).toContain('■ #1');
+      expect(ui.lastFrame()).toContain('■ #2');
     });
     ui.stdin.write('d');
     await waitFor(() =>

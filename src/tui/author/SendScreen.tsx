@@ -13,6 +13,7 @@ import { truncate } from '../nav.js';
 import { VERDICT } from './FeedbackBriefing.js';
 import { plural } from '../plural.js';
 import { sanitizeTerminal as safe } from '../../util/sanitize.js';
+import { G } from '../glyphs.js';
 
 // Everything author mode sends, in one place: the queued replies (posted together as one
 // review, so reviewers get one notification), a comment on the PR's conversation, the threads to
@@ -187,7 +188,7 @@ export function SendScreen(props: {
       {props.silent.length ? (
         <Box marginTop={1} flexDirection="column">
           <Text color="yellow" wrap="truncate">
-            ⚑ {plural(props.silent.length, 'thread')} marked won’t do {props.silent.length === 1 ? 'has' : 'have'} no reply: {safe(props.silent.map((i) => i.placement.path).join(', '))}
+            {G.flag} {plural(props.silent.length, 'thread')} marked won’t do {props.silent.length === 1 ? 'has' : 'have'} no reply: {safe(props.silent.map((i) => i.placement.path).join(', '))}
           </Text>
         </Box>
       ) : null}

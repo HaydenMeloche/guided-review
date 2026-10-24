@@ -176,7 +176,7 @@ describe('@ completion', () => {
         .map((i) => i.label),
     ).toEqual(['@alice', '@albert', '@bob']);
     const items = await env().items('');
-    expect(items.map((i) => i.label)).toEqual(['◷ src/b.ts:7', 'ƒ two']);
+    expect(items.map((i) => i.label)).toEqual(['◇ src/b.ts:7', 'ƒ two']);
     expect(items[1].preview).toEqual({ path: 'src/a.ts', startLine: 2, endLine: 3 });
   });
 
@@ -300,9 +300,9 @@ describe('@ completion', () => {
     it('recent: lists recent places, filtered', async () => {
       const { c, attached } = filters();
       const items = await c.items('recent:');
-      expect(items.map((i) => i.label)).toEqual(['◷ src/a.ts:2', '◷ src/z.ts']);
+      expect(items.map((i) => i.label)).toEqual(['◇ src/a.ts:2', '◇ src/z.ts']);
       expect(picked(items[0], attached)).toMatchObject({ kind: 'range', path: 'src/a.ts', startLine: 2, label: 'a.ts:2' });
-      expect((await c.items('recent:z.ts')).map((i) => i.label)).toEqual(['◷ src/z.ts']);
+      expect((await c.items('recent:z.ts')).map((i) => i.label)).toEqual(['◇ src/z.ts']);
     });
 
     it('offers a filter for two or more letters of its name, above people; picking it keeps the list open', () => {

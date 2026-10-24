@@ -10,10 +10,10 @@
 ‹blue›╰‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›           ‹/›‹cyan,bg:c59›c / C         ‹/›‹bg:c59›Comment on the selected line or range / on the w… ‹/›‹cyan,bg:c59›│‹/›‹blue›╯‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›           ‹/›‹cyan,bg:c59›E / X         ‹/›‹bg:c59›Edit or delete your draft on the selected line    ‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›           ‹/›‹cyan,bg:c59›In a comment  ‹/›‹bg:c59›@ people/code (@callers: @tests: @threads: …)     ‹/›‹cyan,bg:c59›│‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59›                                                                            ‹/›‹cyan,bg:c59›│‹/›‹c152,bg:c65›g‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›                                                                            ‹/›‹cyan,bg:c59›│‹/›‹c152,bg:c65›r‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›Threads    ‹/›‹cyan,bg:c59›e             ‹/›‹bg:c59›Read existing review threads on the selected lin… ‹/›‹cyan,bg:c59›│‹/›
 ‹cyan›▶‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›           ‹/›‹cyan,bg:c59›y             ‹/›‹bg:c59›Reply to an existing review thread on the select… ‹/›‹cyan,bg:c59›│‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59›                                                                            ‹/›‹cyan,bg:c59›│‹/›‹c222›'‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›                                                                            ‹/›‹cyan,bg:c59›│‹/›‹c222›p‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›View       ‹/›‹cyan,bg:c59›t             ‹/›‹bg:c59›Focus the test pane (narrow terminals: toggle so… ‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›           ‹/›‹cyan,bg:c59›T             ‹/›‹bg:c59›Hide or show the test pane beside the code        ‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›           ‹/›‹cyan,bg:c59›Focused tests ‹/›‹bg:c59›n/p test · j/k line · c comment · t/Esc back to … ‹/›‹cyan,bg:c59›│‹/›
