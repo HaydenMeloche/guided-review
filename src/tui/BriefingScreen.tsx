@@ -14,6 +14,7 @@ import { Key } from './KeyBar.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
 import type { Readiness } from '../review/merge.js';
 import { ReadinessLine } from './MergeScreen.js';
+import { Busy } from './Spinner.js';
 import { HelpPopup } from './Help.js';
 import { helpOf } from './keys.js';
 import { reviewLegend } from './legend.js';
@@ -42,7 +43,7 @@ export function BriefingScreen(props: {
   deltaOnly?: boolean;
   toggleDelta?: () => void;
   states: States;
-  analyzing?: string; // progress line while chapters are still being narrated
+  analyzing?: string; // chapters still being narrated, shown at the header's right end
   agent?: AgentCtx;
   aiOff?: string; // why the agent is absent
   width: number;
@@ -355,18 +356,24 @@ export function BriefingScreen(props: {
 
   const screen = (
     <Box flexDirection="column" width={width} height={height} paddingX={1}>
-      <Text wrap="truncate">
-        <Text color="cyan" bold>
-          {safe(tour.repo)}
-        </Text>
-        <Text bold color={ROLES.title}>
-          {' '}
-          #{tour.pr} {safe(tour.title)}
-        </Text>
-        <Text dimColor>
-          {'  '}by {safe(tour.author)} · {safe(tour.headSha.slice(0, 8))} · {tour.mode === 'agent' ? 'guided' : 'plain mode'}
-        </Text>
-      </Text>
+      <Box>
+        <Box flexShrink={1}>
+          <Text wrap="truncate">
+            <Text color="cyan" bold>
+              {safe(tour.repo)}
+            </Text>
+            <Text bold color={ROLES.title}>
+              {' '}
+              #{tour.pr} {safe(tour.title)}
+            </Text>
+            <Text dimColor>
+              {'  '}by {safe(tour.author)} · {safe(tour.headSha.slice(0, 8))} · {tour.mode === 'agent' ? 'guided' : 'plain mode'}
+            </Text>
+          </Text>
+        </Box>
+        <Box flexGrow={1} />
+        {props.analyzing ? <Busy text={props.analyzing} /> : null}
+      </Box>
       <Box flexDirection="row" height={bodyH} overflow="hidden" marginTop={1}>
         {left}
         {wide && tour.overview ? (
@@ -382,7 +389,7 @@ export function BriefingScreen(props: {
         ) : null}
       </Box>
       {overlay === 'ask' ? <AskOverlay target="the whole PR" agent={props.agent} aiOff={props.aiOff} width={width - 2} height={askHeight} onClose={() => setOverlay('none')} /> : null}
-      {props.analyzing ? <Text color="yellow">⟳ {safe(props.analyzing)} (you can start reading now)</Text> : <Text> </Text>}
+      <Text> </Text>
       <KeyBar
         width={width}
         accent

@@ -8,6 +8,7 @@ import { draftsAt } from './lineNotes.js';
 import { MdLineView, type MdLine } from '../markdown.js';
 import { plural } from '../plural.js';
 import { Hints, KeyBar } from '../KeyBar.js';
+import { Busy } from '../Spinner.js';
 
 export const COVERAGE = {
   tested: { mark: '●', color: 'green', text: 'tested' },
@@ -16,7 +17,8 @@ export const COVERAGE = {
   'n/a': { mark: ' ', color: 'gray', text: '' },
 } as const;
 
-export const Header = React.memo(function Header(props: { tour: Tour; prog: ReturnType<typeof progress>; order: ChapterOrder; deltaOnly: boolean; width: number }) {
+// `busy`: background work, shown quietly at the right; `pushed`: a folded new-head notice.
+export const Header = React.memo(function Header(props: { tour: Tour; prog: ReturnType<typeof progress>; order: ChapterOrder; deltaOnly: boolean; width: number; busy?: string; pushed?: boolean }) {
   const { tour, prog, width } = props;
   const barW = 16;
   const filled = prog.totalLines ? Math.round((prog.readLines / prog.totalLines) * barW) : barW;
@@ -26,12 +28,16 @@ export const Header = React.memo(function Header(props: { tour: Tour; prog: Retu
   const badge = !tour.rereview ? '' : props.deltaOnly ? 'changes only' : 'full review';
   const repo = `${safe(tour.repo)} `;
   const left = `#${tour.pr} ${safe(tour.title)}`;
+  const busy = props.busy ? ` ⠿ ${props.busy} ` : '';
+  const pushed = props.pushed ? '↑ new head · R ' : '';
   return (
     <Text wrap="truncate">
       <Text color="cyan" bold>
         {repo}
       </Text>
-      <Text bold>{pad(left, Math.max(10, width - right.length - repo.length - (badge ? badge.length + 1 : 0) - 1))}</Text>{' '}
+      <Text bold>{pad(left, Math.max(10, width - right.length - repo.length - (badge ? badge.length + 1 : 0) - busy.length - pushed.length - 1))}</Text>
+      {props.busy ? <Busy text={`${props.busy} `} /> : null}
+      {pushed ? <Text color="yellow">{pushed}</Text> : null}{' '}
       {badge ? (
         <>
           <Text color={props.deltaOnly ? 'yellow' : 'cyan'} bold>
@@ -208,13 +214,14 @@ export const ChapterStrip = React.memo(function ChapterStrip(props: {
 });
 
 // The explanation above the code, already cut to fit (chapterLayout).
-export function Explanation(props: { lines: MdLine[]; inferred: boolean; collapsed: boolean; width: number }) {
+export function Explanation(props: { lines: MdLine[]; inferred: boolean; collapsed: boolean; updated?: boolean; width: number }) {
   if (!props.lines.length) return null;
   const color = props.inferred ? 'gray' : 'blue';
   return (
     <Box flexDirection="column" flexShrink={0} borderStyle="round" borderColor={color} paddingX={1} width={props.width}>
       <Text bold color={color}>
         {props.collapsed ? 'About this chapter' : 'Explanation'}
+        {props.updated ? <Text color="green"> · updated</Text> : null}
       </Text>
       {props.lines.map((l, i) => (
         <MdLineView key={i} line={l} />

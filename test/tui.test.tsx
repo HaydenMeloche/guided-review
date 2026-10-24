@@ -1352,6 +1352,22 @@ describe('split view, test pane toggle and expanded context', () => {
     />
   );
 
+  it('folds the push notice into the header on esc, then goes back to the briefing, and shows narration quietly', async () => {
+    const h = hunkFromDiff('src/a.ts', '-go();', '+stop();');
+    const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
+    let briefing = 0;
+    const ui = render(screen(t, { banner: '▲ The author pushed abcd1234', busy: 'narrating 3/7', openBriefing: () => briefing++ }));
+    await waitFor(() => expect(ui.lastFrame()).toContain('The author pushed abcd1234 · esc hides this'));
+    expect(ui.lastFrame()!.split('\n')[0]).toContain('narrating 3/7');
+    ui.stdin.write('\u001b');
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('The author pushed'));
+    expect(ui.lastFrame()!.split('\n')[0]).toContain('↑ new head · R');
+    expect(briefing).toBe(0);
+    ui.stdin.write('\u001b');
+    await waitFor(() => expect(briefing).toBe(1));
+    ui.unmount();
+  });
+
   it('S shows the old line beside its replacement, and back', async () => {
     const h = hunkFromDiff('src/a.ts', ' keep();', '-const total = price;', '+const total = price * quantity - discount;', ' done();');
     const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });

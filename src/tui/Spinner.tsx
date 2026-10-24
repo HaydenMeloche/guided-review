@@ -13,3 +13,14 @@ export function Spinner(props: { color?: string }) {
   }, []);
   return <Text color={props.color ?? 'cyan'}>{FRAMES[frame % FRAMES.length]}</Text>;
 }
+
+// Background work at a header's right end: a dim spinner and what is running, such as
+// "narrating 3/7". Housekeeping, so it is quiet; notices that need a decision get the yellow bar.
+export function Busy(props: { text: string }) {
+  return (
+    <Text dimColor wrap="truncate">
+      {' '}
+      <Spinner color="gray" /> {props.text}
+    </Text>
+  );
+}

@@ -443,7 +443,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         const head = await fetchHeadSha(pollRepo, pollPr);
         if (head && head !== pollHead) {
           setNewHead(head);
-          setBanner(`The author pushed ${head.slice(0, 8)}. Press R to rebase the tour onto the new head (drafts are kept).`);
+          setBanner(`▲ The author pushed ${head.slice(0, 8)} · R rebuilds the tour on it (drafts are kept)`);
         }
       } catch {
         /* offline: keep going */
@@ -973,7 +973,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         deltaOnly={deltaOnly}
         toggleDelta={toggleDelta}
         states={states}
-        analyzing={analyzing}
+        analyzing={narration ? `narrating ${narration.done}/${narration.total}` : analyzing ? 'narrating' : undefined}
         agent={agent}
         aiOff={aiOff}
         width={width}
@@ -1007,7 +1007,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         hi={pos.hi}
         order={order}
         deltaOnly={deltaOnly}
-        banner={banner ?? (analyzing ? `⟳ ${analyzing}` : undefined)}
+        banner={banner}
+        busy={narration ? `narrating ${narration.done}/${narration.total}` : analyzing ? 'narrating' : undefined}
         agent={agent}
         aiOff={aiOff}
         width={width}

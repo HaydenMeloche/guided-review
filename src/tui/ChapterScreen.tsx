@@ -68,7 +68,8 @@ export function ChapterScreen(props: {
   hi: number;
   order: ChapterOrder;
   deltaOnly: boolean;
-  banner?: string;
+  banner?: string; // a notice that needs a decision (the author pushed); esc folds it into the header
+  busy?: string; // background work, shown quietly in the header
   agent?: AgentCtx;
   aiOff?: string; // why the agent is absent
   width: number;
@@ -113,6 +114,9 @@ export function ChapterScreen(props: {
   const close = () => setOverlay(NONE);
   const show = (kind: Exclude<OverlayKind, 'none' | 'comment' | 'move'>) => setOverlay({ kind });
   const [summarySel, setSummarySel] = useState(0);
+  // Esc folds the banner into a tag in the header; a new notice unfolds it.
+  const [folded, setFolded] = useState<string>();
+  const banner = props.banner && props.banner !== folded ? props.banner : undefined;
   const ev = props.references;
   // The open composer's working state (see composer.ts).
   const setComposerState: SetComposer = (f) => setOverlay((o) => (o.kind === 'comment' ? { ...o, composer: f(o.composer) } : o));
@@ -126,7 +130,7 @@ export function ChapterScreen(props: {
   const plan = chapterLayout({
     width,
     height,
-    banner: !!props.banner,
+    banner: !!banner,
     hunkLines: hunk?.lines,
     testLines: testCodeLines,
     linkedTests: hasLinkedTests,
@@ -148,6 +152,19 @@ export function ChapterScreen(props: {
     setSummarySel(0);
     setShowUntested(false);
   }, [chapter?.id]);
+
+  // An explanation that arrives while its hunk is on screen says so for a moment.
+  const narration = hunk?.narration;
+  const [updated, setUpdated] = useState(false);
+  const seen = useRef<{ id?: string; text?: string }>({});
+  useEffect(() => {
+    const changed = seen.current.id === hunk?.id && seen.current.text !== narration && !!narration;
+    seen.current = { id: hunk?.id, text: narration };
+    if (!changed) return;
+    setUpdated(true);
+    const t = setTimeout(() => setUpdated(false), 3000);
+    return () => clearTimeout(t);
+  }, [hunk?.id, narration]);
 
   const prog = useMemo(() => progress(tour, states), [tour, states]);
   const delta = useMemo(() => new Set(tour.rereview?.newHunkIds ?? []), [tour.rereview]);
@@ -268,7 +285,7 @@ export function ChapterScreen(props: {
     pageUp: () => moveCursor(-10),
     range: () => setAnchor((a) => (a === null ? cursor : null)),
     // Esc closes the innermost thing: an open range, else the chapter, back to the briefing.
-    escape: () => (anchor !== null ? setAnchor(null) : props.openBriefing()),
+    escape: () => (anchor !== null ? setAnchor(null) : banner ? setFolded(banner) : props.openBriefing()),
     skip: () => next('skipped'),
     defer: () => {
       setFlash('Deferred: it stays on the submit screen as unread work.', 'info');
@@ -480,10 +497,10 @@ export function ChapterScreen(props: {
 
   const screen = (
     <Box flexDirection="column" width={width} height={height}>
-      <Header tour={tour} prog={prog} order={props.order} deltaOnly={props.deltaOnly} width={width} />
-      {props.banner ? (
+      <Header tour={tour} prog={prog} order={props.order} deltaOnly={props.deltaOnly} width={width} busy={props.busy} pushed={!!props.banner && !banner} />
+      {banner ? (
         <Text backgroundColor="yellow" color="black">
-          {pad(` ${props.banner}`, width)}
+          {pad(` ${banner} · esc hides this`, width)}
         </Text>
       ) : null}
       {!wide ? <ChapterStrip tour={tour} chapters={chapters} listed={listed} states={states} current={chapter.id} order={props.order} ci={ci} width={width} /> : null}
@@ -494,7 +511,7 @@ export function ChapterScreen(props: {
           {overlayNode ?? (
             <>
               <ChapterTitle chapter={chapter} hunk={hunk} hi={hi} isNew={!!hunk && delta.has(hunk.id)} unchanged={unchangedHunks} width={mainWidth} states={states} drawer={testDrawer} />
-              <Explanation lines={plan.explainLines} inferred={!!hunk?.narrationInferred} collapsed={collapsedView} width={mainWidth} />
+              <Explanation lines={plan.explainLines} inferred={!!hunk?.narrationInferred} collapsed={collapsedView} updated={updated} width={mainWidth} />
               {collapsedView ? (
                 <>
                   <CollapsedSummary
