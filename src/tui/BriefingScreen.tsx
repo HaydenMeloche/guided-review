@@ -219,7 +219,9 @@ export function BriefingScreen(props: {
   const windowed = rows.length > chapterRoom;
   const shownCount = windowed ? chapterRoom - 1 : rows.length;
   const chStart = windowed ? Math.max(0, Math.min(selRow - Math.floor(shownCount / 2), rows.length - shownCount)) : 0;
-  const usedRows = topRows + 2 + shownCount + (windowed ? 1 : 0) + restRows;
+  // The marks' legend under the chapters, while there is a spare row for it.
+  const legendRow = bodyH - (topRows + 2 + shownCount + (windowed ? 1 : 0) + restRows) > 1;
+  const usedRows = topRows + 2 + shownCount + (windowed ? 1 : 0) + restRows + (legendRow ? 1 : 0);
   const diagramBelowH = wide ? 0 : Math.max(0, Math.min(16, bodyH - usedRows - 1));
   const numW = String(rows.length).length;
   const labelW = Math.min(30, Math.max(0, ...watchShown.map((w) => w.label.length)) + 2);
@@ -312,6 +314,12 @@ export function BriefingScreen(props: {
           );
         })}
         {windowed ? <Text dimColor>{`  ${chStart ? `… ${chStart} above · ` : ''}${rows.length - chStart - shownCount} more below`}</Text> : null}
+        {/* Where the marks first appear, what they mean; ? then Tab has them all. */}
+        {legendRow ? (
+          <Text dimColor wrap="truncate">
+            {`  ${G.read} read  ${G.skipped} skipped  ${G.deferred} deferred  ${G.unread} unread  ${G.risk} risky  · ? then tab for every mark`}
+          </Text>
+        ) : null}
       </Box>
       {watchShown.length ? (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>

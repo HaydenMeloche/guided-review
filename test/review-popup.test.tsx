@@ -100,7 +100,7 @@ describe('submit dialog', () => {
       </ReviewPopup>,
     );
     expect(ui.lastFrame()).toContain('Review heading');
-    expect(ui.lastFrame()).toContain('Submit review');
+    expect(ui.lastFrame()).toContain('submit review');
     expect(ui.lastFrame()).toMatch(/P\s+post/);
     ui.stdin.write('P');
     await waitFor(() => expect(ui.lastFrame()).toContain('esc cancel'));

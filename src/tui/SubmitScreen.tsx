@@ -19,6 +19,7 @@ import { plural } from './plural.js';
 import { SUBMIT_KEYS, submitBar } from './screenKeys.js';
 import { Working } from './Spinner.js';
 import { fileIcon } from './icons.js';
+import { TitleBar } from './TitleBar.js';
 
 type Event = ReviewPayload['event'];
 
@@ -136,9 +137,7 @@ export function SubmitScreen(props: {
 
   return (
     <Box flexDirection="column" width={width} height={props.height} paddingX={1}>
-      <Text bold wrap="truncate">
-        Submit review · <Text dimColor>{safe(tour.repo)}</Text> #{tour.pr} {truncate(tour.title, width - 30)}
-      </Text>
+      <TitleBar repo={tour.repo} title={`#${tour.pr} ${tour.title}`} where="submit review" width={width - 2} />
       <Box marginTop={1} flexDirection="column">
         <Text>
           Suggested: <Text bold>{EVENT_TEXT[verdict.event]}</Text>

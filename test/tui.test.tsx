@@ -941,7 +941,7 @@ describe('BriefingScreen and SubmitScreen', () => {
         onBack={() => {}}
       />,
     );
-    await waitFor(() => expect(ui.lastFrame()).toContain('Submit review'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('submit review'));
     ui.stdin.write('P');
     await waitFor(() => expect(ui.lastFrame()).toContain('esc cancel'));
     ui.stdin.write('\r');
