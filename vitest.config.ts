@@ -25,6 +25,9 @@ export default defineConfig({
           exclude: [...configDefaults.exclude, 'test/e2e/**'],
           // Keeps the developer's own ~/.guided-review (and any GitHub token it names) out of unit tests.
           setupFiles: ['test/helpers/isolateHome.ts'],
+          // Screen tests press keys one frame at a time; under coverage on a CI runner, a long walk
+          // takes past vitest's default five seconds.
+          testTimeout: 15_000,
         },
       },
       {

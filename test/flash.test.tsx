@@ -22,5 +22,5 @@ describe('useFlash', () => {
     await waitFor(() => expect(info.lastFrame()).toBe('none'), { timeout: 5000, interval: 50 });
     expect(warn.lastFrame()).toBe('warn: No review thread on this line.');
     expect(error.lastFrame()).toBe('error: Resolve failed: 502');
-  }, 10_000);
+  });
 });
