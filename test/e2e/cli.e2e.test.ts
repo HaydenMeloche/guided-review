@@ -105,8 +105,16 @@ describe('gr commands that print and exit', () => {
 });
 
 describe('gr with a terminal', () => {
-  it('opens setup on the first run, and q leaves without saving', async () => {
+  it('says gh is signed out before first-run setup, for a command that needs GitHub', async () => {
     const session = startGr(box, ['review', '12'], { cwd: box.root });
+    await session.waitFor('gh is not signed in');
+    expect(session.screen()).toContain('gh auth login');
+    expect(await session.exited).toBe(1);
+    expect(fs.existsSync(path.join(box.env.GR_HOME!, 'config.json'))).toBe(false);
+  });
+
+  it('opens setup on the first run, and q leaves without saving', async () => {
+    const session = startGr(box, ['preview'], { cwd: fixtureRepo(box) });
     await session.waitFor('turns a pull request into a guided tour');
     session.press('q');
     await session.waitFor('no config saved');
@@ -116,7 +124,7 @@ describe('gr with a terminal', () => {
   });
 
   it('saves the first-run setup and carries on with the command', async () => {
-    const session = startGr(box, ['review', '12'], { cwd: box.root });
+    const session = startGr(box, ['preview'], { cwd: fixtureRepo(box) });
     await session.waitFor('turns a pull request into a guided tour');
     session.press(KEY.enter);
     await session.waitFor('Color theme');
@@ -138,9 +146,10 @@ describe('gr with a terminal', () => {
     await session.waitFor('Ready to save');
     expect(session.screen()).toContain('Provider: none');
     session.press(KEY.enter);
-    // Saved, then review 12 runs and stops at the fake gh.
-    await session.waitFor(/Saved .*config\.json/);
-    expect(await session.exited).toBe(1);
+    // Saved, then the preview opens.
+    await session.waitFor('Chapters · Guided order');
+    session.press('q');
+    expect(await session.exited).toBe(0);
     expect(JSON.parse(fs.readFileSync(path.join(box.env.GR_HOME!, 'config.json'), 'utf8'))).toMatchObject({ provider: 'none', chapterOrder: 'guide' });
   });
 

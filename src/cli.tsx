@@ -312,8 +312,16 @@ async function main() {
     const code = await promptForUpdate(offer);
     if (code !== undefined) process.exit(code);
   }
-  // First run: introduce gr and set it up, then carry on with the command that was run.
+  // First run: introduce gr and set it up, then carry on with the command that was run. A command
+  // that reads GitHub checks gh first, so a signed-out gh is said before five screens of setup
+  // rather than after them.
   if (cli.flags.agent && !fs.existsSync(userConfigPath())) {
+    if (cmd !== 'preview') {
+      const { detectGitHub } = await import('./detect.js');
+      const gh = await detectGitHub();
+      if (!gh.installed) fail(`the GitHub CLI (gh) is not installed. Install it from https://cli.github.com and run \`gh auth login\`, or run \`${NAME} config\` to use a personal access token.`);
+      if (!gh.login) fail(`gh is not signed in to GitHub (or GitHub could not be reached). Run \`gh auth login\`, or \`${NAME} config\` to use a personal access token, then run this again.`);
+    }
     const result = await setup({ firstRun: true });
     if (result.kind === 'cancelled') fail(`no config saved. Run \`${NAME} config\` when you're ready, or pass --no-agent to review without a model.`);
   }
