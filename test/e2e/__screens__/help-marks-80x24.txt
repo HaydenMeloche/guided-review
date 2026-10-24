@@ -1,4 +1,4 @@
-‹dim›local/rich ‹/›‹b›#0 feature/discounts (preview)  ‹/› ‹dim›▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks · Guided‹/›
+ ‹dim›local/rich ‹/›‹b›#0 …‹/›‹dim›  chapter 1/3 · hunk 1/3 · ▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks · Guided‹/›
 ‹cyan,b›1‹/›‹bright-black,bg:c235›╭────────────────────────────────────────────────────────────────────────────╮‹/›
 ‹blue,b›c‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b›Marks‹/›‹bg:c235,dim› · chapter · 2/2‹/›‹bg:c235›                                                      ‹/›‹bright-black,bg:c235›│‹/›‹dim›…‹/›
 ‹bright-black›▎‹/›‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹yellow,bg:c235›? is now these keys · ask the model with a‹/›‹bg:c235›                                 ‹/›‹bright-black,bg:c235›│‹/›

@@ -28,8 +28,8 @@ describe('renderGraph', () => {
     const out = renderGraph(g, 60);
     const text = out.lines.join('\n');
     expect(text).toContain('handleCreate');
-    expect(text).toContain('╔');
-    expect(text).toContain('┌');
+    expect(text).toContain('╭');
+    expect(text).not.toContain('╔');
     expect(text).toContain('▼');
     expect(out.lines.every((l) => width(l) <= 60)).toBe(true);
     expect(out.boxes).toHaveLength(4);

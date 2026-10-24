@@ -9,9 +9,9 @@ import { draftsAt } from './lineNotes.js';
 import { MdLineView, type MdLine } from '../markdown.js';
 import { plural } from '../plural.js';
 import { Hints, KeyBar } from '../KeyBar.js';
-import { Busy } from '../Spinner.js';
 import { G } from '../glyphs.js';
 import { LabelChip } from '../CommentEditor.js';
+import { TitleBar } from '../TitleBar.js';
 
 export const COVERAGE = {
   get tested() {
@@ -26,36 +26,42 @@ export const COVERAGE = {
   'n/a': { mark: ' ', color: 'gray', text: '' },
 };
 
-// `busy`: background work, shown quietly at the right; `pushed`: a folded new-head notice.
-export const Header = React.memo(function Header(props: { tour: Tour; prog: ReturnType<typeof progress>; order: ChapterOrder; deltaOnly: boolean; width: number; busy?: string; pushed?: boolean }) {
-  const { tour, prog, width } = props;
-  const m = meter(prog.readLines, prog.totalLines, 12);
-  const tail = ` ${m.percent}% · ${prog.read + prog.skipped}/${prog.total} hunks · ${ORDER_LABEL[props.order]}`;
-  const right = m.filled + m.rest + tail;
+// The chapter screen's title bar. `busy`: background work, shown quietly at the right; `pushed`: a
+// folded new-head notice; `where`: the chapter and hunk.
+export const Header = React.memo(function Header(props: {
+  tour: Tour;
+  prog: ReturnType<typeof progress>;
+  order: ChapterOrder;
+  deltaOnly: boolean;
+  width: number;
+  busy?: string;
+  pushed?: boolean;
+  where?: string;
+}) {
+  const { tour, prog } = props;
   // A re-review says which hunks it is showing, so the hidden ones are never a surprise.
   const badge = !tour.rereview ? '' : props.deltaOnly ? 'changes only' : 'full review';
-  const repo = `${safe(tour.repo)} `;
-  const left = `#${tour.pr} ${safe(tour.title)}`;
-  const busy = props.busy ? ` ⠿ ${props.busy} ` : '';
-  const pushed = props.pushed ? '↑ new head · R ' : '';
   return (
-    <Text wrap="truncate">
-      <Text dimColor>{repo}</Text>
-      <Text bold>{pad(left, Math.max(10, width - right.length - repo.length - (badge ? badge.length + 1 : 0) - busy.length - pushed.length - 1))}</Text>
-      {props.busy ? <Busy text={`${props.busy} `} /> : null}
-      {pushed ? <Text color="yellow">{pushed}</Text> : null}{' '}
-      {badge ? (
-        <>
-          <Text color={props.deltaOnly ? 'yellow' : 'cyan'} bold>
-            {badge}
-          </Text>{' '}
-        </>
-      ) : null}
-      <Text color="green">{m.filled}</Text>
-      <Text dimColor>{m.rest}</Text>
-      <Text bold>{` ${m.percent}%`}</Text>
-      <Text dimColor>{tail.slice(` ${m.percent}%`.length)}</Text>
-    </Text>
+    <TitleBar
+      repo={tour.repo}
+      title={`#${tour.pr} ${tour.title}`}
+      busy={props.busy}
+      tags={
+        badge || props.pushed ? (
+          <>
+            {props.pushed ? <Text color="yellow">{`${G.up} new head · R `}</Text> : null}
+            {badge ? (
+              <Text color={props.deltaOnly ? 'yellow' : 'cyan'} bold>
+                {badge}
+              </Text>
+            ) : null}
+          </>
+        ) : undefined
+      }
+      where={props.where}
+      progress={{ done: prog.readLines, total: prog.totalLines, hunks: `${prog.read + prog.skipped}/${prog.total} hunks · ${ORDER_LABEL[props.order]}` }}
+      width={props.width}
+    />
   );
 });
 

@@ -20,6 +20,7 @@ import { ErrorBlock } from './ErrorBlock.js';
 import { ROLES } from './theme.js';
 import { unboundKey } from './flash.js';
 import { hasSidePanel } from './breakpoints.js';
+import { TitleBar } from './TitleBar.js';
 
 export interface Target {
   repo: string;
@@ -536,12 +537,13 @@ export function PickerScreen(props: PickerProps) {
 
   const screen = (
     <Box flexDirection="column" width={width} height={height} paddingX={1}>
-      <Text wrap="truncate">
-        <Text bold>Pull requests</Text>
-        <Text dimColor>{prs ? `  ${waiting}${filter ? ` of ${prs.length}` : ''} waiting on you · ` : ''}</Text>
-        {prs && refreshing ? <Text color="cyan">{`${SPIN[frame % SPIN.length]} refreshing`}</Text> : null}
-        {prs && !refreshing ? <Text dimColor>{`updated ${age(new Date(loadedAt).toISOString())}`}</Text> : null}
-      </Text>
+      <TitleBar
+        title="Pull requests"
+        note={prs ? `${waiting}${filter ? ` of ${prs.length}` : ''} waiting on you` : undefined}
+        busy={prs && refreshing ? 'refreshing' : undefined}
+        where={prs && !refreshing ? `updated ${age(new Date(loadedAt).toISOString())}` : undefined}
+        width={width - 2}
+      />
       {filtering ? (
         <Box>
           <Text color="cyan">/ </Text>

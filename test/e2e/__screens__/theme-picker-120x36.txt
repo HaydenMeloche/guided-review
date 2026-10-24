@@ -1,4 +1,4 @@
- ‹dim›local/rich‹/›‹b› #0 feature/discounts (preview)‹/›‹dim›  by you · 99706cfb · plain mode‹/›
+  ‹dim›local/rich ‹/›‹b›#0 feature/discounts (preview)‹/›‹dim›  @you · 99706cfb · plain mode‹/›     ‹dim›  briefing · ▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks‹/›
 
  feature/discounts (preview). Add discount codes to quotes and orders                  ‹bright-black›│‹/› ‹b›Overview‹/›‹dim› · ‹/›‹cyan,b›d‹/›‹dim› to explore‹/› ‹dim›──────‹/›
           ‹cyan,bg:c235›╭──────────────────────────────────────────────────────────────────────────────────────────────────╮‹/›
@@ -13,9 +13,9 @@
  ‹b›From the ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›   Catppuccin Mocha         ‹/›‹bg:c235,dim› ‹/›‹bg:c235›   ‹/›‹yellow,bg:c235›◇▲‹/›‹bg:c235› Client configuration                                 ‹/›‹bg:c235,dim› 2 hunks‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›│
  Add disco‹cyan,bg:c235›│‹/›‹bg:c235›   Dark Plus                ‹/›‹bg:c235,dim› ‹/›‹bg:c235›   ‹/›‹bright-black,bg:c235›· ‹/›‹bg:c235› Tests for the client                                 ‹/›‹bg:c235,dim› 1 hunk‹/›‹bg:c235›   ‹/›‹cyan,bg:c235›│‹/›│
           ‹cyan,bg:c235›│‹/›‹bg:c235›   Dracula Theme            ‹/›‹bg:c235,dim› ‹/›‹bg:c235›   ‹/›‹bg:c235,dim›── Chapter ───────────────────────────────────────────────────────‹/›‹cyan,bg:c235›│‹/›▼
-          ‹cyan,bg:c235›│‹/›‹bg:c235›   Dracula Theme Soft       ‹/›‹bg:c235,dim› ‹/›‹bg:c235›   ‹/›‹bg:c235,b›Retry failed requests                                ‹/›‹bg:c235› ‹/›‹green,bg:c235›▰▰▰▰‹/›‹bg:c235,dim›▱▱▱▱ 4/9‹/›‹cyan,bg:c235›│‹/›‹yellow,b›════╗‹/›
-          ‹cyan,bg:c235›│‹/›‹bg:c235›   Everforest Dark          ‹/›‹bg:c235,dim› ‹/›‹bg:c235›   ‹/›‹blue,bg:c235›╭────────────────────────────────────────────────────────────────╮‹/›‹cyan,bg:c235›│‹/›‹yellow,b›ote‹/› ‹yellow,b›║‹/›
-          ‹cyan,bg:c235›│‹/›‹bg:c235›   GitHub Dark              ‹/›‹bg:c235,dim› ‹/›‹bg:c235›   ‹/›‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹blue,bg:c235,b›Explanation‹/›‹bg:c235›                                                    ‹/›‹blue,bg:c235›│‹/›‹cyan,bg:c235›│‹/›‹yellow,b›════╝‹/›
+          ‹cyan,bg:c235›│‹/›‹bg:c235›   Dracula Theme Soft       ‹/›‹bg:c235,dim› ‹/›‹bg:c235›   ‹/›‹bg:c235,b›Retry failed requests                                ‹/›‹bg:c235› ‹/›‹green,bg:c235›▰▰▰▰‹/›‹bg:c235,dim›▱▱▱▱ 4/9‹/›‹cyan,bg:c235›│‹/›‹yellow,b›────╮‹/›
+          ‹cyan,bg:c235›│‹/›‹bg:c235›   Everforest Dark          ‹/›‹bg:c235,dim› ‹/›‹bg:c235›   ‹/›‹blue,bg:c235›╭────────────────────────────────────────────────────────────────╮‹/›‹cyan,bg:c235›│‹/›‹yellow,b›ote‹/› ‹yellow,b›│‹/›
+          ‹cyan,bg:c235›│‹/›‹bg:c235›   GitHub Dark              ‹/›‹bg:c235,dim› ‹/›‹bg:c235›   ‹/›‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹blue,bg:c235,b›Explanation‹/›‹bg:c235›                                                    ‹/›‹blue,bg:c235›│‹/›‹cyan,bg:c235›│‹/›‹yellow,b›────╯‹/›
           ‹cyan,bg:c235›│‹/›‹bg:c235›   GitHub Dark Default      ‹/›‹bg:c235,dim› ‹/›‹bg:c235›   ‹/›‹blue,bg:c235›│‹/›‹bg:c235› Retries up to ‹/›‹cyan,bg:c235›attempts‹/›‹bg:c235› times on a server error.                ‹/›‹blue,bg:c235›│‹/›‹cyan,bg:c235›│‹/›
           ‹cyan,bg:c235›│‹/›‹bg:c235›   GitHub Dark Dimmed       ‹/›‹bg:c235,dim› ‹/›‹bg:c235›   ‹/›‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹yellow,bg:c235›◐ partly tested · ‹/›‹red,bg:c235›○ no test for the give-up path‹/›‹bg:c235›               ‹/›‹blue,bg:c235›│‹/›‹cyan,bg:c235›│‹/›
           ‹cyan,bg:c235›│‹/›‹bg:c235›   GitHub Dark High Contrast‹/›‹bg:c235,dim› ‹/›‹bg:c235›   ‹/›‹blue,bg:c235›╰────────────────────────────────────────────────────────────────╯‹/›‹cyan,bg:c235›│‹/›

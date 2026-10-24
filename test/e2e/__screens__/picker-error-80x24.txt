@@ -1,4 +1,4 @@
- ‹b›Pull requests‹/›
+  ‹b›Pull requests‹/›
 
  ‹red,b›Your review requests could not be loaded‹/›
  ‹dim›gh search prs --review-requested=@me --state=open --limit 50 --json ‹/›

@@ -1,21 +1,21 @@
- ‹dim›local/rich‹/›‹b› #0 feature/discounts (preview)‹/›‹dim›  by you · 99706cfb · plain mode‹/›
+  ‹dim›local/rich ‹/›‹b›#0 feature/discounts (preview)‹/›‹dim›  @you · 99706cfb · plain mode‹/›     ‹dim›  briefing · ▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks‹/›
 
  feature/discounts (preview). Add discount codes to quotes and orders                  ‹bright-black›│‹/› ‹b›Overview‹/›‹dim› · ‹/›‹cyan,b›d‹/›‹dim› to explore‹/› ‹dim›──────‹/›
-                                                                                       ‹bright-black›│‹/›   ‹yellow,b›╔═════════════╗‹/›
- ‹b›Chapters‹/›‹cyan,b› · Guided order‹/›‹b,dim› · 0/5 hunks done · ‹/›‹cyan›f‹/› ‹dim›───────────────────────────────────────‹/›  ‹bright-black›│‹/›   ‹yellow,b›║‹/› ‹yellow,b›createOrder‹/› ‹yellow,b›║‹/›
- ‹cyan,inv› 1 ‹/›‹bright-black,inv›·‹/›‹inv› createOrder                                                       ‹/›‹dim,inv›▱▱▱▱   0/3 ‹/›‹yellow,inv›▲‹/›   ‹bright-black›│‹/›   ‹yellow,b›╚══════╤══════╝‹/›
+                                                                                       ‹bright-black›│‹/›   ‹yellow,b›╭─────────────╮‹/›
+ ‹b›Chapters‹/›‹cyan,b› · Guided order‹/›‹b,dim› · 0/5 hunks done · ‹/›‹cyan›f‹/› ‹dim›───────────────────────────────────────‹/›  ‹bright-black›│‹/›   ‹yellow,b›│‹/› ‹yellow,b›createOrder‹/› ‹yellow,b›│‹/›
+ ‹cyan,inv› 1 ‹/›‹bright-black,inv›·‹/›‹inv› createOrder                                                       ‹/›‹dim,inv›▱▱▱▱   0/3 ‹/›‹yellow,inv›▲‹/›   ‹bright-black›│‹/›   ‹yellow,b›╰──────╤──────╯‹/›
  ‹dim› 2 ‹/›‹bright-black›·‹/› Dependencies and runtimes                                         ‹dim›▱▱▱▱   0/1 ‹/›    ‹bright-black›│‹/›          │
  ‹dim› 3 ‹/›‹bright-black›·‹/› Config, infra and docs                                            ‹dim›▱▱▱▱   0/1 ‹/›    ‹bright-black›│‹/›          ├───────────┐
                                                                                        ‹bright-black›│‹/›          ▼           │
- ‹b›Watch for‹/› ‹dim›──────────────────────────────────────────────────────────────────────────‹/›  ‹bright-black›│‹/› ‹yellow,b›╔════════════════╗‹/›   │
-  ‹yellow›▲ lockfile may be stale  ‹/›‹dim›package.json changed but no lockfile changed; if dependen…‹/›  ‹bright-black›│‹/› ‹yellow,b›║‹/› ‹yellow,b›discountAmount‹/› ‹yellow,b›║‹/›   │
-                                                                                       ‹bright-black›│‹/› ‹yellow,b›╚════════════════╝‹/›   │
+ ‹b›Watch for‹/› ‹dim›──────────────────────────────────────────────────────────────────────────‹/›  ‹bright-black›│‹/› ‹yellow,b›╭────────────────╮‹/›   │
+  ‹yellow›▲ lockfile may be stale  ‹/›‹dim›package.json changed but no lockfile changed; if dependen…‹/›  ‹bright-black›│‹/› ‹yellow,b›│‹/› ‹yellow,b›discountAmount‹/› ‹yellow,b›│‹/›   │
+                                                                                       ‹bright-black›│‹/› ‹yellow,b›╰────────────────╯‹/›   │
  ‹b›From the author‹/› ‹dim›────────────────────────────────────────────────────────────────────‹/›  ‹bright-black›│‹/›                      │
  Add discount codes to quotes and orders                                               ‹bright-black›│‹/›                      │
                                                                                        ‹bright-black›│‹/›                      ▼
-                                                                                       ‹bright-black›│‹/›                  ‹yellow,b›╔═══════╗‹/›
-                                                                                       ‹bright-black›│‹/›                  ‹yellow,b›║‹/› ‹yellow,b›quote‹/› ‹yellow,b›║‹/›
-                                                                                       ‹bright-black›│‹/›                  ‹yellow,b›╚═══════╝‹/›
+                                                                                       ‹bright-black›│‹/›                  ‹yellow,b›╭───────╮‹/›
+                                                                                       ‹bright-black›│‹/›                  ‹yellow,b›│‹/› ‹yellow,b›quote‹/› ‹yellow,b›│‹/›
+                                                                                       ‹bright-black›│‹/›                  ‹yellow,b›╰───────╯‹/›
                                                                                        ‹bright-black›│‹/›
                                                                                        ‹bright-black›│‹/›
                                                                                        ‹bright-black›│‹/›

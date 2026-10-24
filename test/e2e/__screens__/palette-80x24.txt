@@ -1,4 +1,4 @@
-‹dim›local/rich ‹/›‹b›#0 feature/discounts (preview)  ‹/› ‹dim›▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks · Guided‹/›
+ ‹dim›local/rich ‹/›‹b›#0 …‹/›‹dim›  chapter 1/3 · hunk 1/3 · ▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks · Guided‹/›
 ‹cyan,b›1/3 ‹/›‹b›createOrder‹/›‹dim› · hunk 1/3 · next: Dependencies and runtimes (1) · ‹/›‹cyan,b›]‹/›
 ‹blue,b›cr‹/›‹cyan,bg:c235›╭──────────────────────────────────────────────────────────────────────────╮‹/›‹dim›r…‹/›
 ‹bright-black›▎ ‹/›‹cyan,bg:c235›│‹/›‹bg:c235› ‹/›‹cyan,bg:c235,b›: ‹/›‹bg:c235,inv› ‹/›‹bg:c235,dim›a command, a file, or a chapter‹/›‹bg:c235›                                       ‹/›‹cyan,bg:c235›│‹/›

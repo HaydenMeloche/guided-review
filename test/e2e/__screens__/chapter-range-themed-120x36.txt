@@ -1,4 +1,4 @@
-‹c102,bg:c59›local/rich ‹/›‹c189,bg:c59,b›#0 feature/discounts (preview)                                          ‹/›‹c189,bg:c59› ‹/›‹c102,bg:c59›▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹c189,bg:c59,b› 0%‹/›‹c102,bg:c59› · 0/5 hunks · Guided‹/›
+‹c189,bg:c235› ‹/›‹c102,bg:c235›local/rich ‹/›‹c183,bg:c235,b›#0 feature/discounts (preview)‹/›‹bg:c235›              ‹/›‹c102,bg:c235›  chapter 1/3 · hunk 1/3 · ▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹c189,bg:c235,b› 0%‹/›‹c102,bg:c235› · 0/5 hunks · Guided‹/›‹c189,bg:c235› ‹/›
 ‹c195,bg:c59,b›1/3 ‹/›‹c189,bg:c59,b›createOrder‹/›‹c102,bg:c59› · hunk 1/3 · next: Dependencies and runtimes (1) · ‹/›‹c195,bg:c59,b›]‹/›‹bg:c59›                                                    ‹/›
 ‹c117,bg:c59,b›createOrder‹/›‹c102,bg:c59› · hunk 1/3 · · ‹/›‹c189,bg:c59›src/orders.ts:1‹/›‹c211,bg:c59›  ○ untested‹/›‹c102,bg:c59› · entry exported API (createOrder)‹/›‹bg:c59›                               ‹/›
 ‹c102,bg:c59›▎ Plain mode: no narration.‹/›‹bg:c59›                                                                                             ‹/›

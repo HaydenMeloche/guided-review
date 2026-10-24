@@ -584,7 +584,16 @@ export function ChapterScreen(props: {
 
   const screen = (
     <Box flexDirection="column" width={width} height={height}>
-      <Header tour={tour} prog={prog} order={props.order} deltaOnly={props.deltaOnly} width={width} busy={props.busy} pushed={!!props.banner && !banner} />
+      <Header
+        tour={tour}
+        prog={prog}
+        order={props.order}
+        deltaOnly={props.deltaOnly}
+        width={width}
+        busy={props.busy}
+        pushed={!!props.banner && !banner}
+        where={`chapter ${ci + 1}/${chapters.length}${hunk ? ` · hunk ${hi + 1}/${chapter.hunkIds.length}` : ''}`}
+      />
       {banner ? (
         <Text backgroundColor="yellow" color="black">
           {pad(` ${banner} · esc hides this`, width)}

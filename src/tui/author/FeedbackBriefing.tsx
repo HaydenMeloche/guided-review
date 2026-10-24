@@ -24,6 +24,7 @@ import { TONE_COLOR, unboundKey, useFlash } from '../flash.js';
 import { G } from '../glyphs.js';
 import { Busy } from '../Spinner.js';
 import { hasSidePanel } from '../breakpoints.js';
+import { TitleBar } from '../TitleBar.js';
 
 export const VERDICT: Record<string, { text: string; color: string; mark: string }> = {
   APPROVED: { text: 'approved', color: 'green', mark: '✓' },
@@ -392,18 +393,7 @@ export function FeedbackBriefing(props: {
 
   const screen = (
     <Box flexDirection="column" width={width} height={height} paddingX={1}>
-      <Text wrap="truncate">
-        <Text color="cyan" bold>
-          {safe(tour.repo)}
-        </Text>
-        <Text bold color={ROLES.title}>
-          {' '}
-          #{tour.pr} {safe(tour.title)}
-        </Text>
-        <Text dimColor>
-          {'  '}feedback for {safe(tour.author)} · {safe(tour.headSha.slice(0, 8))}
-        </Text>
-      </Text>
+      <TitleBar repo={tour.repo} title={`#${tour.pr} ${tour.title}`} note={`feedback for @${tour.author} · ${tour.headSha.slice(0, 8)}`} where="feedback briefing" width={width - 2} />
       {props.banner ? (
         <Text backgroundColor="yellow" color="black">
           {pad(` ${props.banner}`, width - 2)}

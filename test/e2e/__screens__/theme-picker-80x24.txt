@@ -1,4 +1,4 @@
- ‹dim›local/rich‹/›‹b› #0 feature/discounts (preview)‹/›‹dim›  by you · 99706cfb · plain mode‹/›
+  ‹dim›local/rich ‹/›‹b›#0 feature/discounts (pr…‹/›‹dim›  briefing · ▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks‹/›
  ‹cyan,bg:c235›╭────────────────────────────────────────────────────────────────────────────╮‹/›
  ‹cyan,bg:c235›│‹/›‹bg:c235,b› Color theme ‹/›‹bg:c235,dim›· 1/66  / to search‹/›‹yellow,bg:c235›  256 colors in this terminal: themes are a…‹/›‹cyan,bg:c235›│‹/›
  ‹cyan,bg:c235›│‹/›‹bg:c235,inv› ● Terminal colors            ‹/›‹bg:c235›  ‹/›‹cyan,bg:c235,b›acme/api‹/›‹bg:c235,b› #482 Retry requests that fail‹/›‹bg:c235,dim›  by …‹/›‹cyan,bg:c235›│‹/›

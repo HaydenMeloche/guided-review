@@ -14,7 +14,6 @@ import { Key } from './KeyBar.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
 import type { Readiness } from '../review/merge.js';
 import { ReadinessLine } from './MergeScreen.js';
-import { Busy } from './Spinner.js';
 import { HelpPopup } from './Help.js';
 import { ReviewPopup } from './ReviewPopup.js';
 import { CommandPalette, type PaletteItem } from './CommandPalette.js';
@@ -26,6 +25,7 @@ import { G } from './glyphs.js';
 import { TONE_COLOR, unboundKey, useFlash } from './flash.js';
 import { helpOf, readsKey } from './keys.js';
 import { hasSidePanel } from './breakpoints.js';
+import { TitleBar } from './TitleBar.js';
 
 // Rows each block may take; the chapters get the rest of the screen.
 const BUDGET = { intent: 2, description: 3, flags: 3, reviews: 2, blast: 2 };
@@ -388,22 +388,15 @@ export function BriefingScreen(props: {
 
   const screen = (
     <Box flexDirection="column" width={width} height={height} paddingX={1}>
-      <Box>
-        <Box flexShrink={1}>
-          <Text wrap="truncate">
-            <Text dimColor>{safe(tour.repo)}</Text>
-            <Text bold color={ROLES.title}>
-              {' '}
-              #{tour.pr} {safe(tour.title)}
-            </Text>
-            <Text dimColor>
-              {'  '}by {safe(tour.author)} · {safe(tour.headSha.slice(0, 8))} · {tour.mode === 'agent' ? 'guided' : 'plain mode'}
-            </Text>
-          </Text>
-        </Box>
-        <Box flexGrow={1} />
-        {props.analyzing ? <Busy text={props.analyzing} /> : null}
-      </Box>
+      <TitleBar
+        repo={tour.repo}
+        title={`#${tour.pr} ${tour.title}`}
+        note={`@${tour.author} · ${tour.headSha.slice(0, 8)} · ${tour.mode === 'agent' ? 'guided' : 'plain mode'}`}
+        busy={props.analyzing}
+        where="briefing"
+        progress={{ done: prog.readLines, total: prog.totalLines, hunks: `${prog.read + prog.skipped}/${prog.total} hunks` }}
+        width={width - 2}
+      />
       <Box flexDirection="row" height={bodyH} overflow="hidden" marginTop={1}>
         {left}
         {wide && tour.overview ? (

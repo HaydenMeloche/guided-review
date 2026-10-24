@@ -321,7 +321,9 @@ function layout(g: Graph, maxWidth: number): TextDiagram {
       continue;
     }
     const heavy = !!it.node.changed;
-    const [tl, tr, bl, br, h, v] = heavy ? ['╔', '╗', '╚', '╝', '═', '║'] : ['┌', '┐', '└', '┘', '─', '│'];
+    // Every box has rounded corners; a changed one stands out by its color and bold name (the
+    // highlight below), not by double lines.
+    const [tl, tr, bl, br, h, v] = ['╭', '╮', '╰', '╯', '─', '│'];
     const w = it.width;
     put(top, it.x, tl);
     put(top, it.x + w - 1, tr);

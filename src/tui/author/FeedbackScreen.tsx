@@ -13,7 +13,7 @@ import { TextInput } from '../TextInput.js';
 import { Hints, KeyBar, type Hint } from '../KeyBar.js';
 import { MdLineView, renderMarkdown, type MdLine } from '../markdown.js';
 import { mentionHighlight } from '../completion.js';
-import { pad, truncate } from '../nav.js';
+import { pad } from '../nav.js';
 import { age } from '../PickerScreen.js';
 import { STATE_COLOR, chapterMark } from './FeedbackBriefing.js';
 import { THREAD_KEYS, threadBar } from './keys.js';
@@ -28,6 +28,7 @@ import { plural } from '../plural.js';
 import { FilePreview } from '../FilePreview.js';
 import { TONE_COLOR, unboundKey, useFlash } from '../flash.js';
 import { REGULAR } from '../breakpoints.js';
+import { TitleBar } from '../TitleBar.js';
 
 // The file preview needs room beside the thread; narrower terminals keep the thread full width.
 const PREVIEW_MIN_WIDTH = REGULAR;
@@ -574,16 +575,13 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
 
   const screen = (
     <Box flexDirection="column" width={width} height={height}>
-      <Text wrap="truncate">
-        <Text color="cyan" bold>
-          {' '}
-          {safe(tour.repo)}#{tour.pr}
-        </Text>
-        <Text bold> · Feedback</Text>
-        <Text dimColor>{` · thread ${here + 1}/${flat.length} · chapter ${pos.ci + 1}/${groups.length} `}</Text>
-        <Text color={mark.color}>{mark.mark} </Text>
-        <Text bold>{truncate(safe(group.title), Math.max(10, width - 50))}</Text>
-      </Text>
+      <TitleBar
+        repo={tour.repo}
+        title={`#${tour.pr} ${group.title}`}
+        tags={<Text color={mark.color}>{mark.mark}</Text>}
+        where={`feedback · thread ${here + 1}/${flat.length} · chapter ${pos.ci + 1}/${groups.length}`}
+        width={width}
+      />
       {props.banner ? (
         <Text backgroundColor="yellow" color="black">
           {pad(` ${props.banner}`, width)}
