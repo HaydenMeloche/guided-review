@@ -954,8 +954,17 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       repoIndex: indexFor,
     };
 
+    // Where n on the briefing picks up: the saved position, named for the key bar.
+    const resumeLabel = (() => {
+      const saved = store.getPosition(tour.repo, tour.pr);
+      const ci = saved ? chapters.findIndex((c) => c.id === saved.chapterId) : -1;
+      if (!saved || ci < 0) return undefined;
+      const hi = saved.hunkId ? chapters[ci].hunkIds.indexOf(saved.hunkId) : -1;
+      return `resume · chapter ${ci + 1}${hi >= 0 ? `, hunk ${hi + 1}/${chapters[ci].hunkIds.length}` : ''}`;
+    })();
     const briefingScreen = (active: boolean) => (
       <BriefingScreen
+        resume={resumeLabel}
         tour={tour}
         chapters={chapters}
         allChapters={allChapters}

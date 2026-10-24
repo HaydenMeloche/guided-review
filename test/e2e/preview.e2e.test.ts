@@ -71,7 +71,9 @@ describe('gr preview --no-agent', () => {
     await first.exited;
 
     const second = preview();
-    await second.waitFor(/1\/1 hunks done/);
+    const briefing = await second.waitFor(/1\/1 hunks done/);
+    // n says where it picks up.
+    expect(briefing).toContain('n resume · chapter 1, hunk 1/1');
   });
 
   it('saves a draft comment on the selected line and keeps it across runs', async () => {

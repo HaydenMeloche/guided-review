@@ -49,6 +49,7 @@ export function BriefingScreen(props: {
   height: number;
   active?: boolean;
   onStart: (ci?: number) => void;
+  resume?: string; // where n picks up, when a position is saved
   onSubmit: () => void;
   readiness?: Readiness; // whether the PR can merge; unset in a preview or until it arrives
   onMerge?: () => void; // M: merge the PR
@@ -388,7 +389,7 @@ export function BriefingScreen(props: {
         // Keys hinted where they apply on screen (D, f, d beside the overview, r under a cut-off
         // description) stay off the bar.
         keys={reviewBriefingBar({
-          start: 'start',
+          start: props.resume ?? 'start',
           agent: !!props.agent,
           readDescription: descAll.length <= desc.length,
           diagram: !(wide && tour.overview),
