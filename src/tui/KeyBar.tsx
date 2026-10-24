@@ -77,10 +77,14 @@ export function Hints(props: { keys: Hint[]; note?: string }) {
   );
 }
 
+// The columns `extraEnd` leaves for the keys at the least.
+const KEYS_ROOM = 24;
+
 // Key hints, kept left to right while they fit, then `+N more`. `status` (modes that are on)
 // and the `end` hints sit at the right edge and are never dropped, so help stays reachable on
-// any width. Every bar draws its keys the same way; `accent` is kept for callers that pass it.
-export function KeyBar(props: { keys: Hint[]; end?: Hint[]; status?: string; width: number; accent?: boolean }) {
+// any width. `extraEnd` goes just before `end` when that leaves the keys room, and is dropped
+// first otherwise. Every bar draws its keys the same way; `accent` is kept for callers that pass it.
+export function KeyBar(props: { keys: Hint[]; end?: Hint[]; extraEnd?: Hint[]; status?: string; width: number; accent?: boolean }) {
   const themed = useCaps();
   const cap = themed ? 2 : 0;
   const hint = ([k, label]: Hint, i: number) => (
@@ -90,8 +94,11 @@ export function KeyBar(props: { keys: Hint[]; end?: Hint[]; status?: string; wid
       {GAP}
     </Text>
   );
-  const end = props.end ?? [];
-  const endWidth = end.reduce((n, h) => n + size(h, cap), 0) + (props.status ? props.status.length + GAP.length : 0);
+  const widthOf = (hints: Hint[]) => hints.reduce((n, h) => n + size(h, cap), 0);
+  const fixed = widthOf(props.end ?? []) + (props.status ? props.status.length + GAP.length : 0);
+  const extra = props.extraEnd ?? [];
+  const end = extra.length && props.width - 1 - fixed - widthOf(extra) >= KEYS_ROOM ? [...extra, ...(props.end ?? [])] : (props.end ?? []);
+  const endWidth = widthOf(end) + (props.status ? props.status.length + GAP.length : 0);
   const { shown, dropped } = fitHints(props.keys, props.width - 1 - endWidth, cap);
   return (
     <Box width={props.width}>

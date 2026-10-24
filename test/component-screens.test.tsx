@@ -104,3 +104,33 @@ describe('fitHints', () => {
     expect(narrow.shown).toEqual([hints[0], hints[1]]);
   });
 });
+
+describe('KeyBar extraEnd', () => {
+  const bar = (width: number) =>
+    render(
+      <KeyBar
+        width={width}
+        keys={[
+          ['n/p', 'hunk'],
+          ['c', 'comment'],
+        ]}
+        extraEnd={[[':', 'commands']]}
+        end={[
+          ['esc', 'back'],
+          ['?', 'keys'],
+        ]}
+      />,
+    )
+      .lastFrame()!
+      .replace(/\u001b\[[0-9;]*m/g, '');
+
+  it('goes before the end when the keys keep room', () => {
+    expect(bar(90)).toMatch(/: commands\s+esc back\s+\? keys/);
+  });
+
+  it('is dropped first on a narrow bar, keeping help', () => {
+    const narrow = bar(50);
+    expect(narrow).not.toContain('commands');
+    expect(narrow).toMatch(/\? keys\s*$/);
+  });
+});

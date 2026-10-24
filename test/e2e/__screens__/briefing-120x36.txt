@@ -33,4 +33,4 @@
                                                                                        ‹bright-black›│‹/›
                                                                                        ‹bright-black›│‹/›
 
-  ‹cyan,b›n‹/› start   ‹cyan,b›enter‹/› open   ‹cyan,b›j/k‹/› select   ‹dim›│   ‹/›‹cyan,b›r‹/› read description   ‹dim›│   ‹/›‹cyan,b›s‹/› submit   ‹dim›│   ‹/›‹cyan,b›L‹/› theme              ‹cyan,b›?‹/› keys   ‹cyan,b›q‹/› quit
+  ‹cyan,b›n‹/› start   ‹cyan,b›enter‹/› open   ‹cyan,b›j/k‹/› select   ‹dim›│   ‹/›‹cyan,b›r‹/› read description   ‹dim›│   ‹/›‹cyan,b›s‹/› submit   ‹dim›+1 more‹/›     ‹cyan,b›:‹/› commands   ‹cyan,b›?‹/› keys   ‹cyan,b›q‹/› quit

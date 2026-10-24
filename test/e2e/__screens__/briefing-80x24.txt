@@ -21,4 +21,4 @@
           ├───────────────┐
           ▼               ▼
 
-  ‹cyan,b›n‹/› start   ‹cyan,b›enter‹/› open   ‹cyan,b›j/k‹/› select   ‹dim›+4 more‹/›                  ‹cyan,b›?‹/› keys   ‹cyan,b›q‹/› quit
+  ‹cyan,b›n‹/› start   ‹cyan,b›enter‹/› open   ‹cyan,b›j/k‹/› select   ‹dim›+4 more‹/›     ‹cyan,b›:‹/› commands   ‹cyan,b›?‹/› keys   ‹cyan,b›q‹/› quit

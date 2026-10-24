@@ -395,6 +395,9 @@ export function barEnd(view: View, c: KeyCtx): [string, string][] {
   return [...(c.rereview ? [['D', c.deltaOnly ? 'full review' : 'changes only'] as [string, string]] : []), ['esc', 'back'], ['?', 'keys']];
 }
 
+// Before the end, when the bar has room: the palette, the way to every command.
+export const PALETTE_HINT: [string, string] = [':', 'commands'];
+
 // The help's sections: the rows with a help line, grouped. Rows that need the model are left out
 // without one.
 export function chapterHelp(ai: boolean): { title: string; rows: [string, string][] }[] {

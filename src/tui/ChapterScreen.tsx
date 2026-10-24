@@ -26,7 +26,7 @@ import { ReviewPopup } from './ReviewPopup.js';
 import { reviewLegend } from './legend.js';
 import { anchorLines, crossesContext, describeAnchor, lineAnchor, newDraft, selectedCode, selRange, testLineAnchor } from './chapter/selection.js';
 import { CONTEXT_STEP, useFoldedCursor, useFolds, useHunkView } from './chapter/hunkView.js';
-import { barEnd, barKeys, chapterHelp, keyAction, paletteCommands, type Action, type KeyCtx, type View } from './chapter/keys.js';
+import { barEnd, barKeys, PALETTE_HINT, chapterHelp, keyAction, paletteCommands, type Action, type KeyCtx, type View } from './chapter/keys.js';
 import { CommandPalette, type PaletteItem } from './CommandPalette.js';
 import { explanation } from './chapter/guide.js';
 import { unboundKey, useFlash } from './flash.js';
@@ -799,6 +799,7 @@ export function ChapterScreen(props: {
         width={width}
         status={overlay.kind === 'none' && hunk && !testFocus ? [raw && 'raw', splitView && 'split', ignoreWhitespace && 'whitespace hidden'].filter(Boolean).join(' · ') : undefined}
         end={overlay.kind !== 'none' ? [] : [...(panes.length > 1 ? [['tab', 'pane'] as Hint] : []), ...barEnd(keyView, keyCtx)]}
+        extraEnd={overlay.kind !== 'none' ? [] : [PALETTE_HINT]}
         keys={
           overlay.kind !== 'none'
             ? []

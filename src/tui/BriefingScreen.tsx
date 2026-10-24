@@ -19,6 +19,7 @@ import { ReviewPopup } from './ReviewPopup.js';
 import { CommandPalette, type PaletteItem } from './CommandPalette.js';
 import { reviewLegend } from './legend.js';
 import { REVIEW_BRIEFING_KEYS, reviewBriefingBar } from './screenKeys.js';
+import { PALETTE_HINT } from './chapter/keys.js';
 import { plural } from './plural.js';
 import { G } from './glyphs.js';
 import { TONE_COLOR, unboundKey, useFlash } from './flash.js';
@@ -447,6 +448,7 @@ export function BriefingScreen(props: {
           checks: !!props.onChecks,
           theme: !!props.onTheme,
         })}
+        extraEnd={[PALETTE_HINT]}
         end={[
           ['?', 'keys'],
           ['q', props.onBack ? 'PR list' : 'quit'],

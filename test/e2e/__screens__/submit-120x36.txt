@@ -32,5 +32,5 @@
 
 
 ✎ ‹blue,bg:c235› question ‹/› Before tax?
- ‹cyan,b›n/p‹/› hunk   ‹cyan,b›]/[‹/› chapter   ‹dim›│   ‹/›‹cyan,b›c‹/› edit draft   ‹cyan,b›v‹/› range   ‹dim›+3 more‹/›       ‹yellow›whitespace hidden   ‹/›‹cyan,b›tab‹/› pane   ‹cyan,b›esc‹/› back   ‹cyan,b›?‹/› keys
+ ‹cyan,b›n/p‹/› hunk   ‹cyan,b›]/[‹/› chapter   ‹dim›│   ‹/›‹cyan,b›c‹/› edit draft   ‹dim›+4 more‹/›    ‹yellow›whitespace hidden   ‹/›‹cyan,b›:‹/› commands   ‹cyan,b›tab‹/› pane   ‹cyan,b›esc‹/› back   ‹cyan,b›?‹/› keys
 
