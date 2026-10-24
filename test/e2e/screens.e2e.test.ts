@@ -77,8 +77,7 @@ describe.each(SIZES)('screens at %ix%i', (cols, rows) => {
 
     await keys(gr, 'v', 'j', 'j');
     await snap(gr, 'chapter-range', cols, rows);
-    gr.press(KEY.escape);
-    await gr.idle();
+    await keys(gr, KEY.escape);
 
     gr.press('?');
     await gr.waitFor('Keys · chapter');
@@ -88,6 +87,12 @@ describe.each(SIZES)('screens at %ix%i', (cols, rows) => {
     await snap(gr, 'help-marks', cols, rows);
     gr.press(KEY.escape);
     await gone(gr, 'Marks · chapter');
+
+    gr.press(':');
+    await gr.waitFor('a command, a file, or a chapter');
+    await snap(gr, 'palette', cols, rows);
+    gr.press(KEY.escape);
+    await gone(gr, 'a command, a file, or a chapter');
 
     gr.press('c');
     await gr.waitFor('Comment');

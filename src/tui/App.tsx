@@ -1065,6 +1065,11 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
               state={editState}
               setState={(f) => setEditState((s) => (s ? f(s) : s))}
               onCancel={() => setPhase('submit')}
+              onDelete={() => {
+                store.deleteDraft(editing.id);
+                setDrafts(store.listDrafts(editing.repo, editing.pr));
+                setPhase('submit');
+              }}
               onSave={(d) => {
                 saveDraft(d);
                 setPhase('submit');

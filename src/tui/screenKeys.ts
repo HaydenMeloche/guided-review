@@ -66,6 +66,7 @@ export const REVIEW_BRIEFING_KEYS: KeyDef<ReviewBriefingKeyCtx>[] = [
   { keys: ['c'], group: 'PR', help: 'Checks and their logs', bar: { shown: 'c', label: 'checks', when: (c) => c.checks } },
   { keys: ['t'], group: 'PR', help: 'Your PR: switch to its feedback', bar: { shown: 't', label: 'your feedback', when: (c) => c.feedback } },
   { keys: ['L'], group: 'App', help: 'Color theme', bar: { shown: 'L', label: 'theme', when: (c) => c.theme } },
+  { keys: [':'], group: 'App', help: 'Command palette: the briefing’s commands, and a chapter to open' },
   { keys: ['?'] },
   { keys: ['h'], alias: true },
   { keys: [' '], alias: true },

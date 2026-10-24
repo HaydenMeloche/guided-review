@@ -32,5 +32,5 @@
 
 
 ‹dim›✎ 0 draft comments‹/›
- ‹cyan,b›n/p‹/› hunk   ‹cyan,b›]/[‹/› chapter   ‹dim›│   ‹/›‹cyan,b›c‹/› comment on range   ‹cyan,b›v‹/› end range   ‹dim›+4 more‹/›        ‹yellow›whitespace hidden   ‹/›‹cyan,b›esc‹/› back   ‹cyan,b›?‹/› keys
+ ‹cyan,b›n/p‹/› hunk   ‹cyan,b›]/[‹/› chapter   ‹dim›│   ‹/›‹cyan,b›c‹/› comment on range   ‹cyan,b›v‹/› end range   ‹dim›+3 more‹/›        ‹yellow›whitespace hidden   ‹/›‹cyan,b›esc‹/› back   ‹cyan,b›?‹/› keys
 

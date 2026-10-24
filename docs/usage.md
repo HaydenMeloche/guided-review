@@ -28,7 +28,7 @@ Run `gr cleanup` to remove managed PR worktrees and prune old tours. Tours are a
 
 ## Read the tour
 
-The **briefing** opens once it is ready; chapter narration may continue in the background, shown as a quiet spinner and count (`narrating 3/7`) at the right of the header. An explanation that arrives while you are on its hunk is marked `updated` for a moment. It shows the PR's intent and author description, recent reviewer feedback, flagged gaps, an overview diagram, chapters with risk, and your progress. Press `V` to read all submitted reviews. The chapter heading names the current order. Press `f` to cycle **Guided** (recommended reading path), **Risk first**, **Small first** (fewest changed lines), and **File** (path order). Chapters come first, numbered, each with a small meter of how much of it you have read and a ▲ when it holds risky changes; `1`–`9` open a chapter by its number. Below them, **Watch for** lists flagged gaps as a short label and the detail, and the author's description shows its first three lines (`r` reads it all). Select a chapter with `j`/`k` and `Enter`, or press `n` to resume where you left off (the key bar says where, such as `n resume · chapter 3, hunk 2/8`). Press `r` to read the full PR description, `d` for the overview diagram, or `a` to ask about the whole PR in a panel below the briefing. On a re-review, press `D` to switch between only the changes and the full review. Above the summary, a line says whether the PR is ready to merge and, if not, why; press `M` to [merge it](#merge-a-pr). Press `c` for the PR's [checks](#checks) and their logs. On your own PR, press `t` to switch to [its feedback](#respond-to-a-review). Press `s` for the [submit screen](#draft-and-submit-comments), `L` for a color theme, `?` for every key, and `q` to go back to the PR list.
+The **briefing** opens once it is ready; chapter narration may continue in the background, shown as a quiet spinner and count (`narrating 3/7`) at the right of the header. An explanation that arrives while you are on its hunk is marked `updated` for a moment. It shows the PR's intent and author description, recent reviewer feedback, flagged gaps, an overview diagram, chapters with risk, and your progress. Press `V` to read all submitted reviews. The chapter heading names the current order. Press `f` to cycle **Guided** (recommended reading path), **Risk first**, **Small first** (fewest changed lines), and **File** (path order). Chapters come first, numbered, each with a small meter of how much of it you have read and a ▲ when it holds risky changes; `1`–`9` open a chapter by its number. Below them, **Watch for** lists flagged gaps as a short label and the detail, and the author's description shows its first three lines (`r` reads it all). Select a chapter with `j`/`k` and `Enter`, or press `n` to resume where you left off (the key bar says where, such as `n resume · chapter 3, hunk 2/8`). Press `r` to read the full PR description, `d` for the overview diagram, or `a` to ask about the whole PR in a panel below the briefing. On a re-review, press `D` to switch between only the changes and the full review. Above the summary, a line says whether the PR is ready to merge and, if not, why; press `M` to [merge it](#merge-a-pr). Press `c` for the PR's [checks](#checks) and their logs. On your own PR, press `t` to switch to [its feedback](#respond-to-a-review). Press `s` for the [submit screen](#draft-and-submit-comments), `L` for a color theme, `:` for the command palette (its commands, and any chapter by name), `?` for every key, and `q` to go back to the PR list.
 
 An outdated review thread, one on lines a later push changed, shows where those lines are now: Guided Review follows the line from the commit the comment was written on to the current head.
 
@@ -65,16 +65,18 @@ Upgrade highlights and package overviews come from a changelog in the worktree w
 
 ### Chapter keys
 
+The key bar shows the keys you use constantly. Settings you flip once in a review (split view, whitespace, raw diff, the test pane, test gaps, moving a hunk, the checklist, rebuilding, opening your coding agent, the theme) are listed in the help under **Settings** and in the command palette (`:`); their letters still work as shortcuts.
+
 | Key | Action |
 | --- | --- |
 | `n` / `p` | Next hunk, marking the current one read, or previous hunk. At the end, move to the next chapter. |
 | `j` / `k`, `J` / `K` | Move the code cursor by one line or ten lines. |
 | `v` | Start or end a line-range selection. |
-| `]` / `[` | Next or previous chapter, including optional chapters. |
-| `c` / `C` | Draft a comment on the selected line or range, or on the whole chapter. |
+| `N` / `P`, `]` / `[` | Next or previous chapter, including optional chapters. `N` and `P` are plain keys on layouts where `[` and `]` need AltGr. |
+| `c` / `C` | Draft a comment on the selected line or range, or on the whole chapter. On a line that holds your unposted draft, `c` edits it; `Ctrl+X` in the comment deletes it (pressed twice). |
 | `e` | Open review threads on the selected line inline. Scroll with `j`/`k` or `J`/`K`; use `Tab` to select a comment and `+` to add or remove a reaction; press `Esc` to close. |
 | `y` | Reply to a review thread on the selected line in the inline panel. `Enter` asks before posting to GitHub (`y` or `Enter` posts, any other key goes back to the reply), then says where the reply landed. `Ctrl+J` adds a line. |
-| `E` / `X` | Edit or delete your unposted draft on the selected line (`X` asks first). The submit screen does the same for every draft with `e` / `x`. |
+| `E` / `X` | Old keys for editing and deleting your draft, kept for one release: they still work and say where they moved (`c`, and `Ctrl+X` in the comment). The submit screen edits and deletes every draft with `e` / `x`. |
 | `a` | Ask the agent about the selection in a panel below the selected line. Questions form a thread: press `Enter` again to ask a follow-up, and `↑`/`↓` to scroll. Press `Esc` to return to review. Off, and left out of the key bar, with no AI model or `--no-agent`. |
 | `t` | Focus linked tests; narrow terminals toggle source and tests. Long code lines wrap in both panes. When linked tests are not beside the code, a `◂ 2 tests · t` tab at the top right says so. |
 | `T` | Hide or show the test pane beside the code, to give the diff the full width. `t` still opens the tests when the pane is hidden. |
@@ -93,6 +95,7 @@ Upgrade highlights and package overviews come from a changelog in the worktree w
 | `o` | Open your coding agent in the PR's checkout, with the hunk, your draft comments on its file, and the file's review threads as its first prompt. Choose the agent in `gr config` (Claude Code by default). |
 | `b` / `s` | Return to the briefing (description and overview diagram), or open submit. `b` also works while the test pane has focus. |
 | `?` / `h` | List every key, and on a second page (`Tab`) the marks. |
+| `:` | Open the command palette: every action on the screen with its key, filtered as you type, plus every chapter and changed file to go to. `↑`/`↓` choose, `Enter` runs, `Esc` closes. |
 | `L` | Choose a color theme. `/` searches the list by name. Moving through the list applies each theme as the cursor stops, so the screen behind it shows what it looks like; `Enter` keeps it and saves it as `theme` in your config, and `Esc` goes back to the one you had. The PR list and the briefing take `L` too. See [Color themes](configuration.md#color-themes). |
 | `Esc` / `q` / `Q` | Go back to the briefing (progress is saved), or quit Guided Review. `Esc` first clears a range selection. |
 

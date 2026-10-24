@@ -45,3 +45,7 @@ set -as terminal-features ',*:RGB'
 set -g set-titles on
 set -g set-clipboard on
 ```
+
+## Keyboard layouts
+
+`[` and `]` move between chapters. On German and other European layouts they need AltGr; `N` and `P` do the same with a plain key, and `:` opens the command palette, where you can type a chapter's or a file's name to go to it.

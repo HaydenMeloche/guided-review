@@ -85,24 +85,20 @@ describe('barKeys', () => {
       ['c', 'comment'],
       ['v', 'range'],
       ['+/-', 'context'],
-      ['S', 'split'],
       ['x', 'skip'],
     ]);
     expect(pairs(barKeys('code', all))).toEqual([
       ['s', 'submit'],
       ['n/p', 'hunk'],
       [']/[', 'chapter'],
-      ['c', 'comment on range'],
+      ['c', 'edit draft'],
       ['a', 'ask'],
       ['e', 'thread'],
       ['y', 'reply'],
       ['v', 'end range'],
-      ['E', 'edit draft'],
-      ['X', 'delete draft'],
       ['t', 'tests'],
       ['d', 'diagram'],
       ['+/-', 'context'],
-      ['S', 'inline'],
       ['x', 'skip'],
     ]);
     // Each group is told apart, so the bar can rule between them.
@@ -115,7 +111,7 @@ describe('barKeys', () => {
       ['enter', 'expand'],
       ['n/p', 'next/prev'],
       [']/[', 'chapter'],
-      ['C', 'comment on flow'],
+      ['C', 'comment on chapter'],
       ['x', 'skip chapter'],
     ]);
     expect(pairs(barKeys('tests', all))).toEqual([

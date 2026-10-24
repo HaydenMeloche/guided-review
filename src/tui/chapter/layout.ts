@@ -88,7 +88,7 @@ export function chapterLayout(i: LayoutInput) {
   };
 }
 
-export type OverlayKind = 'none' | 'diagram' | 'comment' | 'thread' | 'reply' | 'ask' | 'move' | 'help' | 'checklist' | 'delete';
+export type OverlayKind = 'none' | 'diagram' | 'comment' | 'thread' | 'reply' | 'ask' | 'move' | 'help' | 'checklist' | 'delete' | 'palette';
 
 export interface SlotInput {
   overlay: OverlayKind;
@@ -119,5 +119,12 @@ export function overlaySlots(plan: ChapterLayout, o: SlotInput) {
   const testInline = !plan.testPaneShown ? undefined : lineComment && o.testFocus ? 'comment' : overlay === 'ask' && o.testFocus ? 'ask' : undefined;
   const collapsedAsk = plan.collapsed && overlay === 'ask';
   const confirmDelete = overlay === 'delete' && o.draftHere;
-  return { popup, sourceInline, testInline, collapsedAsk, confirmDelete, shown: overlay === 'help' || confirmDelete || !!popup || collapsedAsk || !!sourceInline || !!testInline } as const;
+  return {
+    popup,
+    sourceInline,
+    testInline,
+    collapsedAsk,
+    confirmDelete,
+    shown: overlay === 'help' || overlay === 'palette' || confirmDelete || !!popup || collapsedAsk || !!sourceInline || !!testInline,
+  } as const;
 }

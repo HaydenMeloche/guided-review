@@ -20,5 +20,5 @@
 
 
 ‹dim›✎ 0 draft comments‹/›
- ‹cyan,b›n/p‹/› hunk   ‹cyan,b›]/[‹/› chapter   ‹dim›+6 more‹/›       ‹yellow›whitespace hidden   ‹/›‹cyan,b›esc‹/› back   ‹cyan,b›?‹/› keys
+ ‹cyan,b›n/p‹/› hunk   ‹cyan,b›]/[‹/› chapter   ‹dim›+5 more‹/›       ‹yellow›whitespace hidden   ‹/›‹cyan,b›esc‹/› back   ‹cyan,b›?‹/› keys
 

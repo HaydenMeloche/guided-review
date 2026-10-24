@@ -17,6 +17,7 @@ import { ReadinessLine } from './MergeScreen.js';
 import { Busy } from './Spinner.js';
 import { HelpPopup } from './Help.js';
 import { ReviewPopup } from './ReviewPopup.js';
+import { CommandPalette, type PaletteItem } from './CommandPalette.js';
 import { helpOf } from './keys.js';
 import { reviewLegend } from './legend.js';
 import { REVIEW_BRIEFING_KEYS, reviewBriefingBar } from './screenKeys.js';
@@ -92,7 +93,7 @@ export function BriefingScreen(props: {
   const { tour, chapters, states, width, height } = props;
   const selectedRow = useSelected();
   const [sel, setSel] = useState(0);
-  const [overlay, setOverlay] = useState<'none' | 'diagram' | 'ask' | 'read' | 'reviews' | 'help'>('none');
+  const [overlay, setOverlay] = useState<'none' | 'diagram' | 'ask' | 'read' | 'reviews' | 'help' | 'palette'>('none');
   useEffect(() => setSel(0), [props.order]);
   // D keeps the selected chapter when it is in both lists.
   const keepSel = useRef<string | undefined>(undefined);
@@ -135,6 +136,7 @@ export function BriefingScreen(props: {
       if (input === 'd' && tour.overview) return setOverlay('diagram');
       if (input === 'a') return setOverlay('ask');
       if (input === '?' || input === 'h') return setOverlay('help');
+      if (input === ':') return setOverlay('palette');
       if (input === 'f') return props.cycleOrder();
       if (input === 'D' && tour.rereview && props.toggleDelta) {
         keepSel.current = chapters[sel]?.id ?? '';
@@ -432,6 +434,26 @@ export function BriefingScreen(props: {
       />
     </Box>
   );
+  // The palette: the briefing's commands, then every chapter to open.
+  if (overlay === 'palette' && props.active !== false) {
+    const items: PaletteItem[] = [
+      { label: props.resume ? `Resume (${props.resume.replace(/^resume · /, '')})` : 'Start reading', key: 'n', run: () => props.onStart() },
+      ...(props.agent ? [{ label: 'Ask the model about the whole PR', key: 'a', run: () => setOverlay('ask') }] : []),
+      ...(tour.description?.trim() ? [{ label: 'Read the PR description', key: 'r', run: () => setOverlay('read') }] : []),
+      ...(tour.overview ? [{ label: 'Explore the overview diagram', key: 'd', run: () => setOverlay('diagram') }] : []),
+      { label: 'Change the chapter order', key: 'f', run: () => props.cycleOrder() },
+      { label: 'Submit the review', key: 's', run: () => props.onSubmit() },
+      ...(props.onMerge ? [{ label: 'Merge the PR', key: 'M', run: () => props.onMerge?.() }] : []),
+      ...(props.onChecks ? [{ label: 'Checks and their logs', key: 'c', run: () => props.onChecks?.() }] : []),
+      ...(props.onTheme ? [{ label: 'Color theme', key: 'L', run: () => props.onTheme?.() }] : []),
+      ...chapters.map((c, i) => ({ label: `Go to chapter ${i + 1}: ${c.title}`, detail: plural(c.hunkIds.length, 'hunk'), run: () => props.onStart(i) })),
+    ];
+    return (
+      <ReviewPopup background={screen} width={width} height={height} maxWidth={Math.min(90, width - 4)} maxHeight={Math.min(height - 4, 22)} tone="input">
+        {(w, h) => <CommandPalette items={items} width={w} height={h} onClose={() => setOverlay('none')} />}
+      </ReviewPopup>
+    );
+  }
   // The overview diagram floats over the briefing, which stays in view around it.
   if (overlay === 'diagram' && tour.overview && props.active !== false) {
     const graph = tour.overview;

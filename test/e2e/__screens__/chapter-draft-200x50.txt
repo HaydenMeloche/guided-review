@@ -46,5 +46,5 @@
 
 
 Draft saved (question). Nothing posts until you submit.
- ‹cyan,b›n/p‹/› hunk   ‹cyan,b›]/[‹/› chapter   ‹dim›│   ‹/›‹cyan,b›c‹/› comment   ‹cyan,b›v‹/› range   ‹cyan,b›E‹/› edit draft   ‹cyan,b›X‹/› delete draft   ‹dim›│   ‹/›‹cyan,b›d‹/› diagram   ‹cyan,b›+/-‹/› context   ‹cyan,b›S‹/› split   ‹dim›│   ‹/›‹cyan,b›x‹/› skip                          ‹yellow›whitespace hidden   ‹/›‹cyan,b›esc‹/› back   ‹cyan,b›?‹/› keys
+ ‹cyan,b›n/p‹/› hunk   ‹cyan,b›]/[‹/› chapter   ‹dim›│   ‹/›‹cyan,b›c‹/› edit draft   ‹cyan,b›v‹/› range   ‹dim›│   ‹/›‹cyan,b›d‹/› diagram   ‹cyan,b›+/-‹/› context   ‹dim›│   ‹/›‹cyan,b›x‹/› skip                                                                 ‹yellow›whitespace hidden   ‹/›‹cyan,b›esc‹/› back   ‹cyan,b›?‹/› keys
 

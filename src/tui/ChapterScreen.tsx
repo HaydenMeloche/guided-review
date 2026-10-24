@@ -27,7 +27,8 @@ import { ReviewPopup } from './ReviewPopup.js';
 import { reviewLegend } from './legend.js';
 import { anchorLines, crossesContext, describeAnchor, lineAnchor, newDraft, selectedCode, selRange, testLineAnchor } from './chapter/selection.js';
 import { CONTEXT_STEP, useFoldedCursor, useFolds, useHunkView } from './chapter/hunkView.js';
-import { barEnd, barKeys, chapterHelp, keyAction, type Action, type KeyCtx, type View } from './chapter/keys.js';
+import { barEnd, barKeys, chapterHelp, keyAction, paletteCommands, type Action, type KeyCtx, type View } from './chapter/keys.js';
+import { CommandPalette, type PaletteItem } from './CommandPalette.js';
 import { explanation } from './chapter/guide.js';
 import { useFlash } from './flash.js';
 import { plural } from './plural.js';
@@ -308,6 +309,8 @@ export function ChapterScreen(props: {
     untested: () => setShowUntested((shown) => !shown),
     focusTests: () => (hasLinkedTests ? setTestFocus(true) : setFlash('No test exercises this hunk.')),
     comment: () => {
+      // c on a line that holds your draft edits it.
+      if (anchor === null && cursorDraft) return openComposer(cursorDraft);
       if (crossesContext(hunk!, sel)) return setFlash('This range crosses dimmed lines outside the PR’s diff: GitHub can’t take one comment across them. Select one side.');
       const a = lineAnchor(hunk!, sel);
       if (!a && anchorLines(hunk!, sel).length === 0) return setFlash('This is context outside the PR’s diff: GitHub can’t take a comment on it.');
@@ -316,8 +319,18 @@ export function ChapterScreen(props: {
     },
     reply: () => (cursorThreads.length ? show('reply') : setFlash('No review thread on this line. Move to a commented line and press y.')),
     thread: () => (cursorThreads.length ? show('thread') : setFlash('No review thread on this line. Move to a commented line and press e.')),
-    editDraft: () => (cursorDraft ? openComposer(cursorDraft) : setFlash('No draft on this line. Move to a line with ✎ and press E.')),
-    deleteDraft: () => (cursorDraft ? show('delete') : setFlash('No draft on this line. Move to a line with ✎ and press X.')),
+    // E and X, for one release: they still work, and say where they moved.
+    editDraft: () => {
+      if (!cursorDraft) return setFlash('No draft on this line. Move to a line with ✎ and press c.');
+      openComposer(cursorDraft);
+      setFlash('E is going away: c on a line with your draft edits it.', 'info');
+    },
+    deleteDraft: () => {
+      if (!cursorDraft) return setFlash('No draft on this line. Move to a line with ✎ and press c.');
+      show('delete');
+      setFlash('X is going away: ctrl+x in the comment deletes your draft.', 'info');
+    },
+    palette: () => show('palette'),
     commentFlow: () => openComposer(draft({ type: 'chapter', chapterId: chapter.id })),
     ask: () => {
       if (hunk && cursorLine?.newLine !== undefined) noteRecent.current?.({ path: hunk.file, line: cursorLine.newLine, why: 'ask' });
@@ -401,6 +414,20 @@ export function ChapterScreen(props: {
   // leave no handler active, so close it.
   if (overlay.kind !== 'none' && !slots.shown) close(); // React re-renders before committing
 
+  // The palette: this view's commands, then every chapter and every changed file to go to.
+  const paletteItems = (): PaletteItem[] => {
+    const commands = paletteCommands(keyView, keyCtx).map((c) => ({ label: c.label, key: c.key, run: () => actions[c.action]() }));
+    const toChapter = chapters.map((c, i) => ({ label: `Go to chapter ${i + 1}: ${c.title}`, detail: plural(c.hunkIds.length, 'hunk'), run: () => props.setPos(i, firstHunk(chapters, i)) }));
+    const toFile: PaletteItem[] = [];
+    for (const f of tour.files) {
+      const ci = chapters.findIndex((c) => c.hunkIds.some((id) => tour.hunks[id]?.file === f.path));
+      if (ci < 0) continue;
+      const hi = chapters[ci].hunkIds.findIndex((id) => tour.hunks[id]?.file === f.path);
+      toFile.push({ label: `Go to ${f.path}`, detail: `chapter ${ci + 1} · hunk ${hi + 1}`, run: () => props.setPos(ci, chapters[ci].collapsed ? -1 : hi) });
+    }
+    return [...commands, ...toChapter, ...toFile];
+  };
+
   // The diagram, the move list, the checklist, and a chapter or node comment float over the
   // screen, which stays in view around them: the diagram's job is to orient you in that code.
   const floating = (() => {
@@ -428,6 +455,13 @@ export function ChapterScreen(props: {
     }
     if (slots.popup === 'comment' && overlay.kind === 'comment')
       return { tone: 'input' as const, width: Math.min(96, width - 4), height: overlay.composer.ai ? Math.min(30, height - 4) : 18, node: (w: number, h: number) => commentEditor(w, h) };
+    if (overlay.kind === 'palette')
+      return {
+        tone: 'input' as const,
+        width: Math.min(90, width - 4),
+        height: Math.min(height - 4, 22),
+        node: (w: number, h: number) => <CommandPalette items={paletteItems()} width={w} height={h} onClose={close} />,
+      };
     if (overlay.kind === 'move')
       return { tone: 'input' as const, width: Math.min(70, width - 4), height: chapters.length + 5, node: (w: number) => <MoveList chapters={chapters} sel={overlay.sel} width={w} /> };
     if (slots.popup === 'checklist' && chapter.checklist && svc) {
@@ -468,6 +502,15 @@ export function ChapterScreen(props: {
         listRows={listRows}
         onCancel={() => close()}
         onSave={saveDraft}
+        onDelete={
+          props.drafts.some((d) => d.id === pending.id)
+            ? () => {
+                props.deleteDraft(pending);
+                close();
+                setFlash(`Draft deleted (${pending.label}).`, 'info');
+              }
+            : undefined
+        }
       />
     );
   }

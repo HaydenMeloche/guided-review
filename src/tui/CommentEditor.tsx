@@ -64,6 +64,7 @@ export function CommentEditor(props: {
   listRows?: number; // rows for an open @ list and its preview in the compact composer
   onSave: (d: Draft) => void;
   onCancel: () => void;
+  onDelete?: () => void; // ctrl+x on a saved draft deletes it; unset, ctrl+x discards a new one
 }) {
   const { suspendTerminal } = useApp();
   const { env } = props;
@@ -74,6 +75,12 @@ export function CommentEditor(props: {
   const [completing, setCompleting] = useState(false); // TextInput's list owns Esc while open
   // Esc on typed text asks once: a second Esc within DISCARD_MS discards it.
   const [discardArmed, setDiscardArmed] = useState(false);
+  const [deleteArmed, setDeleteArmed] = useState(false); // ctrl+x asks once too
+  useEffect(() => {
+    if (!deleteArmed) return;
+    const t = setTimeout(() => setDeleteArmed(false), DISCARD_MS);
+    return () => clearTimeout(t);
+  }, [deleteArmed]);
   useEffect(() => {
     if (!discardArmed) return;
     const t = setTimeout(() => setDiscardArmed(false), DISCARD_MS);
@@ -151,6 +158,15 @@ export function CommentEditor(props: {
         if (!typed || discardArmed) return props.onCancel();
         setDiscardArmed(true);
         return patch({ msg: 'esc again to discard · enter to save' });
+      }
+      if (key.ctrl && input === 'x') {
+        if (deleteArmed) return props.onDelete ? props.onDelete() : props.onCancel();
+        setDeleteArmed(true);
+        return patch({ msg: props.onDelete ? 'ctrl+x again to delete this draft · esc to keep it' : 'ctrl+x again to discard this comment' });
+      }
+      if (deleteArmed) {
+        setDeleteArmed(false);
+        if (st.msg.startsWith('ctrl+x again')) patch({ msg: '' });
       }
       if (discardArmed) {
         setDiscardArmed(false);
@@ -236,12 +252,13 @@ export function CommentEditor(props: {
     ['tab', 'label'],
     ...((canSuggest ? [['ctrl+g', 'suggestion in $EDITOR']] : []) as Hint[]),
     ...((st.suggestion !== undefined ? [['ctrl+d', 'drop suggestion']] : []) as Hint[]),
+    ...((props.onDelete ? [['ctrl+x', 'delete draft']] : []) as Hint[]),
     ['esc', 'cancel'],
   ];
   // The message, if any, takes the footer: a warning about to discard in yellow, the rest dim.
   const footer = (keys: Hint[] | string) =>
     st.msg ? (
-      <Text color={discardArmed ? 'yellow' : undefined} dimColor={!discardArmed} wrap="truncate">
+      <Text color={discardArmed || deleteArmed ? 'yellow' : undefined} dimColor={!discardArmed && !deleteArmed} wrap="truncate">
         {truncate(st.msg, inner)}
       </Text>
     ) : typeof keys === 'string' ? (
