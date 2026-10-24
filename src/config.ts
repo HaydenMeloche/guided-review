@@ -119,6 +119,7 @@ export type UserConfig = Omit<AgentRouting, 'provider'> & {
   shortExplanation?: boolean;
   theme?: string;
   glyphs?: GlyphSetting;
+  tipsSeen?: string[];
   codingAgent?: CodingAgent;
   codingAgentCommand?: string; // with "codingAgent": "custom"
   github?: GitHubConfig;
@@ -288,6 +289,28 @@ export function loadGlyphSetting(raw = readUserConfigFile()): GlyphSetting {
   return (raw && parseChoice(raw, 'glyphs', GLYPH_SETTINGS, userConfigPath())) ?? 'unicode';
 }
 
+function parseTipsSeen(raw: Record<string, unknown>, where: string): string[] | undefined {
+  if (raw.tipsSeen === undefined) return undefined;
+  if (!Array.isArray(raw.tipsSeen) || raw.tipsSeen.some((t) => typeof t !== 'string')) throw new UserConfigError(`${where}: "tipsSeen" must be a list of tip names`);
+  return raw.tipsSeen as string[];
+}
+
+// The first-run tips already shown, readable without a model provider.
+export function loadTipsSeen(raw = readUserConfigFile()): string[] {
+  return (raw && parseTipsSeen(raw, userConfigPath())) ?? [];
+}
+
+// Records a tip as shown, so it shows once; like saveViewSetting, it needs an existing config file.
+export function saveTipSeen(tip: string): void {
+  const file = userConfigPath();
+  const raw = readUserConfigFile();
+  if (!raw) return;
+  const seen = parseTipsSeen(raw, file) ?? [];
+  if (seen.includes(tip)) return;
+  fs.writeFileSync(file, JSON.stringify({ ...raw, tipsSeen: [...seen, tip] }, null, 2) + '\n', { mode: 0o600 });
+  fs.chmodSync(file, 0o600);
+}
+
 function parseTheme(raw: Record<string, unknown>, where: string): string | undefined {
   if (raw.theme === undefined) return undefined;
   if (typeof raw.theme !== 'string' || !raw.theme) throw new UserConfigError(`${where}: "theme" must be a theme name`);
@@ -391,6 +414,8 @@ export function loadUserConfig(raw = readUserConfigFile()): UserConfig {
   if (theme) out.theme = theme;
   const glyphs = parseChoice(raw, 'glyphs', GLYPH_SETTINGS, file);
   if (glyphs) out.glyphs = glyphs;
+  const tipsSeen = parseTipsSeen(raw, file);
+  if (tipsSeen) out.tipsSeen = tipsSeen;
   const codingAgent = parseCodingAgent(raw, file);
   if (codingAgent) {
     out.codingAgent = codingAgent.agent;

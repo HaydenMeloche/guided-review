@@ -105,6 +105,7 @@ export function ChapterScreen(props: {
   toggleSidebar?: () => void;
   shortExplanation?: boolean; // the explanation cut to its first lines; likewise
   toggleExplanation?: () => void;
+  takeTip?: (tip: string) => boolean; // true once per tip: show it (first-run tips)
   hideTestPane?: boolean; // keep linked tests out of the way (t still opens them); likewise
   toggleTestPane?: () => void;
   toggleDelta: () => void;
@@ -181,6 +182,16 @@ export function ChapterScreen(props: {
     setShowUntested(false);
   }, [chapter?.id]);
   useEffect(() => setExplainScroll(0), [chapter?.id, hunk?.id]);
+  // First-run tips, one at a time in the status row, each shown once: how to move on the first
+  // hunk, and how to read a review thread the first time one is on screen.
+  const hunkHasThreads = !!hunk && tour.existingThreads.some((t) => t.path === hunk.file && hunk.lines.some((l) => l.newLine === t.line || l.oldLine === t.originalLine));
+  useEffect(() => {
+    if (!hunk || flash) return;
+    if (props.takeTip?.('first-chapter')) setFlash('Tip: n marks this hunk read and moves on; ? lists every key.', 'tip');
+    else if (hunkHasThreads && props.takeTip?.('first-thread')) setFlash(`Tip: ${G.thread} marks a review thread: e reads it, y replies.`, 'tip');
+    // A tip is a one-off on arriving at a hunk.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hunk?.id]);
 
   // An explanation that arrives while its hunk is on screen says so for a moment.
   const narration = hunk?.narration;
@@ -220,6 +231,7 @@ export function ChapterScreen(props: {
     props.saveDraft(d);
     setAnchor(null);
     close();
+    if (!edited && props.takeTip?.('first-draft')) return setFlash(`Tip: drafts stay on your machine until you submit them all at once with s.`, 'tip');
     setFlash(`Draft ${edited ? 'updated' : 'saved'} (${d.label}). Nothing posts until you submit.`, 'info');
   };
 

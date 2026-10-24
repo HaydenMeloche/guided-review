@@ -1405,6 +1405,19 @@ describe('split view, test pane toggle and expanded context', () => {
     ui.unmount();
   });
 
+  it('shows each first-run tip once, until a key is pressed', async () => {
+    const h = hunkFromDiff('src/a.ts', '-go();', '+stop();');
+    const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
+    const seen = new Set<string>();
+    const takeTip = (tip: string) => (seen.has(tip) ? false : (seen.add(tip), true));
+    const ui = render(screen(t, { takeTip }));
+    await waitFor(() => expect(ui.lastFrame()).toContain('Tip: n marks this hunk read and moves on'));
+    ui.stdin.write('j');
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('Tip:'));
+    expect([...seen]).toEqual(['first-chapter']);
+    ui.unmount();
+  });
+
   it('S shows the old line beside its replacement, and back', async () => {
     const h = hunkFromDiff('src/a.ts', ' keep();', '-const total = price;', '+const total = price * quantity - discount;', ' done();');
     const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });

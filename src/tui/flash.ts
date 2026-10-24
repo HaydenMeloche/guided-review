@@ -3,16 +3,16 @@ import { useEffect, useState } from 'react';
 // A one-line message after a key press. Info ("Draft saved") is plain and fades, and so does a
 // quiet note (dim: a key that does nothing here). A warning (yellow: why a key did nothing, what
 // to do instead) and an error (red: a GitHub write that failed) stay until the next key press,
-// so they are never missed.
+// so they are never missed, as does a first-run tip (cyan).
 
-export type Tone = 'info' | 'quiet' | 'warn' | 'error';
+export type Tone = 'info' | 'quiet' | 'tip' | 'warn' | 'error';
 
 export interface Flash {
   text: string;
   tone: Tone;
 }
 
-export const TONE_COLOR: Record<Tone, string | undefined> = { info: undefined, quiet: undefined, warn: 'yellow', error: 'red' };
+export const TONE_COLOR: Record<Tone, string | undefined> = { info: undefined, quiet: undefined, tip: 'cyan', warn: 'yellow', error: 'red' };
 
 const INFO_MS = 2500;
 

@@ -12,6 +12,8 @@ import {
   loadThemeSetting,
   loadViewSetting,
   loadGlyphSetting,
+  loadTipsSeen,
+  saveTipSeen,
   parseRepoConfig,
   PRESET_MODELS,
   presetUserConfig,
@@ -191,6 +193,20 @@ describe('user config', () => {
     expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual({ provider: 'openai', apiKeyEnv: 'KEY', custom: { a: 1 }, hideWhitespace: false });
     expect(fs.statSync(file).mode & 0o777).toBe(0o600);
     expect(loadViewSetting('hideWhitespace')).toBe(false);
+  });
+
+  it('remembers first-run tips shown, without touching the rest of the config', () => {
+    const file = configFile();
+    expect(loadTipsSeen()).toEqual([]);
+    saveTipSeen('first-chapter');
+    expect(fs.existsSync(file)).toBe(false); // no config yet: nothing is created
+    fs.writeFileSync(file, '{"provider":"none"}\n');
+    saveTipSeen('first-chapter');
+    saveTipSeen('first-chapter');
+    expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual({ provider: 'none', tipsSeen: ['first-chapter'] });
+    expect(loadTipsSeen()).toEqual(['first-chapter']);
+    fs.writeFileSync(file, '{"tipsSeen":"all"}\n');
+    expect(() => loadTipsSeen()).toThrow(/"tipsSeen" must be a list of tip names/);
   });
 
   it('reads the glyph set without a provider: unicode by default, or ascii', () => {

@@ -10,6 +10,8 @@ import {
   loadChapterOrder,
   loadCodingAgent,
   loadGlyphSetting,
+  loadTipsSeen,
+  saveTipSeen,
   loadThemeSetting,
   loadUserConfig,
   loadViewSetting,
@@ -350,6 +352,7 @@ async function main() {
   let shortExplanation: boolean;
   let themeName: string | undefined;
   let glyphs: GlyphSetting;
+  let tipsSeen: string[];
   let codingAgent: AppOptions['codingAgent'];
   try {
     chapterOrder = loadChapterOrder(config);
@@ -359,6 +362,7 @@ async function main() {
     shortExplanation = loadViewSetting('shortExplanation', config);
     themeName = loadThemeSetting(config);
     glyphs = loadGlyphSetting(config);
+    tipsSeen = loadTipsSeen(config);
     codingAgent = loadCodingAgent(config);
   } catch (error) {
     if (!(error instanceof UserConfigError)) throw error;
@@ -382,6 +386,8 @@ async function main() {
     splitDiff,
     sidebar,
     shortExplanation,
+    tipsSeen,
+    saveTipSeen: config ? saveTipSeen : undefined,
     saveViewSetting,
     saveTheme: config ? saveThemeSetting : undefined,
     codingAgent,

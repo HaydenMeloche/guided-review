@@ -60,6 +60,8 @@ export interface AppOptions {
   splitDiff?: boolean; // the user's saved S setting; off when unset
   sidebar?: boolean; // the user's saved \ setting; on when unset
   shortExplanation?: boolean; // the explanation cut to its first lines; off when unset
+  tipsSeen?: string[]; // first-run tips already shown
+  saveTipSeen?: (tip: string) => void; // records one; unset with no config file, where tips can't be remembered and so don't show
   saveViewSetting?: (key: ViewSetting, value: boolean) => void; // records a w or S toggle for next time
   noAgent?: boolean;
   fresh?: boolean;
@@ -196,6 +198,18 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const [splitDiff, setSplitDiff] = useState(opts.splitDiff ?? false);
   const [sidebar, setSidebar] = useState(opts.sidebar ?? true);
   const [shortExplanation, setShortExplanation] = useState(opts.shortExplanation ?? false);
+  // First-run tips: each shows once, then is saved as seen.
+  const tipsSeen = useRef(new Set(opts.tipsSeen ?? []));
+  const takeTip = (tip: string) => {
+    if (!opts.saveTipSeen || tipsSeen.current.has(tip)) return false;
+    tipsSeen.current.add(tip);
+    try {
+      opts.saveTipSeen?.(tip);
+    } catch {
+      // An unwritable config shows the tip again next time; nothing else depends on it.
+    }
+    return true;
+  };
   const [hideTestPane, setHideTestPane] = useState(false);
   const [deltaOnly, setDeltaOnly] = useState(false);
   const [pos, setPosState] = useState({ ci: 0, hi: 0 });
@@ -1044,6 +1058,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         toggleSidebar={() => toggleView('sidebar', sidebar, setSidebar)}
         shortExplanation={shortExplanation}
         toggleExplanation={() => toggleView('shortExplanation', shortExplanation, setShortExplanation)}
+        takeTip={takeTip}
         hideTestPane={hideTestPane}
         toggleTestPane={() => setHideTestPane((h) => !h)}
         toggleDelta={toggleDelta}
