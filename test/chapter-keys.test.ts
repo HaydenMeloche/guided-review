@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest';
 import type { Key } from 'ink';
 import { barEnd, barKeys, boundKeys, keyAction, KEYS, type KeyCtx } from '../src/tui/chapter/keys.js';
 
+// The bar's hints without their groups.
+const pairs = (hints: [string, string, string?][]) => hints.map(([k, label]) => [k, label]);
+
 const off: KeyCtx = {
   hunk: false,
   chapter: true,
@@ -76,49 +79,51 @@ describe('keyAction', () => {
 
 describe('barKeys', () => {
   it('lists the code keys that do something, most useful first', () => {
-    expect(barKeys('code', off)).toEqual([
+    expect(pairs(barKeys('code', off))).toEqual([
       ['n/p', 'hunk'],
+      [']/[', 'chapter'],
       ['c', 'comment'],
       ['v', 'range'],
-      [']/[', 'chapter'],
-      ['x', 'skip'],
       ['+/-', 'context'],
       ['S', 'split'],
+      ['x', 'skip'],
     ]);
-    expect(barKeys('code', all)).toEqual([
+    expect(pairs(barKeys('code', all))).toEqual([
       ['s', 'submit'],
       ['n/p', 'hunk'],
-      ['a', 'ask'],
+      [']/[', 'chapter'],
       ['c', 'comment on range'],
+      ['a', 'ask'],
       ['e', 'thread'],
       ['y', 'reply'],
+      ['v', 'end range'],
       ['E', 'edit draft'],
       ['X', 'delete draft'],
-      ['v', 'end range'],
-      [']/[', 'chapter'],
       ['t', 'tests'],
       ['d', 'diagram'],
-      ['x', 'skip'],
       ['+/-', 'context'],
       ['S', 'inline'],
+      ['x', 'skip'],
     ]);
+    // Each group is told apart, so the bar can rule between them.
+    expect(new Set(barKeys('code', all).map(([, , g]) => g)).size).toBe(5);
   });
 
   it('lists a collapsed summary’s keys and focused tests’ keys', () => {
-    expect(barKeys('collapsed', all)).toEqual([
+    expect(pairs(barKeys('collapsed', all))).toEqual([
       ['s', 'submit'],
       ['enter', 'expand'],
       ['n/p', 'next/prev'],
+      [']/[', 'chapter'],
       ['C', 'comment on flow'],
       ['x', 'skip chapter'],
-      [']/[', 'chapter'],
     ]);
-    expect(barKeys('tests', all)).toEqual([
+    expect(pairs(barKeys('tests', all))).toEqual([
       ['n/p', 'test'],
       ['c', 'comment'],
       ['a', 'ask'],
     ]);
-    expect(barKeys('tests', off)).toEqual([
+    expect(pairs(barKeys('tests', off))).toEqual([
       ['n/p', 'test'],
       ['c', 'comment'],
     ]);

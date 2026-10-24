@@ -21,4 +21,4 @@
  ‹cyan,bg:c59›│‹/›‹bg:c59,dim› no config file: enter uses the theme until you quit (gr config saves one)‹/›‹bg:c59›  ‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›j/k‹/›‹bg:c59,dim› preview‹/›‹bg:c59›   ‹/›‹cyan,bg:c59,b›/‹/›‹bg:c59,dim› search‹/›‹bg:c59›   ‹/›‹cyan,bg:c59,b›enter‹/›‹bg:c59,dim› choose‹/›‹bg:c59›   ‹/›‹cyan,bg:c59,b›esc‹/›‹bg:c59,dim› cancel‹/›‹bg:c59›                         ‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›╰────────────────────────────────────────────────────────────────────────────╯‹/›
-  ‹cyan,b›n‹/›‹dim› start‹/›   ‹cyan,b›enter‹/›‹dim› open‹/›   ‹cyan,b›j/k‹/›‹dim› select‹/›   ‹cyan,b›r‹/›‹dim› read description‹/›       ‹cyan,b›?‹/›‹dim› keys‹/›   ‹cyan,b›q‹/›‹dim› quit‹/›
+  ‹cyan,b›n‹/›‹dim› start‹/›   ‹cyan,b›enter‹/›‹dim› open‹/›   ‹cyan,b›j/k‹/›‹dim› select‹/›   ‹dim›+4 more‹/›                  ‹cyan,b›?‹/›‹dim› keys‹/›   ‹cyan,b›q‹/›‹dim› quit‹/›

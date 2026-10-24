@@ -1,4 +1,5 @@
 import type { Key } from 'ink';
+import type { Hint } from '../KeyBar.js';
 
 // The chapter screen's keys, once: what each does in which view, its row in the help, and its entry
 // in the key bar. The screen supplies the actions; this decides which one a keypress runs.
@@ -324,11 +325,11 @@ export const KEYS: KeyRow[] = [
   },
 ];
 
-// The key bar's order in each view: most useful first.
-const BAR_ORDER: Record<View, string[]> = {
-  code: ['s', 'n/p', 'a', 'c', 'e', 'y', 'E', 'X', 'v', ']/[', 't', 'd', 'x', '+/-', 'S'],
-  collapsed: ['s', 'enter', 'n/p', 'C', 'x', ']/['],
-  tests: ['n/p', 'c', 'a'],
+// The key bar's order in each view, in groups the bar separates: most useful first.
+const BAR_ORDER: Record<View, string[][]> = {
+  code: [['s'], ['n/p', ']/['], ['c', 'a', 'e', 'y', 'v', 'E', 'X'], ['t', 'd', '+/-', 'S'], ['x']],
+  collapsed: [['s'], ['enter', 'n/p', ']/['], ['C', 'x']],
+  tests: [['n/p'], ['c', 'a']],
 };
 
 const BINDINGS = KEYS.flatMap((r) => r.bind ?? []);
@@ -349,9 +350,9 @@ export function keyAction(view: View, c: KeyCtx, input: string, key: Key): Actio
 }
 
 // The key bar shows only keys that do something here, most useful first; the rest are under ?.
-export function barKeys(view: View, c: KeyCtx): [string, string][] {
-  return BAR_ORDER[view].flatMap((k) =>
-    BAR.filter((b) => b.mode === view && b.key === k && (b.when?.(c) ?? true)).map((b): [string, string] => [b.key, typeof b.label === 'string' ? b.label : b.label(c)]),
+export function barKeys(view: View, c: KeyCtx): Hint[] {
+  return BAR_ORDER[view].flatMap((group, g) =>
+    group.flatMap((k) => BAR.filter((b) => b.mode === view && b.key === k && (b.when?.(c) ?? true)).map((b): Hint => [b.key, typeof b.label === 'string' ? b.label : b.label(c), String(g)])),
   );
 }
 

@@ -47,4 +47,4 @@
                                                                                                                                                                        ‹bright-black›│‹/›
                                                                                                                                                                        ‹bright-black›│‹/›
 
-  ‹cyan,b›n‹/›‹dim› start‹/›   ‹cyan,b›enter‹/›‹dim› open‹/›   ‹cyan,b›j/k‹/›‹dim› select‹/›   ‹cyan,b›r‹/›‹dim› read description‹/›   ‹cyan,b›s‹/›‹dim› submit‹/›   ‹cyan,b›L‹/›‹dim› theme‹/›                                                                                                          ‹cyan,b›?‹/›‹dim› keys‹/›   ‹cyan,b›q‹/›‹dim› quit‹/›
+  ‹cyan,b›n‹/›‹dim› start‹/›   ‹cyan,b›enter‹/›‹dim› open‹/›   ‹cyan,b›j/k‹/›‹dim› select‹/›   ‹dim›│   ‹/›‹cyan,b›r‹/›‹dim› read description‹/›   ‹dim›│   ‹/›‹cyan,b›s‹/›‹dim› submit‹/›   ‹dim›│   ‹/›‹cyan,b›L‹/›‹dim› theme‹/›                                                                                              ‹cyan,b›?‹/›‹dim› keys‹/›   ‹cyan,b›q‹/›‹dim› quit‹/›

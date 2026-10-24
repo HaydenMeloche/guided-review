@@ -7,7 +7,7 @@ vi.hoisted(() => {
 
 import path from 'node:path';
 import { render } from 'ink-testing-library';
-import { KeyBar } from '../src/tui/KeyBar.js';
+import { fitHints, KeyBar } from '../src/tui/KeyBar.js';
 import { Help } from '../src/tui/Help.js';
 import { chapterHelp } from '../src/tui/chapter/keys.js';
 import { ChapterList, Header } from '../src/tui/chapter/parts.js';
@@ -86,5 +86,21 @@ describe.each(WIDTHS)('components at %i columns', (width) => {
 
   it('composer', async () => {
     await expect(frame(<CommentEditor draft={draft} target="src/pricing.ts:2" hunk={h1} width={width} onSave={() => {}} onCancel={() => {}} />)).toMatchFileSnapshot(file('composer', width));
+  });
+});
+
+describe('fitHints', () => {
+  it('rules between groups and counts what it leaves out', () => {
+    const hints: [string, string, string][] = [
+      ['n/p', 'hunk', 'move'],
+      [']/[', 'chapter', 'move'],
+      ['c', 'comment', 'do'],
+      ['a', 'ask', 'do'],
+      ['t', 'tests', 'view'],
+    ];
+    expect(fitHints(hints, 200)).toEqual({ shown: [hints[0], hints[1], 'sep', hints[2], hints[3], 'sep', hints[4]], dropped: 0 });
+    const narrow = fitHints(hints, 40);
+    expect(narrow.dropped).toBe(3);
+    expect(narrow.shown).toEqual([hints[0], hints[1]]);
   });
 });

@@ -753,7 +753,7 @@ describe('AuthorMode', () => {
     );
     await waitFor(() => expect(ui.lastFrame()).toContain('Payment retries'));
     ui.stdin.write('n');
-    await waitFor(() => expect(ui.lastFrame()).toContain('o prompt for agent'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('n/p thread'));
     ui.stdin.write('o');
     await waitFor(() => expect(ui.lastFrame()).toContain('Prompt for your coding agent'));
     expect(ui.lastFrame()).toContain('untrusted');
@@ -778,7 +778,7 @@ describe('AuthorMode', () => {
     const ui = render(
       <AuthorMode tour={tour} chapters={tour.chapters} worktree={dir} store={store} width={120} height={32} active onReload={noop} onFullTour={noop} onMerged={noop} onQuit={noop} copy={copy} />,
     );
-    await waitFor(() => expect(ui.lastFrame()).toContain('Y copy link'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('n start'));
     ui.stdin.write('Y');
     await waitFor(() => expect(ui.lastFrame()).toContain(`Copied ${tour.url}`));
     expect(copy).toHaveBeenCalledWith(tour.url);

@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { docKeys, helpOf, type KeyDef } from '../src/tui/keys.js';
 import { CHECK_LOG_KEYS, CHECKS_KEYS, MERGE_KEYS, PICKER_KEYS, REVIEW_BRIEFING_KEYS, SUBMIT_KEYS, mergeBar, pickerBar } from '../src/tui/screenKeys.js';
 
+// The bar's hints without their groups.
+const pairs = (hints: [string, string, string?][]) => hints.map(([k, label]) => [k, label]);
+
 const read = (rel: string) => fs.readFileSync(new URL(rel, import.meta.url), 'utf8');
 const usage = read('../docs/usage.md');
 const section = (from: string, to: string) => usage.slice(usage.indexOf(from), usage.indexOf(to));
@@ -43,10 +46,10 @@ describe('screen keys', () => {
   });
 
   it('shows only the keys that apply in the bar', () => {
-    expect(pickerBar({ items: false, merge: true, checks: true, reviewers: false, theme: false }).map(([k]) => k)).toEqual(['/', 'r']);
+    expect(pairs(pickerBar({ items: false, merge: true, checks: true, reviewers: false, theme: false })).map(([k]) => k)).toEqual(['/', 'r']);
     const base = { canMerge: true, waitingDraft: false, methods: true, message: true, agent: false, canMarkReady: false, canUpdate: false, base: 'main' };
-    expect(mergeBar(base).map(([k]) => k)).toEqual(['P', 'm', 'e', 'b']);
-    expect(mergeBar({ ...base, waitingDraft: true }).map(([k]) => k)).toEqual(['x', 'm']);
-    expect(mergeBar({ ...base, canMerge: false, canUpdate: true })).toEqual([['u', 'update from main']]);
+    expect(pairs(mergeBar(base)).map(([k]) => k)).toEqual(['P', 'm', 'e', 'b']);
+    expect(pairs(mergeBar({ ...base, waitingDraft: true })).map(([k]) => k)).toEqual(['x', 'm']);
+    expect(pairs(mergeBar({ ...base, canMerge: false, canUpdate: true }))).toEqual([['u', 'update from main']]);
   });
 });

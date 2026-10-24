@@ -1,3 +1,5 @@
+import type { Hint } from './KeyBar.js';
+
 // A screen's keys, once: what each key is, how docs/usage.md names it, its entry in the key bar
 // (its label can depend on the screen's state), and its row in the help. The screens' useInput
 // handlers run the actions; tests check every key a handler reads is listed and every listed
@@ -15,13 +17,14 @@ export interface KeyDef<C> {
   name?: string; // the key as the help shows it, if not the bar's or the keys'
 }
 
-// The key bar of a screen: the entries whose condition holds, in the table's order.
-export function barOf<C>(defs: KeyDef<C>[], ctx: C): [string, string][] {
-  const out: [string, string][] = [];
+// The key bar of a screen: the entries whose condition holds, in the table's order, each with
+// its help group so the bar can separate the groups.
+export function barOf<C>(defs: KeyDef<C>[], ctx: C): Hint[] {
+  const out: Hint[] = [];
   for (const d of defs) {
     const b = d.bar;
     if (!b || (b.when && !b.when(ctx))) continue;
-    out.push([b.shown, typeof b.label === 'function' ? b.label(ctx) : b.label]);
+    out.push([b.shown, typeof b.label === 'function' ? b.label(ctx) : b.label, d.group]);
   }
   return out;
 }

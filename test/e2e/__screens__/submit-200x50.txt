@@ -46,5 +46,5 @@
 
 
 ‹yellow›Draft saved (question). Nothing posts until you submit.‹/›
- ‹b›n/p‹/›‹dim› hunk‹/›   ‹b›c‹/›‹dim› comment‹/›   ‹b›E‹/›‹dim› edit draft‹/›   ‹b›X‹/›‹dim› delete draft‹/›   ‹b›v‹/›‹dim› range‹/›   ‹b›]/[‹/›‹dim› chapter‹/›   ‹b›d‹/›‹dim› diagram‹/›   ‹b›x‹/›‹dim› skip‹/›   ‹b›+/-‹/›‹dim› context‹/›   ‹b›S‹/›‹dim› split‹/›                                      ‹yellow›whitespace hidden   ‹/›‹b›esc‹/›‹dim› back‹/›   ‹b›?‹/›‹dim› keys‹/›
+ ‹b›n/p‹/›‹dim› hunk‹/›   ‹b›]/[‹/›‹dim› chapter‹/›   ‹dim›│   ‹/›‹b›c‹/›‹dim› comment‹/›   ‹b›v‹/›‹dim› range‹/›   ‹b›E‹/›‹dim› edit draft‹/›   ‹b›X‹/›‹dim› delete draft‹/›   ‹dim›│   ‹/›‹b›d‹/›‹dim› diagram‹/›   ‹b›+/-‹/›‹dim› context‹/›   ‹b›S‹/›‹dim› split‹/›   ‹dim›│   ‹/›‹b›x‹/›‹dim› skip‹/›                          ‹yellow›whitespace hidden   ‹/›‹b›esc‹/›‹dim› back‹/›   ‹b›?‹/›‹dim› keys‹/›
 

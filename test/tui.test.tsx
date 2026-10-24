@@ -1247,11 +1247,13 @@ describe('feedback round: guide, tests, inline comments, description', () => {
     const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
     const ui = render(screen(t, 0, 60));
     await waitFor(() => expect(ui.lastFrame()).toMatch(/\? keys\s*$/m));
-    expect(ui.lastFrame()).toContain('n/p hunk');
-    expect(ui.lastFrame()).not.toContain('e thread');
+    // Too narrow for any hint beside the modes and help: the bar says how many it left out.
+    expect(ui.lastFrame()).toMatch(/\+\d+ more/);
     expect(ui.lastFrame()).toContain('whitespace hidden');
     ui.stdin.write('w');
     await waitFor(() => expect(ui.lastFrame()).not.toContain('whitespace hidden'));
+    expect(ui.lastFrame()).toContain('n/p hunk');
+    expect(ui.lastFrame()).not.toContain('e thread');
     expect(ui.lastFrame()).toMatch(/\? keys\s*$/m);
     ui.unmount();
   });
