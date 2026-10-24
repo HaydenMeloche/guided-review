@@ -57,7 +57,7 @@ The **briefing** opens first. It shows the PR's intent and author description, r
 
 A **chapter** shows an explanation, the code hunk, risk and test status, existing review threads, and linked tests. Press `n`/`p` to move between hunks, `c` to draft a comment, and `s` to review and submit your drafts.
 
-Press `?` on a selected line or range to ask about it. Answers cite the files and lines they come from, including code outside the diff. Below, the model finds that cancelling an order twice restocks its items twice, by following `release` into a file the PR does not touch.
+Press `a` on a selected line or range to ask about it. Answers cite the files and lines they come from, including code outside the diff. Below, the model finds that cancelling an order twice restocks its items twice, by following `release` into a file the PR does not touch.
 
 <p align="center"><img src="docs/images/ask.webp" alt="A question about a changed line, answered inline below the code with file and line references" width="900"></p>
 

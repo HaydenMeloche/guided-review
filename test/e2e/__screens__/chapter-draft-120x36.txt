@@ -32,5 +32,5 @@
 
 
 ‹yellow›Draft saved (question). Nothing posts until you submit.‹/›
- ‹b›n/p‹/›‹dim› hunk‹/›   ‹b›c‹/›‹dim› comment‹/›   ‹b›E‹/›‹dim› edit draft‹/›   ‹b›X‹/›‹dim› delete draft‹/›   ‹b›v‹/›‹dim› range‹/›   ‹b›]/[‹/›‹dim› chapter‹/›   ‹yellow›whitespace hidden   ‹/›‹b›esc‹/›‹dim› back‹/›   ‹b›h‹/›‹dim› keys‹/›
+ ‹b›n/p‹/›‹dim› hunk‹/›   ‹b›c‹/›‹dim› comment‹/›   ‹b›E‹/›‹dim› edit draft‹/›   ‹b›X‹/›‹dim› delete draft‹/›   ‹b›v‹/›‹dim› range‹/›   ‹b›]/[‹/›‹dim› chapter‹/›   ‹yellow›whitespace hidden   ‹/›‹b›esc‹/›‹dim› back‹/›   ‹b›?‹/›‹dim› keys‹/›
 

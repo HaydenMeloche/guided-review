@@ -7,7 +7,7 @@ import { draftsAt } from './lineNotes.js';
 import { MdLineView, type MdLine } from '../markdown.js';
 import { KeyBar } from '../KeyBar.js';
 
-const COVERAGE = {
+export const COVERAGE = {
   tested: { mark: '●', color: 'green', text: 'tested' },
   partial: { mark: '◐', color: 'yellow', text: 'partly tested' },
   untested: { mark: '○', color: 'red', text: 'untested' },

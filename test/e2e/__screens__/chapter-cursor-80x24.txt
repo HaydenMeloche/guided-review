@@ -20,5 +20,5 @@
 
 
 ‹dim›✎ 0 draft comment(s)‹/›
- ‹b›n/p‹/›‹dim› hunk‹/›   ‹b›c‹/›‹dim› comment‹/›   ‹b›v‹/›‹dim› range‹/›         ‹yellow›whitespace hidden   ‹/›‹b›esc‹/›‹dim› back‹/›   ‹b›h‹/›‹dim› keys‹/›
+ ‹b›n/p‹/›‹dim› hunk‹/›   ‹b›c‹/›‹dim› comment‹/›   ‹b›v‹/›‹dim› range‹/›         ‹yellow›whitespace hidden   ‹/›‹b›esc‹/›‹dim› back‹/›   ‹b›?‹/›‹dim› keys‹/›
 

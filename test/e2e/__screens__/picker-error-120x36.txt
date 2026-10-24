@@ -1,5 +1,4 @@
  ‹b›Pull requests‹/›
-  ‹b›d‹/›‹dim› download‹/›   ‹b›space‹/›‹dim› select‹/›   ‹b›a‹/›‹dim› select all‹/›   ‹b›enter‹/›‹dim› open tour‹/›   ‹b›j/k‹/›‹dim› move‹/›   ‹b›/‹/›‹dim› filter‹/›   ‹b›o‹/›‹dim› open in browser‹/›   ‹b›M‹/›‹dim› merge‹/›
 
  ‹red›gh search prs --review-requested=@me --state=open ‹/›  ‹bright-black›│‹/›
  ‹red›--limit 50 --json number,title,url,updatedAt,autho‹/›  ‹bright-black›│‹/›
@@ -34,3 +33,4 @@
                                                      ‹bright-black›│‹/›
                                                      ‹bright-black›│‹/›
                                                      ‹bright-black›│‹/›
+  ‹cyan,b›/‹/›‹dim› filter‹/›   ‹cyan,b›r‹/›‹dim› refresh‹/›   ‹cyan,b›L‹/›‹dim› theme‹/›                                                                     ‹cyan,b›?‹/›‹dim› keys‹/›   ‹cyan,b›q‹/›‹dim› quit‹/›

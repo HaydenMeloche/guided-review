@@ -43,12 +43,12 @@ describe('feedback keys', () => {
 describe('key bars', () => {
   const thread = { queued: false, resolved: false, queuedCount: 0, agent: false, expanded: false, showHidden: false, merge: false, copy: false };
   it('builds the thread bar from its state', () => {
-    expect(threadBar(thread).map(([k]) => k)).toEqual(['n/p', ']/[', 'y', 'space', 'Z', 's', 'o', 'e', 'a', 'H', 'b']);
+    expect(threadBar(thread).map(([k]) => k)).toEqual(['n/p', ']/[', 'y', 'space', 'Z', '+', 'o', 's', 'e', 'H', 'b']);
     const full = threadBar({ queued: true, resolved: true, queuedCount: 2, agent: true, expanded: true, showHidden: true, merge: true, copy: true });
     expect(full).toContainEqual(['y', 'edit reply']);
     expect(full).toContainEqual(['Z', 'unresolve']);
     expect(full).toContainEqual(['s', 'send 2']);
-    expect(full).toContainEqual(['?', 'ask']);
+    expect(full).toContainEqual(['a', 'ask']);
     expect(full).toContainEqual(['e', 'show code']);
     expect(full).toContainEqual(['H', 'hide resolved']);
     expect(full.at(-1)).toEqual(['Y', 'copy link']);

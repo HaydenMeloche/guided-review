@@ -125,7 +125,7 @@ describe('ChapterScreen', () => {
     tour.chapters[0] = { ...tour.chapters[0], hunkIds: [], collapsed: false, checklist: [{ id: 'k', item: 'Migrations reviewed', pattern: '**', status: 'unknown' }] };
     const ui = render(<Harness tour={tour} onDraft={() => {}} onState={() => {}} />);
     await waitFor(() => expect(ui.lastFrame()).toContain('This chapter has no hunks.'));
-    ui.stdin.write('?');
+    ui.stdin.write('a');
     await waitFor(() => expect(ui.lastFrame()).toContain('Nothing to ask about here.'));
     ui.stdin.write('i');
     await waitFor(() => expect(ui.lastFrame()).toContain('The checklist opens once the checkout is ready.'));
@@ -276,7 +276,7 @@ describe('ChapterScreen', () => {
     await waitFor(() => expect(drafts).toHaveLength(1));
     expect(drafts[0].anchor).toEqual({ type: 'line', hunkId: 'test-hunk', file: testFile, line: 2, side: 'RIGHT' });
     expect(buildReviewPayload(tour, drafts, 'COMMENT', '').payload.comments[0]).toMatchObject({ path: testFile, line: 2, side: 'RIGHT' });
-    ui.stdin.write('?');
+    ui.stdin.write('a');
     await waitFor(() => expect(ui.lastFrame()).toContain(`Ask about ${testFile}:2`));
     const askRows = ui.lastFrame()!.split('\n');
     const askLine = askRows.findIndex((row) => row.includes(`Ask about ${testFile}:2`));
@@ -399,7 +399,7 @@ describe('ChapterScreen', () => {
     const hunk = tour.hunks[chapter.hunkIds[0]];
     const ui = render(<Harness tour={tour} onDraft={() => {}} onState={() => {}} agent={{ cwd: '/tmp' }} />);
     await tick();
-    ui.stdin.write('?');
+    ui.stdin.write('a');
     await waitFor(() => expect(ui.lastFrame()).toContain('Ask about'));
     expect(ui.lastFrame()).toContain(chapter.title);
     expect(ui.lastFrame()).toContain(hunk.file);
@@ -429,7 +429,7 @@ describe('ChapterScreen', () => {
       />,
     );
     await tick();
-    ui.stdin.write('?');
+    ui.stdin.write('a');
     await tick();
     ui.stdin.write('why nullable');
     await tick();
@@ -607,12 +607,12 @@ describe('ThreadView', () => {
     const ui = render(<ReactionsHarness />);
     ui.stdin.write('\t');
     await tick();
-    ui.stdin.write('a');
+    ui.stdin.write('+');
     await waitFor(() => expect(ui.lastFrame()).toContain('React to @bob'));
     ui.stdin.write('5');
     await waitFor(() => expect(reacted).toBe('node-2:HEART:false'));
     expect(ui.lastFrame()).toContain('❤️1*');
-    ui.stdin.write('a');
+    ui.stdin.write('+');
     await tick();
     ui.stdin.write('5');
     await waitFor(() => expect(reacted).toBe('node-2:HEART:true'));
@@ -856,7 +856,7 @@ describe('BriefingScreen and SubmitScreen', () => {
       <BriefingScreen tour={tour} chapters={tour.chapters} order="flow" cycleOrder={() => {}} states={{}} width={140} height={45} onStart={() => {}} onSubmit={() => {}} onQuit={() => {}} />,
     );
     await tick();
-    ui.stdin.write('?');
+    ui.stdin.write('a');
     await waitFor(() => expect(ui.lastFrame()).toContain('Ask about the whole PR'));
     expect(ui.lastFrame()).toContain('Chapters');
     ui.unmount();
@@ -1246,13 +1246,13 @@ describe('feedback round: guide, tests, inline comments, description', () => {
     const h = hunkFromDiff('src/a.ts', '-go();', '+stop();');
     const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
     const ui = render(screen(t, 0, 60));
-    await waitFor(() => expect(ui.lastFrame()).toMatch(/h keys\s*$/m));
+    await waitFor(() => expect(ui.lastFrame()).toMatch(/\? keys\s*$/m));
     expect(ui.lastFrame()).toContain('n/p hunk');
     expect(ui.lastFrame()).not.toContain('e thread');
     expect(ui.lastFrame()).toContain('whitespace hidden');
     ui.stdin.write('w');
     await waitFor(() => expect(ui.lastFrame()).not.toContain('whitespace hidden'));
-    expect(ui.lastFrame()).toMatch(/h keys\s*$/m);
+    expect(ui.lastFrame()).toMatch(/\? keys\s*$/m);
     ui.unmount();
   });
 

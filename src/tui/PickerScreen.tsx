@@ -11,6 +11,9 @@ import { openExternal } from '../util/openExternal.js';
 import { readClipboard } from '../util/clipboard.js';
 import { CHECK_MARK, checkLabel, outcomeText, sortChecks } from '../review/checks.js';
 import { MdLineView, line, renderMarkdown } from './markdown.js';
+import { HelpPopup } from './Help.js';
+import { helpOf } from './keys.js';
+import { PICKER_KEYS, pickerBar } from './screenKeys.js';
 
 export interface Target {
   repo: string;
@@ -187,6 +190,7 @@ export function PickerScreen(props: PickerProps) {
   const [localVersion, setLocalVersion] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [clip, setClip] = useState<{ text: string; target: Target }>();
+  const [help, setHelp] = useState(false);
   const inflight = useRef(new Set<string>());
   // load() runs from a timer too, so it reads the list and selection through refs.
   const prsRef = useRef(prs);
@@ -425,6 +429,7 @@ export function PickerScreen(props: PickerProps) {
     (input, key) => {
       setHint('');
       if (input === 'q' || input === 'Q') return props.onQuit();
+      if (input === '?' || input === 'h') return setHelp(true);
       // Esc closes what is open, and never quits: the filter, then the selection.
       if (key.escape) {
         if (filter) return setFilter('');
@@ -471,7 +476,7 @@ export function PickerScreen(props: PickerProps) {
       if (input === 'c' && current && props.onChecks) props.onChecks({ repo: current.repo, number: current.number });
       if (input === 'A' && current && isAuthored(current) && props.onReviewers) props.onReviewers({ repo: current.repo, number: current.number });
     },
-    { isActive: !filtering && props.active !== false },
+    { isActive: !filtering && !help && props.active !== false },
   );
   useInput(
     (_input, key) => {
@@ -519,7 +524,7 @@ export function PickerScreen(props: PickerProps) {
     h += rowH(rows[i]);
   }
 
-  return (
+  const screen = (
     <Box flexDirection="column" width={width} height={height} paddingX={1}>
       <Text wrap="truncate">
         <Text bold>Pull requests</Text>
@@ -527,24 +532,6 @@ export function PickerScreen(props: PickerProps) {
         {prs && refreshing ? <Text color="cyan">{`${SPIN[frame % SPIN.length]} refreshing`}</Text> : null}
         {prs && !refreshing ? <Text dimColor>{`updated ${age(new Date(loadedAt).toISOString())}`}</Text> : null}
       </Text>
-      <KeyBar
-        width={width - 2}
-        keys={[
-          ['d', 'download'],
-          ['space', 'select'],
-          ['a', 'select all'],
-          ['enter', 'open tour'],
-          ['j/k', 'move'],
-          ['/', 'filter'],
-          ['o', 'open in browser'],
-          ...((props.onMerge ? [['M', 'merge']] : []) as [string, string][]),
-          ...((props.onChecks ? [['c', 'checks']] : []) as [string, string][]),
-          ...((props.onReviewers && current && isAuthored(current) ? [['A', 'reviewers']] : []) as [string, string][]),
-          ['r', 'refresh'],
-          ...(props.onTheme ? [['L', 'theme'] as [string, string]] : []),
-          ['q', 'quit'],
-        ]}
-      />
       {filtering ? (
         <Box>
           <Text color="cyan">/ </Text>
@@ -660,8 +647,19 @@ export function PickerScreen(props: PickerProps) {
           </Box>
         ) : null}
       </Box>
+      <KeyBar
+        width={width - 2}
+        accent
+        keys={pickerBar({ items: !!current, merge: !!props.onMerge, checks: !!props.onChecks, reviewers: !!props.onReviewers && !!current && isAuthored(current), theme: !!props.onTheme })}
+        end={[
+          ['?', 'keys'],
+          ['q', 'quit'],
+        ]}
+      />
     </Box>
   );
+  if (help && props.active !== false) return <HelpPopup background={screen} width={width} height={height} title="pull requests" sections={helpOf(PICKER_KEYS)} onClose={() => setHelp(false)} />;
+  return screen;
 }
 
 export function keyFor(pr: Target): string {

@@ -8,7 +8,8 @@ vi.hoisted(() => {
 import path from 'node:path';
 import { render } from 'ink-testing-library';
 import { KeyBar } from '../src/tui/KeyBar.js';
-import { Help, HELP_HEIGHT } from '../src/tui/chapter/Help.js';
+import { Help } from '../src/tui/Help.js';
+import { chapterHelp } from '../src/tui/chapter/keys.js';
 import { ChapterList, Header } from '../src/tui/chapter/parts.js';
 import { CommentEditor } from '../src/tui/CommentEditor.js';
 import { progress } from '../src/tui/nav.js';
@@ -70,7 +71,7 @@ describe.each(WIDTHS)('components at %i columns', (width) => {
   });
 
   it('help', async () => {
-    await expect(frame(<Help width={width} height={HELP_HEIGHT} ai />)).toMatchFileSnapshot(file('help', width));
+    await expect(frame(<Help title="chapter" sections={chapterHelp(true)} width={width} height={60} onClose={() => {}} />)).toMatchFileSnapshot(file('help', width));
   });
 
   it('header', async () => {

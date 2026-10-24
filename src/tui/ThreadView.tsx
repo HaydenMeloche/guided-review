@@ -86,13 +86,13 @@ export function ThreadView(props: {
       return;
     }
     if (reactionMenu) {
-      if (key.escape || input === 'a') return setReactionMenu(false);
+      if (key.escape || input === '+') return setReactionMenu(false);
       if (/^[1-8]$/.test(input)) void react(Number(input) - 1);
       return;
     }
     if (key.escape || input === 'e') return props.onClose();
     if (input === 'y' && props.onReply) return setComposing(true);
-    if (input === 'a' && props.onReact && thread.comments[selectedComment]?.nodeId) return setReactionMenu(true);
+    if (input === '+' && props.onReact && thread.comments[selectedComment]?.nodeId) return setReactionMenu(true);
     if (key.tab && thread.comments.length > 1) {
       const next = (selectedComment + (key.shift ? thread.comments.length - 1 : 1)) % thread.comments.length;
       setSelectedComment(next);
@@ -161,7 +161,7 @@ export function ThreadView(props: {
       ) : (
         <Text dimColor wrap="truncate">
           j/k: scroll · Tab: comment · {props.threads.length > 1 ? '[/]: thread · ' : ''}
-          {props.onReact ? 'a: react · ' : ''}
+          {props.onReact ? '+: react · ' : ''}
           {props.onReply ? 'y: reply · ' : ''}e/Esc: close
         </Text>
       )}

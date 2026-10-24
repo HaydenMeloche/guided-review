@@ -12,7 +12,7 @@ type Mode = View | 'any';
 export interface KeyCtx {
   hunk: boolean;
   chapter: boolean;
-  agent: boolean; // ? and ^T need it
+  agent: boolean; // a and ^T need it
   selecting: boolean; // v has set a range anchor
   threads: boolean; // review threads on the cursor line
   reply: boolean; // replies can be posted
@@ -103,6 +103,7 @@ interface BarEntry {
 export interface KeyRow {
   keys: string; // as the help shows them
   help?: string; // left out of the help when unset
+  group?: string; // the help section it is listed under
   ai?: boolean; // left out of the help with no agent
   bind?: Binding[];
   bar?: BarEntry[];
@@ -114,6 +115,7 @@ const hunk = (c: KeyCtx) => c.hunk;
 export const KEYS: KeyRow[] = [
   {
     keys: 'n / p',
+    group: 'Move',
     help: 'Next or previous hunk (n marks it read), on into the next chapter',
     bind: [
       { mode: 'code', on: ['n'], do: 'next' },
@@ -126,6 +128,7 @@ export const KEYS: KeyRow[] = [
   },
   {
     keys: 'j / k, J / K',
+    group: 'Move',
     help: 'Move by line (or 10 lines) inside the hunk',
     bind: [
       { mode: 'code', on: ['j', 'down'], do: 'down', when: hunk },
@@ -136,12 +139,14 @@ export const KEYS: KeyRow[] = [
   },
   {
     keys: 'v',
+    group: 'Comment',
     help: 'Start or end a range selection',
     bind: [{ mode: 'code', on: ['v'], do: 'range', when: hunk }],
     bar: [{ mode: 'code', key: 'v', label: (c) => (c.selecting ? 'end range' : 'range') }],
   },
   {
     keys: '] / [',
+    group: 'Move',
     help: 'Next or previous chapter',
     bind: [
       { mode: 'code', on: [']'], do: 'nextChapter' },
@@ -154,6 +159,7 @@ export const KEYS: KeyRow[] = [
   },
   {
     keys: 'c / C',
+    group: 'Comment',
     help: 'Comment on the selected line or range / on the whole flow',
     bind: [
       { mode: 'code', on: ['c'], do: 'comment', when: hunk },
@@ -166,18 +172,21 @@ export const KEYS: KeyRow[] = [
   },
   {
     keys: 'e',
+    group: 'Threads',
     help: 'Read existing review threads on the selected line inline',
     bind: [{ mode: 'code', on: ['e'], do: 'thread', when: hunk }],
     bar: [{ mode: 'code', key: 'e', label: 'thread', when: (c) => c.threads }],
   },
   {
     keys: 'y',
+    group: 'Threads',
     help: 'Reply to an existing review thread on the selected line',
     bind: [{ mode: 'code', on: ['y'], do: 'reply', when: (c) => c.hunk && c.reply }],
     bar: [{ mode: 'code', key: 'y', label: 'reply', when: (c) => c.threads && c.reply }],
   },
   {
     keys: 'E / X',
+    group: 'Comment',
     help: 'Edit or delete your draft on the selected line',
     bind: [
       { mode: 'code', on: ['E'], do: 'editDraft', when: hunk },
@@ -188,28 +197,31 @@ export const KEYS: KeyRow[] = [
       { mode: 'code', key: 'X', label: 'delete draft', when: (c) => c.draft },
     ],
   },
-  { keys: 'In a comment', help: '@ people/code (@callers: @tests: @threads: …)' },
-  { keys: '  ^T', help: 'In a comment: suggest a code change with AI', ai: true },
+  { keys: 'In a comment', group: 'Comment', help: '@ people/code (@callers: @tests: @threads: …)' },
+  { keys: '  ^T', group: 'Comment', help: 'In a comment: suggest a code change with AI', ai: true },
   {
-    keys: '?',
-    help: 'Ask the agent about the selection',
+    keys: 'a',
+    group: 'Ask',
+    help: 'Ask the model about the selection',
     ai: true,
-    bind: [{ mode: 'code', on: ['?'], do: 'ask' }],
+    bind: [{ mode: 'code', on: ['a'], do: 'ask' }],
     bar: [
-      { mode: 'code', key: '?', label: 'ask', when: (c) => c.agent },
-      { mode: 'tests', key: '?', label: 'ask', when: (c) => c.agent },
+      { mode: 'code', key: 'a', label: 'ask', when: (c) => c.agent },
+      { mode: 'tests', key: 'a', label: 'ask', when: (c) => c.agent },
     ],
   },
   {
     keys: 't',
+    group: 'View',
     help: 'Focus the test pane (narrow terminals: toggle source/tests)',
     bind: [{ mode: 'code', on: ['t'], do: 'focusTests' }],
     bar: [{ mode: 'code', key: 't', label: 'tests', when: (c) => c.tests }],
   },
-  { keys: 'T', help: 'Hide or show the test pane beside the code', bind: [{ mode: 'code', on: ['T'], do: 'testPane' }] },
+  { keys: 'T', group: 'View', help: 'Hide or show the test pane beside the code', bind: [{ mode: 'code', on: ['T'], do: 'testPane' }] },
   {
     keys: 'Focused tests',
-    help: 'n/p test · j/k line · c comment · ? ask · t/Esc back to source',
+    group: 'View',
+    help: 'n/p test · j/k line · c comment · a ask · t/Esc back to source',
     bind: [
       { mode: 'tests', on: ['escape', 't'], do: 'leaveTests' },
       { mode: 'tests', on: ['j', 'down'], do: 'testDown' },
@@ -219,29 +231,32 @@ export const KEYS: KeyRow[] = [
       { mode: 'tests', on: ['n', 'tab'], do: 'nextTest' },
       { mode: 'tests', on: ['p'], do: 'prevTest' },
       { mode: 'tests', on: ['c'], do: 'commentTest' },
-      { mode: 'tests', on: ['?'], do: 'askTest' },
+      { mode: 'tests', on: ['a'], do: 'askTest' },
     ],
     bar: [
       { mode: 'tests', key: 'n/p', label: 'test' },
       { mode: 'tests', key: 'c', label: 'comment' },
     ],
   },
-  { keys: 'U', help: 'Expand or collapse possible test gaps in the explanation', bind: [{ mode: 'code', on: ['U'], do: 'untested' }] },
+  { keys: 'U', group: 'View', help: 'Expand or collapse possible test gaps in the explanation', bind: [{ mode: 'code', on: ['U'], do: 'untested' }] },
   {
     keys: 'd',
+    group: 'View',
     help: 'Chapter diagram (select a node to jump to its code)',
     bind: [{ mode: 'code', on: ['d'], do: 'diagram' }],
     bar: [{ mode: 'code', key: 'd', label: 'diagram', when: (c) => c.diagram }],
   },
-  { keys: 'r', help: 'Raw unified diff for the hunk', bind: [{ mode: 'code', on: ['r'], do: 'raw', when: hunk }] },
+  { keys: 'r', group: 'View', help: 'Raw unified diff for the hunk', bind: [{ mode: 'code', on: ['r'], do: 'raw', when: hunk }] },
   {
     keys: 'S',
+    group: 'View',
     help: 'Split view (old beside new) or inline',
     bind: [{ mode: 'code', on: ['S'], do: 'split' }],
     bar: [{ mode: 'code', key: 'S', label: (c) => (c.split ? 'inline' : 'split') }],
   },
   {
     keys: '+ / -',
+    group: 'View',
     help: 'Show 10 more or fewer lines of the file around the hunk',
     bind: [
       { mode: 'code', on: ['+', '='], do: 'moreContext', when: hunk },
@@ -249,9 +264,10 @@ export const KEYS: KeyRow[] = [
     ],
     bar: [{ mode: 'code', key: '+/-', label: 'context' }],
   },
-  { keys: 'w', help: 'Hide or show whitespace-only changes', bind: [{ mode: 'code', on: ['w'], do: 'whitespace' }] },
+  { keys: 'w', group: 'View', help: 'Hide or show whitespace-only changes', bind: [{ mode: 'code', on: ['w'], do: 'whitespace' }] },
   {
     keys: 'x / z / u',
+    group: 'Read',
     help: 'Mark the hunk skipped / deferred / unread',
     bind: [
       { mode: 'code', on: ['x'], do: 'skip', when: hunk },
@@ -260,14 +276,15 @@ export const KEYS: KeyRow[] = [
     ],
     bar: [{ mode: 'code', key: 'x', label: 'skip' }],
   },
-  { keys: 'm', help: 'Move the hunk to another chapter', bind: [{ mode: 'code', on: ['m'], do: 'move', when: hunk }] },
-  { keys: 'f', help: 'Cycle Guided, Risk first, Small first, and File order', bind: [{ mode: 'code', on: ['f'], do: 'order' }] },
-  { keys: 'D', help: 'Re-review: switch between only new and changed hunks and the full review', bind: [{ mode: 'code', on: ['D'], do: 'delta', when: (c) => c.rereview }] },
-  { keys: 'R', help: 'Rebuild the tour on a newer PR head after the author pushes', bind: [{ mode: 'code', on: ['R'], do: 'rebase', when: (c) => c.rebase }] },
-  { keys: 'o', help: 'Open the hunk in your coding agent (set in gr config)', bind: [{ mode: 'code', on: ['o'], do: 'openInAgent' }] },
-  { keys: 'i', help: 'Team checklist for this chapter', bind: [{ mode: 'code', on: ['i'], do: 'checklist' }] },
+  { keys: 'm', group: 'Read', help: 'Move the hunk to another chapter', bind: [{ mode: 'code', on: ['m'], do: 'move', when: hunk }] },
+  { keys: 'f', group: 'Read', help: 'Cycle Guided, Risk first, Small first, and File order', bind: [{ mode: 'code', on: ['f'], do: 'order' }] },
+  { keys: 'D', group: 'Read', help: 'Re-review: switch between only new and changed hunks and the full review', bind: [{ mode: 'code', on: ['D'], do: 'delta', when: (c) => c.rereview }] },
+  { keys: 'R', group: 'Go', help: 'Rebuild the tour on a newer PR head after the author pushes', bind: [{ mode: 'code', on: ['R'], do: 'rebase', when: (c) => c.rebase }] },
+  { keys: 'o', group: 'Go', help: 'Open the hunk in your coding agent (set in gr config)', bind: [{ mode: 'code', on: ['o'], do: 'openInAgent' }] },
+  { keys: 'i', group: 'Go', help: 'Team checklist for this chapter', bind: [{ mode: 'code', on: ['i'], do: 'checklist' }] },
   {
     keys: 'b / s',
+    group: 'Go',
     help: 'Briefing / submit screen',
     bind: [
       { mode: 'any', on: ['b'], do: 'briefing' },
@@ -278,11 +295,12 @@ export const KEYS: KeyRow[] = [
       { mode: 'collapsed', key: 's', label: 'submit', when: (c) => c.done },
     ],
   },
-  // The key bar's end names it.
-  { keys: 'h', bind: [{ mode: 'code', on: ['h'], do: 'help' }] },
-  { keys: 'L', help: 'Color theme (previews as you move through the list)', bind: [{ mode: 'code', on: ['L'], do: 'theme', when: (c) => c.theme }] },
+  // The key bar's end names it; h is its old key.
+  { keys: '? / h', bind: [{ mode: 'any', on: ['?', 'h'], do: 'help' }] },
+  { keys: 'L', group: 'Go', help: 'Color theme (previews as you move through the list)', bind: [{ mode: 'code', on: ['L'], do: 'theme', when: (c) => c.theme }] },
   {
     keys: 'esc / q, Q',
+    group: 'Go',
     help: 'Back to the briefing (esc first clears a range) / quit (progress is saved)',
     bind: [
       { mode: 'code', on: ['escape'], do: 'escape' },
@@ -308,9 +326,9 @@ export const KEYS: KeyRow[] = [
 
 // The key bar's order in each view: most useful first.
 const BAR_ORDER: Record<View, string[]> = {
-  code: ['s', 'n/p', 'c', 'e', 'y', 'E', 'X', '?', 'v', ']/[', 't', 'd', 'x', '+/-', 'S'],
+  code: ['s', 'n/p', 'a', 'c', 'e', 'y', 'E', 'X', 'v', ']/[', 't', 'd', 'x', '+/-', 'S'],
   collapsed: ['s', 'enter', 'n/p', 'C', 'x', ']/['],
-  tests: ['n/p', 'c', '?'],
+  tests: ['n/p', 'c', 'a'],
 };
 
 const BINDINGS = KEYS.flatMap((r) => r.bind ?? []);
@@ -330,7 +348,7 @@ export function keyAction(view: View, c: KeyCtx, input: string, key: Key): Actio
   return undefined;
 }
 
-// The key bar shows only keys that do something here, most useful first; the rest are under h.
+// The key bar shows only keys that do something here, most useful first; the rest are under ?.
 export function barKeys(view: View, c: KeyCtx): [string, string][] {
   return BAR_ORDER[view].flatMap((k) =>
     BAR.filter((b) => b.mode === view && b.key === k && (b.when?.(c) ?? true)).map((b): [string, string] => [b.key, typeof b.label === 'string' ? b.label : b.label(c)]),
@@ -345,7 +363,21 @@ export function barEnd(view: View, c: KeyCtx): [string, string][] {
   if (view === 'tests')
     return [
       ['t/esc', 'back to code'],
-      ['b', 'briefing'],
+      ['?', 'keys'],
     ];
-  return [...(c.rereview ? [['D', c.deltaOnly ? 'full review' : 'changes only'] as [string, string]] : []), ['esc', 'back'], ['h', 'keys']];
+  return [...(c.rereview ? [['D', c.deltaOnly ? 'full review' : 'changes only'] as [string, string]] : []), ['esc', 'back'], ['?', 'keys']];
+}
+
+// The help's sections: the rows with a help line, grouped. Rows that need the model are left out
+// without one.
+export function chapterHelp(ai: boolean): { title: string; rows: [string, string][] }[] {
+  const sections: { title: string; rows: [string, string][] }[] = [];
+  for (const r of KEYS) {
+    if (!r.help || (r.ai && !ai)) continue;
+    const title = r.group ?? 'Keys';
+    let section = sections.find((x) => x.title === title);
+    if (!section) sections.push((section = { title, rows: [] }));
+    section.rows.push([r.keys.trim(), ai ? r.help : r.help.replace(' · a ask', '')]);
+  }
+  return sections;
 }

@@ -14,6 +14,11 @@ import { Key } from './KeyBar.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
 import type { Readiness } from '../review/merge.js';
 import { ReadinessLine } from './MergeScreen.js';
+import { HelpPopup } from './Help.js';
+import { helpOf } from './keys.js';
+import { reviewLegend } from './legend.js';
+import { REVIEW_BRIEFING_KEYS, reviewBriefingBar } from './screenKeys.js';
+import { HELP_NOTE } from './ChapterScreen.js';
 
 const FLAG_COLOR: Record<string, string> = {
   'scope-creep': 'magenta',
@@ -55,7 +60,7 @@ export function BriefingScreen(props: {
   const { tour, chapters, states, width, height } = props;
   const selectedRow = useSelected();
   const [sel, setSel] = useState(0);
-  const [overlay, setOverlay] = useState<'none' | 'diagram' | 'ask' | 'read' | 'reviews'>('none');
+  const [overlay, setOverlay] = useState<'none' | 'diagram' | 'ask' | 'read' | 'reviews' | 'help'>('none');
   useEffect(() => setSel(0), [props.order]);
   // D keeps the selected chapter when it is in both lists.
   const keepSel = useRef<string | undefined>(undefined);
@@ -86,7 +91,8 @@ export function BriefingScreen(props: {
       if (key.return) return props.onStart(sel);
       if (input === 'n' || input === ' ') return props.onStart();
       if (input === 'd' && tour.overview) return setOverlay('diagram');
-      if (input === '?') return setOverlay('ask');
+      if (input === 'a') return setOverlay('ask');
+      if (input === '?' || input === 'h') return setOverlay('help');
       if (input === 'f') return props.cycleOrder();
       if (input === 'D' && tour.rereview && props.toggleDelta) {
         keepSel.current = chapters[sel]?.id ?? '';
@@ -341,7 +347,7 @@ export function BriefingScreen(props: {
     </Box>
   );
 
-  return (
+  const screen = (
     <Box flexDirection="column" width={width} height={height} paddingX={1}>
       <Text wrap="truncate">
         <Text color="cyan" bold>
@@ -376,27 +382,36 @@ export function BriefingScreen(props: {
         accent
         // Keys hinted where they apply on screen (D, f, d beside the overview, r under a cut-off
         // description) stay off the bar.
-        keys={[
-          ['n', 'start'],
-          ['enter', 'open'],
-          ['j/k', 'select'],
-          ...((descAll.length > desc.length ? [] : [['r', 'read description']]) as [string, string][]),
-          ...((wide && tour.overview ? [] : [['d', 'overview diagram']]) as [string, string][]),
-          ...((props.agent ? [['?', 'ask about the PR']] : []) as [string, string][]),
-          ['s', 'submit'],
-          ...((props.onFeedback ? [['t', 'your feedback']] : []) as [string, string][]),
-          ...((props.onChecks ? [['c', 'checks']] : []) as [string, string][]),
-          ...((props.onTheme ? [['L', 'theme']] : []) as [string, string][]),
-          ...((props.onBack
-            ? [
-                ['q', 'PR list'],
-                ['Q', 'quit'],
-              ]
-            : [['q', 'quit']]) as [string, string][]),
+        keys={reviewBriefingBar({
+          start: 'start',
+          agent: !!props.agent,
+          readDescription: descAll.length <= desc.length,
+          diagram: !(wide && tour.overview),
+          feedback: !!props.onFeedback,
+          checks: !!props.onChecks,
+          theme: !!props.onTheme,
+        })}
+        end={[
+          ['?', 'keys'],
+          ['q', props.onBack ? 'PR list' : 'quit'],
         ]}
       />
     </Box>
   );
+  if (overlay === 'help' && props.active !== false)
+    return (
+      <HelpPopup
+        background={screen}
+        width={width}
+        height={height}
+        title="briefing"
+        sections={helpOf(REVIEW_BRIEFING_KEYS)}
+        legend={reviewLegend()}
+        note={HELP_NOTE}
+        onClose={() => setOverlay('none')}
+      />
+    );
+  return screen;
 }
 
 // A section heading in the theme's heading color; with the terminal's colors, styled as before.

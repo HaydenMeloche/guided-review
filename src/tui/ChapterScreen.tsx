@@ -10,7 +10,6 @@ import { INLINE_ROWS, inlineComposerSlot } from './AiSuggestion.js';
 import { ThreadView } from './ThreadView.js';
 import { AskOverlay } from './AskOverlay.js';
 import { MIN_SPLIT_WIDTH } from './paneWidths.js';
-import { ReviewPopup } from './ReviewPopup.js';
 import type { AgentContext } from '../agent/types.js';
 import { KeyBar } from './KeyBar.js';
 import { initComposer, isLineAnchor, sameAnchor, type ComposerEnv, type ComposerState, type ReferenceServices } from './composer.js';
@@ -22,14 +21,18 @@ import { linkedTests } from './chapter/linkedTests.js';
 import { SourcePane } from './chapter/SourcePane.js';
 import { TestPane } from './chapter/TestPane.js';
 import { ChapterList, ChapterStrip, ChapterTitle, CollapsedSummary, DraftLine, EmptyChapter, Explanation, Header, MoveList } from './chapter/parts.js';
-import { Help, HELP_HEIGHT, HELP_WIDTH } from './chapter/Help.js';
+import { HelpPopup } from './Help.js';
+import { reviewLegend } from './legend.js';
 import { anchorLines, crossesContext, describeAnchor, lineAnchor, newDraft, selectedCode, selRange, testLineAnchor } from './chapter/selection.js';
 import { CONTEXT_STEP, useFoldedCursor, useFolds, useHunkView } from './chapter/hunkView.js';
-import { barEnd, barKeys, keyAction, type Action, type KeyCtx, type View } from './chapter/keys.js';
+import { barEnd, barKeys, chapterHelp, keyAction, type Action, type KeyCtx, type View } from './chapter/keys.js';
 import { explanation } from './chapter/guide.js';
 import { chapterLayout, overlaySlots, type OverlayKind } from './chapter/layout.js';
 
 export { KeyBar };
+
+// For one release: ? used to ask the model.
+export const HELP_NOTE = '? is now these keys · ask the model with a';
 
 export type AgentCtx = AgentContext;
 
@@ -330,7 +333,6 @@ export function ChapterScreen(props: {
 
   useInput(
     (input, key) => {
-      if (overlay.kind === 'help') return close();
       if (overlay.kind === 'move') {
         if (key.escape) return close();
         const move = (by: number) => setOverlay((o) => (o.kind === 'move' ? { ...o, sel: Math.max(0, Math.min(chapters.length - 1, o.sel + by)) } : o));
@@ -343,7 +345,7 @@ export function ChapterScreen(props: {
         }
       }
     },
-    { isActive: props.active !== false && (overlay.kind === 'help' || overlay.kind === 'move') },
+    { isActive: props.active !== false && overlay.kind === 'move' },
   );
 
   useInput(
@@ -599,11 +601,7 @@ export function ChapterScreen(props: {
     </Box>
   );
   // Help floats over the screen, which stays visible around it.
-  if (overlay.kind === 'help')
-    return (
-      <ReviewPopup background={screen} width={width} height={height} maxWidth={HELP_WIDTH} maxHeight={HELP_HEIGHT}>
-        {(w, h) => <Help width={w} height={h} ai={!!props.agent} />}
-      </ReviewPopup>
-    );
+  if (overlay.kind === 'help' && props.active !== false)
+    return <HelpPopup background={screen} width={width} height={height} title="chapter" sections={chapterHelp(!!props.agent)} legend={reviewLegend()} note={HELP_NOTE} onClose={close} />;
   return screen;
 }

@@ -71,11 +71,14 @@ describe.each(SIZES)('screens at %ix%i', (cols, rows) => {
     gr.press(KEY.escape);
     await gr.idle();
 
-    gr.press('h');
-    await gr.waitFor('any key to close');
+    gr.press('?');
+    await gr.waitFor('Keys · chapter');
     await snap(gr, 'help', cols, rows);
+    gr.press(KEY.tab);
+    await gr.waitFor('Marks · chapter');
+    await snap(gr, 'help-marks', cols, rows);
     gr.press(KEY.escape);
-    await gone(gr, 'any key to close');
+    await gone(gr, 'Marks · chapter');
 
     gr.press('c');
     await gr.waitFor('Comment');

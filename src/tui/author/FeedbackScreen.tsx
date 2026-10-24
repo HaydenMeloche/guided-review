@@ -15,7 +15,9 @@ import { mentionHighlight } from '../completion.js';
 import { pad, truncate } from '../nav.js';
 import { age } from '../PickerScreen.js';
 import { STATE_COLOR, chapterMark } from './FeedbackBriefing.js';
-import { threadBar } from './keys.js';
+import { THREAD_KEYS, threadBar } from './keys.js';
+import { HelpPopup } from '../Help.js';
+import { helpOf } from '../keys.js';
 import { sanitizeTerminal as safe } from '../../util/sanitize.js';
 import { githubWebHost } from '../../github/auth.js';
 import { findFileLinks, type FileLink } from '../../review/fileLinks.js';
@@ -45,6 +47,7 @@ type Mode =
   | { kind: 'react' }
   | { kind: 'resolve' }
   | { kind: 'ask' }
+  | { kind: 'help' }
   | { kind: 'ai'; busy: boolean; draft?: { reply: string; notes: string[] }; error?: string }
   | { kind: 'refine'; draft: { reply: string; notes: string[] } };
 
@@ -338,7 +341,7 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
   useInput(
     (input, key) => {
       if (mode.kind === 'react') {
-        if (key.escape || input === 'a') return setMode({ kind: 'browse' });
+        if (key.escape || input === '+') return setMode({ kind: 'browse' });
         if (/^[1-8]$/.test(input)) void react(Number(input) - 1);
         return;
       }
@@ -394,11 +397,12 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
         if (item.thread.isResolved ? item.thread.viewerCanUnresolve === false : item.thread.viewerCanResolve === false) return setFlash('You can’t change whether this thread is resolved.');
         return setMode({ kind: 'resolve' });
       }
-      if (input === 'a') {
+      if (input === '+') {
         if (!item.thread.comments[comment]?.nodeId) return setFlash('This comment can’t take reactions.');
         return setMode({ kind: 'react' });
       }
-      if (input === '?') return setMode({ kind: 'ask' });
+      if (input === 'a') return setMode({ kind: 'ask' });
+      if (input === '?' || input === 'h') return setMode({ kind: 'help' });
       if (input === 'o') return props.onHandoff(item, code?.hunk.lines ?? []);
       if (input === 'H') return props.onToggleHidden();
       if (input === 's') return props.onSend();
@@ -507,7 +511,7 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
     if (mode.kind === 'react')
       return (
         <Box flexDirection="column" height={2}>
-          <Text wrap="truncate">React to @{safe(item.thread.comments[comment]?.author ?? '')} · press 1-8 to toggle · Esc to close</Text>
+          <Text wrap="truncate">React to @{safe(item.thread.comments[comment]?.author ?? '')} · press 1-8 to toggle · esc to close</Text>
           <Text dimColor wrap="truncate">
             {REACTIONS.map((r, k) => `${k + 1}${r.emoji}`).join(' ')}
           </Text>
@@ -516,7 +520,7 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
     return null;
   })();
 
-  return (
+  const screen = (
     <Box flexDirection="column" width={width} height={height}>
       <Text wrap="truncate">
         <Text color="cyan" bold>
@@ -627,4 +631,17 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
       />
     </Box>
   );
+  if (mode.kind === 'help' && props.active)
+    return (
+      <HelpPopup
+        background={screen}
+        width={width}
+        height={height}
+        title="thread"
+        sections={helpOf(THREAD_KEYS)}
+        note="? is now these keys · ask the model with a · react with +"
+        onClose={() => setMode({ kind: 'browse' })}
+      />
+    );
+  return screen;
 }

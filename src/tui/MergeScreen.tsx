@@ -9,6 +9,9 @@ import type { AgentContext } from '../agent/types.js';
 import { TextInput } from './TextInput.js';
 import { Spinner } from './Spinner.js';
 import { KeyBar } from './KeyBar.js';
+import { Help } from './Help.js';
+import { helpOf } from './keys.js';
+import { MERGE_KEYS, mergeBar } from './screenKeys.js';
 import { truncate, wrap } from './nav.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
 
@@ -58,6 +61,7 @@ export function MergeScreen(props: {
   const [drafting, setDrafting] = useState<string>();
   const [drafted, setDrafted] = useState<Partial<Record<MergeMethod, { title: string; message: string }>>>({});
   const [delBranch, setDelBranch] = useState(false);
+  const [help, setHelp] = useState(false);
   const [error, setError] = useState('');
   const abort = useRef<AbortController | undefined>(undefined);
   useEffect(() => () => abort.current?.abort(), []);
@@ -237,6 +241,7 @@ export function MergeScreen(props: {
         return props.onCancel();
       }
       if (input === 'Q') return props.onQuit?.();
+      if (input === '?' || input === 'h') return setHelp(true);
       if (input === 'r' && readiness?.canMarkReady) return setMode('ready-confirm');
       if (input === 'u' && readiness?.canUpdateBranch) return setMode('update-confirm');
       if (!readiness?.canMerge) return;
@@ -255,7 +260,7 @@ export function MergeScreen(props: {
         return setMode('confirm');
       }
     },
-    { isActive: mode !== 'title' && mode !== 'body' && mode !== 'merging' && mode !== 'readying' },
+    { isActive: !help && mode !== 'title' && mode !== 'body' && mode !== 'merging' && mode !== 'readying' },
   );
   useInput((_i, key) => key.escape && setMode('review'), { isActive: mode === 'title' || mode === 'body' });
 
@@ -264,6 +269,7 @@ export function MergeScreen(props: {
       Merge · <Text color="cyan">{safe(props.repo)}</Text> #{props.number} {status ? truncate(safe(status.title), width - 24) : ''}
     </Text>
   );
+  if (help) return <Help title="merge" sections={helpOf(MERGE_KEYS)} width={width} height={props.height} onClose={() => setHelp(false)} />;
   if (mode === 'loading') {
     return (
       <Box flexDirection="column" paddingX={1}>
@@ -449,28 +455,20 @@ export function MergeScreen(props: {
       ) : (
         <KeyBar
           width={width - 2}
-          keys={
-            readiness.canMerge && waitingDraft
-              ? [['x', 'use GitHub’s default'], ['esc', 'back'], ...((status.methods.length > 1 ? [['m', 'method']] : []) as [string, string][])]
-              : readiness.canMerge
-                ? [
-                    ['P', 'merge'],
-                    ['esc', 'back'],
-                    ...((status.methods.length > 1 ? [['m', 'method']] : []) as [string, string][]),
-                    ...((takesMessage
-                      ? [
-                          ['e', 'edit title'],
-                          ['b', 'edit body'],
-                        ]
-                      : []) as [string, string][]),
-                    ...((takesMessage && props.agent ? [['g', 'draft again']] : []) as [string, string][]),
-                  ]
-                : [
-                    ...((readiness.canMarkReady ? [['r', 'mark ready for review']] : []) as [string, string][]),
-                    ...((readiness.canUpdateBranch ? [['u', `update from ${status.baseRef}`]] : []) as [string, string][]),
-                    ['esc', 'back'],
-                  ]
-          }
+          keys={mergeBar({
+            canMerge: readiness.canMerge,
+            waitingDraft: !!waitingDraft,
+            methods: status.methods.length > 1,
+            message: takesMessage,
+            agent: !!props.agent,
+            canMarkReady: !!readiness.canMarkReady,
+            canUpdate: !!readiness.canUpdateBranch,
+            base: status.baseRef,
+          })}
+          end={[
+            ['esc', 'back'],
+            ['?', 'keys'],
+          ]}
         />
       )}
     </Box>

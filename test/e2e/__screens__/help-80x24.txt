@@ -1,24 +1,24 @@
 ‹cyan,b›local/rich ‹/›‹b›#0 feature/di…‹/› ‹green›░░░░░░░░░░░░░░░░‹/›‹dim› 0/67 lines · 0/5 hunks · Guided order‹/›
 ‹dim›G‹/›‹cyan,bg:c59›╭────────────────────────────────────────────────────────────────────────────╮‹/›
-‹cyan,b›c‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b›Keys‹/›‹bg:c59›                                                                       ‹/›‹cyan,bg:c59›│‹/›
-‹bright-black›·‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›n / p          ‹/›‹bg:c59›Next or previous hunk (n marks it read), on into the next … ‹/›‹cyan,bg:c59›│‹/›
-‹blue›╭‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›j / k, J / K   ‹/›‹bg:c59›Move by line (or 10 lines) inside the hunk                  ‹/›‹cyan,bg:c59›│‹/›‹blue›╮‹/›
-‹blue›│‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›v              ‹/›‹bg:c59›Start or end a range selection                              ‹/›‹cyan,bg:c59›│‹/›‹blue›│‹/›
-‹blue›│‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›] / [          ‹/›‹bg:c59›Next or previous chapter                                    ‹/›‹cyan,bg:c59›│‹/›‹blue›│‹/›
-‹blue›│‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›c / C          ‹/›‹bg:c59›Comment on the selected line or range / on the whole flow   ‹/›‹cyan,bg:c59›│‹/›‹blue›│‹/›
-‹blue›│‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›e              ‹/›‹bg:c59›Read existing review threads on the selected line inline    ‹/›‹cyan,bg:c59›│‹/›‹blue›│‹/›
-‹blue›╰‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›y              ‹/›‹bg:c59›Reply to an existing review thread on the selected line     ‹/›‹cyan,bg:c59›│‹/›‹blue›╯‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›E / X          ‹/›‹bg:c59›Edit or delete your draft on the selected line              ‹/›‹cyan,bg:c59›│‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›In a comment   ‹/›‹bg:c59›@ people/code (@callers: @tests: @threads: …)               ‹/›‹cyan,bg:c59›│‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›t              ‹/›‹bg:c59›Focus the test pane (narrow terminals: toggle source/tests) ‹/›‹cyan,bg:c59›│‹/›‹c152,bg:c65›g‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›T              ‹/›‹bg:c59›Hide or show the test pane beside the code                  ‹/›‹cyan,bg:c59›│‹/›
-‹cyan›▶‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›Focused tests  ‹/›‹bg:c59›n/p test · j/k line · c comment · t/Esc back to source      ‹/›‹cyan,bg:c59›│‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›U              ‹/›‹bg:c59›Expand or collapse possible test gaps in the explanation    ‹/›‹cyan,bg:c59›│‹/›‹c222›'‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›d              ‹/›‹bg:c59›Chapter diagram (select a node to jump to its code)         ‹/›‹cyan,bg:c59›│‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›r              ‹/›‹bg:c59›Raw unified diff for the hunk                               ‹/›‹cyan,bg:c59›│‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›S              ‹/›‹bg:c59›Split view (old beside new) or inline                       ‹/›‹cyan,bg:c59›│‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›+ / -          ‹/›‹bg:c59›Show 10 more or fewer lines of the file around the hunk     ‹/›‹cyan,bg:c59›│‹/›
- ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹cyan,bg:c59,b›w              ‹/›‹bg:c59›Hide or show whitespace-only changes                        ‹/›‹cyan,bg:c59›│‹/›
-‹dim›✎‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,dim›10 more on a taller terminal · any key to close‹/›‹bg:c59›                            ‹/›‹cyan,bg:c59›│‹/›
+‹cyan,b›c‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b›Keys‹/›‹bg:c59,dim› · chapter · 1/2 · 17/38‹/›‹bg:c59›                                               ‹/›‹cyan,bg:c59›│‹/›
+‹bright-black›·‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹yellow,bg:c59›? is now these keys · ask the model with a‹/›‹bg:c59›                                 ‹/›‹cyan,bg:c59›│‹/›
+‹blue›╭‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›Move       ‹/›‹cyan,bg:c59›n / p         ‹/›‹bg:c59›Next or previous hunk (n marks it read), on into… ‹/›‹cyan,bg:c59›│‹/›‹blue›╮‹/›
+‹blue›│‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›           ‹/›‹cyan,bg:c59›j / k, J / K  ‹/›‹bg:c59›Move by line (or 10 lines) inside the hunk        ‹/›‹cyan,bg:c59›│‹/›‹blue›│‹/›
+‹blue›│‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›           ‹/›‹cyan,bg:c59›] / [         ‹/›‹bg:c59›Next or previous chapter                          ‹/›‹cyan,bg:c59›│‹/›‹blue›│‹/›
+‹blue›│‹/›‹cyan,bg:c59›│‹/›‹bg:c59›                                                                            ‹/›‹cyan,bg:c59›│‹/›‹blue›│‹/›
+‹blue›│‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›Comment    ‹/›‹cyan,bg:c59›v             ‹/›‹bg:c59›Start or end a range selection                    ‹/›‹cyan,bg:c59›│‹/›‹blue›│‹/›
+‹blue›╰‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›           ‹/›‹cyan,bg:c59›c / C         ‹/›‹bg:c59›Comment on the selected line or range / on the w… ‹/›‹cyan,bg:c59›│‹/›‹blue›╯‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›           ‹/›‹cyan,bg:c59›E / X         ‹/›‹bg:c59›Edit or delete your draft on the selected line    ‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›           ‹/›‹cyan,bg:c59›In a comment  ‹/›‹bg:c59›@ people/code (@callers: @tests: @threads: …)     ‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›                                                                            ‹/›‹cyan,bg:c59›│‹/›‹c152,bg:c65›g‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›Threads    ‹/›‹cyan,bg:c59›e             ‹/›‹bg:c59›Read existing review threads on the selected lin… ‹/›‹cyan,bg:c59›│‹/›
+‹cyan›▶‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›           ‹/›‹cyan,bg:c59›y             ‹/›‹bg:c59›Reply to an existing review thread on the select… ‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›                                                                            ‹/›‹cyan,bg:c59›│‹/›‹c222›'‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›View       ‹/›‹cyan,bg:c59›t             ‹/›‹bg:c59›Focus the test pane (narrow terminals: toggle so… ‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›           ‹/›‹cyan,bg:c59›T             ‹/›‹bg:c59›Hide or show the test pane beside the code        ‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›           ‹/›‹cyan,bg:c59›Focused tests ‹/›‹bg:c59›n/p test · j/k line · c comment · t/Esc back to … ‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›           ‹/›‹cyan,bg:c59›U             ‹/›‹bg:c59›Expand or collapse possible test gaps in the exp… ‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›           ‹/›‹cyan,bg:c59›d             ‹/›‹bg:c59›Chapter diagram (select a node to jump to its co… ‹/›‹cyan,bg:c59›│‹/›
+‹dim›✎‹/›‹cyan,bg:c59›│‹/›‹bg:c59›  ‹/›‹cyan,bg:c59,b›j/k‹/›‹bg:c59,dim› scroll‹/›‹bg:c59›   ‹/›‹cyan,bg:c59,b›tab‹/›‹bg:c59,dim› marks‹/›‹bg:c59›   ‹/›‹cyan,bg:c59,b›esc‹/›‹bg:c59,dim› close‹/›‹bg:c59›                                        ‹/›‹cyan,bg:c59›│‹/›
  ‹cyan,bg:c59›╰────────────────────────────────────────────────────────────────────────────╯‹/›
 

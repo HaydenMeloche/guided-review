@@ -1,0 +1,24 @@
+‹cyan,b›local/rich ‹/›‹b›#0 feature/di…‹/› ‹green›░░░░░░░░░░░░░░░░‹/›‹dim› 0/67 lines · 0/5 hunks · Guided order‹/›
+‹dim›G‹/›‹cyan,bg:c59›╭────────────────────────────────────────────────────────────────────────────╮‹/›
+‹cyan,b›c‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b›Marks‹/›‹bg:c59,dim› · chapter · 2/2‹/›‹bg:c59›                                                      ‹/›‹cyan,bg:c59›│‹/›
+‹bright-black›·‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹yellow,bg:c59›? is now these keys · ask the model with a‹/›‹bg:c59›                                 ‹/›‹cyan,bg:c59›│‹/›
+‹blue›╭‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›Reading    ‹/›‹green,bg:c59›✓‹/›‹bg:c59› read   ‹/›‹bright-black,bg:c59›⤼‹/›‹bg:c59› skipped   ‹/›‹yellow,bg:c59›◷‹/›‹bg:c59› deferred   ‹/›‹bright-black,bg:c59›·‹/›‹bg:c59› unread                      ‹/›‹cyan,bg:c59›│‹/›‹blue›╮‹/›
+‹blue›│‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›Risk       ‹/›‹red,bg:c59›▲‹/›‹bg:c59› high   ‹/›‹yellow,bg:c59›▲‹/›‹bg:c59› medium   ‹/›‹bright-black,bg:c59›△‹/›‹bg:c59› low                                       ‹/›‹cyan,bg:c59›│‹/›‹blue›│‹/›
+‹blue›│‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›Tests      ‹/›‹green,bg:c59›●‹/›‹bg:c59› tested   ‹/›‹yellow,bg:c59›◐‹/›‹bg:c59› partly tested   ‹/›‹red,bg:c59›○‹/›‹bg:c59› untested                         ‹/›‹cyan,bg:c59›│‹/›‹blue›│‹/›
+‹blue›│‹/›‹cyan,bg:c59›│‹/›‹bg:c59›                                                                            ‹/›‹cyan,bg:c59›│‹/›‹blue›│‹/›
+‹blue›│‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›On a line  ‹/›‹cyan,bg:c59›✎‹/›‹bg:c59› your draft   ‹/›‹cyan,bg:c59›┊‹/›‹bg:c59› review thread   ‹/›‹magenta,bg:c59›↕‹/›‹bg:c59› moved code                   ‹/›‹cyan,bg:c59›│‹/›‹blue›│‹/›
+‹blue›╰‹/›‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›           ‹/›‹cyan,bg:c59›▶‹/›‹bg:c59› cursor   ‹/›‹blue,bg:c59›┃‹/›‹bg:c59› range                                              ‹/›‹cyan,bg:c59›│‹/›‹blue›╯‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59› ‹/›‹bg:c59,b,dim›Hunks      ‹/›‹yellow,bg:c59›NEW‹/›‹bg:c59› changed since your last review                              ‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›                                                                            ‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›                                                                            ‹/›‹cyan,bg:c59›│‹/›‹c152,bg:c65›g‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›                                                                            ‹/›‹cyan,bg:c59›│‹/›
+‹cyan›▶‹/›‹cyan,bg:c59›│‹/›‹bg:c59›                                                                            ‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›                                                                            ‹/›‹cyan,bg:c59›│‹/›‹c222›'‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›                                                                            ‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›                                                                            ‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›                                                                            ‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›                                                                            ‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›│‹/›‹bg:c59›                                                                            ‹/›‹cyan,bg:c59›│‹/›
+‹dim›✎‹/›‹cyan,bg:c59›│‹/›‹bg:c59›  ‹/›‹cyan,bg:c59,b›tab‹/›‹bg:c59,dim› keys‹/›‹bg:c59›   ‹/›‹cyan,bg:c59,b›esc‹/›‹bg:c59,dim› close‹/›‹bg:c59›                                                      ‹/›‹cyan,bg:c59›│‹/›
+ ‹cyan,bg:c59›╰────────────────────────────────────────────────────────────────────────────╯‹/›
+

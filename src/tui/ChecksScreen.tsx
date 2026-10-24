@@ -6,6 +6,9 @@ import { CHECK_MARK, checkLabel, duration, logFocus, outcomeText, parseJobLog, s
 import { openExternal } from '../util/openExternal.js';
 import { Spinner } from './Spinner.js';
 import { KeyBar } from './KeyBar.js';
+import { Help } from './Help.js';
+import { helpOf } from './keys.js';
+import { CHECK_LOG_KEYS, CHECKS_KEYS, checkLogBar, checksBar } from './screenKeys.js';
 import { pad, truncate } from './nav.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
 
@@ -92,6 +95,7 @@ export function ChecksScreen(props: {
   const [sel, setSel] = useState(0);
   const [log, setLog] = useState<{ check: CheckItem; lines?: LogLine[]; error?: string; top: number }>();
   const [flash, setFlash] = useState('');
+  const [help, setHelp] = useState(false);
   useEffect(() => setSel((s) => Math.min(s, Math.max(0, checks.length - 1))), [checks.length]);
   useEffect(() => {
     if (!flash) return;
@@ -122,7 +126,9 @@ export function ChecksScreen(props: {
   };
 
   useInput((input, key) => {
+    if (help) return;
     if (input === 'Q') return props.onQuit?.();
+    if (input === '?' || input === 'h') return setHelp(true);
     if (log) {
       const lines = log.lines ?? [];
       const max = Math.max(0, lines.length - viewH);
@@ -131,7 +137,9 @@ export function ChecksScreen(props: {
       if (input === 'j' || key.downArrow) return to(log.top + 1);
       if (input === 'k' || key.upArrow) return to(log.top - 1);
       if (input === ' ' || key.pageDown) return to(log.top + viewH - 1);
-      if (input === 'b' || key.pageUp) return to(log.top - viewH + 1);
+      if (key.pageUp) return to(log.top - viewH + 1);
+      if (input === 'd') return to(log.top + Math.floor(viewH / 2));
+      if (input === 'u') return to(log.top - Math.floor(viewH / 2));
       if (input === 'g') return to(0);
       if (input === 'G') return to(max);
       if (input === 'n' || input === 'N') {
@@ -154,6 +162,7 @@ export function ChecksScreen(props: {
     if (input === 'R') return props.onRefresh();
   });
 
+  if (help) return <Help title={log ? 'job log' : 'checks'} sections={helpOf(log ? CHECK_LOG_KEYS : CHECKS_KEYS)} width={width} height={height} onClose={() => setHelp(false)} />;
   if (log) {
     const c = log.check;
     const m = CHECK_MARK[c.state];
@@ -195,14 +204,10 @@ export function ChecksScreen(props: {
         </Box>
         <KeyBar
           width={width - 2}
-          keys={[
-            ['j/k', 'scroll'],
-            ['space/b', 'page'],
-            ['g/G', 'top/end'],
-            ['n/N', 'next/prev error'],
-            ['o', 'open on GitHub'],
-            ['R', 'reload'],
+          keys={checkLogBar()}
+          end={[
             ['esc', 'checks'],
+            ['?', 'keys'],
           ]}
         />
       </Box>
@@ -254,12 +259,10 @@ export function ChecksScreen(props: {
       </Box>
       <KeyBar
         width={width - 2}
-        keys={[
-          ['j/k', 'select'],
-          ...((cur?.jobId ? [['enter', 'read log']] : cur?.url ? [['enter', 'open']] : []) as [string, string][]),
-          ...((cur?.url && cur.jobId ? [['o', 'open on GitHub']] : []) as [string, string][]),
-          ['R', 'refresh'],
+        keys={checksBar({ log: !!cur?.jobId, url: !!cur?.url })}
+        end={[
           ['esc', 'close'],
+          ['?', 'keys'],
         ]}
       />
     </Box>

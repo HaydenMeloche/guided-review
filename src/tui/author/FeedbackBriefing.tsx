@@ -3,7 +3,7 @@ import { useInput } from 'ink';
 import { Box, Text, useSelected } from '../themed.js';
 import { ROLES } from '../theme.js';
 import type { ExistingReview, IssueComment, Tour } from '../../types.js';
-import { briefingBar } from './keys.js';
+import { BRIEFING_KEYS, briefingBar } from './keys.js';
 import { isBlocking, STATE_LABEL, type FeedbackChapter, type FeedbackItem, type ReviewerStatus, type ThreadState } from '../../review/feedback.js';
 import type { FeedbackTheme } from '../../agent/feedback.js';
 import type { Readiness } from '../../review/merge.js';
@@ -12,6 +12,8 @@ import type { CheckSummary, PendingReviewers } from '../../github/gh.js';
 import { CHECK_MARK, checkLabel, duration, outcomeText, sortChecks } from '../../review/checks.js';
 import { Reader } from '../Panels.js';
 import { KeyBar, Key } from '../KeyBar.js';
+import { HelpPopup } from '../Help.js';
+import { helpOf } from '../keys.js';
 import { Heading } from '../BriefingScreen.js';
 import { pad, truncate, wrap } from '../nav.js';
 import { MdLineView, renderMarkdown } from '../markdown.js';
@@ -79,7 +81,7 @@ export function FeedbackBriefing(props: {
   const { tour, items, groups, width, height } = props;
   const selectedRow = useSelected();
   const [sel, setSel] = useState(0);
-  const [overlay, setOverlay] = useState<'none' | 'reviews' | 'comments' | 'description'>('none');
+  const [overlay, setOverlay] = useState<'none' | 'reviews' | 'comments' | 'description' | 'help'>('none');
   const [flash, setFlash] = useState('');
   useEffect(() => {
     if (!flash) return;
@@ -116,6 +118,7 @@ export function FeedbackBriefing(props: {
       if (input === 'g' && props.comments.length) return setOverlay('comments');
       if (input === 'r' && tour.description?.trim()) return setOverlay('description');
       if (input === 'L' && props.onTheme) return props.onTheme();
+      if (input === '?' || input === 'h') return setOverlay('help');
       if (key.escape) return props.onBack?.();
       if (input === 'q') return (props.onBack ?? props.onQuit)();
       if (input === 'Q') return props.onQuit();
@@ -387,7 +390,7 @@ export function FeedbackBriefing(props: {
     </Box>
   );
 
-  return (
+  const screen = (
     <Box flexDirection="column" width={width} height={height} paddingX={1}>
       <Text wrap="truncate">
         <Text color="cyan" bold>
@@ -445,16 +448,15 @@ export function FeedbackBriefing(props: {
       <KeyBar
         width={width - 2}
         accent
-        keys={[
-          ...briefingBar({ queuedCount: props.queued, comment: !!props.onComment, merge: !!props.onMerge, reviewers: !!props.onReviewers, copy: !!props.onCopyUrl, theme: !!props.onTheme }),
-          ...((props.onBack
-            ? [
-                ['q', 'PR list'],
-                ['Q', 'quit'],
-              ]
-            : [['q', 'quit']]) as [string, string][]),
+        keys={[...briefingBar({ queuedCount: props.queued, comment: !!props.onComment, merge: !!props.onMerge, reviewers: !!props.onReviewers, copy: !!props.onCopyUrl, theme: !!props.onTheme })]}
+        end={[
+          ['?', 'keys'],
+          ['q', props.onBack ? 'PR list' : 'quit'],
         ]}
       />
     </Box>
   );
+  if (overlay === 'help' && props.active)
+    return <HelpPopup background={screen} width={width} height={height} title="feedback briefing" sections={helpOf(BRIEFING_KEYS)} onClose={() => setOverlay('none')} />;
+  return screen;
 }

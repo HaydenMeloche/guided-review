@@ -5,7 +5,9 @@ import type { Tour } from '../../types.js';
 import { CONVERSATION, rerequestFirst, sendPlan, type FeedbackItem, type QueuedReply, type ReviewerStatus } from '../../review/feedback.js';
 import { PartialSendError, UncertainSendError, postIssueComment, postThreadReplies, requestReviewers, setThreadResolved } from '../../github/gh.js';
 import { KeyBar } from '../KeyBar.js';
-import { sendBar } from './keys.js';
+import { SEND_KEYS, sendBar } from './keys.js';
+import { Help } from '../Help.js';
+import { helpOf } from '../keys.js';
 import { truncate } from '../nav.js';
 import { VERDICT } from './FeedbackBriefing.js';
 import { sanitizeTerminal as safe } from '../../util/sanitize.js';
@@ -42,7 +44,7 @@ export function SendScreen(props: {
   const [rerequest, setRerequest] = useState<Set<string>>(() => new Set(props.rerequestDefault ? rerequestFirst(props.candidates) : []));
   const onReply = sel < rows.length;
   const reviewerAt = sel - rows.length;
-  const [mode, setMode] = useState<'list' | 'confirm' | 'sending' | 'confirm-delete'>('list');
+  const [mode, setMode] = useState<'list' | 'confirm' | 'sending' | 'confirm-delete' | 'help'>('list');
   const [error, setError] = useState('');
   const [progress, setProgress] = useState('');
   const plan = sendPlan(props.items, rows, [...rerequest]);
@@ -114,6 +116,7 @@ export function SendScreen(props: {
       }
       if (key.escape || input === 'q') return props.onBack();
       if (input === 'Q') return props.onQuit?.();
+      if (input === '?' || input === 'h') return setMode('help');
       if (input === 'j' || key.downArrow) return setSel((s) => Math.min(Math.max(0, rows.length + props.candidates.length - 1), s + 1));
       if (input === 'k' || key.upArrow) return setSel((s) => Math.max(0, s - 1));
       if (input === 'e' && onReply && rows[sel]) return props.onEdit(rows[sel].threadId);
@@ -131,11 +134,12 @@ export function SendScreen(props: {
         return setMode('confirm');
       }
     },
-    { isActive: mode !== 'sending' },
+    { isActive: mode !== 'sending' && mode !== 'help' },
   );
 
   const listRoom = Math.max(3, props.height - 11 - Math.max(1, props.candidates.length) - (props.silent.length ? 2 : 0));
   const top = Math.max(0, Math.min((onReply ? sel : rows.length - 1) - Math.floor(listRoom / 2), rows.length - listRoom));
+  if (mode === 'help') return <Help title="send" sections={helpOf(SEND_KEYS)} width={width} height={props.height} onClose={() => setMode('list')} />;
   return (
     <Box flexDirection="column" width={width} height={props.height} paddingX={1}>
       <Text bold wrap="truncate">
@@ -204,7 +208,7 @@ export function SendScreen(props: {
       ) : mode === 'sending' ? (
         <Text color="yellow">{progress || 'Sending…'}</Text>
       ) : (
-        <KeyBar width={width - 2} keys={sendBar({ candidates: props.candidates.length > 0 })} />
+        <KeyBar width={width - 2} keys={sendBar({ candidates: props.candidates.length > 0 })} end={[['?', 'keys']]} />
       )}
     </Box>
   );

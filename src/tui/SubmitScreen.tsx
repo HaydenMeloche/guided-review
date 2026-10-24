@@ -12,6 +12,9 @@ import { TextInput } from './TextInput.js';
 import { KeyBar } from './KeyBar.js';
 import { PostPreview } from './PostPreview.js';
 import { suggestionStillApplies } from './composer.js';
+import { Help } from './Help.js';
+import { helpOf } from './keys.js';
+import { SUBMIT_KEYS, submitBar } from './screenKeys.js';
 
 type Event = ReviewPayload['event'];
 const EVENT_TEXT: Record<Event, string> = { APPROVE: 'Approve', REQUEST_CHANGES: 'Request changes', COMMENT: 'Comment' };
@@ -45,7 +48,7 @@ export function SubmitScreen(props: {
   const [event, setEvent] = useState<Event>(verdict.event);
   const [sel, setSel] = useState(0);
   const [summary, setSummary] = useState('');
-  const [mode, setMode] = useState<'list' | 'summary' | 'confirm' | 'posting' | 'confirm-delete' | 'preview'>('list');
+  const [mode, setMode] = useState<'list' | 'summary' | 'confirm' | 'posting' | 'confirm-delete' | 'preview' | 'help'>('list');
   const [result, setResult] = useState('');
   const host = useMemo(() => props.host ?? githubWebHost(), [props.host]);
   // Posting, the preview and the hints share these options, so each shows what posts.
@@ -94,13 +97,18 @@ export function SubmitScreen(props: {
       if (input === 'a') return setEvent('APPROVE');
       if (input === 'r') return setEvent('REQUEST_CHANGES');
       if (input === 'c') return setEvent('COMMENT');
-      if (input === 'b') return setMode('summary');
+      if (input === '?' || input === 'h') return setMode('help');
+      if (input === 'w') return setMode('summary');
+      if (input === 'b') {
+        setResult('The summary is on w now.');
+        return setMode('summary');
+      }
       if (input === 'P') {
         if (event === 'REQUEST_CHANGES' && !pending.length && !summary.trim()) return setResult('Requesting changes needs at least one comment or a summary.');
         return setMode('confirm');
       }
     },
-    { isActive: mode !== 'summary' && mode !== 'posting' && mode !== 'preview' },
+    { isActive: mode !== 'summary' && mode !== 'posting' && mode !== 'preview' && mode !== 'help' },
   );
 
   function openPreview(d: Draft) {
@@ -112,6 +120,7 @@ export function SubmitScreen(props: {
 
   const listRoom = Math.max(3, props.height - 14 - unread.length);
 
+  if (mode === 'help') return <Help title="submit" sections={helpOf(SUBMIT_KEYS)} width={width} height={props.height} onClose={() => setMode('list')} />;
   if (mode === 'preview' && previewing) {
     return (
       <Box flexDirection="column" width={width} height={props.height} paddingX={1}>
@@ -151,7 +160,7 @@ export function SubmitScreen(props: {
         {mode === 'summary' ? (
           <TextInput value={summary} onChange={setSummary} onSubmit={() => setMode('list')} width={width - 4} placeholder="Optional review body" maxRows={4} />
         ) : (
-          <Text dimColor={!summary}>{safe(summary) || '(none — b to write one)'}</Text>
+          <Text dimColor={!summary}>{safe(summary) || '(none — w to write one)'}</Text>
         )}
       </Box>
       <Box marginTop={1} flexDirection="column">
@@ -217,14 +226,10 @@ export function SubmitScreen(props: {
       ) : (
         <KeyBar
           width={width}
-          keys={[
-            ['P', 'post'],
+          keys={submitBar()}
+          end={[
             ['esc', 'back'],
-            ['a/r/c', 'verdict'],
-            ['b', 'summary'],
-            ['j/k', 'select'],
-            ['e/x', 'draft'],
-            ['p', 'preview as posted'],
+            ['?', 'keys'],
           ]}
         />
       )}

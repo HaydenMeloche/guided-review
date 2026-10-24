@@ -88,12 +88,12 @@ describe('barKeys', () => {
     expect(barKeys('code', all)).toEqual([
       ['s', 'submit'],
       ['n/p', 'hunk'],
+      ['a', 'ask'],
       ['c', 'comment on range'],
       ['e', 'thread'],
       ['y', 'reply'],
       ['E', 'edit draft'],
       ['X', 'delete draft'],
-      ['?', 'ask'],
       ['v', 'end range'],
       [']/[', 'chapter'],
       ['t', 'tests'],
@@ -116,7 +116,7 @@ describe('barKeys', () => {
     expect(barKeys('tests', all)).toEqual([
       ['n/p', 'test'],
       ['c', 'comment'],
-      ['?', 'ask'],
+      ['a', 'ask'],
     ]);
     expect(barKeys('tests', off)).toEqual([
       ['n/p', 'test'],
@@ -140,11 +140,11 @@ describe('barEnd', () => {
   it('offers the way back from the tests, or D, esc and h', () => {
     expect(barEnd('tests', all)).toEqual([
       ['t/esc', 'back to code'],
-      ['b', 'briefing'],
+      ['?', 'keys'],
     ]);
     expect(barEnd('code', off)).toEqual([
       ['esc', 'back'],
-      ['h', 'keys'],
+      ['?', 'keys'],
     ]);
     expect(barEnd('collapsed', { ...off, rereview: true })[0]).toEqual(['D', 'changes only']);
     expect(barEnd('code', { ...off, rereview: true, deltaOnly: true })[0]).toEqual(['D', 'full review']);
