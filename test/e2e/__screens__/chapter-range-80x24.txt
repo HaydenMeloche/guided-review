@@ -19,6 +19,6 @@
 
 
 
-‹dim›✎ 0 draft comment(s)‹/›
+‹dim›✎ 0 draft comments‹/›
  ‹b›n/p‹/›‹dim› hunk‹/›   ‹b›]/[‹/›‹dim› chapter‹/›   ‹dim›+6 more‹/›       ‹yellow›whitespace hidden   ‹/›‹b›esc‹/›‹dim› back‹/›   ‹b›?‹/›‹dim› keys‹/›
 

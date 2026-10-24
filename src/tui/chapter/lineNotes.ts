@@ -1,6 +1,7 @@
 import type { DiffLine, Draft, ExistingThread, Hunk } from '../../types.js';
 import type { Fold } from '../../diff/lines.js';
 import { safe } from './text.js';
+import { plural } from '../plural.js';
 
 export function threadAt(threads: ExistingThread[], file: string, line?: number, side: 'LEFT' | 'RIGHT' = 'RIGHT') {
   if (line === undefined) return [];
@@ -59,7 +60,7 @@ function notesFor(hunk: Hunk): Map<number, string> {
     const other = last - first + 1 - n;
     const where = (p: { file: string; line: number }) => (p.file === hunk.file ? `line ${p.line}` : `${safe(p.file)}:${p.line}`);
     const lines = `${n} line${n === 1 ? '' : 's'}`;
-    const gap = other ? `, split by ${other} other line${other === 1 ? '' : 's'}` : '';
+    const gap = other ? `, split by ${plural(other, 'other line')}` : '';
     const indent = at.indent ? `indent ${at.indent > 0 ? '+' : '−'}${Math.abs(at.indent)}` : '';
     if (at.kind === 'reindented') {
       notes.set(last, `↔ ${lines} re-indented in place${indent ? ` (${indent})` : ''}, ${l.kind === 'del' ? 'now' : 'was'} ${where(at)}${gap}`);

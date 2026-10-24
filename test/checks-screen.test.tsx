@@ -42,7 +42,7 @@ describe('the checks popup', () => {
     expect(fetchJobLog).toHaveBeenCalledWith('o/r', 8);
     const log = ui.lastFrame()!;
     expect(log.split('\n')[1]).toContain('▸ Run pnpm test · lines');
-    expect(log).toContain('2 error(s)');
+    expect(log).toContain('2 errors');
     expect(log).not.toContain('install line 0');
     expect(log).not.toContain('2026-10-15T');
     ui.stdin.write('n');

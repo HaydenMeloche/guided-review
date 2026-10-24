@@ -6,6 +6,7 @@ import { highlightDiffLines, type HunkHighlights, type SyntaxSpan } from './high
 import { pad, riskMark, stateMark, truncate } from './nav.js';
 import { KeyBar } from './KeyBar.js';
 import { Heading } from './BriefingScreen.js';
+import { plural } from './plural.js';
 import type { DiffLine } from '../types.js';
 
 const PREVIEW_DELAY_MS = 150;
@@ -238,7 +239,7 @@ function ThemeSample(props: { width: number; height: number }) {
           <Text key={title} {...selectedRow(i === 0)} wrap="truncate">
             <Text color={st.color}>{st.mark}</Text>
             <Text color={rk.color}>{rk.mark}</Text> <Text color={i === 0 ? undefined : ROLES.title}>{pad(title, w - 13)}</Text>
-            <Text dimColor>{` ${3 - i} hunk(s)`}</Text>
+            <Text dimColor>{` ${plural(3 - i, 'hunk')}`}</Text>
           </Text>
         );
       })}

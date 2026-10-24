@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useInput } from 'ink';
 import { Box, Text } from './themed.js';
+import { Confirm } from './Confirm.js';
 import type { Chapter, ChapterOrder, Draft, DraftAnchor, ExistingThread, Hunk, ReactionContent, ReadState, ThreadComment, Tour } from '../types.js';
 import { ChecklistPanel } from './Panels.js';
 import { firstHunk, nextPos, pad, prevPos, progress, stateOf, truncate, type States } from './nav.js';
@@ -27,6 +28,7 @@ import { anchorLines, crossesContext, describeAnchor, lineAnchor, newDraft, sele
 import { CONTEXT_STEP, useFoldedCursor, useFolds, useHunkView } from './chapter/hunkView.js';
 import { barEnd, barKeys, chapterHelp, keyAction, type Action, type KeyCtx, type View } from './chapter/keys.js';
 import { explanation } from './chapter/guide.js';
+import { plural } from './plural.js';
 import { chapterLayout, overlaySlots, type OverlayKind } from './chapter/layout.js';
 
 export { KeyBar };
@@ -256,7 +258,7 @@ export function ChapterScreen(props: {
     skipChapter: () => {
       const ids = chapter.hunkIds;
       for (const id of ids) if (stateOf(states, tour.hunks[id]) === 'unread') props.setState(tour.hunks[id], 'skipped');
-      setFlash(`Skipped ${ids.length} hunk(s) in "${chapter.title}".`);
+      setFlash(`Skipped ${plural(ids.length, 'hunk')} in "${chapter.title}".`);
       next();
     },
     // Code
@@ -349,8 +351,8 @@ export function ChapterScreen(props: {
   );
 
   useInput(
-    (input) => {
-      if (input === 'y' && cursorDraft) {
+    (input, key) => {
+      if ((input === 'y' || key.return) && cursorDraft) {
         props.deleteDraft(cursorDraft);
         setFlash(`Draft deleted (${cursorDraft.label}).`);
       }
@@ -586,9 +588,7 @@ export function ChapterScreen(props: {
         </Box>
       </Box>
       {slots.confirmDelete && cursorDraft ? (
-        <Text color="yellow" wrap="truncate">
-          {truncate(`Delete this draft? [${cursorDraft.label}] ${clean(cursorDraft.body).replace(/\s+/g, ' ')}`, width - 8)} y / n
-        </Text>
+        <Confirm yes="delete">{truncate(`Delete this draft? [${cursorDraft.label}] ${clean(cursorDraft.body).replace(/\s+/g, ' ')}`, width - 26)}</Confirm>
       ) : (
         <DraftLine drafts={props.drafts} hunk={hunk} cursor={cursor} flash={flash} width={width} />
       )}

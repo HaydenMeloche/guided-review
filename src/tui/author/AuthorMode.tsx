@@ -48,7 +48,9 @@ import { useMentions } from '../chapter/mentions.js';
 import { renderMarkdown, MdLineView } from '../markdown.js';
 import { sanitizeTerminal as safe } from '../../util/sanitize.js';
 import { writeClipboard } from '../../util/clipboard.js';
+import { plural } from '../plural.js';
 import { RepoIndex } from '../../analysis/repoIndex.js';
+import { Hints, type Hint } from '../KeyBar.js';
 
 interface Live {
   threads: ExistingThread[];
@@ -189,8 +191,8 @@ export function AuthorMode(props: {
       const fresh = others.filter((c) => c.createdAt > prev.at);
       const by = [...new Set(fresh.map((c) => `@${c.author}`))];
       const parts = [
-        newlyAddressed ? `${newlyAddressed} thread(s) probably addressed by your commits` : '',
-        fresh.length ? `${fresh.length} new comment(s) from ${by.slice(0, 3).join(', ')}${by.length > 3 ? ` and ${by.length - 3} more` : ''}` : '',
+        newlyAddressed ? `${plural(newlyAddressed, 'thread')} probably addressed by your commits` : '',
+        fresh.length ? `${plural(fresh.length, 'new comment')} from ${by.slice(0, 3).join(', ')}${by.length > 3 ? ` and ${by.length - 3} more` : ''}` : '',
       ].filter(Boolean);
       setSince(parts.length ? `Since your last visit: ${parts.join(', ')}.` : prev.head !== tour.headSha ? 'Since your last visit: you pushed, and no new comments.' : undefined);
     }
@@ -300,7 +302,7 @@ export function AuthorMode(props: {
           {safe(tour.repo)}#{tour.pr} · feedback
         </Text>
         {error ? <Text color="red">Could not read the feedback: {safe(error)}</Text> : <Text dimColor>Reading review threads, reviews and merge status…</Text>}
-        <Text dimColor>{error ? 'R: retry · ' : ''}q: back · Q: quit</Text>
+        <Hints keys={[...((error ? [['R', 'retry']] : []) as Hint[]), ['q', 'back'], ['Q', 'quit']]} />
       </Box>
     );
   }
@@ -568,7 +570,13 @@ function HandoffPreview(props: { handoff: Handoff; width: number; height: number
           {safe(flash)}
         </Text>
       ) : (
-        <Text dimColor>Enter: copy the prompt · j/k: scroll · Esc: close</Text>
+        <Hints
+          keys={[
+            ['enter', 'copy the prompt'],
+            ['j/k', 'scroll'],
+            ['esc', 'close'],
+          ]}
+        />
       )}
     </Box>
   );

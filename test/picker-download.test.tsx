@@ -102,7 +102,7 @@ describe('picker tour downloads', () => {
       expect(ui.lastFrame()).toContain('1/2 · 1 downloading');
     });
     set('acme/app#2', { state: 'done' });
-    await waitFor(() => expect(ui.lastFrame()).toContain('Downloaded 2 tour(s). Ready to open.'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('Downloaded 2 tours. Ready to open.'));
     expect(onPick).not.toHaveBeenCalled();
     ui.unmount();
   });

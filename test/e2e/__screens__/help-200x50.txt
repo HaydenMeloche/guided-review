@@ -45,6 +45,6 @@
                                                 ‹cyan,bg:c59›│‹/›‹bg:c59›  ‹/›‹cyan,bg:c59,b›tab‹/›‹bg:c59,dim› marks‹/›‹bg:c59›   ‹/›‹cyan,bg:c59,b›esc‹/›‹bg:c59,dim› close‹/›‹bg:c59›                                                                              ‹/›‹cyan,bg:c59›│‹/›
                                                 ‹cyan,bg:c59›╰─────────────────────────────────────────────────────────────────────────────────────────────────────╯‹/›
 
-‹dim›✎ 0 draft comment(s)‹/›
+‹dim›✎ 0 draft comments‹/›
 
 

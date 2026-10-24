@@ -29,7 +29,7 @@ import { PickerScreen, keyFor, type DownloadJob, type Target as PickTarget } fro
 import { TourIntro, type IntroLine } from './TourIntro.js';
 import { useTerminalStatus, type TerminalProgress } from './terminalStatus.js';
 import { sanitizeTerminal } from '../util/sanitize.js';
-import { KeyBar } from './KeyBar.js';
+import { Hints, KeyBar, type Hint } from './KeyBar.js';
 import { plural } from './plural.js';
 import { codingAgentLaunch, type CodingAgentSetting } from '../codingAgent.js';
 import { AuthorMode } from './author/AuthorMode.js';
@@ -1095,7 +1095,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
               onPosted={(ids, review, moved) => {
                 store.markPosted(ids);
                 setDrafts(store.listDrafts(tour.repo, tour.pr));
-                setPickerNotice(`Posted review for ${tour.repo}#${tour.pr}: ${review.url}${moved.length ? ` · ${moved.length} comment(s) re-anchored` : ''}`);
+                setPickerNotice(`Posted review for ${tour.repo}#${tour.pr}: ${review.url}${moved.length ? ` · ${plural(moved.length, 'comment')} re-anchored` : ''}`);
                 setPhase('pick');
               }}
               onBack={() => setPhase(submitFrom)}
@@ -1145,7 +1145,19 @@ function OwnPrompt(props: { target: Target; title?: string; onFeedback: () => vo
         {props.target.repo}#{props.target.number} {props.title ? sanitizeTerminal(props.title) : ''}
       </Text>
       <Text>This is your PR. Open the feedback on it (Enter) or the full tour (t)?</Text>
-      <Text dimColor>The feedback lists the review threads to answer, in order; gr feedback opens it directly. {props.onBack ? 'q: PR list · Q: quit' : 'q: quit'}</Text>
+      <Text dimColor>The feedback lists the review threads to answer, in order; gr feedback opens it directly.</Text>
+      <Hints
+        keys={[
+          ['enter', 'feedback'],
+          ['t', 'full tour'],
+          ...((props.onBack
+            ? [
+                ['q', 'PR list'],
+                ['Q', 'quit'],
+              ]
+            : [['q', 'quit']]) as Hint[]),
+        ]}
+      />
     </Box>
   );
 }
@@ -1163,7 +1175,17 @@ function ErrorScreen(props: { message: string; onRetry: () => void; onBack?: () 
         Could not open the tour
       </Text>
       <Text>{props.message}</Text>
-      <Text dimColor>r: retry · {props.onBack ? 'q: PR list · Q: quit' : 'q: quit'}</Text>
+      <Hints
+        keys={[
+          ['r', 'retry'],
+          ...((props.onBack
+            ? [
+                ['q', 'PR list'],
+                ['Q', 'quit'],
+              ]
+            : [['q', 'quit']]) as Hint[]),
+        ]}
+      />
     </Box>
   );
 }

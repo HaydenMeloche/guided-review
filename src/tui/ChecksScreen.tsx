@@ -5,11 +5,12 @@ import { fetchJobLog, fetchMergeStatus, type CheckItem, type MergeStatus } from 
 import { CHECK_MARK, checkLabel, duration, logFocus, outcomeText, parseJobLog, sortChecks, type LogLine } from '../review/checks.js';
 import { openExternal } from '../util/openExternal.js';
 import { Spinner } from './Spinner.js';
-import { KeyBar } from './KeyBar.js';
+import { Hints, KeyBar, type Hint } from './KeyBar.js';
 import { Help } from './Help.js';
 import { helpOf } from './keys.js';
 import { CHECK_LOG_KEYS, CHECKS_KEYS, checkLogBar, checksBar } from './screenKeys.js';
 import { pad, truncate } from './nav.js';
+import { plural } from './plural.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
 
 // While checks are running, how often their state is read again.
@@ -59,7 +60,7 @@ export function ChecksLoader(props: { repo: string; number: number; width: numbe
             <Spinner /> Reading the checks…
           </Text>
         )}
-        <Text dimColor>{error ? 'R: retry · ' : ''}esc: close</Text>
+        <Hints keys={[...((error ? [['R', 'retry']] : []) as Hint[]), ['esc', 'close']]} />
       </Box>
     );
   return (
@@ -181,7 +182,7 @@ export function ChecksScreen(props: {
           {step && !flash ? <Text color="cyan">{`▸ ${safe(step.text)} · `}</Text> : null}
           {flash ||
             (log.lines
-              ? `${lines.length ? `lines ${log.top + 1}–${Math.min(lines.length, log.top + viewH)} of ${lines.length}` : 'The log is empty.'}${errors ? ` · ${errors} error(s)` : ''}${c.state === 'pending' ? ' · still running: R reads it again' : ''}`
+              ? `${lines.length ? `lines ${log.top + 1}–${Math.min(lines.length, log.top + viewH)} of ${lines.length}` : 'The log is empty.'}${errors ? ` · ${plural(errors, 'error')}` : ''}${c.state === 'pending' ? ' · still running: R reads it again' : ''}`
               : '')}
         </Text>
         <Box flexDirection="column" height={viewH} overflow="hidden">

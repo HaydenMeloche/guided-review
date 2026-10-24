@@ -6,6 +6,7 @@ import { SyntaxText } from './chapter/SyntaxText.js';
 import { codeChunks } from './chapter/text.js';
 import { truncate } from './nav.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
+import { plural } from './plural.js';
 
 // Lines shown on each side of a link's lines.
 export const LINK_CONTEXT = 10;
@@ -122,7 +123,7 @@ export function FilePreview(props: { links: (FileLink & { label?: string })[]; f
   if (rest > 0 || props.first > 0)
     rows.push(
       <Text key="more" dimColor wrap="truncate">
-        {[props.first ? `${props.first} above` : '', rest > 0 ? `${rest} more linked file(s)` : ''].filter(Boolean).join(' · ')} · l next
+        {[props.first ? `${props.first} above` : '', rest > 0 ? `${plural(rest, 'more linked file')}` : ''].filter(Boolean).join(' · ')} · l next
       </Text>,
     );
   return (

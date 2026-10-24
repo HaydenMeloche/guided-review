@@ -7,7 +7,7 @@ import { parseReviewers } from '../review/reviewers.js';
 import type { Completer } from './completion.js';
 import { TextInput } from './TextInput.js';
 import { Spinner } from './Spinner.js';
-import { KeyBar } from './KeyBar.js';
+import { Hints, KeyBar } from './KeyBar.js';
 import { VERDICT } from './author/FeedbackBriefing.js';
 import { age } from './PickerScreen.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
@@ -188,7 +188,7 @@ export function ReviewersScreen(props: { repo: string; number: number; width: nu
             <Spinner /> Reading the reviewers…
           </Text>
         )}
-        <Text dimColor>esc: close</Text>
+        <Hints keys={[['esc', 'close']]} />
       </Box>
     );
 

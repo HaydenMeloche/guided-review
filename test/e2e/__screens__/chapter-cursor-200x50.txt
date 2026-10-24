@@ -45,6 +45,6 @@
 
 
 
-‹dim›✎ 0 draft comment(s)‹/›
+‹dim›✎ 0 draft comments‹/›
  ‹b›n/p‹/›‹dim› hunk‹/›   ‹b›]/[‹/›‹dim› chapter‹/›   ‹dim›│   ‹/›‹b›c‹/›‹dim› comment‹/›   ‹b›v‹/›‹dim› range‹/›   ‹dim›│   ‹/›‹b›d‹/›‹dim› diagram‹/›   ‹b›+/-‹/›‹dim› context‹/›   ‹b›S‹/›‹dim› split‹/›   ‹dim›│   ‹/›‹b›x‹/›‹dim› skip‹/›                                                          ‹yellow›whitespace hidden   ‹/›‹b›esc‹/›‹dim› back‹/›   ‹b›?‹/›‹dim› keys‹/›
 

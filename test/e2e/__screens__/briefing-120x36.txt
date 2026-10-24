@@ -9,9 +9,9 @@
                                                                                        ‹bright-black›│‹/›          ▼           │
  ‹b›Chapters‹/› ‹cyan,b›· Guided order‹/›‹b,dim› · 0/5 hunks done‹/›                                              ‹bright-black›│‹/› ‹yellow,b›╔════════════════╗‹/›   │
  ‹dim›Recommended reading path through the changed flows · ‹/›‹cyan,b›f‹/›‹dim› to change‹/›                      ‹bright-black›│‹/› ‹yellow,b›║‹/› ‹yellow,b›discountAmount‹/› ‹yellow,b›║‹/›   │
- ‹bright-black,inv›·‹/›‹inv› createOrder                                                            ‹/›‹dim,inv› 3 hunk(s)‹/›   ‹bright-black›│‹/› ‹yellow,b›╚════════════════╝‹/›   │
- ‹bright-black›·‹/› Dependencies and runtimes                               ‹dim› 1 hunk(s) · dependencies‹/›   ‹bright-black›│‹/›                      │
- ‹bright-black›·‹/› Config, infra and docs                                        ‹dim› 1 hunk(s) · config‹/›   ‹bright-black›│‹/›                      │
+ ‹bright-black,inv›·‹/›‹inv› createOrder                                                              ‹/›‹dim,inv› 3 hunks‹/›   ‹bright-black›│‹/› ‹yellow,b›╚════════════════╝‹/›   │
+ ‹bright-black›·‹/› Dependencies and runtimes                                  ‹dim› 1 hunk · dependencies‹/›   ‹bright-black›│‹/›                      │
+ ‹bright-black›·‹/› Config, infra and docs                                           ‹dim› 1 hunk · config‹/›   ‹bright-black›│‹/›                      │
                                                                                        ‹bright-black›│‹/›                      ▼
                                                                                        ‹bright-black›│‹/›                  ‹yellow,b›╔═══════╗‹/›
                                                                                        ‹bright-black›│‹/›                  ‹yellow,b›║‹/› ‹yellow,b›quote‹/› ‹yellow,b›║‹/›

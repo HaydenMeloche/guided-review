@@ -76,7 +76,7 @@ describe('the feedback briefing', () => {
     const row = lines.find((l) => l.includes('Retries failed card payments'))!;
     expect(row).toContain('Reviews');
     expect(lines.some((l) => l.includes('From you'))).toBe(true);
-    expect(lines.some((l) => /Retry failed payments · pay\.ts .*3 thread\(s\)/.test(l))).toBe(true);
+    expect(lines.some((l) => /Retry failed payments · pay\.ts .*3 threads/.test(l))).toBe(true);
     expect(lines.some((l) => l.includes('│ Themes'))).toBe(true);
     expect(lines.some((l) => l.trimEnd().endsWith('limits (2)'))).toBe(true);
     expect(lines.some((l) => l.includes('Writing the summary'))).toBe(true);
@@ -104,7 +104,7 @@ describe('the feedback briefing', () => {
     for (const height of [24, 30, 40]) {
       const lines = frame(90, height);
       expect(lines).toHaveLength(height);
-      expect(lines.some((l) => l.includes('g to read 1 general comment(s)'))).toBe(true);
+      expect(lines.some((l) => l.includes('g to read 1 general comment'))).toBe(true);
       expect(lines.some((l) => l.includes('Retry failed payments · pay.ts'))).toBe(true);
       const reviews = lines.findIndex((l) => l.includes('Reviews'));
       const intent = lines.findIndex((l) => l.includes('Retries failed card'));

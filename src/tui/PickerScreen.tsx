@@ -13,6 +13,7 @@ import { CHECK_MARK, checkLabel, outcomeText, sortChecks } from '../review/check
 import { MdLineView, line, renderMarkdown } from './markdown.js';
 import { HelpPopup } from './Help.js';
 import { helpOf } from './keys.js';
+import { plural } from './plural.js';
 import { PICKER_KEYS, pickerBar } from './screenKeys.js';
 
 export interface Target {
@@ -351,7 +352,7 @@ export function PickerScreen(props: PickerProps) {
     setDownloadNotice(
       failed.length
         ? `Downloaded ${keys.length - failed.length}/${keys.length} tours. Failed: ${failed.map((k) => `${k} (${downloads[k].error})`).join('; ')}`
-        : `Downloaded ${keys.length} tour(s). Ready to open.`,
+        : `Downloaded ${plural(keys.length, 'tour')}. Ready to open.`,
     );
   }, [active, downloads]);
 
@@ -733,7 +734,11 @@ interface Badge {
 export function authorBadges(pr: AuthoredPR): Badge[] {
   const more = pr.unresolvedThreadsAtLeast ? '+' : ''; // more threads than gr read
   const badges: (Badge | undefined)[] = [
-    pr.openThreads ? { text: `${pr.openThreads}${more} open thread(s)`, color: 'yellow' } : pr.unresolvedThreads ? { text: `${pr.unresolvedThreads}${more} unresolved` } : undefined,
+    pr.openThreads
+      ? { text: `${pr.openThreads}${more} open thread${pr.openThreads === 1 && !more ? '' : 's'}`, color: 'yellow' }
+      : pr.unresolvedThreads
+        ? { text: `${pr.unresolvedThreads}${more} unresolved` }
+        : undefined,
     pr.newReview ? { text: 'new review', color: 'cyan' } : undefined,
     pr.reviewDecision === 'CHANGES_REQUESTED' ? { text: 'changes requested', color: 'red' } : pr.reviewDecision === 'APPROVED' ? { text: 'approved', color: 'green' } : undefined,
     readyToMerge(pr) ? { text: '✓ ready to merge', color: 'green', bold: true } : undefined,
@@ -753,7 +758,7 @@ const PRRow = React.memo(function PRRow(props: { pr: ReviewRequest | AuthoredPR;
   const who: Badge[] = isAuthored(pr) ? authorBadges(pr) : [{ text: `@${pr.author}` }];
   const meta: Badge[] = [
     ...who,
-    ...[age(pr.updatedAt), pr.isDraft ? 'draft' : '', ...pr.labels.slice(0, 2), toured ? 'toured' : '', drafts ? `${drafts} draft comment(s)` : ''].filter(Boolean).map((text) => ({ text })),
+    ...[age(pr.updatedAt), pr.isDraft ? 'draft' : '', ...pr.labels.slice(0, 2), toured ? 'toured' : '', drafts ? `${plural(drafts, 'draft comment')}` : ''].filter(Boolean).map((text) => ({ text })),
   ];
   const bar = selected ? <Text color="cyan">▌</Text> : <Text> </Text>;
   // A mark wins over the download glyph: it's what the next `d` will act on.
@@ -844,7 +849,7 @@ const Preview = React.memo(function Preview(props: { pr: ReviewRequest | Authore
     push(
       <Text wrap="truncate">
         <Text color="green">+{p.additions}</Text> <Text color="red">-{p.deletions}</Text>
-        <Text dimColor> · {p.changedFiles} file(s)</Text>
+        <Text dimColor> · {plural(p.changedFiles, 'file')}</Text>
         {p.isDraft ? <Text color="gray"> · draft</Text> : null}
         {decision ? <Text color={decision.color}> · {decision.text}</Text> : null}
         {p.mergeable === 'CONFLICTING' ? <Text color="red"> · merge conflicts</Text> : null}
@@ -887,7 +892,7 @@ const Preview = React.memo(function Preview(props: { pr: ReviewRequest | Authore
       push(
         <Text color={fresh ? 'green' : 'yellow'} wrap="truncate">
           {fresh ? '● Tour ready: opens instantly' : `◐ The author pushed since your tour (${safe(tourHead.slice(0, 7))}): opens as a re-review`}
-          {drafts ? <Text dimColor>{` · ${drafts} draft comment(s)`}</Text> : null}
+          {drafts ? <Text dimColor>{` · ${plural(drafts, 'draft comment')}`}</Text> : null}
         </Text>,
       );
     }
@@ -905,7 +910,7 @@ const Preview = React.memo(function Preview(props: { pr: ReviewRequest | Authore
       const body = p.body.trim() ? renderMarkdown(p.body, width) : [line('(no description)', { dim: true })];
       const shown = body.slice(0, room - 2);
       for (const l of shown) push(<MdLineView line={l} />);
-      if (body.length > shown.length) push(<Text dimColor italic>{`… ${body.length - shown.length} more line(s)`}</Text>);
+      if (body.length > shown.length) push(<Text dimColor italic>{`… ${plural(body.length - shown.length, 'more line')}`}</Text>);
     }
     if (fileRows) {
       push(<Text> </Text>);

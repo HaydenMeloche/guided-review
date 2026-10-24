@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useInput } from 'ink';
 import { Box, Text } from './themed.js';
+import { Confirm } from './Confirm.js';
 import type { PRInfo, Tour } from '../types.js';
 import { deleteBranch, fetchMergeStatus, fetchPR, markReadyForReview, mergePR, updateBranch, type BranchUpdateMethod, type MergeMethod, type MergeStatus } from '../github/gh.js';
 import { defaultMergeMessage, defaultMethod, mergeReadiness, METHOD_LABEL, type Readiness } from '../review/merge.js';
@@ -8,11 +9,12 @@ import { draftMergeMessage } from '../agent/feedback.js';
 import type { AgentContext } from '../agent/types.js';
 import { TextInput } from './TextInput.js';
 import { Spinner } from './Spinner.js';
-import { KeyBar } from './KeyBar.js';
+import { Hints, KeyBar } from './KeyBar.js';
 import { Help } from './Help.js';
 import { helpOf } from './keys.js';
 import { MERGE_KEYS, mergeBar } from './screenKeys.js';
 import { truncate, wrap } from './nav.js';
+import { plural } from './plural.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
 
 const LEVEL_COLOR: Record<Readiness['level'], string> = { ready: 'green', warn: 'yellow', blocked: 'red', merged: 'magenta', closed: 'gray' };
@@ -285,7 +287,7 @@ export function MergeScreen(props: {
       <Box flexDirection="column" paddingX={1}>
         {head}
         <Text color="red">{safe(error || 'Could not read the PR.')}</Text>
-        <Text dimColor>esc: back</Text>
+        <Hints keys={[['esc', 'back']]} />
       </Box>
     );
   }
@@ -295,7 +297,7 @@ export function MergeScreen(props: {
     <Box flexDirection="column" paddingX={1} width={width} height={props.height}>
       {head}
       <Text dimColor wrap="truncate">
-        {safe(`${status.headRef} → ${status.baseRef} · ${status.commitCount} commit(s) · head ${status.headSha.slice(0, 8)}`)}
+        {safe(`${status.headRef} → ${status.baseRef} · ${plural(status.commitCount, 'commit')} · head ${status.headSha.slice(0, 8)}`)}
       </Text>
       <Box marginTop={1} flexDirection="column">
         <ReadinessLine
@@ -397,7 +399,7 @@ export function MergeScreen(props: {
           ) : (
             <Box marginTop={1}>
               <Text dimColor>
-                Rebase and merge replays the {status.commitCount} commit(s) onto {safe(status.baseRef)} as they are; GitHub takes no commit message for it.
+                Rebase and merge replays the {plural(status.commitCount, 'commit')} onto {safe(status.baseRef)} as they are; GitHub takes no commit message for it.
               </Text>
             </Box>
           )}
@@ -406,9 +408,9 @@ export function MergeScreen(props: {
       <Box flexGrow={1} />
       {error ? <Text color="red">{safe(error)}</Text> : notice ? <Text color="green">{safe(notice)}</Text> : null}
       {mode === 'ready-confirm' ? (
-        <Text color="yellow" bold>
-          Mark {safe(props.repo)}#{props.number} ready for review? This notifies its requested reviewers. Y / n
-        </Text>
+        <Confirm yes="mark ready">
+          Mark {safe(props.repo)}#{props.number} ready for review? This notifies its requested reviewers.
+        </Confirm>
       ) : mode === 'update-confirm' ? (
         // A question, then a choice a line, wrapping rather than cut off: branch names run long.
         <Box flexDirection="column">
@@ -442,10 +444,10 @@ export function MergeScreen(props: {
           <Spinner color="yellow" /> Marking it ready for review…
         </Text>
       ) : mode === 'confirm' ? (
-        <Text color="yellow" bold>
+        <Confirm yes="merge">
           {METHOD_LABEL[method]} {safe(props.repo)}#{props.number} into {safe(status.baseRef)}
-          {delBranch && status.headRepo ? `, then delete ${safe(status.headRef)}` : ''}? Y / n
-        </Text>
+          {delBranch && status.headRepo ? `, then delete ${safe(status.headRef)}` : ''}?
+        </Confirm>
       ) : mode === 'merging' ? (
         <Text color="yellow">
           <Spinner color="yellow" /> Merging…

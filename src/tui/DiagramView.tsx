@@ -6,6 +6,7 @@ import type { Graph } from '../types.js';
 import { renderGraph, type TextDiagram } from '../diagram/text.js';
 import { openGraphInBrowser } from '../diagram/svg.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
+import { Hints } from './KeyBar.js';
 
 interface Span {
   start: number;
@@ -132,7 +133,19 @@ export function DiagramView(props: {
         return renderRow(line, row, rendered.boxes, spans, i);
       })}
       {interactive ? (
-        <Text dimColor>{safe(msg) || `tab: next node${selected ? ` (${safe(selected.label)})` : ''} · enter: jump to its code · c: comment on node · b: open SVG in browser · esc: close`}</Text>
+        msg ? (
+          <Text dimColor>{safe(msg)}</Text>
+        ) : (
+          <Hints
+            keys={[
+              ['tab', `next node${selected ? ` (${safe(selected.label)})` : ''}`],
+              ['enter', 'jump to its code'],
+              ['c', 'comment on node'],
+              ['b', 'open SVG in browser'],
+              ['esc', 'close'],
+            ]}
+          />
+        )
       ) : null}
     </Box>
   );

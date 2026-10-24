@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useInput } from 'ink';
 import { Box, Text } from '../themed.js';
+import { Confirm } from '../Confirm.js';
 import type { Tour } from '../../types.js';
 import { CONVERSATION, rerequestFirst, sendPlan, type FeedbackItem, type QueuedReply, type ReviewerStatus } from '../../review/feedback.js';
 import { PartialSendError, UncertainSendError, postIssueComment, postThreadReplies, requestReviewers, setThreadResolved } from '../../github/gh.js';
@@ -10,6 +11,7 @@ import { Help } from '../Help.js';
 import { helpOf } from '../keys.js';
 import { truncate } from '../nav.js';
 import { VERDICT } from './FeedbackBriefing.js';
+import { plural } from '../plural.js';
 import { sanitizeTerminal as safe } from '../../util/sanitize.js';
 
 // Everything author mode sends, in one place: the queued replies (posted together as one
@@ -80,7 +82,7 @@ export function SendScreen(props: {
       const parts = [
         plan.replies.length ? `Sent ${plan.replies.length} repl${plan.replies.length === 1 ? 'y' : 'ies'}${review}` : '',
         plan.comment ? `posted a comment${commentUrl ? ` (${commentUrl})` : ''}` : '',
-        plan.resolves.length ? `resolved ${plan.resolves.length - failed.length} thread(s)${failed.length ? ` (${failed.length} failed)` : ''}` : '',
+        plan.resolves.length ? `resolved ${plural(plan.resolves.length - failed.length, 'thread')}${failed.length ? ` (${failed.length} failed)` : ''}` : '',
         plan.rerequest.length ? `asked ${plan.rerequest.map((l) => `@${l}`).join(', ')} to review again` : '',
       ].filter(Boolean);
       props.onSent(`${parts.join(' · ')}.`, done);
@@ -111,7 +113,7 @@ export function SendScreen(props: {
         return setMode('list');
       }
       if (mode === 'confirm-delete') {
-        if (input === 'y' && rows[sel]) props.onDelete(rows[sel]);
+        if ((input === 'y' || key.return) && rows[sel]) props.onDelete(rows[sel]);
         return setMode('list');
       }
       if (key.escape || input === 'q') return props.onBack();
@@ -185,26 +187,26 @@ export function SendScreen(props: {
       {props.silent.length ? (
         <Box marginTop={1} flexDirection="column">
           <Text color="yellow" wrap="truncate">
-            ⚑ {props.silent.length} thread(s) marked won’t do have no reply: {safe(props.silent.map((i) => i.placement.path).join(', '))}
+            ⚑ {plural(props.silent.length, 'thread')} marked won’t do {props.silent.length === 1 ? 'has' : 'have'} no reply: {safe(props.silent.map((i) => i.placement.path).join(', '))}
           </Text>
         </Box>
       ) : null}
       <Box flexGrow={1} />
       {error ? <Text color="red">{safe(error)}</Text> : null}
       {mode === 'confirm' ? (
-        <Text color="yellow" bold>
+        <Confirm yes="send">
           {[
             plan.replies.length ? `Post ${plan.replies.length} repl${plan.replies.length === 1 ? 'y' : 'ies'}` : '',
             plan.comment ? `${plan.replies.length ? 'a' : 'Post a'} comment` : '',
-            plan.resolves.length ? `resolve ${plan.resolves.length} thread(s)` : '',
-            plan.rerequest.length ? `re-request ${plan.rerequest.length} reviewer(s)` : '',
+            plan.resolves.length ? `resolve ${plural(plan.resolves.length, 'thread')}` : '',
+            plan.rerequest.length ? `re-request ${plural(plan.rerequest.length, 'reviewer')}` : '',
           ]
             .filter(Boolean)
             .join(', ')}{' '}
-          on {safe(tour.repo)}#{tour.pr}? Y / n
-        </Text>
+          on {safe(tour.repo)}#{tour.pr}?
+        </Confirm>
       ) : mode === 'confirm-delete' ? (
-        <Text color="yellow">Delete this queued {rows[sel] === comment ? 'comment' : 'reply'}? y / n</Text>
+        <Confirm yes="delete">Delete this queued {rows[sel] === comment ? 'comment' : 'reply'}?</Confirm>
       ) : mode === 'sending' ? (
         <Text color="yellow">{progress || 'Sending…'}</Text>
       ) : (

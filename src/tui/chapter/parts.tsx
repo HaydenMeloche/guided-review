@@ -5,7 +5,8 @@ import { changedLineCount, chapterState, ORDER_LABEL, pad, progress, riskMark, s
 import { safe } from './text.js';
 import { draftsAt } from './lineNotes.js';
 import { MdLineView, type MdLine } from '../markdown.js';
-import { KeyBar } from '../KeyBar.js';
+import { plural } from '../plural.js';
+import { Hints, KeyBar } from '../KeyBar.js';
 
 export const COVERAGE = {
   tested: { mark: '●', color: 'green', text: 'tested' },
@@ -123,7 +124,7 @@ export const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: C
           {hunk.importOnly ? <Text dimColor> · imports only · optional</Text> : null}
         </Text>
       ) : (
-        <Text dimColor>{chapter.collapsed ? `${chapter.hunkIds.length} hunk(s), collapsed${chapter.optional ? ' · optional: not counted toward progress' : ''}` : ''}</Text>
+        <Text dimColor>{chapter.collapsed ? `${plural(chapter.hunkIds.length, 'hunk')}, collapsed${chapter.optional ? ' · optional: not counted toward progress' : ''}` : ''}</Text>
       )}
     </Box>
   );
@@ -172,7 +173,7 @@ export function DraftLine(props: { drafts: Draft[]; hunk?: Hunk; cursor: number;
     );
   const l = props.hunk?.lines[props.cursor];
   const here = props.hunk && l ? draftsAt(props.drafts, props.hunk, l.kind === 'del' ? l.oldLine : l.newLine, l.kind === 'del' ? 'LEFT' : 'RIGHT') : [];
-  const text = here.length ? `✎ ${here.map((d) => `[${d.label}] ${d.body.replace(/\s+/g, ' ')}`).join('  ')}` : `✎ ${pending.length} draft comment(s)`;
+  const text = here.length ? `✎ ${here.map((d) => `[${d.label}] ${d.body.replace(/\s+/g, ' ')}`).join('  ')}` : `✎ ${plural(pending.length, 'draft comment')}`;
   return (
     <Text dimColor={!here.length} wrap="truncate">
       {truncate(text, props.width)}
@@ -230,7 +231,13 @@ export function MoveList(props: { chapters: Chapter[]; sel: number; width: numbe
           {truncate(`${c.title}`, props.width - 6)}
         </Text>
       ))}
-      <Text dimColor>enter: move · esc: cancel</Text>
+      <Hints
+        keys={[
+          ['j/k', 'choose'],
+          ['enter', 'move'],
+          ['esc', 'cancel'],
+        ]}
+      />
     </Box>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useInput } from 'ink';
 import { Box, Text } from '../themed.js';
+import { Confirm } from '../Confirm.js';
 import type { DiffLine, Hunk, ReactionContent, ThreadComment, Tour } from '../../types.js';
 import { CLASS_LABEL, isBlocking, snippetLines, STATE_LABEL, TRIAGE_CYCLE, TRIAGE_LABEL, type FeedbackChapter, type FeedbackItem, type QueuedReply, type Triage } from '../../review/feedback.js';
 import { draftReply, threadContext } from '../../agent/feedback.js';
@@ -9,7 +10,7 @@ import { SourcePane } from '../chapter/SourcePane.js';
 import { useFolds } from '../chapter/hunkView.js';
 import { AskOverlay } from '../AskOverlay.js';
 import { TextInput } from '../TextInput.js';
-import { KeyBar } from '../KeyBar.js';
+import { Hints, KeyBar } from '../KeyBar.js';
 import { MdLineView, renderMarkdown, type MdLine } from '../markdown.js';
 import { mentionHighlight } from '../completion.js';
 import { pad, truncate } from '../nav.js';
@@ -23,6 +24,7 @@ import { githubWebHost } from '../../github/auth.js';
 import { findFileLinks, type FileLink } from '../../review/fileLinks.js';
 import { codeTerms, resolveCodeRefs, type CodeRef } from '../../review/codeRefs.js';
 import type { RepoIndex } from '../../analysis/repoIndex.js';
+import { plural } from '../plural.js';
 import { FilePreview } from '../FilePreview.js';
 
 // The file preview needs room beside the thread; narrower terminals keep the thread full width.
@@ -148,7 +150,13 @@ function NoFeedback(props: Props) {
   return (
     <Box flexDirection="column" paddingX={1}>
       <Text color={pressed ? 'yellow' : undefined}>No feedback to show{props.showHidden ? '' : ' (resolved threads are hidden: H shows them)'}.</Text>
-      <Text dimColor>H: show resolved · esc: briefing · Q: quit</Text>
+      <Hints
+        keys={[
+          ['H', 'show resolved'],
+          ['esc', 'briefing'],
+          ['Q', 'quit'],
+        ]}
+      />
     </Box>
   );
 }
@@ -383,7 +391,7 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
       if (input === 'K' || key.pageUp) return setScroll((s) => Math.max(0, s - threadRows));
       if (input === 'e') return setExpanded((x) => !x);
       if (input === 'l' && links.length) {
-        if (!showPreview) return setFlash(`${links.length} linked file(s): widen the terminal to ${PREVIEW_MIN_WIDTH} columns to preview them beside the thread.`);
+        if (!showPreview) return setFlash(`${plural(links.length, 'linked file')}: widen the terminal to ${PREVIEW_MIN_WIDTH} columns to preview them beside the thread.`);
         return setLinkIdx((i) => (i + 1) % links.length);
       }
       if (input === 'y') return startReply();
@@ -488,7 +496,19 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
               placeholder="What should change? e.g. shorter, mention the follow-up issue"
             />
           ) : (
-            <Text dimColor>{mode.busy ? 'Esc: stop' : mode.draft ? 'Enter: use it (you can edit before queueing) · r: refine · Esc: discard' : 'Esc: back'}</Text>
+            <Hints
+              keys={
+                mode.busy
+                  ? [['esc', 'stop']]
+                  : mode.draft
+                    ? [
+                        ['enter', 'use it (you can edit before queueing)'],
+                        ['r', 'refine'],
+                        ['esc', 'discard'],
+                      ]
+                    : [['esc', 'back']]
+              }
+            />
           )}
         </Box>
       );
@@ -543,7 +563,7 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
         <Text color={isBlocking(item) ? 'red' : 'cyan'}>{` · ${CLASS_LABEL[item.cls]}`}</Text>
         {item.clsSource === 'model' ? <Text dimColor> (model)</Text> : null}
         {item.triage ? <Text color={TRIAGE_COLOR[item.triage]}>{` · ${TRIAGE_LABEL[item.triage]}`}</Text> : <Text dimColor> · untriaged</Text>}
-        <Text dimColor>{` · ${safe(reviewers)} · ${item.thread.comments.length} comment(s)`}</Text>
+        <Text dimColor>{` · ${safe(reviewers)} · ${plural(item.thread.comments.length, 'comment')}`}</Text>
       </Text>
       <Text wrap="truncate" dimColor>
         {` ${safe(where)}${HOW[p.how] ? ` · ${HOW[p.how]}` : ''}${p.note ? ` · ${safe(p.note)}` : ''}${item.addressedReason ? ` · ${safe(item.addressedReason)}` : ''}`}
@@ -588,9 +608,7 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
         ) : null}
       </Box>
       {mode.kind === 'resolve' ? (
-        <Text color="yellow" bold>
-          {item.thread.isResolved ? 'Unresolve' : 'Resolve'} this thread on GitHub now? y / n
-        </Text>
+        <Confirm yes={item.thread.isResolved ? 'unresolve' : 'resolve'}>{item.thread.isResolved ? 'Unresolve' : 'Resolve'} this thread on GitHub now?</Confirm>
       ) : flash ? (
         <Text color="yellow" wrap="truncate">
           {' '}
@@ -600,7 +618,7 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
         <Text dimColor wrap="truncate">
           {lines.length > threadRows ? ` ${Math.min(lines.length, scroll + threadRows)}/${lines.length} lines · j/k scroll` : ' '}
           {item.thread.comments.length > 1 ? ' · Tab: next comment' : ''}
-          {links.length && !showPreview ? ` · ${links.length} linked file(s): l` : ''}
+          {links.length && !showPreview ? ` · ${plural(links.length, 'linked file')}: l` : ''}
           {busy ? ' · working…' : ''}
         </Text>
       )}

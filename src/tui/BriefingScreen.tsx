@@ -18,6 +18,7 @@ import { HelpPopup } from './Help.js';
 import { helpOf } from './keys.js';
 import { reviewLegend } from './legend.js';
 import { REVIEW_BRIEFING_KEYS, reviewBriefingBar } from './screenKeys.js';
+import { plural } from './plural.js';
 import { HELP_NOTE } from './ChapterScreen.js';
 
 const FLAG_COLOR: Record<string, string> = {
@@ -195,7 +196,7 @@ export function BriefingScreen(props: {
           ))}
           {descAll.length > desc.length ? (
             <Text>
-              <Text dimColor italic>{`… ${descAll.length - desc.length} more line(s): `}</Text>
+              <Text dimColor italic>{`… ${plural(descAll.length - desc.length, 'more line')}: `}</Text>
               <Key k="r" />
               <Text dimColor italic>
                 {' '}
@@ -211,7 +212,7 @@ export function BriefingScreen(props: {
             <Heading terminal={{ color: 'cyan' }}>Other reviewers</Heading>
             <Text dimColor> · </Text>
             <Key k="V" />
-            <Text dimColor> to read all {otherReviews.length} review(s)</Text>
+            <Text dimColor> to read all {plural(otherReviews.length, 'review')}</Text>
           </Text>
           {reviews.map((r) => (
             <Text key={r.id} wrap="truncate">
@@ -251,7 +252,7 @@ export function BriefingScreen(props: {
                 </Text>
                 <Text>
                   {' '}
-                  {rr.newHunkIds.length} new or changed hunk(s) since {safe(rr.previousHead.slice(0, 8))}, in {chapters.length} of {rows.length} chapters
+                  {plural(rr.newHunkIds.length, 'new or changed hunk')} since {safe(rr.previousHead.slice(0, 8))}, in {chapters.length} of {rows.length} chapters
                 </Text>
                 <Text dimColor> · </Text>
                 <Key k="D" />
@@ -309,7 +310,11 @@ export function BriefingScreen(props: {
         {rows.slice(chStart, chStart + shownCount).map(({ chapter: c, ci }) => {
           const unchanged = ci < 0;
           const st = stateMark(chapterState(tour, c, states));
-          const count = !delta ? `${c.hunkIds.length} hunk(s)` : unchanged ? `${c.hunkIds.length} hunk(s) · unchanged` : `${c.hunkIds.length} of ${fullCount(c.id)} hunk(s) changed`;
+          const count = !delta
+            ? `${plural(c.hunkIds.length, 'hunk')}`
+            : unchanged
+              ? `${plural(c.hunkIds.length, 'hunk')} · unchanged`
+              : `${c.hunkIds.length} of ${plural(fullCount(c.id), 'hunk')} changed`;
           const meta = ` ${count}${c.optional ? ' · optional' : c.kind !== 'flow' ? ` · ${c.kind}` : ''}`;
           const selected = !unchanged && ci === sel;
           const quiet = unchanged || (c.collapsed && !selected);
@@ -329,7 +334,7 @@ export function BriefingScreen(props: {
           {blast.map((b) => (
             <Text key={b.symbol + b.hunkId} wrap="truncate">
               {safe(
-                `${b.symbol}: ${b.callers.length} unchanged caller(s) — ${b.callers
+                `${b.symbol}: ${plural(b.callers.length, 'unchanged caller')} — ${b.callers
                   .slice(0, 3)
                   .map((c) => `${c.file}:${c.line}`)
                   .join(', ')}`,
@@ -338,7 +343,7 @@ export function BriefingScreen(props: {
           ))}
         </Box>
       ) : null}
-      {tour.existingThreads.length ? <Text dimColor>{tour.existingThreads.length} existing review thread(s) are shown inline.</Text> : null}
+      {tour.existingThreads.length ? <Text dimColor>{plural(tour.existingThreads.length, 'existing review thread')} shown inline.</Text> : null}
       {tour.overview && diagramBelowH >= 6 ? (
         <Box marginTop={1} height={diagramBelowH} overflow="hidden" flexShrink={0}>
           <DiagramView graph={tour.overview} width={leftW} height={diagramBelowH} interactive={false} />

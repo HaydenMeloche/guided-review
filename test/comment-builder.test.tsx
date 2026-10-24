@@ -992,7 +992,7 @@ describe('submit screen', () => {
     expect(frame.split('\n').find((l) => l.includes('Stays put'))).not.toMatch(/moves|posts/);
     expect(frame).not.toMatch(/Pre-flight|checking references/i);
     ui.stdin.write('P');
-    await waitFor(() => expect(ui.lastFrame()).toContain('Y / n'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('esc cancel'));
     ui.unmount();
   });
 
@@ -1009,7 +1009,7 @@ describe('submit screen', () => {
     ui.stdin.write(ESC);
     await waitFor(() => expect(ui.lastFrame()).toContain('Drafts (1)'));
     ui.stdin.write('P');
-    await waitFor(() => expect(ui.lastFrame()).toContain('Y / n'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('esc cancel'));
     ui.stdin.write('y');
     await waitFor(() => expect(postReview).toHaveBeenCalled());
     expect(vi.mocked(postReview).mock.calls[0][2].comments[0].body).toContain('```suggestion\nx\n```');

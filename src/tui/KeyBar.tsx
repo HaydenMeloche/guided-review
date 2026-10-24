@@ -42,6 +42,23 @@ export function fitHints(hints: Hint[], room: number): { shown: (Hint | 'sep')[]
   return all.dropped ? lay(room - more(hints.length).length - GAP.length) : all;
 }
 
+// A short line of key hints inside a panel or popup, in the key bar's style, cut at the panel's
+// edge. `note` (a state, a percentage) follows in dim text.
+export function Hints(props: { keys: Hint[]; note?: string }) {
+  return (
+    <Text wrap="truncate">
+      {props.keys.map(([k, label], i) => (
+        <Text key={`${k}:${i}`}>
+          {i ? GAP : ''}
+          <Key k={k} />
+          <Text dimColor>{` ${label}`}</Text>
+        </Text>
+      ))}
+      {props.note ? <Text dimColor>{`${GAP}${props.note}`}</Text> : null}
+    </Text>
+  );
+}
+
 // Key hints, kept left to right while they fit, then `+N more`. `status` (modes that are on)
 // and the `end` hints sit at the right edge and are never dropped, so help stays reachable on
 // any width. `accent` colours the keys the way `Key` does.

@@ -795,7 +795,7 @@ describe('BriefingScreen and SubmitScreen', () => {
     const ui = render(<ReReviewBriefing />);
     await waitFor(() => expect(ui.lastFrame()).toContain('Changes only:'));
     const frame = ui.lastFrame()!;
-    expect(frame).toContain(`1 of ${changed.hunkIds.length} hunk(s) changed`);
+    expect(frame).toContain(`1 of ${changed.hunkIds.length} hunks changed`);
     expect(frame).toContain(unchanged.title);
     expect(frame).toContain('unchanged');
     // The re-review note sits just above the chapter list, not under the description.
@@ -907,9 +907,9 @@ describe('BriefingScreen and SubmitScreen', () => {
     await waitFor(() => expect(ui.lastFrame()).toContain('Suggested: Request changes'));
     expect(ui.lastFrame()).toContain('This drops the error.');
     ui.stdin.write('P');
-    await waitFor(() => expect(ui.lastFrame()).toContain('Y / n'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('esc cancel'));
     ui.stdin.write('n'); // cancel: nothing posts
-    await waitFor(() => expect(ui.lastFrame()).not.toContain('Y / n'));
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('esc cancel'));
     expect(ui.lastFrame()).not.toContain('Posting');
     ui.unmount();
   });
@@ -933,7 +933,7 @@ describe('BriefingScreen and SubmitScreen', () => {
     );
     await waitFor(() => expect(ui.lastFrame()).toContain('Submit review'));
     ui.stdin.write('P');
-    await waitFor(() => expect(ui.lastFrame()).toContain('Y / n'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('esc cancel'));
     ui.stdin.write('\r');
     await waitFor(() => expect(posted).toBe('https://example.test/review/1'));
     ui.unmount();
@@ -1046,7 +1046,7 @@ describe('team checklist in the chapter screen', () => {
 
   it('i opens the team checklist and space confirms an item', async () => {
     const { ui, calls } = setup();
-    await waitFor(() => expect(ui.lastFrame()).toContain('Team checklist: 1 item(s) to confirm'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('Team checklist: 1 item to confirm'));
     ui.stdin.write('i');
     await waitFor(() => expect(ui.lastFrame()).toContain('Migrations are reversible'));
     expect(ui.lastFrame()).toContain('down() is empty');

@@ -156,7 +156,7 @@ describe('FeedbackBriefing', () => {
     expect(frame).toContain('Not ready: changes requested');
     expect(frame).toContain('2 open');
     expect(frame).toContain('Payment retries');
-    expect(frame).toContain('1 change request(s)');
+    expect(frame).toContain('1 change request');
     ui.stdin.write('n');
     await waitFor(() => expect(onStart).toHaveBeenCalledWith());
     ui.unmount();
@@ -295,7 +295,7 @@ describe('linked files', () => {
     expect(frame).toContain('limits.ts:5 ');
     expect(frame).toContain('limits.ts:30');
     expect(frame).not.toContain('limits.ts:50');
-    expect(frame).toContain('1 more linked file(s) · l next');
+    expect(frame).toContain('1 more linked file · l next');
     ui.stdin.write('l');
     await waitFor(() => expect(ui.lastFrame()).toContain('limits.ts:50'));
     frame = ui.lastFrame()!;
@@ -380,7 +380,7 @@ describe('SendScreen', () => {
     expect(ui.lastFrame()).toContain('[x] @ann changes requested');
     expect(ui.lastFrame()).toContain('[ ] @cat approved');
     ui.stdin.write('P');
-    await waitFor(() => expect(ui.lastFrame()).toContain('Post 1 reply, resolve 1 thread(s), re-request 1 reviewer(s)'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('Post 1 reply, resolve 1 thread, re-request 1 reviewer'));
     ui.stdin.write('y');
     await waitFor(() => expect(onSent).toHaveBeenCalled());
     // The review is attached to the head as last read, not the tour's.
@@ -513,7 +513,7 @@ describe('SendScreen', () => {
     expect(ui.lastFrame()).toContain('[x] @ann changes requested');
     ui.stdin.write('P');
     await waitFor(() => expect(ui.lastFrame()).toContain('You pushed abcdef01: press R to refresh before sending.'));
-    expect(ui.lastFrame()).not.toContain('Y / n');
+    expect(ui.lastFrame()).not.toContain('esc cancel');
     expect(onSent).not.toHaveBeenCalled();
     ui.unmount();
   });
@@ -591,7 +591,7 @@ describe('MergeScreen', () => {
     ui.stdin.write('d');
     await waitFor(() => expect(ui.lastFrame()).toContain('[x] Delete retries'));
     ui.stdin.write('P');
-    await waitFor(() => expect(ui.lastFrame()!.replace(/\s+/g, ' ')).toContain('Squash and merge acme/pay#4 into main, then delete retries? Y / n'));
+    await waitFor(() => expect(ui.lastFrame()!.replace(/\s+/g, ' ')).toContain('Squash and merge acme/pay#4 into main, then delete retries? y merge · esc cancel'));
     ui.unmount();
   });
 
@@ -710,7 +710,7 @@ describe('AuthorMode', () => {
   it('loads the feedback, keeps triage and queued replies in the store, and remembers the visit', async () => {
     const ui = render(<AuthorMode tour={tour} chapters={tour.chapters} worktree={dir} store={store} width={120} height={32} active onReload={noop} onFullTour={noop} onMerged={noop} onQuit={noop} />);
     await waitFor(() => expect(ui.lastFrame()).toContain('Payment retries'));
-    expect(ui.lastFrame()).toContain('1 general comment(s)');
+    expect(ui.lastFrame()).toContain('1 general comment');
     expect(ui.lastFrame()).toContain('Ready to merge');
     ui.stdin.write('n');
     await waitFor(() => expect(ui.lastFrame()).toContain('Why three retries?'));

@@ -88,7 +88,7 @@ describe('your PRs', () => {
     expect(pickerRows([], '', [mine(1, { unresolvedThreads: 1 })], false, true).rows.at(-1)).toEqual({ kind: 'note', text: 'Showing the first 200 of your open PRs.' });
     expect(JSON.stringify(pickerRows([], '', [mine(1, { unresolvedThreads: 1 })]).rows)).not.toContain('first 200');
     expect(authorBadges(mine(2, { unresolvedThreads: 100, unresolvedThreadsAtLeast: true }))[0]).toEqual({ text: '100+ unresolved' });
-    expect(authorBadges(mine(3, { unresolvedThreads: 100, openThreads: 100, unresolvedThreadsAtLeast: true }))[0]).toEqual({ text: '100+ open thread(s)', color: 'yellow' });
+    expect(authorBadges(mine(3, { unresolvedThreads: 100, openThreads: 100, unresolvedThreadsAtLeast: true }))[0]).toEqual({ text: '100+ open threads', color: 'yellow' });
   });
 
   it('get their own section after the review requests', () => {
@@ -106,7 +106,7 @@ describe('your PRs', () => {
 
   it('color what stands out: approved and ready to merge in green, changes requested in red', () => {
     expect(authorBadges(mine(1, { reviewDecision: 'APPROVED', mergeStateStatus: 'CLEAN', openThreads: 1, unresolvedThreads: 1 }))).toEqual([
-      { text: '1 open thread(s)', color: 'yellow' },
+      { text: '1 open thread', color: 'yellow' },
       { text: 'approved', color: 'green' },
       { text: '✓ ready to merge', color: 'green', bold: true },
     ]);

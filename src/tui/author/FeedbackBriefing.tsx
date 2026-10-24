@@ -18,6 +18,7 @@ import { Heading } from '../BriefingScreen.js';
 import { pad, truncate, wrap } from '../nav.js';
 import { MdLineView, renderMarkdown } from '../markdown.js';
 import { age } from '../PickerScreen.js';
+import { plural } from '../plural.js';
 import { sanitizeTerminal as safe } from '../../util/sanitize.js';
 
 export const VERDICT: Record<string, { text: string; color: string; mark: string }> = {
@@ -281,14 +282,14 @@ export function FeedbackBriefing(props: {
       'general',
       <Text wrap="truncate">
         <Key k="g" />
-        <Text dimColor>{` to read ${props.comments.length} general comment(s) on the PR`}</Text>
+        <Text dimColor>{` to read ${plural(props.comments.length, 'general comment')} on the PR`}</Text>
       </Text>,
     );
   if (props.silent)
     add(
       'silent',
       <Text color="yellow" wrap="truncate">
-        ⚑ {props.silent} won’t-do thread(s) have no reply yet
+        ⚑ {plural(props.silent, 'won’t-do thread')} {props.silent === 1 ? 'has' : 'have'} no reply yet
       </Text>,
     );
   if (props.themes?.length || props.analyzing) {
@@ -351,7 +352,7 @@ export function FeedbackBriefing(props: {
           ))}
           {descAll.length > desc.length ? (
             <Text>
-              <Text dimColor italic>{`… ${descAll.length - desc.length} more line(s): `}</Text>
+              <Text dimColor italic>{`… ${plural(descAll.length - desc.length, 'more line')}: `}</Text>
               <Key k="r" />
               <Text dimColor italic>
                 {' '}
@@ -377,7 +378,7 @@ export function FeedbackBriefing(props: {
           const ci = start + k;
           const m = chapterMark(c);
           const change = c.items.filter((i) => isBlocking(i) && i.state === 'open').length;
-          const meta = ` ${c.items.length} thread(s)${change ? ` · ${change} change request(s)` : ''}`;
+          const meta = ` ${plural(c.items.length, 'thread')}${change ? ` · ${plural(change, 'change request')}` : ''}`;
           return (
             <Text key={c.id} {...selectedRow(ci === sel)} wrap="truncate">
               <Text color={m.color}>{m.mark}</Text> <Text color={ci === sel ? undefined : ROLES.title}>{pad(safe(c.title), Math.max(12, leftW - meta.length - 3))}</Text>

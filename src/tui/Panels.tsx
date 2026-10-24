@@ -5,6 +5,7 @@ import type { ChecklistItem } from '../types.js';
 import { MdLineView, renderMarkdown } from './markdown.js';
 import { truncate } from './nav.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
+import { Hints } from './KeyBar.js';
 
 const box = (color: string) => ({ flexDirection: 'column' as const, borderStyle: 'round' as const, borderColor: color, paddingX: 1 });
 
@@ -43,7 +44,12 @@ export function ChecklistPanel(props: { items: ChecklistItem[]; confirms: Record
           </Box>
         );
       })}
-      <Text dimColor>space: confirm / unconfirm · esc: close</Text>
+      <Hints
+        keys={[
+          ['space', 'confirm / unconfirm'],
+          ['esc', 'close'],
+        ]}
+      />
     </Box>
   );
 }
@@ -71,7 +77,14 @@ export function Reader(props: { title: string; markdown: string; width: number; 
           <MdLineView key={top + i} line={l} />
         ))}
       </Box>
-      <Text dimColor>{`j/k / space: scroll · esc: back${lines.length > room ? ` · ${Math.round(((top + room) / lines.length) * 100)}%` : ''}`}</Text>
+      <Hints
+        keys={[
+          ['j/k', 'scroll'],
+          ['space', 'page'],
+          ['esc', 'back'],
+        ]}
+        note={lines.length > room ? `${Math.round(((top + room) / lines.length) * 100)}%` : undefined}
+      />
     </Box>
   );
 }

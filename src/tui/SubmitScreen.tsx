@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useInput } from 'ink';
 import { Box, Text } from './themed.js';
+import { Confirm } from './Confirm.js';
 import type { Chapter, ChecklistItem, Draft, Tour } from '../types.js';
 import { buildReviewPayload, groupByLabel, LABELS, postingNote, suggestVerdict } from '../review/submit.js';
 import { postReview, type ReviewPayload } from '../github/gh.js';
@@ -14,6 +15,7 @@ import { PostPreview } from './PostPreview.js';
 import { suggestionStillApplies } from './composer.js';
 import { Help } from './Help.js';
 import { helpOf } from './keys.js';
+import { plural } from './plural.js';
 import { SUBMIT_KEYS, submitBar } from './screenKeys.js';
 
 type Event = ReviewPayload['event'];
@@ -84,7 +86,7 @@ export function SubmitScreen(props: {
         return setMode('list');
       }
       if (mode === 'confirm-delete') {
-        if (input === 'y' && ordered[sel]) props.onDelete(ordered[sel]);
+        if ((input === 'y' || key.return) && ordered[sel]) props.onDelete(ordered[sel]);
         return setMode('list');
       }
       if (key.escape || input === 'q') return props.onBack();
@@ -216,11 +218,11 @@ export function SubmitScreen(props: {
       <Box flexGrow={1} />
       {result ? <Text color="red">{safe(result)}</Text> : null}
       {mode === 'confirm' ? (
-        <Text color="yellow" bold>
-          Post a "{EVENT_TEXT[event]}" review with {pending.length} comment(s) to {safe(tour.repo)}#{tour.pr}? Y / n
-        </Text>
+        <Confirm yes="post">
+          Post a "{EVENT_TEXT[event]}" review with {plural(pending.length, 'comment')} to {safe(tour.repo)}#{tour.pr}?
+        </Confirm>
       ) : mode === 'confirm-delete' ? (
-        <Text color="yellow">Delete this draft? y / n</Text>
+        <Confirm yes="delete">Delete this draft?</Confirm>
       ) : mode === 'posting' ? (
         <Text color="yellow">Posting…</Text>
       ) : (
