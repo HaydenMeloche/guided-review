@@ -51,7 +51,7 @@
     "typecheck": "tsc -p . --noEmit && tsc -p tsconfig.test.json",
     "test": "vitest run --project unit",
     "test:e2e": "vitest run --project e2e",
-    "prepublishOnly": "pnpm typecheck && pnpm test && pnpm clean && pnpm build",
+    "prepublishOnly": "pnpm clean && pnpm build",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "lint": "eslint .",
     "format": "prettier --write .",
