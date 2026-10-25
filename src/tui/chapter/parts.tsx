@@ -116,11 +116,10 @@ export const ChapterList = React.memo(function ChapterList(props: {
   );
 });
 
-// One row: the chapter, where the hunk is in it and in the code, and how it is tested.
+// One row: the chapter, and where the hunk is in it and in the code.
 // `drawer`: a hint at the right end for linked tests that are not on screen.
 export const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: Chapter; hunk?: Hunk; hi: number; isNew: boolean; unchanged?: number; width: number; states: States; drawer?: string }) {
   const { chapter, hunk, hi } = props;
-  const cov = hunk ? COVERAGE[hunk.coverage] : undefined;
   const st = hunk ? stateMark(stateOf(props.states, hunk)) : undefined;
   // A deleted file's hunk has no new lines: point at where it was.
   const location = hunk ? `${hunk.file}:${hunk.newStart || hunk.oldStart}` : '';
@@ -146,7 +145,6 @@ export const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: C
                 </>
               ) : null}
               <Text>{safe(`${fileIcon(location)}${location}`)}</Text>
-              {cov && cov.text ? <Text color={cov.color}>{`  ${cov.mark} ${cov.text}`}</Text> : null}
               {hunk.importOnly ? <Text dimColor> · imports only · optional</Text> : null}
             </>
           ) : chapter.collapsed ? (

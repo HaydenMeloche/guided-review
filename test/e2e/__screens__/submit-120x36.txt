@@ -1,6 +1,6 @@
  ‹dim›local/rich ‹/›‹b›#0 feature/discounts (preview)‹/›              ‹dim›  chapter 1/3 · hunk 1/3 · ▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks · Guided‹/›
 ‹cyan,b›1/3 ‹/›‹b›createOrder‹/›‹dim› · hunk 1/3 · next: Dependencies and runtimes (1) · ‹/›‹cyan,b›]‹/›
-‹blue,b›createOrder‹/›‹dim› · hunk 1/3 · ‹/›‹bright-black›· ‹/›src/orders.ts:1‹red›  ○ untested‹/›‹dim› · entry exported API (createOrder)‹/›
+‹blue,b›createOrder‹/›‹dim› · hunk 1/3 · ‹/›‹bright-black›· ‹/›src/orders.ts:1‹dim› · entry exported API (createOrder)‹/›
 ‹bright-black›▎ ‹/›‹dim›Plain mode: no narration.‹/›
 ‹bright-black›▎ ‹/›
 ‹bright-black›▎ ‹/›‹red›○ No linked test · 2 possible untested behaviors · U: details‹/›

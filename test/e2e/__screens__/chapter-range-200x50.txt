@@ -1,5 +1,5 @@
  ‹dim›local/rich ‹/›‹b›#0 feature/discounts (preview)‹/›                                                                                              ‹dim›  chapter 1/3 · hunk 1/3 · ▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks · Guided‹/›
-‹inv›1 ‹/›‹bright-black,inv›·‹/›‹inv› createOrder          ‹/›‹dim,inv›▱▱▱▱  0/3‹/›‹inv› ‹/›‹yellow,inv›▲‹/› ‹blue,b›createOrder‹/›‹dim› · hunk 1/3 · ‹/›‹bright-black›· ‹/›src/orders.ts:1‹red›  ○ untested‹/›‹dim› · entry exported API (createOrder)‹/›
+‹inv›1 ‹/›‹bright-black,inv›·‹/›‹inv› createOrder          ‹/›‹dim,inv›▱▱▱▱  0/3‹/›‹inv› ‹/›‹yellow,inv›▲‹/› ‹blue,b›createOrder‹/›‹dim› · hunk 1/3 · ‹/›‹bright-black›· ‹/›src/orders.ts:1‹dim› · entry exported API (createOrder)‹/›
 ‹dim›2‹/› ‹bright-black›·‹/› Dependencies and ru… ‹dim›▱▱▱▱  0/1‹/›   ‹bright-black›▎ ‹/›‹dim›Plain mode: no narration.‹/›
 ‹dim›3‹/› ‹bright-black›·‹/› Config, infra and d… ‹dim›▱▱▱▱  0/1‹/›   ‹bright-black›▎ ‹/›
                                      ‹bright-black›▎ ‹/›‹red›○ No linked test · 2 possible untested behaviors · U: details‹/›
