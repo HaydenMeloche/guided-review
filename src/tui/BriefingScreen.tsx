@@ -28,7 +28,7 @@ import { hasSidePanel } from './breakpoints.js';
 import { TitleBar } from './TitleBar.js';
 
 // Rows each block may take; the chapters get the rest of the screen.
-const BUDGET = { intent: 2, description: 3, flags: 3, reviews: 2, blast: 2 };
+const BUDGET = { intent: 4, description: 6, flags: 3, reviews: 2, blast: 2 };
 const BRIEFING_PROSE = 88;
 
 // File references the briefing model puts in its summary, such as "(src/x.ts:31-42; y.ts:3)".
@@ -194,9 +194,9 @@ export function BriefingScreen(props: {
   const askHeight = overlay === 'ask' ? Math.min(14, Math.max(5, height - 10)) : 0;
   const bodyH = height - 4 - askHeight; // title, margin, status line, key bar
 
-  // The briefing is a dashboard with a text budget: the chapters (the one thing the keys act
-  // on) come first after the intent, and every other block gets a few rows, with the way to
-  // read the rest beside it.
+  // The briefing is a dashboard with a text budget: the author's description and the chapters
+  // (the one thing the keys act on) come first after the intent, and every other block gets a
+  // few rows, with the way to read the rest beside it.
   // Missing tests show on each hunk in the chapters, so the briefing leaves that flag out.
   const watch = [...tour.flags.filter((f) => f.kind !== 'missing-tests').map((f) => flagRow(f)), ...tour.notes.map((n) => ({ label: 'note', detail: n, color: undefined, mark: G.note }))];
   const watchShown = watch.slice(0, BUDGET.flags);
@@ -217,6 +217,8 @@ export function BriefingScreen(props: {
     rows.findIndex((r) => r.ci === sel),
   );
   const desc = descAll.slice(0, BUDGET.description);
+  // A cut between paragraphs would end on a blank row.
+  while (desc.length && !desc[desc.length - 1].some((s) => s.text.trim())) desc.pop();
   const topRows = (props.readiness ? 1 : 0) + intent.length + rrRows;
   const restRows =
     (watchShown.length ? watchShown.length + 2 + (watch.length > watchShown.length ? 1 : 0) : 0) +
@@ -279,6 +281,22 @@ export function BriefingScreen(props: {
               {safe(`${c.path ? `${c.path}:${c.line ?? ''} ` : ''}${c.body.replace(/\s+/g, ' ')}`)}
               <Text dimColor> — {safe(c.reason)}</Text>
             </Text>
+          ))}
+        </Box>
+      ) : null}
+      {descAll.length ? (
+        <Box flexDirection="column" marginTop={1} flexShrink={0}>
+          <SectionHeading title="From the author" width={leftW}>
+            {descAll.length > desc.length ? (
+              <>
+                <Text dimColor>{` · ${plural(descAll.length - desc.length, 'more line')} · `}</Text>
+                <Key k="r" />
+                <Text dimColor> read all</Text>
+              </>
+            ) : null}
+          </SectionHeading>
+          {desc.map((l, i) => (
+            <MdLineView key={i} line={l} />
           ))}
         </Box>
       ) : null}
@@ -345,22 +363,6 @@ export function BriefingScreen(props: {
             </Text>
           ))}
           {watch.length > watchShown.length ? <Text dimColor>{`   +${watch.length - watchShown.length} more`}</Text> : null}
-        </Box>
-      ) : null}
-      {descAll.length ? (
-        <Box flexDirection="column" marginTop={1} flexShrink={0}>
-          <SectionHeading title="From the author" width={leftW}>
-            {descAll.length > desc.length ? (
-              <>
-                <Text dimColor>{` · ${plural(descAll.length - desc.length, 'more line')} · `}</Text>
-                <Key k="r" />
-                <Text dimColor> read all</Text>
-              </>
-            ) : null}
-          </SectionHeading>
-          {desc.map((l, i) => (
-            <MdLineView key={i} line={l} />
-          ))}
         </Box>
       ) : null}
       {reviews.length ? (

@@ -2,6 +2,9 @@
 
  feature/discounts (preview). Add discount codes to quotes and orders
 
+ ‹b›From the author‹/› ‹dim›──────────────────────────────────────────────────────────────‹/›
+ Add discount codes to quotes and orders
+
  ‹b›Chapters‹/›‹cyan,b› · Guided order‹/›‹b,dim› · 0/5 hunks done · ‹/›‹cyan›f‹/› ‹dim›─────────────────────────────────‹/›
  ‹cyan,inv› 1 ‹/›‹bright-black,inv›·‹/›‹inv› createOrder                                                 ‹/›‹dim,inv›▱▱▱▱   0/3 ‹/›‹yellow,inv›▲‹/›
  ‹dim› 2 ‹/›‹bright-black›·‹/› Dependencies and runtimes                                   ‹dim›▱▱▱▱   0/1 ‹/›
@@ -10,9 +13,6 @@
 
  ‹b›Watch for‹/› ‹dim›────────────────────────────────────────────────────────────────────‹/›
   ‹yellow›▲ lockfile may be stale  ‹/›‹dim›package.json changed but no lockfile changed; if de…‹/›
-
- ‹b›From the author‹/› ‹dim›──────────────────────────────────────────────────────────────‹/›
- Add discount codes to quotes and orders
 
    ‹yellow,b›╭─────────────╮‹/›
    ‹yellow,b›│‹/› ‹yellow,b›createOrder‹/› ‹yellow,b›│‹/›
