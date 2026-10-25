@@ -391,8 +391,8 @@
           ><img
             src="images/chapter.webp"
             width="2000"
-            height="1191"
-            alt="A chapter of a Guided Review tour: an explanation of the hunk, the changed code, and linked tests with their diffs side by side"
+            height="1178"
+            alt="A chapter of a Guided Review tour: the chapter list, an explanation of the hunk, the changed code with review threads, and linked tests side by side"
         /></a>
         <figcaption>A chapter of a sample PR: an explanation, the changed code, and the linked tests beside it.</figcaption>
       </figure>
@@ -405,16 +405,30 @@
             ><img
               src="images/briefing.webp"
               width="2000"
-              height="1178"
+              height="1185"
               loading="lazy"
-              alt="The briefing screen: a summary of the PR, the author's description, an overview diagram, a list of chapters, and blast radius"
+              alt="The briefing screen: whether the PR can merge, a summary of the PR, chapters in reading order, flagged gaps, the author's description, blast radius, and an overview diagram"
           /></a>
         </figure>
         <h2>Ask about any line</h2>
-        <p>Select code and press <code>?</code>. Answers cite the files and lines they come from, and follow-up questions keep the thread.</p>
+        <p>Select code and press <code>a</code>. Answers cite the files and lines they come from, and follow-up questions keep the thread.</p>
         <figure class="shot wide">
           <a href="images/ask.webp"
             ><img src="images/ask.webp" width="2000" height="1137" loading="lazy" alt="A question about a changed line, answered inline below the code with file and line references"
+          /></a>
+        </figure>
+        <h2>Respond to a review</h2>
+        <p>
+          On your own PR, <code>gr feedback</code> turns the review into a work list: each thread with the code it is on and the files it links to. Triage, reply, and send every reply as one review.
+        </p>
+        <figure class="shot wide">
+          <a href="images/feedback-thread.webp"
+            ><img
+              src="images/feedback-thread.webp"
+              width="2000"
+              height="1190"
+              loading="lazy"
+              alt="A review thread in gr feedback: the commented code, the discussion, and the files the comment links to, read at the commit it names"
           /></a>
         </figure>
       </section>

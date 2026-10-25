@@ -14,7 +14,7 @@ The same tour works for learning a codebase: every change becomes a walk through
 
 The tour is built from static analysis of the diff and the checkout. A model, if you configure one, adds the briefing's summary, each chapter's explanation, and answers to your questions. Without one, everything else still works, and nothing leaves your machine.
 
-<p align="center"><img src="docs/images/chapter.webp" alt="A Guided Review chapter showing an explanation, the changed code, and linked tests side by side" width="900"></p>
+<p align="center"><img src="docs/images/chapter.webp" alt="A Guided Review chapter: the chapter list, an explanation of the hunk, the changed code with review threads, and linked tests side by side" width="900"></p>
 
 ## Features
 
@@ -53,13 +53,17 @@ You need Node 22.13 or newer, `git`, and the [GitHub CLI](https://cli.github.com
 
 The **briefing** opens first. It shows the PR's intent and author description, recent reviewer feedback, flagged gaps, an overview diagram, and chapters in a recommended reading order. Press `Enter` on a chapter, or `n` to start or resume.
 
-<p align="center"><img src="docs/images/briefing.webp" alt="The briefing screen: a summary of the PR, the author's description, flagged gaps, an overview diagram, chapters in reading order, and blast radius" width="900"></p>
+<p align="center"><img src="docs/images/briefing.webp" alt="The briefing screen: whether the PR can merge, a summary of the PR, chapters in reading order with progress and risk, flagged gaps, the author's description, blast radius, and an overview diagram" width="900"></p>
 
 A **chapter** shows an explanation, the code hunk, risk and test status, existing review threads, and linked tests. Press `n`/`p` to move between hunks, `c` to draft a comment, and `s` to review and submit your drafts.
 
 Press `a` on a selected line or range to ask about it. Answers cite the files and lines they come from, including code outside the diff. Below, the model finds that cancelling an order twice restocks its items twice, by following `release` into a file the PR does not touch.
 
 <p align="center"><img src="docs/images/ask.webp" alt="A question about a changed line, answered inline below the code with file and line references" width="900"></p>
+
+On your own PR, `gr feedback` turns the review into a work list. Each thread shows the code it is on, the discussion, and the files its comment links to; triage it with `Space`, reply with `y`, and send every reply as one review with `s`.
+
+<p align="center"><img src="docs/images/feedback-thread.webp" alt="A review thread in gr feedback: the commented code, the discussion, and the files the comment links to, read at the commit it names" width="900"></p>
 
 ## Commands
 
