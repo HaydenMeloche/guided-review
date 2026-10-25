@@ -12,6 +12,7 @@ The first time you run `gr` (or `gr review`, or `gr preview`), it opens setup be
    - **Endpoint:** for a compatible endpoint, its API base URL including `/v1`, and whether it supports function calling. A local server that was found fills these in, and its first model becomes the default.
    - **API key:** read from an environment variable by default (you can change the name), or paste it to save it in `config.json`; `←`/`→` switch between them. A local compatible server can use no key. A pasted key is hidden. Codex uses its own login, and Bedrock and Vertex use your AWS or Google Cloud credentials, so none of them asks for a key.
    - **Models:** one for the briefing and chapter narration, and one for Q&A, chosen from a list with `←`/`→`. The OpenAI API offers the GPT-6 models (`gpt-6.1-sol`, `gpt-6-luna`, `gpt-6-sol`, `gpt-6-astra`) and the Anthropic API the Claude 5 models (Haiku 5.5, Sonnet 5.5, Opus 5.5, Fable 5.1, Opus 5, Sonnet 5, Fable 5); these lists are built into `gr`. For Cursor and compatible endpoints, setup asks the service which models it offers once it has the key or URL; if it can't, you type the ID. A Cursor model with settings shows them under it, such as Effort, Fast, and Context, and you choose each with `←`/`→`; setup says when Cursor doesn't offer a combination, and marks values only Max Mode uses. To use a model the list doesn't show, set it with `gr config --edit`. Claude Code, Bedrock, and Vertex default to `haiku` and `opus`. The Anthropic API defaults to `claude-haiku-5-5` and `claude-opus-5-5`. Codex and OpenAI default to `gpt-6-luna` and `gpt-6.1-sol`. Cursor defaults to Grok 4.7: at low effort and Fast for summaries and narration, and at high effort and standard speed for Q&A, both with 256k context.
+   - **Fast mode:** with the Anthropic API, the OpenAI API, or Codex, whether Q&A runs in [fast mode or with priority processing](#fast-mode-and-priority-processing): faster answers at a higher price. It starts at off.
    
    `↑`/`↓` move between fields, `←`/`→` change an option, and `Enter` moves on.
 4. **Coding agent:** the agent `o` opens in a chapter: Claude Code, Codex, the Cursor CLI, Gemini CLI, opencode, pi, or a custom command. Setup marks the ones installed on this machine with a ✓ and starts on the first of them (or on your saved choice). Choosing **Custom command** asks for the command that starts your agent, such as `aider --message`. See [`codingAgent`](#config-file).
@@ -44,7 +45,7 @@ The OpenAI provider uses the Responses API, which supports read-only repository 
 
 ## Fast mode and priority processing
 
-`"fastMode": true` buys faster answers at a higher price. It is off by default and setup never turns it on. It is meant for Q&A, where you wait on every answer, so set it in `roles.qa`:
+`"fastMode": true` buys faster answers at a higher price. It is off by default. It is meant for Q&A, where you wait on every answer: with the `anthropic`, `openai`, and `codex` providers, setup asks whether to turn it on for Q&A and writes it in `roles.qa`. To set it by hand:
 
 ```json
 { "roles": { "qa": { "model": "claude-opus-5-5", "fastMode": true } } }

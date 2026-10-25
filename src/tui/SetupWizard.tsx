@@ -23,6 +23,7 @@ import {
   modelNotes,
   modelProblems,
   modelReady,
+  offersFastMode,
   previousRouting,
   PROVIDER_CHOICES,
   replacesOverrides,
@@ -613,7 +614,10 @@ export function Form(props: { fields: Field[]; width: number; onChange: (id: str
     if (typed) props.onChange(field.id, field.value + typed);
   });
 
-  const labelW = Math.min(28, Math.max(...fields.map((f) => f.label.length)) + 2);
+  // Only the focused field shows arrows, and the leading one hangs in the gap before its value, so
+  // every value's text starts in the same column; the gap leaves a space before an arrow.
+  const arrowed = (f: Field) => f.kind === 'choice' || f.kind === 'select';
+  const labelW = Math.min(28, Math.max(...fields.map((f) => f.label.length + (arrowed(f) ? 3 : 2))));
   const valueW = Math.max(10, props.width - labelW - 4);
   return (
     <Box flexDirection="column" width={props.width}>
@@ -629,7 +633,7 @@ export function Form(props: { fields: Field[]; width: number; onChange: (id: str
             <Text wrap="truncate">
               <Text color={here ? 'cyan' : undefined} bold={here}>
                 {` ${here ? '›' : ' '} `}
-                {pad(f.label, labelW)}
+                {pad(f.label, labelW - (here && arrowed(f) ? 2 : 0))}
               </Text>
               {f.kind === 'select' ? (
                 <SelectValue field={f} here={here} width={valueW} />
@@ -650,11 +654,7 @@ export function Form(props: { fields: Field[]; width: number; onChange: (id: str
                     </Text>
                   </Text>
                 ) : (
-                  <Text>
-                    <Text dimColor>‹ </Text>
-                    {tail}
-                    <Text dimColor> ›</Text>
-                  </Text>
+                  <Text>{tail}</Text>
                 )
               ) : (
                 <Text>
@@ -754,6 +754,12 @@ function answerKey(a: ModelAnswers, env: NodeJS.ProcessEnv): string | undefined 
   if (a.keySource === 'env') return env[a.apiKeyEnv.replace(/^\$/, '')] || undefined;
   return undefined;
 }
+
+const FAST_MODE_LABELS = {
+  anthropic: 'on: faster answers, about double the price (Opus only)',
+  openai: 'on: priority processing, faster answers at a higher price',
+  codex: 'on: priority processing, faster answers that use up your Codex limits sooner',
+};
 
 function DetailsStep(props: {
   width: number;
@@ -875,6 +881,18 @@ function DetailsStep(props: {
     const params = paramFields(role);
     fields.push({ ...modelField(role, label, about), tight: params.length > 0 }, ...params);
   }
+  if (offersFastMode(a.provider)) {
+    fields.push({
+      id: 'qaFastMode',
+      label: 'Q&A fast mode',
+      kind: 'choice',
+      value: a.qaFastMode ? 'yes' : 'no',
+      options: [
+        { value: 'no', label: 'off: standard speed and price' },
+        { value: 'yes', label: FAST_MODE_LABELS[a.provider as keyof typeof FAST_MODE_LABELS] },
+      ],
+    });
+  }
 
   const notes = modelNotes(a, props.env);
   return (
@@ -887,6 +905,7 @@ function DetailsStep(props: {
         onSubmit={props.onDone}
         onChange={(id, value) => {
           if (id === 'toolCalling') return props.onChange({ ...a, toolCalling: value === 'yes' });
+          if (id === 'qaFastMode') return props.onChange({ ...a, qaFastMode: value === 'yes' });
           // Another model starts on its own default variant.
           // Another model starts on its own default variant. A typed one (no list) keeps the
           // variant setup started with when it is that model, so it never falls back to Max Mode.

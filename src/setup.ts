@@ -69,7 +69,7 @@ function describeRouting(config: AgentRouting): string[] {
   const show = (c: AgentConfig) => formatModel(c.model, c.modelParams);
   if (show(briefing) === show(narration)) lines.push(`Briefing and narration: ${show(briefing)}`);
   else lines.push(`Briefing: ${show(briefing)}`, `Narration: ${show(narration)}`);
-  lines.push(`Q&A: ${show(qa)}${qa.provider !== config.provider ? ` (${qa.provider})` : ''}`);
+  lines.push(`Q&A: ${show(qa)}${qa.fastMode ? ', fast mode' : ''}${qa.provider !== config.provider ? ` (${qa.provider})` : ''}`);
   lines.push(`API key: ${describeKey(config)}`);
   if (config.toolCalling === false) lines.push('Tool calling: off');
   return lines;
@@ -130,6 +130,7 @@ export interface ModelAnswers {
   strong: string; // Q&A
   fastParams?: Record<string, string>; // a Cursor model's variant
   strongParams?: Record<string, string>;
+  qaFastMode: boolean; // fast mode or priority processing for Q&A, where setup offers it
   baseUrl: string;
   toolCalling: boolean;
   keySource: KeySource;
@@ -139,6 +140,10 @@ export interface ModelAnswers {
 
 // Providers that take an API key from gr rather than a login or cloud credentials.
 export const takesKey = (p: ProviderChoice): boolean => p === 'anthropic' || p === 'openai' || p === 'cursor' || p === 'openai-compatible';
+
+// Providers whose setup asks whether Q&A runs in fast mode (Anthropic) or with priority processing
+// (OpenAI, Codex): faster answers at a higher price, so the answer starts at no.
+export const offersFastMode = (p: ProviderChoice): boolean => p === 'anthropic' || p === 'openai' || p === 'codex';
 
 // The answers to start from: the saved settings when the provider is unchanged, then what
 // detection found (a local server's models), then the presets.
@@ -162,6 +167,7 @@ export function modelDefaults(provider: ProviderChoice, previous: AgentRouting |
     strong,
     ...(fastParams ? { fastParams } : {}),
     ...(strongParams ? { strongParams } : {}),
+    qaFastMode: savedStrong?.fastMode === true,
     baseUrl: same?.baseUrl ?? finding?.baseUrl ?? '',
     toolCalling: same?.toolCalling !== false,
     keySource,
@@ -305,6 +311,13 @@ export function buildConfig(current: UserConfig | undefined, model: ModelAnswers
         if (kept?.effort) settings.effort = kept.effort;
         if (kept?.fastMode !== undefined) settings.fastMode = kept.fastMode;
       }
+    }
+    // Setup's own answer for Q&A wins over a carried-over one, including a top-level fastMode.
+    const qa = config.roles?.qa;
+    if (qa && offersFastMode(model.provider)) {
+      if (model.qaFastMode) qa.fastMode = true;
+      else if (config.fastMode) qa.fastMode = false;
+      else delete qa.fastMode;
     }
   }
   config.chapterOrder = current?.chapterOrder ?? DEFAULT_CHAPTER_ORDER;
