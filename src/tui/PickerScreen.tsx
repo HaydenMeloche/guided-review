@@ -20,7 +20,7 @@ import { ErrorBlock } from './ErrorBlock.js';
 import { ROLES } from './theme.js';
 import { unboundKey } from './flash.js';
 import { hasSidePanel } from './breakpoints.js';
-import { TitleBar } from './TitleBar.js';
+import { Busy } from './Spinner.js';
 import { writeClipboard } from '../util/clipboard.js';
 import { fileIcon } from './icons.js';
 import type { LocalChanges } from '../preview.js';
@@ -196,7 +196,6 @@ export function PickerScreen(props: PickerProps) {
   const [filter, setFilter] = useState('');
   const [filtering, setFiltering] = useState(false);
   const [previews, setPreviews] = useState<Record<string, PRPreview | { error: string }>>({});
-  const [loadedAt, setLoadedAt] = useState(Date.now());
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [downloadNotice, setDownloadNotice] = useState('');
   const [hint, setHint] = useState('');
@@ -253,7 +252,6 @@ export function PickerScreen(props: PickerProps) {
           setSelected((prev) => new Set([...prev].filter((id) => keys.has(id))));
           restoreKey.current = selKey.current;
           setPrs(p);
-          setLoadedAt(Date.now());
         },
         (e) => {
           const msg = (e as Error).message;
@@ -348,7 +346,6 @@ export function PickerScreen(props: PickerProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prs, authored, localVersion, props.store]);
   const current = items[Math.min(sel, items.length - 1)];
-  const waiting = items.filter((p) => !isAuthored(p)).length;
   const key = current ? `${current.repo}#${current.number}` : '';
   selKey.current = key;
 
@@ -547,7 +544,7 @@ export function PickerScreen(props: PickerProps) {
   const wide = hasSidePanel(width);
   const listW = wide ? Math.min(70, Math.max(48, Math.floor(width * 0.42))) : width - 2;
   const previewW = wide ? width - listW - 5 : 0;
-  const bodyH = height - 3; // title, key bar, filter or status line
+  const bodyH = height - 2; // key bar, filter or status line
   // The Your PRs status line (and its gap) while they load or after they failed.
   const authoredLine = authoredState !== 'ready' && !!prs;
   const offered = props.onLocal && changes ? changes : undefined; // the pinned local changes row
@@ -583,13 +580,6 @@ export function PickerScreen(props: PickerProps) {
 
   const screen = (
     <Box flexDirection="column" width={width} height={height} paddingX={1}>
-      <TitleBar
-        title="Pull requests"
-        note={prs ? `${waiting}${filter ? ` of ${prs.length}` : ''} waiting on you` : undefined}
-        busy={prs && refreshing ? 'refreshing' : undefined}
-        where={prs && !refreshing ? `updated ${age(new Date(loadedAt).toISOString())}` : undefined}
-        width={width - 2}
-      />
       {filtering ? (
         <Box>
           <Text color="cyan">/ </Text>
@@ -634,6 +624,8 @@ export function PickerScreen(props: PickerProps) {
         <Text color="green" wrap="truncate">
           {safe(props.notice)}
         </Text>
+      ) : prs && refreshing ? (
+        <Busy text="refreshing" />
       ) : (
         <Text> </Text>
       )}

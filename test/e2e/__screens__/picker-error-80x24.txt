@@ -1,4 +1,3 @@
-  ‹b›Pull requests‹/›
 
  ‹red,b›Your review requests could not be loaded‹/›
  ‹dim›gh search prs --review-requested=@me --state=open --limit 50 --json ‹/›
@@ -7,6 +6,7 @@
  Press r to retry.
  ‹magenta,b›Review requests‹/›‹dim› (0)‹/›‹magenta,dim› ──────────────────────────────────────────────────────────‹/›
  ‹dim›  Nothing is waiting on your review. gr review <number or URL> opens a specif…‹/›
+
 
 
 

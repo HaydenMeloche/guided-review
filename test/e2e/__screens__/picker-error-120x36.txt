@@ -1,4 +1,3 @@
-  ‹b›Pull requests‹/›
 
  ‹red,b›Your review requests could not be loaded‹/›            ‹bright-black›│‹/›
  ‹dim›gh search prs --review-requested=@me --state=open ‹/›  ‹bright-black›│‹/›
@@ -8,6 +7,7 @@
  Press r to retry.                                   ‹bright-black›│‹/›
  ‹magenta,b›Review requests‹/›‹dim› (0)‹/›‹magenta,dim› ──────────────────────────────‹/›  ‹bright-black›│‹/›
  ‹dim›  Nothing is waiting on your review. gr review <n…‹/›  ‹bright-black›│‹/›
+                                                     ‹bright-black›│‹/›
                                                      ‹bright-black›│‹/›
                                                      ‹bright-black›│‹/›
                                                      ‹bright-black›│‹/›

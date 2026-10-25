@@ -82,7 +82,6 @@ describe('a repo in both sections', () => {
       expect(frame.match(/acme\/app \(1\)/g)).toHaveLength(2);
       expect(frame.match(/Review me/g)).toHaveLength(1);
     }
-    expect(ui.lastFrame()).toContain('1 waiting on you');
     expect(errors.mock.calls.flat().join(' ')).not.toMatch(/same key/);
     errors.mockRestore();
     ui.unmount();
