@@ -1,0 +1,24 @@
+ ‹dim›local/deps ‹/›‹b›#0 …‹/›‹dim›  chapter 1/1 · hunk 1/1 · ▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/2 hunks · Guided‹/›
+‹cyan,b›1/1 ‹/›‹b›Dependencies and runtimes‹/›‹dim› · hunk 1/1 · last chapter · Guided order‹/›
+‹blue,b›Dependencies and runtimes‹/›‹dim› · hunk 1/1 · ‹/›‹bright-black›· ‹/›package.json:3
+‹bright-black›▎ ‹/›Changed keys: react, zod
+
+ ‹dim›   3    3 │ ‹/›    ‹c145›"‹/›‹c152›version‹/›‹c145›":‹/› ‹c222›"0.3.0"‹/›‹c145›,‹/›
+ ‹dim›   4    4 │ ‹/›    ‹c145›"‹/›‹c152›dependencies‹/›‹c145›":‹/› ‹c145›{‹/›
+ ‹dim›   5    5 │ ‹/›      ‹c145›"‹/›‹c152›express‹/›‹c145›":‹/› ‹c222›"^4.19.2"‹/›‹c145›,‹/›
+‹cyan›▶‹/›‹bg:c52,dim›   6      │ ‹/›‹red,bg:c52›- ‹/›‹bg:c52›    ‹/›‹c145,bg:c52›"‹/›‹c152,bg:c52›react‹/›‹c145,bg:c52›":‹/›‹bg:c52› ‹/›‹c222,bg:c52›"^‹/›‹c222,bg:c88›18‹/›‹c222,bg:c52›.‹/›‹c222,bg:c88›3‹/›‹c222,bg:c52›.‹/›‹c222,bg:c88›1‹/›‹c222,bg:c52›"‹/›‹bg:c52›                                           ‹/›
+ ‹bg:c22,dim›        6 │ ‹/›‹green,bg:c22›+ ‹/›‹bg:c22›    ‹/›‹c145,bg:c22›"‹/›‹c152,bg:c22›react‹/›‹c145,bg:c22›":‹/›‹bg:c22› ‹/›‹c222,bg:c22›"^‹/›‹c222,bg:c28›19‹/›‹c222,bg:c22›.‹/›‹c222,bg:c28›0‹/›‹c222,bg:c22›.‹/›‹c222,bg:c28›0‹/›‹c222,bg:c22›"‹/›‹c145,bg:c28›,‹/›‹bg:c22›                                          ‹/›
+ ‹bg:c22,dim›        7 │ ‹/›‹green,bg:c22›+ ‹/›‹bg:c22›    ‹/›‹c145,bg:c22›"‹/›‹c152,bg:c22›zod‹/›‹c145,bg:c22›":‹/›‹bg:c22› ‹/›‹c222,bg:c22›"^3.23.8"‹/›‹bg:c22›                                             ‹/›
+ ‹dim›   7    8 │ ‹/›    ‹c145›}‹/›
+ ‹dim›   8    9 │ ‹/›  ‹c145›}‹/›
+
+‹blue,b›pnpm-lock.yaml‹/›‹dim› · 15 package changes in the lockfile‹/›
+  react     18.3.1 → 19.0.0   ‹yellow›  major‹/›
+  zod       3.23.8            ‹green›  added‹/›
+‹b›Indirect‹/›‹dim› · 1 major · 10 minor/patch · 2 removed‹/›
+‹yellow›  major        ‹/›scheduler 0.23.2 → 0.25.0
+‹dim›  minor/patch  ‹/›ansi-styles 1.0.0 → 1.0.1, chalk 1.1.0 → 1.1.1, … 8 more
+‹red›  removed      ‹/›js-tokens 4.0.0, loose-envify 1.4.0
+hunk 1/1 · line 6‹dim› · ✎ 0 drafts‹/›
+ ‹cyan,b›n/p‹/› hunk   ‹dim›+6 more‹/›          ‹yellow›whitespace hidden   ‹/›‹cyan,b›tab‹/› pane   ‹cyan,b›esc‹/› back   ‹cyan,b›?‹/› keys
+

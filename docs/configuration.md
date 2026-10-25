@@ -179,7 +179,7 @@ A tour makes one briefing call, then narrates chapters with up to six model call
 
 - the briefing prompt is capped, listing a sample of each chapter's hunks;
 - small, import-only, and low-risk supporting hunks get one shared chapter summary instead of a note each;
-- lockfiles are sent as a list of parsed package changes, not as their diffs, and get one summary for the whole chapter;
+- lockfiles are sent as a list of parsed package changes, not as their diffs: a lockfile is narrated in one call with the manifests it locks, and lockfiles changed without a manifest get one summary for the whole chapter;
 - an interrupted tour resumes from the chapters it was missing.
 
 With the Anthropic API, the system prompt, tools, and conversation so far are sent with prompt caching, so later turns of a narration are billed mostly at the cached-input rate. Claude Code, Bedrock, Vertex, and OpenAI cache automatically. Claude Code, Codex, and Cursor plans count tours against your plan's usage limits.

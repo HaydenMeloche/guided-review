@@ -3,7 +3,7 @@ import { useInput } from './input.js';
 import { Box, Text } from './themed.js';
 import type { Chapter, ChapterOrder, Draft, DraftAnchor, ExistingThread, Hunk, ReactionContent, ReadState, ThreadComment, Tour } from '../types.js';
 import { ChecklistPanel, Reader } from './Panels.js';
-import { firstHunk, nextPos, opensOnSummary, pad, prevPos, progress, stateOf, summaryHunkIds, type States } from './nav.js';
+import { firstHunk, hunkPosition, lockPairOfHunk, nextPos, opensOnSummary, pad, pageOf, prevPos, progress, stateOf, summaryHunkIds, type States } from './nav.js';
 import { DiagramView } from './DiagramView.js';
 import { CommentEditor, type SetComposer } from './CommentEditor.js';
 import { INLINE_ROWS, inlineComposerSlot } from './AiSuggestion.js';
@@ -20,7 +20,7 @@ import { useMentions } from './chapter/mentions.js';
 import { linkedTests } from './chapter/linkedTests.js';
 import { SourcePane } from './chapter/SourcePane.js';
 import { TestPane } from './chapter/TestPane.js';
-import { ChapterList, ChapterStrip, ChapterTitle, CollapsedSummary, EmptyChapter, Explanation, Header, MoveList, StatusRow } from './chapter/parts.js';
+import { ChapterList, ChapterStrip, ChapterTitle, CollapsedSummary, EmptyChapter, Explanation, Header, LockfileChanges, MoveList, StatusRow } from './chapter/parts.js';
 import { HelpPopup } from './Help.js';
 import { ReviewPopup } from './ReviewPopup.js';
 import { reviewLegend } from './legend.js';
@@ -29,6 +29,7 @@ import { CONTEXT_STEP, useFoldedCursor, useFolds, useHunkView } from './chapter/
 import { barEnd, barKeys, PALETTE_HINT, chapterHelp, keyAction, paletteCommands, type Action, type KeyCtx, type View } from './chapter/keys.js';
 import { CommandPalette, type PaletteItem } from './CommandPalette.js';
 import { explanation } from './chapter/guide.js';
+import { lockListLines, lockPage } from './chapter/lockList.js';
 import { unboundKey, useFlash } from './flash.js';
 import { plural } from './plural.js';
 import { chapterLayout, overlaySlots, type OverlayKind } from './chapter/layout.js';
@@ -151,6 +152,9 @@ export function ChapterScreen(props: {
   const collapsedView = opensOnSummary(chapter) && hi < 0;
   const summaryIds = useMemo(() => (chapter ? summaryHunkIds(chapter) : []), [chapter]);
   const filesByPath = useMemo(() => new Map(tour.files.map((f) => [f.path, f])), [tour.files]);
+  // A lockfile pair's manifest page lists the lockfile's package changes under the diff.
+  const at = chapter && hunk ? hunkPosition(chapter, hi) : undefined;
+  const lockList = useMemo(() => (chapter && hunk ? lockPage(tour, chapter, hunk.id) : undefined), [tour, chapter, hunk]);
   const plan = chapterLayout({
     width,
     height,
@@ -167,6 +171,7 @@ export function ChapterScreen(props: {
     short: shortExplanation,
     explainScroll,
     listOpen: overlay.kind === 'comment' && !!overlay.composer.listOpen,
+    lockRows: lockList ? (w) => lockListLines(lockList, w - 1).length : undefined,
     explain: (w) => (chapter ? explanation({ tour, chapter, hunk, hi, collapsed: collapsedView, files: filesByPath, confirms: svc?.confirms, linkedTests: hasLinkedTests, showUntested }, w) : []),
   });
   const { wide, listWidth, mainWidth, sideBySide, srcWidth, splitView, bodyHeight, askHeight } = plan;
@@ -215,8 +220,16 @@ export function ChapterScreen(props: {
 
   // ---------- navigation ----------
   const go = (to: { ci: number; hi: number } | undefined) => void (to && props.setPos(to.ci, to.hi));
+  // A lockfile pair's hunks, read with its last manifest page still unread: marking that page
+  // marks them too, as the summary page does for folded lockfiles.
+  const pairedLocks = (h: Hunk | undefined): Hunk[] => {
+    const pair = lockPairOfHunk(chapter, h?.id);
+    if (!h || !pair) return [];
+    const othersDone = pair.hunkIds.every((id) => id === h.id || !tour.hunks[id] || stateOf(states, tour.hunks[id]) !== 'unread');
+    return othersDone ? pair.lockHunkIds.map((id) => tour.hunks[id]).filter((l) => l && stateOf(states, l) === 'unread') : [];
+  };
   const next = (mark?: ReadState) => {
-    if (hunk && mark) props.setState([hunk], mark);
+    if (hunk && mark) props.setState([hunk, ...pairedLocks(hunk)], mark);
     if (!chapter) return;
     const to = nextPos(chapters, ci, hi);
     if (to) return go(to);
@@ -322,8 +335,10 @@ export function ChapterScreen(props: {
     // Code
     next: () => {
       if (!collapsedView && hunk && chapter) {
-        const p = progress(tour, { ...states, ...Object.fromEntries(hunkKeys(hunk).map((k) => [k, 'read'])) }, chapter.hunkIds);
-        setFlash(`${G.read} hunk ${hi + 1} read · ${p.read + p.skipped}/${p.total} in this chapter`, 'info');
+        const locks = pairedLocks(hunk);
+        const p = progress(tour, { ...states, ...Object.fromEntries([hunk, ...locks].flatMap(hunkKeys).map((k) => [k, 'read'])) }, chapter.hunkIds);
+        const withLocks = locks.length ? ` with its ${plural(locks.length, 'lockfile hunk')}` : '';
+        setFlash(`${G.read} hunk ${at?.n} read${withLocks} · ${p.read + p.skipped}/${p.total} in this chapter`, 'info');
       }
       // Folded hunks are read as their summary: n on it marks them read.
       if (collapsedView && chapter?.folded?.length) {
@@ -490,6 +505,10 @@ export function ChapterScreen(props: {
   // leave no handler active, so close it.
   if (overlay.kind !== 'none' && !slots.shown) close(); // React re-renders before committing
 
+  // A lockfile pair's package list sits under the diff, unless a comment, thread or question
+  // open under a line needs the room.
+  const lockShown = lockList && plan.lockHeight > 0 && !slots.sourceInline ? lockList : undefined;
+
   // The palette: this view's commands, then every chapter and every changed file to go to.
   const paletteItems = (): PaletteItem[] => {
     const commands = paletteCommands(keyView, keyCtx).map((c) => ({ label: c.label, key: c.key, run: () => actions[c.action]() }));
@@ -500,9 +519,9 @@ export function ChapterScreen(props: {
       if (ci < 0) continue;
       const c = chapters[ci];
       const hi = c.hunkIds.findIndex((id) => tour.hunks[id]?.file === f.path);
-      // A collapsed chapter, or a folded lockfile hunk, is read as its summary.
-      const summary = c.collapsed || !!c.folded?.includes(c.hunkIds[hi]);
-      toFile.push({ label: `Go to ${f.path}`, detail: `chapter ${ci + 1} · ${summary ? 'summary' : `hunk ${hi + 1}`}`, run: () => props.setPos(ci, summary ? -1 : hi) });
+      // A collapsed chapter, or a folded lockfile hunk, is read as its summary; a paired lockfile, on its manifest's page.
+      const page = pageOf(c, hi);
+      toFile.push({ label: `Go to ${f.path}`, detail: `chapter ${ci + 1} · ${page < 0 ? 'summary' : `hunk ${hunkPosition(c, page).n}`}`, run: () => props.setPos(ci, page) });
     }
     return [...commands, ...toChapter, ...toFile];
   };
@@ -698,7 +717,7 @@ export function ChapterScreen(props: {
         width={width}
         busy={props.busy}
         pushed={!!props.banner && !banner}
-        where={`chapter ${ci + 1}/${chapters.length}${hunk ? ` · hunk ${hi + 1}/${chapter.hunkIds.length}` : ''}`}
+        where={`chapter ${ci + 1}/${chapters.length}${hunk ? ` · hunk ${at?.n}/${at?.total}` : ''}`}
       />
       {banner ? (
         <Text backgroundColor="yellow" color="black">
@@ -740,34 +759,37 @@ export function ChapterScreen(props: {
             ) : hunk ? (
               <Box flexDirection={sideBySide ? 'row' : 'column'}>
                 {plan.sourcePaneShown ? (
-                  <SourcePane
-                    inline={
-                      slots.sourceInline === 'thread'
-                        ? { afterIdx: cursor, node: threadAt(srcWidth - 1, plan.threadHeight), height: plan.threadHeight }
-                        : slots.sourceInline === 'comment'
-                          ? { afterIdx: sel[1], ...inlineComposer(srcWidth - 1, bodyHeight) }
-                          : slots.sourceInline === 'ask'
-                            ? { afterIdx: sel[1], node: askPanel, height: askHeight }
-                            : undefined
-                    }
-                    hunk={hunk}
-                    cursor={cursor}
-                    range={anchor !== null ? sel : null}
-                    raw={raw}
-                    split={splitView}
-                    partner={partner}
-                    hidden={hidden}
-                    ignoreWhitespace={ignoreWhitespace}
-                    scroll={scroll}
-                    setScroll={setScroll}
-                    threads={tour.existingThreads}
-                    drafts={props.drafts}
-                    root={svc?.root}
-                    headSha={tour.headSha}
-                    baseSha={tour.baseSha}
-                    width={srcWidth}
-                    height={bodyHeight}
-                  />
+                  <Box flexDirection="column" flexShrink={0} width={srcWidth}>
+                    <SourcePane
+                      inline={
+                        slots.sourceInline === 'thread'
+                          ? { afterIdx: cursor, node: threadAt(srcWidth - 1, plan.threadHeight), height: plan.threadHeight }
+                          : slots.sourceInline === 'comment'
+                            ? { afterIdx: sel[1], ...inlineComposer(srcWidth - 1, bodyHeight) }
+                            : slots.sourceInline === 'ask'
+                              ? { afterIdx: sel[1], node: askPanel, height: askHeight }
+                              : undefined
+                      }
+                      hunk={hunk}
+                      cursor={cursor}
+                      range={anchor !== null ? sel : null}
+                      raw={raw}
+                      split={splitView}
+                      partner={partner}
+                      hidden={hidden}
+                      ignoreWhitespace={ignoreWhitespace}
+                      scroll={scroll}
+                      setScroll={setScroll}
+                      threads={tour.existingThreads}
+                      drafts={props.drafts}
+                      root={svc?.root}
+                      headSha={tour.headSha}
+                      baseSha={tour.baseSha}
+                      width={srcWidth}
+                      height={lockShown ? plan.sourceHeight : bodyHeight}
+                    />
+                    {lockShown ? <LockfileChanges lines={lockListLines(lockShown, srcWidth - 1, plan.lockHeight)} width={srcWidth} height={plan.lockHeight} /> : null}
+                  </Box>
                 ) : null}
                 {sideBySide ? <Box width={1} /> : null}
                 {sideBySide ? (
@@ -812,7 +834,7 @@ export function ChapterScreen(props: {
         cursor={cursor}
         flash={flash}
         range={anchor !== null && hunk ? rangeLabel(hunk, sel) : undefined}
-        position={hunk ? `hunk ${hi + 1}/${chapter.hunkIds.length} · line ${cursorLine?.newLine ?? cursorLine?.oldLine ?? ''}` : undefined}
+        position={hunk ? `hunk ${at?.n}/${at?.total} · line ${cursorLine?.newLine ?? cursorLine?.oldLine ?? ''}` : undefined}
         width={width}
       />
       <KeyBar

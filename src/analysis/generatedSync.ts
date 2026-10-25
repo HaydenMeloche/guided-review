@@ -1,5 +1,5 @@
 import { DEP_LINE } from './dependencies.js';
-import { isLockfile, LOCKFILE_MANIFESTS } from './lockfile.js';
+import { isLockfile, LOCKFILE_MANIFESTS, pairLockfiles } from './lockfile.js';
 import { PROTOBUF_OUTPUT } from './patterns.js';
 import type { DiffFile, Flag, Hunk } from '../types.js';
 
@@ -83,17 +83,26 @@ export function checkGeneratedSync(files: DiffFile[], hunks: Record<string, Hunk
     }
   }
 
-  // Manifest vs lockfile.
+  // Manifest vs lockfile, paired by directory as the dependencies chapter reads them (pairLockfiles).
   for (const r of MANIFEST_LOCK) {
     const manifests = files.filter((f) => base(f.path) === r.manifest);
     const locks = files.filter((f) => r.locks.has(base(f.path)));
     // Manifest edits that touch no dependency line (scripts, metadata) leave the lockfile alone.
-    const depChange = manifests.some((f) => f.status !== 'deleted' && f.hunkIds.some((id) => hunks[id]?.lines.some((l) => l.kind !== 'ctx' && DEP_LINE.test(l.text))));
-    if (manifests.length && depChange && !locks.length) {
+    const depChanged = manifests.filter((f) => f.status !== 'deleted' && f.hunkIds.some((id) => hunks[id]?.lines.some((l) => l.kind !== 'ctx' && DEP_LINE.test(l.text))));
+    const paired = new Set(
+      pairLockfiles(
+        locks.map((f) => f.path),
+        depChanged.map((f) => f.path),
+      ).flatMap((p) => p.manifests),
+    );
+    const stale = depChanged.filter((f) => !paired.has(f.path));
+    if (stale.length) {
       flags.push({
         kind: 'generated-out-of-sync',
-        message: `${r.manifest} changed but no lockfile changed; if dependencies changed, the lockfile is stale`,
-        hunkIds: hunkIdsOf(manifests),
+        message: locks.length
+          ? `${stale.map((f) => f.path).join(', ')} changed but no lockfile beside or above it did; if dependencies changed, the lockfile is stale`
+          : `${r.manifest} changed but no lockfile changed; if dependencies changed, the lockfile is stale`,
+        hunkIds: hunkIdsOf(stale),
       });
     }
     if (locks.length && !manifests.length) {

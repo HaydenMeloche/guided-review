@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { KEY, richFixtureRepo, sandbox, startGr, type Sandbox, type Session } from './harness.js';
+import { dependencyFixtureRepo, KEY, richFixtureRepo, sandbox, startGr, type Sandbox, type Session } from './harness.js';
 
 // Golden screens: each screen at three terminal sizes, with its colors and styles, checked in
 // under __screens__. A layout or color change shows up as a diff of these files; accept it with
@@ -127,6 +127,19 @@ describe.each(SIZES)('screens at %ix%i', (cols, rows) => {
     await chapterReady(gr);
     await keys(gr, 'v', 'j', 'j');
     await snap(gr, 'chapter-range-themed', cols, rows);
+  });
+
+  it('shows a manifest with its lockfile’s package changes', async () => {
+    const repo = dependencyFixtureRepo(box);
+    const gr = startGr(box, ['preview', '--no-agent'], { cwd: repo, cols, rows });
+    sessions.push(gr);
+    await gr.waitFor('Chapters');
+    gr.press('n');
+    await gr.waitFor('package changes in the lockfile');
+    // Wait for the manifest's highlighting, as chapterReady does for code.
+    for (let i = 0; i < 400 && !/‹c\d+[^›]*›"react"‹\/›/.test(gr.screenWithAttrs()); i++) await new Promise((resolve) => setTimeout(resolve, 25));
+    await gr.idle();
+    await snap(gr, 'chapter-deps', cols, rows);
   });
 
   it('shows the PR list when gh cannot list PRs', async () => {

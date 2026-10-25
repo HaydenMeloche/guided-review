@@ -27,8 +27,52 @@ function base(path: string): string {
   return path.slice(path.lastIndexOf('/') + 1);
 }
 
+function dir(path: string): string {
+  const i = path.lastIndexOf('/');
+  return i < 0 ? '' : path.slice(0, i);
+}
+
 export function isLockfile(path: string): boolean {
   return Object.hasOwn(LOCKFILE_MANIFESTS, base(path));
+}
+
+// Whether `path` is named like the manifest a lockfile of this kind locks.
+export function locksManifest(lockfile: string, path: string): boolean {
+  return LOCKFILE_MANIFESTS[base(lockfile)] === base(path);
+}
+
+// Lockfiles that also lock the manifests below them in a workspace. A go.sum, Gemfile.lock,
+// composer.lock or poetry.lock belongs to its own directory's manifest only.
+const WORKSPACE_LOCKFILES = new Set(['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock', 'Cargo.lock', 'uv.lock']);
+
+export interface LockfilePair {
+  lockfile: string;
+  manifests: string[];
+}
+
+// Each changed lockfile with the changed manifests it locks, by path. A manifest pairs with the
+// lockfile in its own directory, else with the nearest workspace lockfile above it; so one
+// lockfile can lock several manifests, and a manifest has at most one. Lockfiles that lock none
+// of the manifests are left out.
+export function pairLockfiles(lockfiles: string[], manifests: string[]): LockfilePair[] {
+  const locks = [...new Set(lockfiles)].filter(isLockfile).sort();
+  const byLock = new Map<string, string[]>();
+  for (const m of [...new Set(manifests)].sort()) {
+    const md = dir(m);
+    let best: string | undefined;
+    let depth = -1;
+    for (const l of locks) {
+      if (!locksManifest(l, m)) continue;
+      const ld = dir(l);
+      const above = ld !== md && WORKSPACE_LOCKFILES.has(base(l)) && (ld === '' || md.startsWith(`${ld}/`));
+      if (ld !== md && !above) continue;
+      // The nearest wins: the manifest's own directory is the deepest a lockfile can be.
+      const d = ld === '' ? 0 : ld.split('/').length;
+      if (d > depth) [best, depth] = [l, d];
+    }
+    if (best) byLock.set(best, [...(byLock.get(best) ?? []), m]);
+  }
+  return locks.filter((l) => byLock.has(l)).map((l) => ({ lockfile: l, manifests: byLock.get(l)! }));
 }
 
 // Walk hunk lines; `ctxName` tracks the package the next version line belongs to.
@@ -90,7 +134,7 @@ function list(names: string[], max = 4): string {
   return names.length > max ? `${shown}, …` : shown;
 }
 
-interface LockfileChanges {
+export interface LockfileChanges {
   added: { name: string; version: string }[];
   removed: { name: string; version: string }[];
   changed: { name: string; from: string; to: string; major: boolean }[];
@@ -144,4 +188,59 @@ export function summarizeLockfile(path: string, hunks: Hunk[]): string {
     return `lockfile: ${n} changed lines, no package changes detected`;
   }
   return parts.join(', ');
+}
+
+// One package's change in a lockfile, for listing: a major or a minor-or-patch version change
+// (from → to), or an added or removed package (its version in `to` or `from`).
+export interface PackageChange {
+  name: string;
+  change: 'major' | 'minor' | 'added' | 'removed';
+  from?: string;
+  to?: string;
+}
+
+// In the order they are listed: major changes, minor and patch changes, added, removed.
+export function packageChanges(c: LockfileChanges): PackageChange[] {
+  return [
+    ...c.changed.filter((p) => p.major).map((p): PackageChange => ({ name: p.name, change: 'major', from: p.from, to: p.to })),
+    ...c.changed.filter((p) => !p.major).map((p): PackageChange => ({ name: p.name, change: 'minor', from: p.from, to: p.to })),
+    ...c.added.map((p): PackageChange => ({ name: p.name, change: 'added', to: p.version })),
+    ...c.removed.map((p): PackageChange => ({ name: p.name, change: 'removed', from: p.version })),
+  ];
+}
+
+// Package names compare loosely: Python treats case, "-", "_" and "." alike.
+const looseName = (name: string) => name.toLowerCase().replace(/[-_.]+/g, '-');
+
+// The words on a hunk's changed lines that could name a package: "react" in "react": "^19.0.0",
+// github.com/x/y in require github.com/x/y v1.2.0, requests in "requests>=2.31".
+function changedNames(h: Hunk): Set<string> {
+  const out = new Set<string>();
+  for (const l of h.lines) {
+    if (l.kind === 'ctx') continue;
+    for (const w of l.text.split(/[^A-Za-z0-9@/._-]+/)) if (w) out.add(looseName(w));
+  }
+  return out;
+}
+
+export interface PairChanges {
+  direct: Map<string, PackageChange[]>; // manifest hunk id -> the changes of the packages it names
+  indirect: PackageChange[]; // the changes no manifest hunk names
+  total: number;
+}
+
+// A lockfile's package changes split by the manifest hunks of its pair: the packages a hunk names
+// are its direct changes (a package two manifests name is direct for both); the rest are indirect.
+export function pairChanges(lockfile: string, lockHunks: Hunk[], manifestHunks: Hunk[]): PairChanges {
+  const all = packageChanges(lockfileChanges(lockfile, lockHunks));
+  const named = manifestHunks.map((h) => ({ id: h.id, names: changedNames(h) }));
+  const direct = new Map<string, PackageChange[]>(named.map((n) => [n.id, []]));
+  const indirect: PackageChange[] = [];
+  for (const p of all) {
+    const key = looseName(p.name);
+    const hits = named.filter((n) => n.names.has(key));
+    for (const n of hits) direct.get(n.id)!.push(p);
+    if (!hits.length) indirect.push(p);
+  }
+  return { direct, indirect, total: all.length };
 }

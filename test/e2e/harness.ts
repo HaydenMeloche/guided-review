@@ -216,6 +216,52 @@ export function richFixtureRepo(box: Sandbox): string {
   return repo;
 }
 
+// A repo whose branch upgrades React and adds zod in package.json, with the pnpm lockfile that
+// locks them: one dependencies chapter whose manifest page lists the lockfile's package changes.
+export function dependencyFixtureRepo(box: Sandbox): string {
+  const repo = path.join(box.root, 'deps');
+  fs.mkdirSync(repo, { recursive: true });
+  const git = fixtureGit(box, repo);
+  const write = (file: string, text: string) => fs.writeFileSync(path.join(repo, file), text);
+  git('init', '-b', 'main');
+  git('config', 'user.name', 'Test');
+  git('config', 'user.email', 'test@example.com');
+  git('config', 'commit.gpgsign', 'false');
+  // An indirect package at each of the given versions, as pnpm v9 lists it.
+  const lock = (direct: Record<string, string>, indirect: [string, string][]) => {
+    const all = [...Object.entries(direct), ...indirect].sort(([a], [b]) => a.localeCompare(b));
+    return [
+      "lockfileVersion: '9.0'",
+      '',
+      'importers:',
+      '',
+      '  .:',
+      '    dependencies:',
+      ...Object.entries(direct).flatMap(([name, v]) => [`      ${name}:`, `        specifier: ^${v}`, `        version: ${v}`]),
+      '',
+      'packages:',
+      '',
+      ...all.flatMap(([name, v]) => [`  ${name}@${v}:`, `    resolution: {integrity: sha512-${name}-${v}}`, '']),
+    ].join('\n');
+  };
+  const indirect = ['ansi-styles', 'chalk', 'debug', 'ms', 'picocolors', 'semver', 'supports-color', 'tslib', 'undici-types', 'yaml'];
+  const manifest = (deps: Record<string, string>) =>
+    JSON.stringify({ name: 'shop', version: '0.3.0', dependencies: Object.fromEntries(Object.entries(deps).map(([n, v]) => [n, `^${v}`])) }, null, 2) + '\n';
+  write('package.json', manifest({ express: '4.19.2', react: '18.3.1' }));
+  write(
+    'pnpm-lock.yaml',
+    lock({ express: '4.19.2', react: '18.3.1' }, [['js-tokens', '4.0.0'], ['loose-envify', '1.4.0'], ['scheduler', '0.23.2'], ...indirect.map((n, i): [string, string] => [n, `1.${i}.0`])]),
+  );
+  git('add', '.');
+  git('commit', '-m', 'Serve the shop');
+  git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+  git('checkout', '-b', 'deps/react-19');
+  write('package.json', manifest({ express: '4.19.2', react: '19.0.0', zod: '3.23.8' }));
+  write('pnpm-lock.yaml', lock({ express: '4.19.2', react: '19.0.0', zod: '3.23.8' }, [['scheduler', '0.25.0'], ...indirect.map((n, i): [string, string] => [n, `1.${i}.1`])]));
+  git('commit', '-am', 'Upgrade to React 19 and validate with zod');
+  return repo;
+}
+
 export interface RunResult {
   code: number;
   stdout: string;

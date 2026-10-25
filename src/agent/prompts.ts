@@ -1,7 +1,7 @@
-import { isLockfile, lockfileChanges } from '../analysis/lockfile.js';
+import { isLockfile, lockfileChanges, pairChanges, type PackageChange } from '../analysis/lockfile.js';
 import { changedCount } from '../diff/lines.js';
 import { isSpecialKind, type SpecialKind } from '../analysis/special.js';
-import type { Chapter, DiffFile, Hunk, PRInfo, Tour } from '../types.js';
+import type { Chapter, DiffFile, Hunk, LockPair, PRInfo, Tour } from '../types.js';
 
 export const SYSTEM_PROMPT = `You are the guide in Guided Review, a terminal app that walks a code reviewer through a pull request the way its author would explain it at a whiteboard.
 
@@ -155,9 +155,24 @@ const CHAPTER_BUDGET = 60_000;
 export function chapterBatches(tour: Tour, chapter: Chapter): string[][] {
   // Lockfile hunks are not rendered, only their parsed changes, so one call covers them all.
   if (isLockfileBatch(chapter)) return chapter.hunkIds.length ? [chapter.hunkIds.filter((id) => tour.hunks[id])] : [];
+  // A lockfile and the manifests it locks are one call, for their one narration.
+  if (lockPairOf(chapter)) return [chapter.hunkIds.filter((id) => tour.hunks[id])];
   const folded = new Set(chapter.folded);
+  const own = new Set(chapter.hunkIds);
+  const pairs = (chapter.lockPairs ?? []).map((p) => [...p.hunkIds, ...p.lockHunkIds].filter((id) => own.has(id) && tour.hunks[id])).filter((b) => b.length);
+  const inPair = new Set(pairs.flat());
   const locks = chapter.hunkIds.filter((id) => folded.has(id) && tour.hunks[id]);
-  return [...renderedBatches(tour, folded.size ? chapter.hunkIds.filter((id) => !folded.has(id)) : chapter.hunkIds), ...(locks.length ? [locks] : [])];
+  const rest = chapter.hunkIds.filter((id) => !folded.has(id) && !inPair.has(id));
+  return [...renderedBatches(tour, rest), ...(locks.length ? [locks] : []), ...pairs];
+}
+
+// The lockfile pair a chapter (or a batch of one) consists of, if it is only that pair's hunks.
+export function lockPairOf(chapter: Chapter): LockPair | undefined {
+  if (!chapter.lockPairs?.length || !chapter.hunkIds.length) return undefined;
+  return chapter.lockPairs.find((p) => {
+    const own = new Set([...p.hunkIds, ...p.lockHunkIds]);
+    return chapter.hunkIds.every((id) => own.has(id));
+  });
 }
 
 // Lockfile hunks only: an old tour's lockfiles chapter, or the folded batch of the dependencies chapter.
@@ -207,6 +222,8 @@ export function minorHunkIds(tour: Tour, chapter: Chapter): string[] {
   // Lockfile hunks are read as one summary of the parsed package changes. In the other special
   // chapters a one-line edit (a version bump, a dropped column) can be the whole point.
   if (isLockfileBatch(chapter)) return chapter.hunkIds.filter((id) => tour.hunks[id]);
+  // A lockfile pair's hunks, manifest and lockfile alike, share its one narration.
+  if (lockPairOf(chapter)) return chapter.hunkIds.filter((id) => tour.hunks[id]);
   if (isSpecialKind(chapter.kind)) return [];
   const size = tour.chapters.find((c) => c.id === chapter.id)?.hunkIds.length ?? chapter.hunkIds.length;
   const ids = chapter.hunkIds.filter((id) => tour.hunks[id] && isMinorHunk(tour.hunks[id], { kind: chapter.kind, size }));
@@ -290,8 +307,76 @@ Return:
 - untestedBranches: empty.`;
 }
 
+const PAIR_DIRECT_MAX = 30;
+
+const describeChange = (p: PackageChange) =>
+  p.change === 'added' ? `${p.name} ${p.to} (added)` : p.change === 'removed' ? `${p.name} ${p.from} (removed)` : `${p.name} ${p.from} → ${p.to}${p.change === 'major' ? ' (major)' : ''}`;
+
+// A lockfile and the manifests it locks, narrated together: the manifest hunks rendered, the
+// lockfile's parsed package changes split into the direct ones (named in the manifest hunks) and
+// the indirect rest, and one narration back for every hunk of the pair.
+function lockPairPrompt(tour: Tour, chapter: Chapter, pair: LockPair): string {
+  const manifestHunks = pair.hunkIds.map((id) => tour.hunks[id]).filter(Boolean);
+  const lockHunks = pair.lockHunkIds.map((id) => tour.hunks[id]).filter(Boolean);
+  const { direct, indirect } = pairChanges(pair.lockfile, lockHunks, manifestHunks);
+  const directAll = [...new Map([...direct.values()].flat().map((p) => [p.name, p])).values()];
+  const manifests = [...new Set(manifestHunks.map((h) => h.file))];
+  let budget = CHAPTER_BUDGET;
+  const rendered = manifestHunks.map((h) => {
+    const r = renderHunk(h);
+    if (budget - r.length < 0) return `### hunk ${h.id} — ${h.file} ${h.header} (omitted for size; narrate from the file if needed)`;
+    budget -= r.length;
+    return r;
+  });
+  const list = (label: string, items: PackageChange[]) =>
+    items.length
+      ? `- ${label} (${items.length}): ${items.slice(0, LOCKFILE_LIST_MAX).map(describeChange).join(', ')}${items.length > LOCKFILE_LIST_MAX ? `, … ${items.length - LOCKFILE_LIST_MAX} more` : ''}`
+      : '';
+  const directLines = directAll.slice(0, PAIR_DIRECT_MAX).map((p) => `- ${describeChange(p)}`);
+  if (directAll.length > PAIR_DIRECT_MAX) directLines.push(`- … ${directAll.length - PAIR_DIRECT_MAX} more`);
+  const indirectLines = [
+    list(
+      'Major version changes',
+      indirect.filter((p) => p.change === 'major'),
+    ),
+    list(
+      'Minor and patch changes',
+      indirect.filter((p) => p.change === 'minor'),
+    ),
+    list(
+      'Added',
+      indirect.filter((p) => p.change === 'added'),
+    ),
+    list(
+      'Removed',
+      indirect.filter((p) => p.change === 'removed'),
+    ),
+  ].filter(Boolean);
+  const length =
+    directAll.length > 1 ? 'This narration may run past the usual length: up to about 150 words, and about 50 more for each direct dependency after the first, up to about 300.' : SPECIAL_LENGTH;
+  return `PR #${tour.pr} — intent: ${tour.intent || '(unknown)'}
+
+Chapter ${chapter.id} (dependencies): "${chapter.title}".
+These hunks change the dependency manifest${manifests.length === 1 ? '' : 's'} ${manifests.join(', ')}, locked by ${pair.lockfile}. The reviewer reads them together: each manifest hunk, with the lockfile's package changes listed under it. The lockfile hunks (${pair.lockHunkIds.join(', ')}) are not shown; these are the package changes parsed from them.
+
+${rendered.join('\n\n')}
+
+## ${pair.lockfile}: package changes
+Direct (named in the manifest hunks above):
+${directLines.join('\n') || '- none parsed: take the versions from the manifest hunks'}
+
+Indirect (not named in the manifests: transitive, or a refresh):
+${indirectLines.join('\n') || '- none'}
+
+Return:
+- hunks: a single entry with id "${MINOR_SUMMARY_ID}" (do not narrate hunks one by one) whose narration covers the manifest and lockfile changes together; it is shown on every page of the pair. Do not describe the edit to the file (the reviewer sees the diff). First each direct dependency, most important first. For one upgraded or downgraded, give "name old → new" (the versions the lockfile resolves, when it lists them) and then the highlights of what is new between those versions: notable features, breaking changes, deprecations and security fixes, 1-3 short bullets. For a dependency added for the first time or removed, give "name version (added)" or "name (removed)" and instead of release notes a high-level overview of the package in 1-2 sentences: what it is, what it is typically used for, and, for an addition, where this PR uses it (grep the repo). For a major upgrade lead with the breaking changes and grep the repo for uses of anything removed or renamed. A runtime or toolchain version in these hunks (engines, the go directive, rust-version) is treated like an upgrade, adding when the old or new version reaches end of life if that is near or past. Then 1-2 bullets on the indirect changes that matter: major version jumps, notable packages added or removed, and security fixes the new versions are known to bring (with the advisory id if you know it); if none matter, say so in a few words. Read a changelog in the worktree (e.g. node_modules/<name>/CHANGELOG.md) when one exists; otherwise answer from what you know of the release and set citesCode=false. If you do not know a release, say so instead of guessing. ${length} Set risk (0-3) on that entry only with a short riskReason, e.g. a major upgrade with breaking changes the code uses.
+- untestedBranches: empty.`;
+}
+
 export function chapterPrompt(tour: Tour, chapter: Chapter): string {
   if (isLockfileBatch(chapter)) return lockfilePrompt(tour, chapter);
+  const pair = lockPairOf(chapter);
+  if (pair) return lockPairPrompt(tour, chapter, pair);
   const minor = new Set(minorHunkIds(tour, chapter));
   const hunks = chapter.hunkIds.map((id) => tour.hunks[id]).filter(Boolean);
   let budget = CHAPTER_BUDGET;

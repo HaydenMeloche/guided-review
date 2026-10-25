@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Chapter } from '../src/types.js';
-import { firstHunk, nextPos, prevPos, summaryHunkIds } from '../src/tui/nav.js';
+import { firstHunk, hunkPosition, lockPairOfHunk, nextPos, pageOf, prevPos, summaryHunkIds } from '../src/tui/nav.js';
 
 const ch = (id: string, hunks: number, extra: Partial<Chapter> = {}) => ({ id, hunkIds: Array.from({ length: hunks }, (_, i) => `${id}${i}`), ...extra }) as Chapter;
 const chapters = [ch('a', 2), ch('imports', 1, { optional: true }), ch('lock', 3, { collapsed: true }), ch('b', 1)];
@@ -56,5 +56,47 @@ describe('a chapter with folded hunks', () => {
   it('lists the folded hunks on the summary page', () => {
     expect(summaryHunkIds(deps)).toEqual(['deps2', 'deps3']);
     expect(summaryHunkIds(chapters[2])).toEqual(['lock0', 'lock1', 'lock2']);
+  });
+});
+
+describe('a chapter with lockfile pairs', () => {
+  // A Dockerfile hunk, two manifest hunks locked by one lockfile (two hunks), and a folded lockfile.
+  const deps = ch('deps', 6, {
+    hunkIds: ['docker', 'web', 'api', 'folded', 'lock1', 'lock2'],
+    folded: ['folded'],
+    lockPairs: [{ lockfile: 'pnpm-lock.yaml', hunkIds: ['web', 'api'], lockHunkIds: ['lock1', 'lock2'] }],
+  });
+  const list = [ch('a', 1), deps, ch('b', 1)];
+
+  it('steps through the manifest pages and never onto the paired lockfile hunks', () => {
+    expect(nextPos(list, 1, -1)).toEqual({ ci: 1, hi: 0 });
+    expect(nextPos(list, 1, 1)).toEqual({ ci: 1, hi: 2 });
+    expect(nextPos(list, 1, 2)).toEqual({ ci: 2, hi: 0 });
+    expect(prevPos(list, 2, 0)).toEqual({ ci: 1, hi: 2 });
+    expect(prevPos(list, 1, 0)).toEqual({ ci: 1, hi: -1 });
+  });
+
+  it('opens on its summary only for a lockfile with no pair', () => {
+    const pairedOnly = { ...deps, folded: undefined, hunkIds: ['web', 'api', 'lock1', 'lock2'] };
+    expect(firstHunk([pairedOnly], 0)).toBe(0);
+    expect(nextPos([pairedOnly, ch('b', 1)], 0, 1)).toEqual({ ci: 1, hi: 0 });
+    expect(prevPos([ch('a', 1), pairedOnly], 1, 0)).toEqual({ ci: 0, hi: 0 });
+    expect(prevPos([pairedOnly, ch('b', 1)], 1, 0)).toEqual({ ci: 0, hi: 1 });
+  });
+
+  it('reads a paired lockfile hunk on its first manifest page, and a folded one on the summary', () => {
+    expect(pageOf(deps, 4)).toBe(1);
+    expect(pageOf(deps, 5)).toBe(1);
+    expect(pageOf(deps, 3)).toBe(-1);
+    expect(pageOf(deps, 2)).toBe(2);
+    expect(lockPairOfHunk(deps, 'api')?.lockfile).toBe('pnpm-lock.yaml');
+    expect(lockPairOfHunk(deps, 'lock1')).toBeUndefined();
+  });
+
+  it('numbers the pages without the lockfile hunks read on them or on the summary', () => {
+    expect(hunkPosition(deps, 0)).toEqual({ n: 1, total: 3 });
+    expect(hunkPosition(deps, 2)).toEqual({ n: 3, total: 3 });
+    expect(hunkPosition(deps, 3)).toEqual({ n: 1, total: 1 });
+    expect(hunkPosition(deps, 5)).toEqual({ n: 2, total: 2 });
   });
 });

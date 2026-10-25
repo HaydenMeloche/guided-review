@@ -26,6 +26,7 @@ files:
 
 3. Dependencies and runtimes  [dependencies · collapsed]
    package-lock.json  @@ -3,6 +3,6 @@  +1 -1 · risk 0 · n/a
+   summary page: package-lock.json
 
 4. Config, infra and docs  [config]
    config/app.yaml  @@ -2,3 +2,5 @@  +2 -0 · risk 0 · n/a

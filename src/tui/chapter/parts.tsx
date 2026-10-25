@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Text, useSelected } from '../themed.js';
 import type { Chapter, ChapterOrder, DiffFile, Draft, Hunk, Tour } from '../../types.js';
-import { changedLineCount, chapterState, meter, ORDER_LABEL, pad, progress, riskMark, stateMark, stateOf, summaryHunkIds, truncate, type States } from '../nav.js';
+import { asideHunkIds, changedLineCount, chapterState, hunkPosition, meter, ORDER_LABEL, pad, progress, riskMark, stateMark, stateOf, summaryHunkIds, truncate, type States } from '../nav.js';
 import { safe } from './text.js';
 import { ROLES } from '../theme.js';
 import { TONE_COLOR, type Flash } from '../flash.js';
@@ -120,6 +120,7 @@ export const ChapterList = React.memo(function ChapterList(props: {
 // `drawer`: a hint at the right end for linked tests that are not on screen.
 export const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: Chapter; hunk?: Hunk; hi: number; isNew: boolean; unchanged?: number; width: number; states: States; drawer?: string }) {
   const { chapter, hunk, hi } = props;
+  const at = hunkPosition(chapter, hi);
   const st = hunk ? stateMark(stateOf(props.states, hunk)) : undefined;
   // A deleted file's hunk has no new lines: point at where it was.
   const location = hunk ? `${hunk.file}:${hunk.newStart || hunk.oldStart}` : '';
@@ -134,7 +135,7 @@ export const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: C
             <>
               <Text dimColor>
                 {' '}
-                · hunk {hi + 1}/{chapter.hunkIds.length} ·{' '}
+                · hunk {at.n}/{at.total} ·{' '}
               </Text>
               {st ? <Text color={st.color}>{st.mark} </Text> : null}
               {props.isNew ? (
@@ -150,9 +151,7 @@ export const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: C
           ) : chapter.collapsed ? (
             <Text dimColor>{` · ${plural(chapter.hunkIds.length, 'hunk')}, collapsed${chapter.optional ? ' · optional: not counted toward progress' : ''}`}</Text>
           ) : chapter.folded?.length ? (
-            <Text
-              dimColor
-            >{` · summary of ${plural(summaryHunkIds(chapter).length, 'lockfile hunk')} · n for the other ${plural(chapter.hunkIds.length - summaryHunkIds(chapter).length, 'hunk')}`}</Text>
+            <Text dimColor>{` · summary of ${plural(summaryHunkIds(chapter).length, 'lockfile hunk')} · n for the other ${plural(pageCount(chapter), 'hunk')}`}</Text>
           ) : null}
           {props.unchanged ? <Text dimColor> · {props.unchanged} unchanged hidden</Text> : null}
           {chapter.entryPoint ? <Text dimColor> · entry {safe(chapter.entryPoint)}</Text> : null}
@@ -169,6 +168,24 @@ export const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: C
     </Box>
   );
 });
+
+// The hunks of a chapter with a page of their own (not read on its summary or a manifest's page).
+function pageCount(chapter: Chapter): number {
+  const aside = asideHunkIds(chapter);
+  return chapter.hunkIds.filter((id) => !aside.has(id)).length;
+}
+
+// A lockfile pair's package changes, under its manifest's diff (lockListLines).
+export function LockfileChanges(props: { lines: MdLine[]; width: number; height: number }) {
+  return (
+    <Box flexDirection="column" width={props.width} height={props.height + 1} flexShrink={0} overflow="hidden">
+      <Text> </Text>
+      {props.lines.map((l, i) => (
+        <MdLineView key={i} line={l} />
+      ))}
+    </Box>
+  );
+}
 
 // Renders only the visible window of a collapsed chapter, which can hold thousands of generated hunks.
 export const CollapsedSummary = React.memo(function CollapsedSummary(props: {
@@ -253,7 +270,7 @@ export const ChapterStrip = React.memo(function ChapterStrip(props: { tour: Tour
   const { chapters, ci } = props;
   const c = chapters[ci];
   const nextChapter = chapters.slice(ci + 1).find((x) => !x.optional) ?? chapters[ci + 1];
-  const hunkAt = props.hi >= 0 && c ? ` · hunk ${props.hi + 1}/${c.hunkIds.length}` : '';
+  const hunkAt = props.hi >= 0 && c ? ` · hunk ${hunkPosition(c, props.hi).n}/${hunkPosition(c, props.hi).total}` : '';
   const tail = nextChapter ? ` · next: ${safe(nextChapter.title)} (${nextChapter.hunkIds.length}) · ` : ` · last chapter · ${ORDER_LABEL[props.order]} order`;
   return (
     <Text wrap="truncate">

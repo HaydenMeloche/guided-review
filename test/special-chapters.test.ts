@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chapterBatches, chapterPrompt, MINOR_SUMMARY_ID, minorHunkIds } from '../src/agent/prompts.js';
+import { chapterBatches, chapterPrompt, lockPairOf, MINOR_SUMMARY_ID, minorHunkIds } from '../src/agent/prompts.js';
 import { isDependencyHunk, isDependencyManifest } from '../src/analysis/dependencies.js';
 import { buildChapters, fileOrderChapters } from '../src/analysis/flows.js';
 import { specialKindOf } from '../src/analysis/special.js';
@@ -95,7 +95,7 @@ describe('special chapters', () => {
     }
   });
 
-  it('orders special chapters after flows and before config, with lockfiles folded into dependencies', () => {
+  it('orders special chapters after flows and before config, with lockfiles read with their manifests in dependencies', () => {
     const parts = [
       one('db/migrations/001.sql', 'ALTER TABLE t ADD c int;', { kind: 'logic' }),
       one('.github/workflows/ci.yml', 'permissions: write-all'),
@@ -113,8 +113,8 @@ describe('special chapters', () => {
     const deps = chapters.find((c) => c.kind === 'dependencies')!;
     const [manifest, lock] = [parts[2].h.id, parts[3].h.id];
     expect(deps.hunkIds).toEqual([manifest, lock]);
-    expect(deps.folded).toEqual([lock]);
-    expect(deps.summary).toContain('pnpm-lock.yaml');
+    expect(deps.folded).toBeUndefined();
+    expect(deps.lockPairs).toEqual([{ lockfile: 'pnpm-lock.yaml', hunkIds: [manifest], lockHunkIds: [lock] }]);
   });
 
   it('narrates the folded lockfile hunks apart from the manifest, as one summary', () => {
@@ -170,5 +170,114 @@ describe('special chapters', () => {
 
     const done = applyChapterResult(t, t.chapters[0].id, { hunks: [{ id: MINOR_SUMMARY_ID, narration: '- zod 4 drops x', citesCode: false }] }, { minorIds: [lock.id, lock2.id] });
     expect([done.hunks[lock.id].narration, done.hunks[lock2.id].narration]).toEqual(['- zod 4 drops x', '- zod 4 drops x']);
+  });
+});
+
+describe('lockfiles paired with their manifests', () => {
+  const pkg = (path: string, del: string, add: string) => hunk(`h_${path.replace(/\W/g, '_')}_${add.replace(/\W/g, '')}`, path, edit(del, add));
+  const lockHunk = (path: string, lines: [string, string][]) =>
+    hunk(
+      `h_${path.replace(/\W/g, '_')}`,
+      path,
+      lines.flatMap(([del, add], i) => [...(del ? [{ kind: 'del' as const, text: del, oldLine: 10 + i }] : []), ...(add ? [{ kind: 'add' as const, text: add, newLine: 10 + i }] : [])]),
+    );
+  const build = (manifests: ReturnType<typeof hunk>[], locks: ReturnType<typeof hunk>[]) => {
+    const files = [...filesFor(manifests, {}, {}, manifest), ...filesFor(locks, {}, {}, { ...manifest, kind: 'generated' })];
+    const hunks = Object.fromEntries([...manifests, ...locks].map((h) => [h.id, h]));
+    return buildChapters(files, hunks, buildSymbolIndex(files, hunks, ctx)).chapters.find((c) => c.kind === 'dependencies')!;
+  };
+
+  it('pairs a workspace root lockfile with the manifests below it, and folds a lockfile with none', () => {
+    const web = pkg('apps/web/package.json', '    "react": "^18.2.0",', '    "react": "^19.0.0",');
+    const api = pkg('apps/api/package.json', '    "zod": "^3.22.0",', '    "zod": "^4.0.0",');
+    const docker = hunk('h_docker', 'Dockerfile', edit('FROM node:20', 'FROM node:22'));
+    const engines = pkg('apps/api/package.json', '    "node": ">=20"', '    "node": ">=22"');
+    const root = lockHunk('pnpm-lock.yaml', [['  react@18.2.0:', '  react@19.0.0:']]);
+    const tool = lockHunk('tools/Gemfile.lock', [['    rake (13.0.0)', '    rake (13.2.1)']]);
+    const deps = build([web, api, engines, docker], [root, tool]);
+    expect(deps.lockPairs).toEqual([{ lockfile: 'pnpm-lock.yaml', hunkIds: [api.id, web.id], lockHunkIds: [root.id] }]);
+    // The runtime lines keep their own pages; the unpaired lockfile is the summary the chapter opens on.
+    expect(deps.folded).toEqual([tool.id]);
+    expect(deps.summary).toContain('tools/Gemfile.lock');
+    expect(deps.summary).not.toContain('pnpm-lock.yaml');
+    expect(deps.hunkIds).toEqual([api.id, web.id, engines.id, docker.id, tool.id, root.id]);
+    expect(deps.collapsed).toBe(false);
+  });
+
+  it('narrates each pair in one call, apart from the other hunks, and shares the narration and risk with every hunk of the pair', () => {
+    const web = pkg('package.json', '    "react": "^18.2.0",', '    "react": "^19.0.0",');
+    const docker = hunk('h_docker', 'Dockerfile', edit('FROM node:20', 'FROM node:22'));
+    const lock = lockHunk('pnpm-lock.yaml', [
+      ['  react@18.2.0:', '  react@19.0.0:'],
+      ['  scheduler@0.23.0:', '  scheduler@0.25.0:'],
+      ['  loose-envify@1.4.0:', '  loose-envify@1.4.1:'],
+      ['', '  left-pad@1.3.0:'],
+    ]);
+    const lock2 = lockHunk('pnpm-lock.yaml', [['  js-tokens@4.0.0:', '']]);
+    lock2.id = 'h_lock2';
+    const deps = build([web, docker], [lock, lock2]);
+    const t = tour([web, docker, lock, lock2], [deps]);
+    const ch = t.chapters[0];
+    const batches = chapterBatches(t, ch);
+    expect(batches).toEqual([[docker.id], [web.id, lock.id, lock2.id]]);
+    const pairPart = { ...ch, hunkIds: batches[1] };
+    expect(lockPairOf(pairPart)?.lockfile).toBe('pnpm-lock.yaml');
+    expect(lockPairOf({ ...ch, hunkIds: batches[0] })).toBeUndefined();
+    expect(minorHunkIds(t, { ...ch, hunkIds: batches[0] })).toEqual([]);
+    expect(minorHunkIds(t, pairPart)).toEqual([web.id, lock.id, lock2.id]);
+
+    const p = chapterPrompt(t, pairPart);
+    expect(p).toContain('```diff');
+    expect(p).toContain('"react": "^19.0.0"');
+    expect(p).toContain('Direct (named in the manifest hunks above):\n- react 18.2.0 → 19.0.0 (major)');
+    expect(p).toContain('- Major version changes (1): scheduler 0.23.0 → 0.25.0');
+    expect(p).toContain('- Minor and patch changes (1): loose-envify 1.4.0 → 1.4.1');
+    expect(p).toContain('- Added (1): left-pad 1.3.0');
+    expect(p).toContain('- Removed (1): js-tokens 4.0.0');
+    expect(p).toContain(`id "${MINOR_SUMMARY_ID}"`);
+    expect(p).toContain('highlights of what is new');
+    expect(p).toContain('grep the repo');
+    expect(p).toContain('If you do not know a release, say so');
+    expect(p).toContain('1-2 bullets on the indirect changes');
+    expect(p).not.toContain('scheduler@');
+
+    const done = applyChapterResult(
+      t,
+      ch.id,
+      { hunks: [{ id: MINOR_SUMMARY_ID, narration: '- react 18.2.0 → 19.0.0: drops x', citesCode: false, risk: 2, riskReason: 'react 19 removes x, used here' }] },
+      { minorIds: minorHunkIds(t, pairPart), sharedRiskIds: lockPairOf(pairPart)!.hunkIds },
+    );
+    for (const id of [web.id, lock.id, lock2.id]) expect(done.hunks[id].narration).toBe('- react 18.2.0 → 19.0.0: drops x');
+    expect(done.hunks[web.id].risk).toBe(2);
+    expect(done.hunks[lock.id].risk).toBe(t.hunks[lock.id].risk);
+    expect(done.hunks[docker.id].narration).toBeUndefined();
+  });
+
+  it('allows a longer narration when a pair has several direct dependencies', () => {
+    const web = pkg('package.json', '    "react": "^18.2.0",', '    "react": "^19.0.0",');
+    const dom = pkg('package.json', '    "react-dom": "^18.2.0",', '    "react-dom": "^19.0.0",');
+    dom.id = 'h_dom';
+    const lock = lockHunk('pnpm-lock.yaml', [
+      ['  react@18.2.0:', '  react@19.0.0:'],
+      ['  react-dom@18.2.0:', '  react-dom@19.0.0:'],
+    ]);
+    const deps = build([web, dom], [lock]);
+    const t = tour([web, dom, lock], [deps]);
+    expect(chapterBatches(t, t.chapters[0])).toEqual([[web.id, dom.id, lock.id]]);
+    const p = chapterPrompt(t, t.chapters[0]);
+    expect(p).toContain('- react 18.2.0 → 19.0.0 (major)\n- react-dom 18.2.0 → 19.0.0 (major)');
+    expect(p).toContain('about 50 more for each direct dependency after the first');
+  });
+
+  it('leaves a manifest with no changed lockfile to its own pages and the stale-lockfile flag', () => {
+    const web = pkg('package.json', '    "react": "^18.2.0",', '    "react": "^19.0.0",');
+    const script = pkg('svc/package.json', '    "build": "tsc",', '    "build": "tsc -b",');
+    const lock = lockHunk('svc/package-lock.json', [['', '      "version": "1.0.0"']]);
+    const deps = build([web, script], [lock]);
+    // svc/package.json changed no dependency, so its lockfile pairs with nothing; the root
+    // manifest has no lockfile of its own (svc/ is below it, not above).
+    expect(deps.lockPairs).toBeUndefined();
+    expect(deps.folded).toEqual([lock.id]);
+    expect(deps.hunkIds).toEqual([web.id, lock.id]);
   });
 });

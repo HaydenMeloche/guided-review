@@ -42,3 +42,11 @@ export function isToolchainHunk(h: Hunk): boolean {
   const rule = TOOLCHAIN_LINES.find(([file]) => file.test(h.file));
   return !!rule && h.lines.some((l) => l.kind !== 'ctx' && rule[1].test(l.text));
 }
+
+// A manifest hunk that changes a package, not only a runtime or toolchain version (engines, the
+// go directive, rust-version), which is read on its own page.
+export function isPackageHunk(h: Hunk): boolean {
+  if (!isDependencyManifest(h.file)) return false;
+  const toolchain = TOOLCHAIN_LINES.find(([file]) => file.test(h.file))?.[1];
+  return h.lines.some((l) => l.kind !== 'ctx' && DEP_LINE.test(l.text) && !toolchain?.test(l.text));
+}

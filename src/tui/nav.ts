@@ -160,18 +160,55 @@ export function summaryHunkIds(c: Chapter): string[] {
   return c.hunkIds.filter((id) => folded.has(id));
 }
 
+// Hunks n and p do not step onto from the chapter's pages: folded ones (read on the summary
+// page, or opened from it) and the lockfile hunks of a pair (read on its manifest pages).
+export function asideHunkIds(c: Chapter): Map<string, 'folded' | 'paired'> {
+  const out = new Map<string, 'folded' | 'paired'>();
+  for (const p of c.lockPairs ?? []) for (const id of p.lockHunkIds) out.set(id, 'paired');
+  for (const id of c.folded ?? []) out.set(id, 'folded');
+  return out;
+}
+
+// The lockfile pair whose page a hunk is: one of its manifest hunks.
+export function lockPairOfHunk(c: Chapter | undefined, hunkId: string | undefined) {
+  return hunkId ? c?.lockPairs?.find((p) => p.hunkIds.includes(hunkId)) : undefined;
+}
+
+// Where hunk `hi` of a chapter is read: the summary page (-1) for a collapsed chapter or a folded
+// hunk, its pair's first manifest page for a paired lockfile hunk, else its own page.
+export function pageOf(c: Chapter, hi: number): number {
+  const id = c.hunkIds[hi];
+  if (c.collapsed || c.folded?.includes(id)) return -1;
+  const pair = c.lockPairs?.find((p) => p.lockHunkIds.includes(id));
+  if (!pair) return hi;
+  const first = c.hunkIds.findIndex((h) => pair.hunkIds.includes(h));
+  return first >= 0 ? first : hi;
+}
+
 // n and p step through the folded hunks, opened from the summary, apart from the rest.
-const sameSide = (c: Chapter, a: number, b: number) => !c.folded?.length || c.folded.includes(c.hunkIds[a]) === c.folded.includes(c.hunkIds[b]);
+const sameSide = (aside: Map<string, string>, c: Chapter, a: number, b: number) => aside.get(c.hunkIds[a]) === aside.get(c.hunkIds[b]);
+
+// Where hunk `hi` is among the hunks n and p step through with it, for "hunk 2/3": the chapter's
+// pages, not counting the lockfile hunks read on a summary or a manifest's page.
+export function hunkPosition(c: Chapter, hi: number): { n: number; total: number } {
+  const aside = asideHunkIds(c);
+  const peers = c.hunkIds.map((_, j) => j).filter((j) => sameSide(aside, c, hi, j));
+  return { n: peers.indexOf(hi) + 1, total: peers.length };
+}
 
 // Where n goes: the next hunk, else the start of the next chapter; undefined at the end of the
 // tour. From a summary page, a chapter with folded hunks goes on to the others. n and p never
 // step into optional chapters (import-only changes); ] and [ and the chapter list still reach them.
 export function nextPos(chapters: Chapter[], ci: number, hi: number): { ci: number; hi: number } | undefined {
   const chapter = chapters[ci];
+  const aside = asideHunkIds(chapter);
   if (hi < 0 && !chapter.collapsed) {
-    const first = chapter.hunkIds.findIndex((id) => !chapter.folded?.includes(id));
+    const first = chapter.hunkIds.findIndex((id) => !aside.has(id));
     if (first >= 0) return { ci, hi: first };
-  } else if (hi >= 0 && hi < chapter.hunkIds.length - 1 && sameSide(chapter, hi, hi + 1)) return { ci, hi: hi + 1 };
+  } else if (hi >= 0) {
+    const i = chapter.hunkIds.findIndex((_, j) => j > hi && sameSide(aside, chapter, hi, j));
+    if (i >= 0) return { ci, hi: i };
+  }
   const nc = chapters.findIndex((c, i) => i > ci && !c.optional);
   return nc >= 0 ? { ci: nc, hi: firstHunk(chapters, nc) } : undefined;
 }
@@ -179,10 +216,13 @@ export function nextPos(chapters: Chapter[], ci: number, hi: number): { ci: numb
 // Where p goes: the previous hunk, the chapter's summary page, else the end of the previous chapter.
 export function prevPos(chapters: Chapter[], ci: number, hi: number): { ci: number; hi: number } | undefined {
   const chapter = chapters[ci];
-  if (hi > 0 && sameSide(chapter, hi - 1, hi)) return { ci, hi: hi - 1 };
+  const aside = asideHunkIds(chapter);
+  const prev = hi > 0 ? chapter.hunkIds.findLastIndex((_, j) => j < hi && sameSide(aside, chapter, hi, j)) : -1;
+  if (prev >= 0) return { ci, hi: prev };
   if (hi >= 0 && opensOnSummary(chapter)) return { ci, hi: -1 };
   const pci = chapters.findLastIndex((c, i) => i < ci && !c.optional);
   if (pci < 0) return undefined;
   const pc = chapters[pci];
-  return { ci: pci, hi: pc.collapsed ? -1 : pc.hunkIds.findLastIndex((id) => !pc.folded?.includes(id)) };
+  const pAside = asideHunkIds(pc);
+  return { ci: pci, hi: pc.collapsed ? -1 : pc.hunkIds.findLastIndex((id) => !pAside.has(id)) };
 }

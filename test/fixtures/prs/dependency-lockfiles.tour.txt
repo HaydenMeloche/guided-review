@@ -1,0 +1,40 @@
+# Made up: a pnpm workspace upgrades React in two apps and adds zod to one (one root lockfile), a Go
+# service bumps a module with its go.sum, a Ruby tool's lockfile moves on its own, a Rust crate bumps
+# serde without its Cargo.lock, a workspace package edits only a script, .nvmrc moves to Node 22, and
+# a small code edit.
+10 files, 10 hunks (10 GitHub hunks)
+
+files:
+  .nvmrc  modified · config
+  apps/admin/package.json  modified · config
+  apps/web/package.json  modified · config
+  apps/web/src/main.ts  modified · logic
+  packages/ui/package.json  modified · config
+  pnpm-lock.yaml  modified · generated
+  services/billing/go.mod  modified · config
+  services/billing/go.sum  modified · generated
+  services/search/Cargo.toml  modified · config
+  tools/release/Gemfile.lock  modified · generated
+
+1. mount  [flow]  entry exported API (mount)
+   apps/web/src/main.ts  @@ -1,5 +1,7 @@  +3 -1 · risk 0 · untested
+
+2. Dependencies and runtimes  [dependencies]
+   .nvmrc  @@ -1 +1 @@  +1 -1 · risk 0 · n/a
+   apps/admin/package.json  @@ -2,6 +2,6 @@  +1 -1 · risk 0 · n/a
+   apps/web/package.json  @@ -2,6 +2,7 @@  +2 -1 · risk 0 · n/a
+   services/billing/go.mod  @@ -3,8 +3,8 @@  +2 -2 · risk 0 · n/a
+   services/search/Cargo.toml  @@ -4,4 +4,4 @@  +1 -1 · risk 0 · n/a
+   tools/release/Gemfile.lock  @@ -1,8 +1,8 @@  +2 -2 · risk 0 · n/a
+   pnpm-lock.yaml  @@ -5,41 +5,34 @@  +17 -24 · risk 0 · n/a
+   services/billing/go.sum  @@ -1,6 +1,6 @@  +4 -4 · risk 0 · n/a
+   summary page: tools/release/Gemfile.lock
+   lockfile pnpm-lock.yaml read on the pages of apps/admin/package.json, apps/web/package.json
+   lockfile services/billing/go.sum read on the pages of services/billing/go.mod
+
+3. Config, infra and docs  [config]
+   packages/ui/package.json  @@ -2,6 +2,6 @@  +1 -1 · risk 0 · n/a
+
+flags:
+  generated-out-of-sync: Cargo.toml changed but no lockfile changed; if dependencies changed, the lockfile is stale
+  info: lockfile changed without Gemfile: dependency versions moved within existing ranges

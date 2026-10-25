@@ -14,7 +14,7 @@ import { runPipeline } from '../pipeline.js';
 import type { AgentRole, AgentRouting } from '../agent/types.js';
 import type { ViewSetting } from '../config.js';
 import { fileOrderChapters } from '../analysis/flows.js';
-import { applyMoves, firstHunk, ORDER_SEQUENCE, positionAfterOrderChange, sortChapters, stateOf, type States } from './nav.js';
+import { applyMoves, firstHunk, hunkPosition, ORDER_SEQUENCE, pageOf, positionAfterOrderChange, sortChapters, stateOf, type States } from './nav.js';
 import { hunkKeys } from '../review/hunkState.js';
 import { ChapterScreen, type Services } from './ChapterScreen.js';
 import { BriefingScreen } from './BriefingScreen.js';
@@ -590,7 +590,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         if (chapters[c].optional) continue;
         const i = chapters[c].hunkIds.findIndex((id) => tour.hunks[id] && !tour.hunks[id].importOnly && stateOf(states, tour.hunks[id]) === 'unread');
         if (i >= 0) {
-          setPos(c, chapters[c].collapsed || chapters[c].folded?.includes(chapters[c].hunkIds[i]) ? -1 : i);
+          setPos(c, pageOf(chapters[c], i));
           found = true;
         }
       }
@@ -1029,7 +1029,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       const ci = saved ? chapters.findIndex((c) => c.id === saved.chapterId) : -1;
       if (!saved || ci < 0) return undefined;
       const hi = saved.hunkId ? chapters[ci].hunkIds.indexOf(saved.hunkId) : -1;
-      return `resume · chapter ${ci + 1}${hi >= 0 ? `, hunk ${hi + 1}/${chapters[ci].hunkIds.length}` : ''}`;
+      const at = hunkPosition(chapters[ci], hi);
+      return `resume · chapter ${ci + 1}${hi >= 0 ? `, hunk ${at.n}/${at.total}` : ''}`;
     };
     const briefingScreen = (active: boolean) => (
       <BriefingScreen

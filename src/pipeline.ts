@@ -23,7 +23,7 @@ import { fetchDiff, fetchReviews, fetchThreads, getMentionUsers, viewerLogin } f
 import { fetchSharedTour, restoreSharedTour } from './github/sharedTour.js';
 import { analyzeBriefing, analyzeChapter, AgentUnavailableError, type ChapterResult } from './agent/agent.js';
 import { routingIdentity, type AgentRole, type AgentRouting } from './agent/types.js';
-import { chapterBatches, isTruncated, MINOR_SUMMARY_ID, minorHunkIds } from './agent/prompts.js';
+import { chapterBatches, isTruncated, lockPairOf, MINOR_SUMMARY_ID, minorHunkIds } from './agent/prompts.js';
 import { computeReReview } from './review/rereview.js';
 import type { Store } from './store/db.js';
 
@@ -249,7 +249,9 @@ const CHECKLIST_STATUSES: ChecklistStatus[] = ['pass', 'fail', 'unknown'];
 
 // Applies one narration result to a chapter and returns a new tour. Only the chapter and
 // the hunks the result narrated are new objects; everything else keeps its identity.
-export function applyChapterResult(tour: Tour, chapterId: string, r: ChapterResult, opts: { minorIds?: string[]; untestedBranches?: string[] } = {}): Tour {
+// `minorIds` share the result's summary entry; `sharedRiskIds` also take its risk (a lockfile
+// pair's manifest hunks, whose one narration is that entry).
+export function applyChapterResult(tour: Tour, chapterId: string, r: ChapterResult, opts: { minorIds?: string[]; sharedRiskIds?: string[]; untestedBranches?: string[] } = {}): Tour {
   const idx = tour.chapters.findIndex((c) => c.id === chapterId);
   if (idx < 0) return tour;
   const old = tour.chapters[idx];
@@ -279,9 +281,12 @@ export function applyChapterResult(tour: Tour, chapterId: string, r: ChapterResu
   const shared = r.hunks?.find((h) => h.id === MINOR_SUMMARY_ID);
   if (shared?.narration) {
     const text = fix(shared.narration);
+    const risky = new Set(typeof shared.risk === 'number' && Number.isFinite(shared.risk) && shared.riskReason ? opts.sharedRiskIds : []);
     for (const id of opts.minorIds ?? []) {
       if (narrated.has(id) || !hunks[id]) continue;
-      hunks[id] = { ...hunks[id], narration: text, narrationInferred: !shared.citesCode, narrationShared: true };
+      const next: Hunk = { ...hunks[id], narration: text, narrationInferred: !shared.citesCode, narrationShared: true };
+      if (risky.has(id)) mergeModelRisk(next, shared.risk!, shared.riskReason!);
+      hunks[id] = next;
     }
   }
   if (orphanReasons) chapter.orphanReasons = orphanReasons;
@@ -560,6 +565,7 @@ export async function runPipeline(opts: PipelineOptions): Promise<Tour> {
                     if (stop.aborted) return;
                     const part = multi ? { ...chapterNow(id), hunkIds: batch } : chapterNow(id);
                     const minorIds = minorHunkIds(tour, part);
+                    const sharedRiskIds = lockPairOf(part)?.hunkIds;
                     let r: Awaited<ReturnType<typeof analyzeChapter>>;
                     try {
                       r = await analyzeChapter(tour, part, worktree, opts.agent, stop);
@@ -574,7 +580,7 @@ export async function runPipeline(opts: PipelineOptions): Promise<Tour> {
                     if (i > 0) delete value.diagram;
                     branches[i] = value.untestedBranches ?? [];
                     const merged = branches.flat();
-                    tour = applyChapterResult(tour, id, value, { minorIds, untestedBranches: multi ? (merged.length ? merged : staticBranches) : undefined });
+                    tour = applyChapterResult(tour, id, value, { minorIds, sharedRiskIds, untestedBranches: multi ? (merged.length ? merged : staticBranches) : undefined });
                     opts.onTour(tour);
                   }),
                 ),

@@ -155,4 +155,14 @@ describe('checkGeneratedSync', () => {
     const script = classify(file('package.json', '@@ -2,3 +2,3 @@\n   "scripts": {\n-    "test": "jest"\n+    "test": "vitest"\n   }\n'));
     expect(checkGeneratedSync(script.files, script.map)).toEqual([]);
   });
+
+  it('pairs manifests with lockfiles by directory, as the dependencies chapter does', () => {
+    const dep = (dir: string) => file(`${dir}go.mod`, '@@ -3,3 +3,3 @@\n require (\n-\tgithub.com/x/y v1.2.0\n+\tgithub.com/x/y v1.3.0\n )\n');
+    const sum = (dir: string) => file(`${dir}go.sum`, '@@ -1,1 +1,1 @@\n-github.com/x/y v1.2.0 h1:a=\n+github.com/x/y v1.3.0 h1:b=\n');
+    const paired = classify([dep('svc/'), sum('svc/')].join('\n'));
+    expect(checkGeneratedSync(paired.files, paired.map)).toEqual([]);
+    // A go.sum locks only its own module, so another directory's does not count.
+    const apart = classify([dep('svc/'), sum('')].join('\n'));
+    expect(checkGeneratedSync(apart.files, apart.map).map((f) => f.message)).toEqual(['svc/go.mod changed but no lockfile beside or above it did; if dependencies changed, the lockfile is stale']);
+  });
 });

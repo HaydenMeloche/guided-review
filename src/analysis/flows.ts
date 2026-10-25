@@ -4,7 +4,9 @@ import { escapeRe } from '../util/regex.js';
 import { SCHEMA_PATH, sqlTableRefs } from './patterns.js';
 import { SPECIAL_CHAPTERS, specialKindOf, type SpecialKind } from './special.js';
 import { testStem } from './testPaths.js';
-import type { Chapter, ChapterKind, DiffFile, FileKind, Flag, Graph, GraphEdge, GraphNode, Hunk } from '../types.js';
+import type { Chapter, ChapterKind, DiffFile, FileKind, Flag, Graph, GraphEdge, GraphNode, Hunk, LockPair } from '../types.js';
+import { isPackageHunk } from './dependencies.js';
+import { pairLockfiles } from './lockfile.js';
 import type { CallEdge, Decl, SymbolIndex } from './symbols.js';
 
 const LOW_PRIORITY: { kind: FileKind; chapter: ChapterKind; title: string; collapsed: boolean }[] = [
@@ -562,17 +564,34 @@ export function buildChapters(files: DiffFile[], hunks: Record<string, Hunk>, in
       .join('\n');
   const idsOf = (kind: SpecialKind) => [...special].filter(([, k]) => k === kind).map(([id]) => id);
   for (const sc of SPECIAL_CHAPTERS) {
-    // Lockfiles are reviewed with the manifests they lock: the dependencies chapter opens on their
-    // summary, then steps through the manifest hunks. With no manifest change, the summary is all.
+    // Lockfiles are reviewed with the manifests they lock: each manifest hunk's page lists its
+    // lockfile's package changes (lockPairs). A lockfile whose manifest did not change is a
+    // summary the chapter opens on (folded), before the manifest hunks; with no manifest change
+    // at all, the summary is all.
     if (sc.kind === 'lockfiles') continue;
-    const ids = idsOf(sc.kind);
+    let ids = idsOf(sc.kind);
     const locks = sc.kind === 'dependencies' ? idsOf('lockfiles') : [];
     if (!ids.length && !locks.length) continue;
-    const ch = newChapter(nextId(), sc.kind, sc.title, [...ids, ...locks], hunks);
+    const pairs = sc.kind === 'dependencies' ? lockPairs(ids, locks, hunks) : [];
+    const paired = new Set(pairs.flatMap((p) => p.lockHunkIds));
+    const folded = locks.filter((id) => !paired.has(id));
+    // A pair's manifest hunks are read one after another, where its first one was.
+    const pairOf = new Map(pairs.flatMap((p) => p.hunkIds.map((id) => [id, p] as const)));
+    ids = ids.flatMap((id) => {
+      const p = pairOf.get(id);
+      if (!p) return [id];
+      return p.hunkIds[0] === id ? p.hunkIds : [];
+    });
+    const ch = newChapter(nextId(), sc.kind, sc.title, [...ids, ...folded, ...locks.filter((id) => paired.has(id))], hunks);
     ch.collapsed = sc.collapsed || !ids.length;
-    if (locks.length) {
-      ch.folded = locks;
-      ch.summary = summaryOf('lockfiles');
+    if (pairs.length) ch.lockPairs = pairs;
+    if (folded.length) {
+      ch.folded = folded;
+      const foldedFiles = new Set(folded.map((id) => hunks[id]?.file));
+      ch.summary = sorted
+        .filter((f) => foldedFiles.has(f.path))
+        .map((f) => `${f.path}${f.summary ? `: ${f.summary}` : ''}`)
+        .join('\n');
     } else if (sc.collapsed) ch.summary = summaryOf(sc.kind);
     chapters.push(ch);
   }
@@ -589,6 +608,22 @@ export function buildChapters(files: DiffFile[], hunks: Record<string, Hunk>, in
   }
 
   return { chapters, overview: overviewGraph(flows, files, hunks, index), notes, flags };
+}
+
+// The dependencies chapter's lockfiles paired with the manifests they lock (pairLockfiles), by
+// hunk: a manifest counts when one of its hunks changes a package, and those hunks are its pages.
+export function lockPairs(ids: string[], locks: string[], hunks: Record<string, Hunk>): LockPair[] {
+  const pkgHunks = ids.filter((id) => hunks[id] && isPackageHunk(hunks[id]));
+  const lockFiles = [...new Set(locks.map((id) => hunks[id]?.file).filter((f): f is string => !!f))];
+  const manifests = [...new Set(pkgHunks.map((id) => hunks[id].file))];
+  return pairLockfiles(lockFiles, manifests).map((p) => {
+    const files = new Set(p.manifests);
+    return {
+      lockfile: p.lockfile,
+      hunkIds: pkgHunks.filter((id) => files.has(hunks[id].file)),
+      lockHunkIds: locks.filter((id) => hunks[id]?.file === p.lockfile),
+    };
+  });
 }
 
 function overviewGraph(flows: Chapter[], files: DiffFile[], hunks: Record<string, Hunk>, index: SymbolIndex): Graph {

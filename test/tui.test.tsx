@@ -19,6 +19,7 @@ import { BriefingScreen, stripFileRefs } from '../src/tui/BriefingScreen.js';
 import { leadThenDim } from '../src/tui/chapter/guide.js';
 import { ORDER_SEQUENCE, positionAfterOrderChange, progress, sortChapters, type States } from '../src/tui/nav.js';
 import { waitFor } from './helpers/waitFor.js';
+import { hunkKeys } from '../src/review/hunkState.js';
 import { filesFor, hunkFromDiff, tour as makeTour } from './fixtures/tour.js';
 
 // Never reach GitHub from a test: confirming the submit screen posts through this.
@@ -660,6 +661,74 @@ describe('ChapterScreen', () => {
     await waitFor(() => expect(ui.lastFrame()).toContain('chapter 1 · summary'));
     ui.stdin.write('\r');
     await waitFor(() => expect(moves).toEqual([[0, -1]]));
+    ui.unmount();
+  });
+
+  it('shows a lockfile’s package changes under its manifests, and reading the last of them reads the lockfile', async () => {
+    const web = hunkFromDiff('apps/web/package.json', '-    "react": "^18.3.1",', '+    "react": "^19.0.0",');
+    const api = hunkFromDiff('apps/api/package.json', '-    "zod": "^3.22.0",', '+    "zod": "^4.0.0",');
+    const lock = hunkFromDiff('pnpm-lock.yaml', '-  react@18.3.1:', '+  react@19.0.0:', '-  scheduler@0.23.2:', '+  scheduler@0.25.0:');
+    const lock2 = hunkFromDiff('pnpm-lock.yaml', '-  zod@3.22.0:', '+  zod@4.0.0:');
+    const t = makeTour(
+      [web, api, lock, lock2],
+      [
+        {
+          kind: 'dependencies',
+          title: 'Dependencies and runtimes',
+          hunkIds: [web.id, api.id, lock.id, lock2.id],
+          lockPairs: [{ lockfile: 'pnpm-lock.yaml', hunkIds: [web.id, api.id], lockHunkIds: [lock.id, lock2.id] }],
+        },
+      ],
+      { files: filesFor([web, api, lock, lock2]) },
+    );
+    const marked: Record<string, ReadState> = {};
+    const states: States = {};
+    const moves: [number, number][] = [];
+    const screen = (hi: number) => (
+      <ChapterScreen
+        tour={t}
+        chapters={t.chapters}
+        states={{ ...states }}
+        drafts={[]}
+        ci={0}
+        hi={hi}
+        order="flow"
+        deltaOnly={false}
+        width={150}
+        height={40}
+        setPos={(ci, h) => moves.push([ci, h])}
+        setState={(hs, st) => {
+          for (const h of hs) {
+            marked[h.id] = st;
+            for (const k of hunkKeys(h)) states[k] = st;
+          }
+        }}
+        saveDraft={() => {}}
+        deleteDraft={() => {}}
+        moveHunk={() => {}}
+        toggleOrder={() => {}}
+        toggleDelta={() => {}}
+        openSubmit={() => {}}
+        openBriefing={() => {}}
+        openInAgent={() => {}}
+        quit={() => {}}
+      />
+    );
+    const ui = render(screen(0));
+    // The first page: its direct change, and the indirect ones.
+    await waitFor(() => expect(ui.lastFrame()).toContain('pnpm-lock.yaml · 3 package changes in the lockfile'));
+    expect(ui.lastFrame()).toMatch(/react +18\.3\.1 → 19\.0\.0 +major/);
+    expect(ui.lastFrame()).toContain('scheduler 0.23.2 → 0.25.0');
+    expect(ui.lastFrame()).not.toContain('zod 3.22.0');
+    ui.stdin.write('n');
+    await waitFor(() => expect(moves).toEqual([[0, 1]]));
+    expect(marked).toEqual({ [web.id]: 'read' });
+    ui.rerender(screen(1));
+    await waitFor(() => expect(ui.lastFrame()).toMatch(/zod +3\.22\.0 → 4\.0\.0/));
+    expect(ui.lastFrame()).toContain('1 indirect change, listed on this lockfile’s first page');
+    ui.stdin.write('n');
+    await waitFor(() => expect(ui.lastFrame()).toContain('hunk 2 read with its 2 lockfile hunks · 4/4 in this chapter'));
+    expect(marked).toEqual({ [web.id]: 'read', [api.id]: 'read', [lock.id]: 'read', [lock2.id]: 'read' });
     ui.unmount();
   });
 });

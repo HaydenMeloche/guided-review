@@ -1,0 +1,297 @@
+# Made up: a pnpm workspace upgrades React in two apps and adds zod to one (one root lockfile), a Go
+# service bumps a module with its go.sum, a Ruby tool's lockfile moves on its own, a Rust crate bumps
+# serde without its Cargo.lock, a workspace package edits only a script, .nvmrc moves to Node 22, and
+# a small code edit.
+=== file .nvmrc
+20
+=== file apps/admin/package.json
+{
+  "name": "@shop/admin",
+  "private": true,
+  "dependencies": {
+    "react": "^18.3.1"
+  }
+}
+=== file apps/web/package.json
+{
+  "name": "@shop/web",
+  "private": true,
+  "dependencies": {
+    "react": "^18.3.1"
+  }
+}
+=== file apps/web/src/main.ts
+import { createRoot } from 'react-dom/client';
+
+export function mount(el: HTMLElement) {
+  return createRoot(el);
+}
+=== file packages/ui/package.json
+{
+  "name": "@shop/ui",
+  "private": true,
+  "scripts": {
+    "build": "tsc"
+  }
+}
+=== file pnpm-lock.yaml
+lockfileVersion: '9.0'
+
+importers:
+
+  apps/admin:
+    dependencies:
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+
+  apps/web:
+    dependencies:
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+
+packages:
+
+  csstype@3.1.2:
+    resolution: {integrity: sha512-aaa}
+
+  js-tokens@4.0.0:
+    resolution: {integrity: sha512-bbb}
+
+  loose-envify@1.4.0:
+    resolution: {integrity: sha512-ccc}
+    hasBin: true
+
+  react@18.3.1:
+    resolution: {integrity: sha512-ddd}
+    engines: {node: '>=0.10.0'}
+
+snapshots:
+
+  csstype@3.1.2: {}
+
+  js-tokens@4.0.0: {}
+
+  loose-envify@1.4.0:
+    dependencies:
+      js-tokens: 4.0.0
+
+  react@18.3.1:
+    dependencies:
+      loose-envify: 1.4.0
+=== file services/billing/go.mod
+module example.com/billing
+
+go 1.22
+
+require (
+	github.com/stripe/stripe-go/v76 v76.25.0
+	golang.org/x/sync v0.6.0
+)
+
+require golang.org/x/net v0.20.0 // indirect
+=== file services/billing/go.sum
+github.com/stripe/stripe-go/v76 v76.25.0 h1:aaa=
+github.com/stripe/stripe-go/v76 v76.25.0/go.mod h1:bbb=
+golang.org/x/net v0.20.0 h1:ccc=
+golang.org/x/net v0.20.0/go.mod h1:ddd=
+golang.org/x/sync v0.6.0 h1:eee=
+golang.org/x/sync v0.6.0/go.mod h1:fff=
+=== file services/search/Cargo.toml
+[package]
+name = "search"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = "1.0.197"
+=== file tools/release/Gemfile.lock
+GEM
+  remote: https://rubygems.org/
+  specs:
+    rake (13.1.0)
+    thor (1.3.0)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  rake
+  thor
+=== patch
+diff --git a/.nvmrc b/.nvmrc
+index 209e3ef..2bd5a0a 100644
+--- a/.nvmrc
++++ b/.nvmrc
+@@ -1 +1 @@
+-20
++22
+diff --git a/apps/admin/package.json b/apps/admin/package.json
+index 56ba1db..f7ae560 100644
+--- a/apps/admin/package.json
++++ b/apps/admin/package.json
+@@ -2,6 +2,6 @@
+   "name": "@shop/admin",
+   "private": true,
+   "dependencies": {
+-    "react": "^18.3.1"
++    "react": "^19.0.0"
+   }
+ }
+diff --git a/apps/web/package.json b/apps/web/package.json
+index 7edd8f1..3002862 100644
+--- a/apps/web/package.json
++++ b/apps/web/package.json
+@@ -2,6 +2,7 @@
+   "name": "@shop/web",
+   "private": true,
+   "dependencies": {
+-    "react": "^18.3.1"
++    "react": "^19.0.0",
++    "zod": "^3.23.8"
+   }
+ }
+diff --git a/apps/web/src/main.ts b/apps/web/src/main.ts
+index 4d27bb3..5ddaf8a 100644
+--- a/apps/web/src/main.ts
++++ b/apps/web/src/main.ts
+@@ -1,5 +1,7 @@
+ import { createRoot } from 'react-dom/client';
+ 
+ export function mount(el: HTMLElement) {
+-  return createRoot(el);
++  const root = createRoot(el);
++  root.render(null);
++  return root;
+ }
+diff --git a/packages/ui/package.json b/packages/ui/package.json
+index 368b6cc..ba4068b 100644
+--- a/packages/ui/package.json
++++ b/packages/ui/package.json
+@@ -2,6 +2,6 @@
+   "name": "@shop/ui",
+   "private": true,
+   "scripts": {
+-    "build": "tsc"
++    "build": "tsc -b"
+   }
+ }
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index 43a19e6..426bc3c 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -5,41 +5,34 @@ importers:
+   apps/admin:
+     dependencies:
+       react:
+-        specifier: ^18.3.1
+-        version: 18.3.1
++        specifier: ^19.0.0
++        version: 19.0.0
+ 
+   apps/web:
+     dependencies:
+       react:
+-        specifier: ^18.3.1
+-        version: 18.3.1
++        specifier: ^19.0.0
++        version: 19.0.0
++      zod:
++        specifier: ^3.23.8
++        version: 3.23.8
+ 
+ packages:
+ 
+-  csstype@3.1.2:
+-    resolution: {integrity: sha512-aaa}
++  csstype@3.1.3:
++    resolution: {integrity: sha512-aab}
+ 
+-  js-tokens@4.0.0:
+-    resolution: {integrity: sha512-bbb}
+-
+-  loose-envify@1.4.0:
+-    resolution: {integrity: sha512-ccc}
+-    hasBin: true
+-
+-  react@18.3.1:
+-    resolution: {integrity: sha512-ddd}
++  react@19.0.0:
++    resolution: {integrity: sha512-dde}
+     engines: {node: '>=0.10.0'}
+ 
+-snapshots:
++  zod@3.23.8:
++    resolution: {integrity: sha512-eee}
+ 
+-  csstype@3.1.2: {}
++snapshots:
+ 
+-  js-tokens@4.0.0: {}
++  csstype@3.1.3: {}
+ 
+-  loose-envify@1.4.0:
+-    dependencies:
+-      js-tokens: 4.0.0
++  react@19.0.0: {}
+ 
+-  react@18.3.1:
+-    dependencies:
+-      loose-envify: 1.4.0
++  zod@3.23.8: {}
+diff --git a/services/billing/go.mod b/services/billing/go.mod
+index b97ccc7..ce12c2a 100644
+--- a/services/billing/go.mod
++++ b/services/billing/go.mod
+@@ -3,8 +3,8 @@ module example.com/billing
+ go 1.22
+ 
+ require (
+-	github.com/stripe/stripe-go/v76 v76.25.0
++	github.com/stripe/stripe-go/v76 v76.26.0
+ 	golang.org/x/sync v0.6.0
+ )
+ 
+-require golang.org/x/net v0.20.0 // indirect
++require golang.org/x/net v0.21.0 // indirect
+diff --git a/services/billing/go.sum b/services/billing/go.sum
+index 8d0d5be..ab2c346 100644
+--- a/services/billing/go.sum
++++ b/services/billing/go.sum
+@@ -1,6 +1,6 @@
+-github.com/stripe/stripe-go/v76 v76.25.0 h1:aaa=
+-github.com/stripe/stripe-go/v76 v76.25.0/go.mod h1:bbb=
+-golang.org/x/net v0.20.0 h1:ccc=
+-golang.org/x/net v0.20.0/go.mod h1:ddd=
++github.com/stripe/stripe-go/v76 v76.26.0 h1:aab=
++github.com/stripe/stripe-go/v76 v76.26.0/go.mod h1:bbc=
++golang.org/x/net v0.21.0 h1:ccd=
++golang.org/x/net v0.21.0/go.mod h1:dde=
+ golang.org/x/sync v0.6.0 h1:eee=
+ golang.org/x/sync v0.6.0/go.mod h1:fff=
+diff --git a/services/search/Cargo.toml b/services/search/Cargo.toml
+index 8efa7c1..01f236d 100644
+--- a/services/search/Cargo.toml
++++ b/services/search/Cargo.toml
+@@ -4,4 +4,4 @@ version = "0.1.0"
+ edition = "2021"
+ 
+ [dependencies]
+-serde = "1.0.197"
++serde = "1.0.210"
+diff --git a/tools/release/Gemfile.lock b/tools/release/Gemfile.lock
+index 51694ae..8dc15f5 100644
+--- a/tools/release/Gemfile.lock
++++ b/tools/release/Gemfile.lock
+@@ -1,8 +1,8 @@
+ GEM
+   remote: https://rubygems.org/
+   specs:
+-    rake (13.1.0)
+-    thor (1.3.0)
++    rake (13.2.1)
++    thor (1.3.2)
+ 
+ PLATFORMS
+   ruby

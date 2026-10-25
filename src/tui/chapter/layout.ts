@@ -26,6 +26,7 @@ export interface LayoutInput {
   explainScroll?: number; // the explanation's first line on screen, when it has focus and scrolls // the chapter list beside the chapter, on a wide terminal (\ toggles it)
   listOpen: boolean; // the comment's @ list is open
   explain: (width: number) => MdLine[]; // the explanation's lines at its inner width
+  lockRows?: (width: number) => number; // a lockfile pair's page: the rows its package list wants under the diff
 }
 
 export type ChapterLayout = ReturnType<typeof chapterLayout>;
@@ -62,7 +63,8 @@ export function chapterLayout(i: LayoutInput) {
   const avail = mainHeight - TITLE_ROWS;
   const explainAll = i.explain(mainWidth - 2); // the left rule
   const collapsed = i.collapsedHunks !== undefined;
-  const codeNeed = collapsed ? Math.min(i.collapsedHunks!, 10) : Math.min((i.hunkLines?.length ?? 0) + 1, 14);
+  const lockWant = !collapsed && i.hunkLines && i.lockRows ? i.lockRows(srcWidth) : 0;
+  const codeNeed = collapsed ? Math.min(i.collapsedHunks!, 10) : Math.min((i.hunkLines?.length ?? 0) + 1 + (lockWant ? Math.min(lockWant, 8) + 1 : 0), 14);
   const explainMax = Math.max(4, Math.max(Math.floor(avail * 0.5), avail - codeNeed - 3) - 1);
   // An explanation longer than its room shows a window of it, which scrolls when it has focus
   // (Tab), and a note saying how to read the rest.
@@ -79,6 +81,13 @@ export function chapterLayout(i: LayoutInput) {
       : explainAll;
   const explainRows = explainLines.length ? explainLines.length + 1 : 0; // and a blank row under it
   const bodyHeight = Math.max(6, avail - explainRows);
+  // A lockfile pair's page splits the body: the manifest diff on top, as much of it as fits in
+  // half the body when the package list wants more, then a blank row and the list, which takes
+  // the rest.
+  const srcNeed = (i.hunkLines?.length ?? 0) + 1;
+  const lockFit = lockWant ? Math.min(lockWant, Math.max(2, bodyHeight - Math.min(srcNeed, Math.ceil(bodyHeight / 2)) - 1)) : 0;
+  const sourceHeight = lockFit ? Math.min(srcNeed - 1, bodyHeight - lockFit - 1) : bodyHeight;
+  const lockHeight = lockFit ? bodyHeight - sourceHeight - 1 : 0;
 
   const hunk = !collapsed && !!i.hunkLines;
   // Beside the code the test pane sits in a bordered column under a title row.
@@ -99,6 +108,8 @@ export function chapterLayout(i: LayoutInput) {
     explainAll,
     explainMaxScroll: explainAll.length > cap ? explainMaxScroll : 0,
     bodyHeight,
+    sourceHeight,
+    lockHeight,
     // Inline under the line, a thread takes at most half the body, so the code stays in view.
     threadHeight: Math.min(Math.max(6, bodyHeight - 2), Math.max(8, Math.floor(bodyHeight * 0.5))),
     askHeight: Math.min(14, Math.max(5, bodyHeight - 2)),

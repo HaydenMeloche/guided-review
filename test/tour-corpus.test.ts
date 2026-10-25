@@ -83,6 +83,9 @@ export function summarize(tour: Tour, description: string): string {
       if (c.orphanReasons[id]) out.push(`     orphan: ${c.orphanReasons[id]}`);
     }
     for (const id of c.linkedHunkIds) out.push(`   linked ${hunkLine(tour.hunks[id])}`);
+    const filesOf = (ids: string[]) => [...new Set(ids.map((id) => tour.hunks[id]?.file))].join(', ');
+    if (c.folded?.length) out.push(`   summary page: ${filesOf(c.folded)}`);
+    for (const p of c.lockPairs ?? []) out.push(`   lockfile ${p.lockfile} read on the pages of ${filesOf(p.hunkIds)}`);
     for (const item of c.checklist ?? []) out.push(`   checklist ${item.item}`);
   });
   if (tour.flags.length) out.push('', 'flags:', ...tour.flags.map((f) => `  ${f.kind}: ${f.message}`));
