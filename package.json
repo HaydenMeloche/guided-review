@@ -1,6 +1,6 @@
 {
   "name": "@haydenmeloche/guided-review",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Read a code change the way the code runs, in your terminal: a tour of a pull request, branch, or working tree, with chapters that follow the code's flow, tests beside each change, and one review to submit.",
   "keywords": [
     "code-review",
