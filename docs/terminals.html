@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Terminals · Guided Review</title>
+    <meta name="description" content="What Guided Review needs from your terminal, and how it behaves without it." />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232f6f5e'/><text x='16' y='22' font-family='monospace' font-size='15' font-weight='700' fill='white' text-anchor='middle'>gr</text></svg>"
+    />
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <div class="wrap wide">
+      <header class="top">
+        <a class="brand" href="./"><span class="mark">gr</span>Guided Review</a>
+        <nav class="links">
+          <a href="install.html">Docs</a>
+          <a class="hide-sm" href="https://github.com/HaydenMeloche/guided-review/releases">Releases</a>
+          <a href="https://github.com/HaydenMeloche/guided-review">GitHub</a>
+        </nav>
+      </header>
+      <div class="doc">
+        <aside class="doc-nav">
+          <nav aria-label="Documentation">
+            <p class="nav-title">Documentation</p>
+            <ul>
+              <li><a href="install.html">Install</a></li>
+              <li><a href="usage.html">Using Guided Review</a></li>
+              <li><a href="configuration.html">Configuration</a></li>
+              <li><a href="repo-config.html">Team configuration</a></li>
+              <li><a href="ci.html">Share tours from CI</a></li>
+              <li><a href="security.html">Privacy and security</a></li>
+              <li><a href="terminals.html" aria-current="page">Terminals</a></li>
+            </ul>
+          </nav>
+          <nav aria-label="On this page" class="on-page">
+            <p class="nav-title">On this page</p>
+            <ul>
+              <li><a href="#what-gr-asks-of-the-terminal">What gr asks of the terminal</a></li>
+              <li><a href="#known-terminals">Known terminals</a></li>
+              <li><a href="#tmux">tmux</a></li>
+              <li><a href="#keyboard-layouts">Keyboard layouts</a></li>
+            </ul>
+          </nav>
+        </aside>
+        <main class="prose">
+          <h1>Terminals</h1>
+          <p>Guided Review runs in any terminal with a full-screen mode. A few features depend on what the terminal supports. This page says what each one needs, and how gr behaves without it.</p>
+          <h2 id="what-gr-asks-of-the-terminal"><a class="anchor" href="#what-gr-asks-of-the-terminal" aria-hidden="true">#</a>What gr asks of the terminal</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Feature</th>
+                  <th>Needs</th>
+                  <th>Without it</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>24-bit color</td>
+                  <td>Truecolor support (<code>COLORTERM=truecolor</code>)</td>
+                  <td>
+                    Theme colors are rounded to the nearest of 256, and diff, popup, and selection backgrounds switch to hand-picked 256-color shades that still read. The theme picker says when this
+                    is happening.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Its background color</td>
+                  <td>An answer to OSC 11</td>
+                  <td>The default palette assumes a dark terminal unless <code>COLORFGBG</code> says it is light.</td>
+                </tr>
+                <tr>
+                  <td>Shift+Enter for a new line</td>
+                  <td>The kitty keyboard protocol</td>
+                  <td>Use <code>Ctrl+J</code>, which every terminal sends. The composer always shows it.</td>
+                </tr>
+                <tr>
+                  <td>An unambiguous Esc</td>
+                  <td>The kitty keyboard protocol</td>
+                  <td>gr waits a moment after Esc to tell it from an Alt chord.</td>
+                </tr>
+                <tr>
+                  <td>Window title and restoring yours on exit</td>
+                  <td>XTWINOPS 22/23 (title stack)</td>
+                  <td>The title is set but not restored.</td>
+                </tr>
+                <tr>
+                  <td>Progress in the tab or taskbar</td>
+                  <td>OSC 9;4</td>
+                  <td>No progress indicator. gr only sends it to terminals known to read it.</td>
+                </tr>
+                <tr>
+                  <td>Copy (<code>Y</code>) over SSH</td>
+                  <td>OSC 52</td>
+                  <td>Nothing is copied, and gr can&#39;t tell: it says it asked the terminal to copy.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            When it starts, gr asks the terminal for its background color, so the default palette&#39;s diff tints and popups are light on a light terminal and dark on a dark one. Set
+            <code>NO_COLOR</code> to turn colors off entirely: gr keeps bold, dim, and inverse, and ignores any theme.
+          </p>
+          <p>
+            gr asks the terminal whether it speaks the kitty keyboard protocol when it starts, and turns it on when the terminal says yes. If a terminal answers wrongly, set
+            <code>GR_KITTY_KEYBOARD=disabled</code> (or <code>enabled</code>) to override the detection.
+          </p>
+          <p>gr repaints only the rows that change on each key press, which keeps tmux and SSH sessions from flickering.</p>
+          <h2 id="known-terminals"><a class="anchor" href="#known-terminals" aria-hidden="true">#</a>Known terminals</h2>
+          <p>
+            The matrix below is what each terminal is documented to support. Rows marked <em>to verify</em> have not been checked by hand against gr yet; if you try one, the notes are where a
+            difference would show.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Terminal</th>
+                  <th>Truecolor</th>
+                  <th>Kitty keyboard (Shift+Enter)</th>
+                  <th>Title stack</th>
+                  <th>Progress (OSC 9;4)</th>
+                  <th>Clipboard (OSC 52)</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Ghostty</td>
+                  <td>yes</td>
+                  <td>yes</td>
+                  <td>yes</td>
+                  <td>yes</td>
+                  <td>yes</td>
+                  <td><em>to verify:</em> progress shows on the tab.</td>
+                </tr>
+                <tr>
+                  <td>iTerm2 3.6+</td>
+                  <td>yes</td>
+                  <td>yes (3.5+)</td>
+                  <td>yes</td>
+                  <td>yes</td>
+                  <td>yes, once allowed in Preferences</td>
+                  <td>Before 3.6, OSC 9 is a notification, so gr sends no progress there.</td>
+                </tr>
+                <tr>
+                  <td>WezTerm</td>
+                  <td>yes</td>
+                  <td>yes</td>
+                  <td>yes</td>
+                  <td>yes</td>
+                  <td>yes</td>
+                  <td><em>to verify</em></td>
+                </tr>
+                <tr>
+                  <td>kitty</td>
+                  <td>yes</td>
+                  <td>yes</td>
+                  <td>yes</td>
+                  <td>not sent</td>
+                  <td>yes</td>
+                  <td><em>to verify:</em> whether kitty reads OSC 9;4.</td>
+                </tr>
+                <tr>
+                  <td>Terminal.app</td>
+                  <td>no (256 colors)</td>
+                  <td>no</td>
+                  <td>ignored</td>
+                  <td>no</td>
+                  <td>no</td>
+                  <td>Use <code>Ctrl+J</code> for new lines. A light profile gets light diff tints.</td>
+                </tr>
+                <tr>
+                  <td>VS Code terminal</td>
+                  <td>yes</td>
+                  <td>no</td>
+                  <td>ignored</td>
+                  <td>no</td>
+                  <td>yes</td>
+                  <td>Use <code>Ctrl+J</code> for new lines.</td>
+                </tr>
+                <tr>
+                  <td>Windows Terminal</td>
+                  <td>yes</td>
+                  <td>no</td>
+                  <td>partial</td>
+                  <td>yes</td>
+                  <td>yes</td>
+                  <td><em>to verify</em></td>
+                </tr>
+                <tr>
+                  <td>tmux</td>
+                  <td>needs <code>set -as terminal-features &#39;,*:RGB&#39;</code></td>
+                  <td>passes through when the outer terminal supports it</td>
+                  <td>needs <code>set -g set-titles on</code></td>
+                  <td>not sent</td>
+                  <td>needs <code>set -g set-clipboard on</code></td>
+                  <td><em>to verify:</em> no flicker with large screens.</td>
+                </tr>
+                <tr>
+                  <td>SSH to Linux</td>
+                  <td>as the client</td>
+                  <td>as the client</td>
+                  <td>as the client</td>
+                  <td>not sent</td>
+                  <td>the only way to copy; <code>Y</code> says so</td>
+                  <td><code>o</code> can&#39;t open a browser on the remote machine.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h2 id="tmux"><a class="anchor" href="#tmux" aria-hidden="true">#</a>tmux</h2>
+          <p>Add these lines to <code>~/.tmux.conf</code> so gr&#39;s colors, titles, and copy work inside tmux:</p>
+          <pre><code class="language-tmux">set -as terminal-features &#39;,*:RGB&#39;
+set -g set-titles on
+set -g set-clipboard on
+</code></pre>
+          <h2 id="keyboard-layouts"><a class="anchor" href="#keyboard-layouts" aria-hidden="true">#</a>Keyboard layouts</h2>
+          <p>
+            <code>[</code> and <code>]</code> move between chapters. On German and other European layouts they need AltGr; <code>N</code> and <code>P</code> do the same with a plain key, and
+            <code>:</code> opens the command palette, where you can type a chapter&#39;s or a file&#39;s name to go to it.
+          </p>
+        </main>
+      </div>
+      <footer>
+        <span>MIT licensed</span>
+        <span
+          ><a href="https://github.com/HaydenMeloche/guided-review">GitHub</a> · <a href="https://github.com/HaydenMeloche/guided-review/releases">Releases</a> ·
+          <a href="https://www.npmjs.com/package/@haydenmeloche/guided-review">npm</a> · <a href="https://github.com/HaydenMeloche/guided-review/blob/master/ARCHITECTURE.md">Architecture</a></span
+        >
+      </footer>
+    </div>
+  </body>
+</html>

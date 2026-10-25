@@ -1,6 +1,6 @@
-import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Key } from 'ink';
+import { documents, usage } from './helpers/usageDoc.js';
 import { barEnd, barKeys, boundKeys, keyAction, KEYS, type KeyCtx } from '../src/tui/chapter/keys.js';
 
 // The bar's hints without their groups.
@@ -131,9 +131,8 @@ describe('docs', () => {
   // `=` is a convenience for `+` on keyboards where + needs shift.
   const aliases = new Set(['=']);
 
-  it('docs/usage.md describes every chapter screen key', () => {
-    const usage = fs.readFileSync(new URL('../docs/usage.md', import.meta.url), 'utf8');
-    const missing = boundKeys().filter((k) => !aliases.has(k) && !usage.includes(`\`${k}\``));
+  it('docs/usage.html describes every chapter screen key', () => {
+    const missing = boundKeys().filter((k) => !aliases.has(k) && !documents(usage, k));
     expect(missing).toEqual([]);
   });
 });

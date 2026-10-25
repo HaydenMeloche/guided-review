@@ -1,6 +1,6 @@
 // The keys of the PR list, the review briefing, the submit screen, the merge dialog and the
 // checks popup (see keys.ts). test/screen-keys.test.ts checks every key a screen's handlers read
-// is listed here and every listed key is in docs/usage.md.
+// is listed here and every listed key is in docs/usage.html.
 import { barOf, type KeyDef } from './keys.js';
 
 // ---------- the PR list ----------

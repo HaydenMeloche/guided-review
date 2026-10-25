@@ -9,343 +9,7 @@
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232f6f5e'/><text x='16' y='22' font-family='monospace' font-size='15' font-weight='700' fill='white' text-anchor='middle'>gr</text></svg>"
     />
-    <style>
-      :root {
-        --bg: #fbfaf7;
-        --surface: #ffffff;
-        --text: #1d2125;
-        --muted: #5d656d;
-        --border: #e3e0d8;
-        --accent: #2f6f5e;
-        --accent-soft: #e5f0ec;
-        --code-bg: #f3f1ec;
-        --term-bg: #16191c;
-        --term-text: #d8dde2;
-        --term-muted: #7d8791;
-        --term-accent: #7fd1b5;
-      }
-      @media (prefers-color-scheme: dark) {
-        :root:not([data-theme='light']) {
-          --bg: #121416;
-          --surface: #191c1f;
-          --text: #e6e8ea;
-          --muted: #9aa3ab;
-          --border: #2b3035;
-          --accent: #7fd1b5;
-          --accent-soft: #1d2e29;
-          --code-bg: #202428;
-          --term-bg: #0c0e10;
-        }
-      }
-      :root[data-theme='dark'] {
-        --bg: #121416;
-        --surface: #191c1f;
-        --text: #e6e8ea;
-        --muted: #9aa3ab;
-        --border: #2b3035;
-        --accent: #7fd1b5;
-        --accent-soft: #1d2e29;
-        --code-bg: #202428;
-        --term-bg: #0c0e10;
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-      html {
-        -webkit-text-size-adjust: 100%;
-      }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--text);
-        font:
-          16px/1.6 ui-sans-serif,
-          system-ui,
-          -apple-system,
-          'Segoe UI',
-          Roboto,
-          sans-serif;
-      }
-      a {
-        color: var(--accent);
-        text-underline-offset: 2px;
-      }
-      code,
-      pre,
-      .mono {
-        font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-      }
-      code {
-        background: var(--code-bg);
-        padding: 0.1em 0.35em;
-        border-radius: 4px;
-        font-size: 0.9em;
-      }
-
-      .wrap {
-        max-width: 880px;
-        margin: 0 auto;
-        padding: 0 16px;
-      }
-
-      header.top {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 20px 0;
-      }
-      .brand {
-        font-weight: 700;
-        color: var(--text);
-        text-decoration: none;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      .brand .mark {
-        width: 28px;
-        height: 28px;
-        border-radius: 7px;
-        background: var(--accent);
-        color: var(--bg);
-        display: grid;
-        place-items: center;
-        font:
-          700 13px ui-monospace,
-          Menlo,
-          monospace;
-      }
-      nav.links {
-        display: flex;
-        gap: 18px;
-        font-size: 15px;
-      }
-      nav.links a {
-        color: var(--muted);
-        text-decoration: none;
-      }
-      nav.links a:hover {
-        color: var(--text);
-      }
-
-      .hero {
-        padding: 48px 0 32px;
-      }
-      .hero h1 {
-        font-size: clamp(2rem, 6vw, 3.1rem);
-        line-height: 1.1;
-        letter-spacing: -0.02em;
-        margin: 0 0 16px;
-      }
-      .hero p.lede {
-        font-size: 1.15rem;
-        color: var(--muted);
-        max-width: 640px;
-        margin: 0 0 28px;
-      }
-      .status {
-        display: inline-block;
-        font-size: 13px;
-        color: var(--accent);
-        background: var(--accent-soft);
-        padding: 3px 10px;
-        border-radius: 99px;
-        margin-bottom: 18px;
-      }
-
-      .install {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        max-width: 100%;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 10px 10px 10px 16px;
-        width: fit-content;
-      }
-      .install code {
-        background: none;
-        padding: 0;
-        font-size: 15px;
-        overflow-x: auto;
-        white-space: nowrap;
-      }
-      .install .prompt {
-        color: var(--muted);
-        user-select: none;
-      }
-      button.copy {
-        font: inherit;
-        font-size: 13px;
-        border: 1px solid var(--border);
-        background: var(--bg);
-        color: var(--text);
-        border-radius: 6px;
-        padding: 4px 10px;
-        cursor: pointer;
-        flex: none;
-      }
-      button.copy:hover {
-        border-color: var(--accent);
-      }
-      .release {
-        margin: 14px 0 0;
-        font-size: 14px;
-        color: var(--muted);
-      }
-      .release a {
-        font-weight: 600;
-        text-decoration: none;
-      }
-      .release a:hover {
-        text-decoration: underline;
-      }
-
-      .term {
-        background: var(--term-bg);
-        color: var(--term-text);
-        border-radius: 12px;
-        margin: 40px 0 8px;
-        padding: 18px 20px;
-        font-size: 14px;
-        line-height: 1.7;
-        overflow-x: auto;
-      }
-      .term .c {
-        color: var(--term-muted);
-      }
-      .term .p {
-        color: var(--term-accent);
-        user-select: none;
-      }
-      .term pre {
-        margin: 0;
-      }
-
-      section {
-        padding: 40px 0;
-        border-top: 1px solid var(--border);
-      }
-      section h2 {
-        font-size: 1.5rem;
-        letter-spacing: -0.01em;
-        margin: 0 0 20px;
-      }
-      section > p {
-        color: var(--muted);
-        max-width: 680px;
-      }
-
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 14px;
-      }
-      @media (max-width: 640px) {
-        .grid {
-          grid-template-columns: 1fr;
-        }
-        nav.links a.hide-sm {
-          display: none;
-        }
-      }
-      .card {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 16px 18px;
-      }
-      .card h3 {
-        font-size: 1rem;
-        margin: 0 0 6px;
-      }
-      .card p {
-        margin: 0;
-        color: var(--muted);
-        font-size: 15px;
-      }
-
-      ol.steps {
-        padding-left: 1.2em;
-        margin: 0;
-      }
-      ol.steps li {
-        margin-bottom: 14px;
-      }
-      ol.steps li p {
-        margin: 2px 0 0;
-        color: var(--muted);
-        font-size: 15px;
-      }
-
-      figure.shot {
-        margin: 0 0 28px;
-      }
-      figure.shot.wide {
-        /* Break out of the text column so terminal text stays legible. */
-        width: min(1200px, calc(100vw - 48px));
-        margin-left: calc(50% - min(600px, calc(50vw - 24px)));
-      }
-      figure.shot a {
-        display: block;
-      }
-      figure.shot img {
-        display: block;
-        width: 100%;
-        height: auto;
-        border-radius: 10px;
-        border: 1px solid var(--border);
-        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
-      }
-      figure.shot figcaption {
-        color: var(--muted);
-        font-size: 14px;
-        margin-top: 10px;
-        text-align: center;
-      }
-
-      pre.block {
-        background: var(--code-bg);
-        border-radius: 10px;
-        padding: 14px 16px;
-        overflow-x: auto;
-        font-size: 14px;
-        line-height: 1.6;
-        margin: 0 0 16px;
-      }
-
-      .providers {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin: 0;
-        padding: 0;
-        list-style: none;
-      }
-      .providers li {
-        border: 1px solid var(--border);
-        background: var(--surface);
-        border-radius: 99px;
-        padding: 4px 12px;
-        font-size: 14px;
-      }
-
-      footer {
-        padding: 32px 0 48px;
-        border-top: 1px solid var(--border);
-        color: var(--muted);
-        font-size: 14px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px 20px;
-        justify-content: space-between;
-      }
-      footer a {
-        color: var(--muted);
-      }
-    </style>
+    <link rel="stylesheet" href="site.css" />
   </head>
   <body>
     <div class="wrap">
@@ -356,7 +20,7 @@
           <a class="hide-sm" href="#team">Team config</a>
           <a class="hide-sm" href="#ci">CI</a>
           <a class="hide-sm" href="https://github.com/HaydenMeloche/guided-review/releases">Releases</a>
-          <a href="https://github.com/HaydenMeloche/guided-review#readme">Docs</a>
+          <a href="install.html">Docs</a>
           <a href="https://github.com/HaydenMeloche/guided-review">GitHub</a>
         </nav>
       </header>
@@ -531,6 +195,9 @@
             <strong>Run <code>gr</code></strong> and pick a PR. Press <code>h</code> in a review to see the keys.
           </li>
         </ol>
+        <p>
+          See <a href="install.html">Install and set up</a> for every requirement, installing from source, and model setup, and <a href="usage.html">Using Guided Review</a> for every screen and key.
+        </p>
       </section>
 
       <section>
@@ -547,7 +214,7 @@
         </ul>
         <p>
           Use different models for the briefing, chapter narration, and Q&amp;A. PR content is treated as untrusted: the model gets read-only access to the PR's worktree, and Guided Review has no
-          telemetry. See <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/security.md">data, privacy, and security</a>.
+          telemetry. See <a href="security.html">data, privacy, and security</a>.
         </p>
       </section>
 
@@ -581,10 +248,7 @@
             <p>Rules come from the PR's merge base, not the PR itself, so a PR can't reclassify its own files. A PR that changes the config gets flagged.</p>
           </div>
         </div>
-        <p>
-          See the <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/repo-config.md">full reference</a> and
-          <a href="https://github.com/HaydenMeloche/guided-review/tree/master/docs/examples">example configs</a> for TypeScript, Go, Python, and Java repos.
-        </p>
+        <p>See the <a href="repo-config.html">full reference</a> and <a href="repo-config.html#examples">example configs</a> for TypeScript, Go, Python, and Java repos.</p>
       </section>
 
       <section id="ci">
@@ -600,7 +264,7 @@
   env:
     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}</pre>
         <p>
-          See the <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/ci.md">full workflow</a>
+          See the <a href="ci.html">full workflow</a>
           in the CI guide.
         </p>
       </section>
@@ -616,11 +280,9 @@
       <footer>
         <span>MIT licensed</span>
         <span>
-          <a href="https://github.com/HaydenMeloche/guided-review#readme">README</a> · <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/usage.md">Usage</a> ·
-          <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/configuration.md">Configuration</a> ·
-          <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/repo-config.md">Team config</a> ·
-          <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/ci.md">CI</a> · <a href="https://github.com/HaydenMeloche/guided-review/blob/master/docs/security.md">Security</a> ·
-          <a href="https://github.com/HaydenMeloche/guided-review/blob/master/ARCHITECTURE.md">Architecture</a> · <a href="https://github.com/HaydenMeloche/guided-review/releases">Releases</a> ·
+          <a href="install.html">Install</a> · <a href="usage.html">Usage</a> · <a href="configuration.html">Configuration</a> · <a href="repo-config.html">Team config</a> · <a href="ci.html">CI</a> ·
+          <a href="security.html">Security</a> · <a href="terminals.html">Terminals</a> · <a href="https://github.com/HaydenMeloche/guided-review/blob/master/ARCHITECTURE.md">Architecture</a> ·
+          <a href="https://github.com/HaydenMeloche/guided-review/releases">Releases</a> ·
           <a href="https://www.npmjs.com/package/@haydenmeloche/guided-review">npm</a>
         </span>
       </footer>

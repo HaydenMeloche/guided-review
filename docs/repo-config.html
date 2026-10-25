@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Repository configuration · Guided Review</title>
+    <meta name="description" content="The .guided-review.json file a team commits to share review rules." />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232f6f5e'/><text x='16' y='22' font-family='monospace' font-size='15' font-weight='700' fill='white' text-anchor='middle'>gr</text></svg>"
+    />
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <div class="wrap wide">
+      <header class="top">
+        <a class="brand" href="./"><span class="mark">gr</span>Guided Review</a>
+        <nav class="links">
+          <a href="install.html">Docs</a>
+          <a class="hide-sm" href="https://github.com/HaydenMeloche/guided-review/releases">Releases</a>
+          <a href="https://github.com/HaydenMeloche/guided-review">GitHub</a>
+        </nav>
+      </header>
+      <div class="doc">
+        <aside class="doc-nav">
+          <nav aria-label="Documentation">
+            <p class="nav-title">Documentation</p>
+            <ul>
+              <li><a href="install.html">Install</a></li>
+              <li><a href="usage.html">Using Guided Review</a></li>
+              <li><a href="configuration.html">Configuration</a></li>
+              <li><a href="repo-config.html" aria-current="page">Team configuration</a></li>
+              <li><a href="ci.html">Share tours from CI</a></li>
+              <li><a href="security.html">Privacy and security</a></li>
+              <li><a href="terminals.html">Terminals</a></li>
+            </ul>
+          </nav>
+          <nav aria-label="On this page" class="on-page">
+            <p class="nav-title">On this page</p>
+            <ul>
+              <li><a href="#examples">Examples</a></li>
+              <li><a href="#keys">Keys</a></li>
+              <li><a href="#globs">Globs</a></li>
+              <li><a href="#security">Security</a></li>
+            </ul>
+          </nav>
+        </aside>
+        <main class="prose">
+          <h1>Repository configuration</h1>
+          <p>
+            <code>.guided-review.json</code> sits at the repository root and holds rules for everyone who reviews the repository. Run <code>gr config --repo</code> to create or edit it, then commit
+            it.
+          </p>
+          <p>Every key is optional. An entry that is malformed is ignored, and <code>gr config --repo</code> lists those entries after you save.</p>
+          <h2 id="examples"><a class="anchor" href="#examples" aria-hidden="true">#</a>Examples</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>File</th>
+                  <th>Shows</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><a href="examples/minimal.json">minimal.json</a></td>
+                  <td>One entry for each key</td>
+                </tr>
+                <tr>
+                  <td><a href="examples/typescript-monorepo.json">typescript-monorepo.json</a></td>
+                  <td>A generated API client, Storybook stories, and dependency and UI checklists</td>
+                </tr>
+                <tr>
+                  <td><a href="examples/go-service.json">go-service.json</a></td>
+                  <td>Generated code, deploy manifests, and protobuf and migration checklists</td>
+                </tr>
+                <tr>
+                  <td><a href="examples/python-django.json">python-django.json</a></td>
+                  <td>Translation files, pytest helpers, and migration and settings checklists</td>
+                </tr>
+                <tr>
+                  <td><a href="examples/java-spring.json">java-spring.json</a></td>
+                  <td><code>.properties</code> and logging config, Gradle integration-test source sets, and Flyway/Liquibase, dependency and controller checklists</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h2 id="keys"><a class="anchor" href="#keys" aria-hidden="true">#</a>Keys</h2>
+          <h3 id="kinds"><a class="anchor" href="#kinds" aria-hidden="true">#</a><code>kinds</code></h3>
+          <p>
+            Overrides how a file is classified. Each rule is <code>{ &quot;pattern&quot;: &lt;glob&gt;, &quot;kind&quot;: &lt;kind&gt; }</code>, and the first rule that matches a file wins. Repository
+            rules take precedence over everything built in, including <code>.gitattributes</code>.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Kind</th>
+                  <th>Effect on the tour</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>logic</code></td>
+                  <td>Hand-written code, narrated in full</td>
+                </tr>
+                <tr>
+                  <td><code>test</code></td>
+                  <td>Grouped into the tests chapter</td>
+                </tr>
+                <tr>
+                  <td><code>config</code></td>
+                  <td>Grouped into the config chapter</td>
+                </tr>
+                <tr>
+                  <td><code>mechanical</code></td>
+                  <td>Grouped as low-risk mechanical changes</td>
+                </tr>
+                <tr>
+                  <td><code>generated</code></td>
+                  <td>Collapsed to a one-line summary</td>
+                </tr>
+                <tr>
+                  <td><code>vendored</code></td>
+                  <td>Collapsed to a one-line summary, with the version change when it can be found</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Some files are already classified without a rule:</p>
+          <ul>
+            <li><code>vendor/</code>, <code>third_party/</code> and <code>node_modules/</code> are vendored.</li>
+            <li>
+              Lockfiles, snapshots, <code>generated/</code> and <code>__generated__/</code> directories, and files with a <code>Code generated</code> or <code>@generated</code> header are generated.
+            </li>
+            <li><code>.gitattributes</code> entries with <code>linguist-generated</code> or <code>linguist-vendored</code> are honored.</li>
+          </ul>
+          <p>Add a rule only for files these defaults miss.</p>
+          <p>
+            Migrations, API contracts, dependency and runtime versions, lockfiles, infrastructure, and CI files are also moved into <a href="usage.html#change-aware-chapters">their own chapters</a> by
+            path. That applies only to files classified as <code>logic</code> or <code>config</code> (and to lockfiles), so a rule that sets any other kind keeps a file out of those chapters. For
+            example, <code>{ &quot;pattern&quot;: &quot;tools/migrate/**&quot;, &quot;kind&quot;: &quot;mechanical&quot; }</code> keeps a migration tool&#39;s own source from being read as a database
+            migration.
+          </p>
+          <h3 id="testpatterns"><a class="anchor" href="#testpatterns" aria-hidden="true">#</a><code>testPatterns</code></h3>
+          <p>
+            Extra globs for test files, added to the built-in ones. The built-in globs already cover <code>*.test.ts</code>, <code>*.spec.js</code>, <code>test/</code>, <code>tests/</code>,
+            <code>__tests__/</code>, <code>*_test.go</code>, <code>test_*.py</code>, <code>*_spec.rb</code>, and <code>*Test.java</code>.
+          </p>
+          <h3 id="checklists"><a class="anchor" href="#checklists" aria-hidden="true">#</a><code>checklists</code></h3>
+          <p>
+            Each checklist is <code>{ &quot;pattern&quot;: &lt;glob&gt;, &quot;items&quot;: [&lt;string&gt;, ...] }</code>. When a chapter touches a path that matches the pattern, the items are
+            attached to that chapter. The agent pre-checks each item, and you can open the list with <code>i</code>.
+          </p>
+          <h2 id="globs"><a class="anchor" href="#globs" aria-hidden="true">#</a>Globs</h2>
+          <ul>
+            <li><code>*</code> matches within one directory, <code>**</code> matches across directories, and <code>?</code> matches a single character.</li>
+            <li><code>{a,b}</code> matches either alternative.</li>
+            <li>A pattern with no <code>/</code> matches the file name anywhere, as in <code>.gitignore</code>. For example, <code>*.proto</code> matches <code>api/v1/user.proto</code>.</li>
+            <li>A trailing <code>/</code> matches everything under that directory.</li>
+          </ul>
+          <h2 id="security"><a class="anchor" href="#security" aria-hidden="true">#</a>Security</h2>
+          <p>
+            Rules are read from the PR&#39;s merge base, not from the PR itself, so a PR cannot reclassify its own files. If a PR changes <code>.guided-review.json</code> or
+            <code>.gitattributes</code>, the briefing flags the change.
+          </p>
+        </main>
+      </div>
+      <footer>
+        <span>MIT licensed</span>
+        <span
+          ><a href="https://github.com/HaydenMeloche/guided-review">GitHub</a> · <a href="https://github.com/HaydenMeloche/guided-review/releases">Releases</a> ·
+          <a href="https://www.npmjs.com/package/@haydenmeloche/guided-review">npm</a> · <a href="https://github.com/HaydenMeloche/guided-review/blob/master/ARCHITECTURE.md">Architecture</a></span
+        >
+      </footer>
+    </div>
+  </body>
+</html>

@@ -1,7 +1,7 @@
 name: Guided Review
 
 # Builds the PR's tour with this checkout's own Guided Review and posts it to the PR, where
-# `gr review` picks it up. Other repositories use the published action instead (see docs/ci.md).
+# `gr review` picks it up. Other repositories use the published action instead (see https://haydenmeloche.github.io/guided-review/ci.html).
 
 on:
   pull_request:

@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Using Guided Review · Guided Review</title>
+    <meta name="description" content="Pick a PR, read a tour, ask questions, comment, re-review, respond to a review, merge, and every command and option." />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232f6f5e'/><text x='16' y='22' font-family='monospace' font-size='15' font-weight='700' fill='white' text-anchor='middle'>gr</text></svg>"
+    />
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <div class="wrap wide">
+      <header class="top">
+        <a class="brand" href="./"><span class="mark">gr</span>Guided Review</a>
+        <nav class="links">
+          <a href="install.html">Docs</a>
+          <a class="hide-sm" href="https://github.com/HaydenMeloche/guided-review/releases">Releases</a>
+          <a href="https://github.com/HaydenMeloche/guided-review">GitHub</a>
+        </nav>
+      </header>
+      <div class="doc">
+        <aside class="doc-nav">
+          <nav aria-label="Documentation">
+            <p class="nav-title">Documentation</p>
+            <ul>
+              <li><a href="install.html">Install</a></li>
+              <li><a href="usage.html" aria-current="page">Using Guided Review</a></li>
+              <li><a href="configuration.html">Configuration</a></li>
+              <li><a href="repo-config.html">Team configuration</a></li>
+              <li><a href="ci.html">Share tours from CI</a></li>
+              <li><a href="security.html">Privacy and security</a></li>
+              <li><a href="terminals.html">Terminals</a></li>
+            </ul>
+          </nav>
+          <nav aria-label="On this page" class="on-page">
+            <p class="nav-title">On this page</p>
+            <ul>
+              <li><a href="#moving-around">Moving around</a></li>
+              <li><a href="#pick-a-pr">Pick a PR</a></li>
+              <li><a href="#read-the-tour">Read the tour</a></li>
+              <li><a href="#draft-and-submit-comments">Draft and submit comments</a></li>
+              <li><a href="#review-after-a-new-push">Review after a new push</a></li>
+              <li><a href="#respond-to-a-review">Respond to a review</a></li>
+              <li><a href="#checks">Checks</a></li>
+              <li><a href="#merge-a-pr">Merge a PR</a></li>
+              <li><a href="#preview-your-own-branch">Preview your own branch</a></li>
+              <li><a href="#commands-and-options">Commands and options</a></li>
+            </ul>
+          </nav>
+        </aside>
+        <main class="prose">
+          <h1>Using Guided Review</h1>
+          <p>
+            How to pick a PR, read a tour, comment, re-review, respond to a review on your own PR, merge, and preview your own branch. For setup, see <a href="install.html">Install and set up</a>.
+          </p>
+          <h2 id="moving-around"><a class="anchor" href="#moving-around" aria-hidden="true">#</a>Moving around</h2>
+          <p>Three keys move you back on every screen:</p>
+          <ul>
+            <li><code>Esc</code> closes the innermost open thing (a selection, a filter, a popup), or goes up one level. It never quits.</li>
+            <li><code>q</code> goes up one level. On the PR list, and on the briefing of <code>gr preview</code>, it quits.</li>
+            <li><code>Q</code> quits from anywhere, asking first if you have unposted drafts or queued replies. They stay saved either way.</li>
+          </ul>
+          <p>
+            <code>?</code> (or <code>h</code>) lists the current screen&#39;s keys; <code>j</code>/<code>k</code> scroll it. On the briefing and in a chapter, <code>Tab</code> turns to a page
+            explaining the marks. A key with no action on the current screen says so.
+          </p>
+          <h2 id="pick-a-pr"><a class="anchor" href="#pick-a-pr" aria-hidden="true">#</a>Pick a PR</h2>
+          <p>
+            <code>gr</code> opens the PR list. <strong>Review requests</strong> shows PRs waiting for your review, grouped by repository. <strong>Your PRs</strong> shows your own open PRs that need
+            you: unresolved threads, a new review, changes requested, ready to merge, or no reviewers requested. A line under them counts the rest, which wait on reviewers. Each row shows its state
+            and checks (<code>✓ ready to merge</code>, <code>✗ checks failing</code>). On a wide terminal, a preview shows the description, files, checks, review decision, and whether a tour or drafts
+            already exist. The list refreshes every two minutes.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>j</code> / <code>k</code>, <code>g</code> / <code>G</code></td>
+                  <td>Move, or jump to the first or last PR.</td>
+                </tr>
+                <tr>
+                  <td><code>Enter</code></td>
+                  <td>Open the tour, or on your own PR, its <a href="#respond-to-a-review">feedback</a>.</td>
+                </tr>
+                <tr>
+                  <td><code>/</code></td>
+                  <td>Filter by repo, title, author, or label. <code>Esc</code> clears the filter.</td>
+                </tr>
+                <tr>
+                  <td><code>l</code></td>
+                  <td>
+                    Tour your local changes, offered above the list while your branch differs from the default branch. Same as <a href="#preview-your-own-branch"><code>gr preview</code></a
+                    >.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>p</code> / <code>x</code></td>
+                  <td>Open, or dismiss, a PR link found on your clipboard.</td>
+                </tr>
+                <tr>
+                  <td><code>Space</code> / <code>a</code> / <code>d</code></td>
+                  <td>Select a PR, select all shown, and download the selected tours (or the highlighted one) to open later.</td>
+                </tr>
+                <tr>
+                  <td><code>w</code></td>
+                  <td>Show or hide your PRs that are waiting on review.</td>
+                </tr>
+                <tr>
+                  <td><code>M</code> / <code>c</code></td>
+                  <td><a href="#merge-a-pr">Merge</a> the PR, or show its <a href="#checks">checks</a>.</td>
+                </tr>
+                <tr>
+                  <td><code>A</code></td>
+                  <td>On your PR, see <a href="#ask-for-reviews">who is asked to review</a> and ask more people.</td>
+                </tr>
+                <tr>
+                  <td><code>o</code></td>
+                  <td>Open the PR in a browser (over SSH, copy the link).</td>
+                </tr>
+                <tr>
+                  <td><code>r</code></td>
+                  <td>Refresh.</td>
+                </tr>
+                <tr>
+                  <td><code>L</code></td>
+                  <td>Choose a <a href="configuration.html#color-themes">color theme</a>.</td>
+                </tr>
+                <tr>
+                  <td><code>?</code> / <code>q</code></td>
+                  <td>List the keys, or quit.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Guided Review checks out the PR head in a detached worktree under <code>~/.guided-review/worktrees/</code>, so your own checkout is left alone. PRs from other repositories use a cached
+            clone under <code>~/.guided-review/repos/</code>.
+          </p>
+          <p>
+            <code>gr cleanup</code> removes PR worktrees and deletes tours you have not opened in 90 days (<code>--days &lt;n&gt;</code> to change it). Unposted drafts, queued replies, and cached
+            clones are always kept. A lighter cleanup also runs on its own at most once a week.
+          </p>
+          <h2 id="read-the-tour"><a class="anchor" href="#read-the-tour" aria-hidden="true">#</a>Read the tour</h2>
+          <p>
+            The <strong>briefing</strong> opens first. It shows whether the PR can merge, a summary, the author&#39;s description, recent reviewer feedback, the chapters with your progress and a ▲ on
+            risky ones, flagged gaps under <strong>Watch for</strong>, and an overview diagram. Chapter narration may continue in the background (<code>narrating 3/7</code>).
+          </p>
+          <figure class="shot">
+            <a href="images/briefing.webp"
+              ><img
+                src="images/briefing.webp"
+                alt="The briefing screen: whether the PR can merge, a summary of the PR, chapters in reading order with progress and risk, flagged gaps, the author's description, blast radius, and an overview diagram"
+                loading="lazy"
+            /></a>
+          </figure>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>n</code></td>
+                  <td>Start, or resume where you left off.</td>
+                </tr>
+                <tr>
+                  <td><code>j</code> / <code>k</code>, <code>Enter</code>, <code>1</code>–<code>9</code></td>
+                  <td>Select and open a chapter, or open one by number.</td>
+                </tr>
+                <tr>
+                  <td><code>f</code></td>
+                  <td>Cycle the order: <strong>Guided</strong> (recommended), <strong>Risk first</strong>, <strong>Small first</strong>, and <strong>File</strong>.</td>
+                </tr>
+                <tr>
+                  <td><code>r</code> / <code>d</code> / <code>V</code></td>
+                  <td>Read the full description, the overview diagram, or all submitted reviews.</td>
+                </tr>
+                <tr>
+                  <td><code>a</code></td>
+                  <td>Ask about the whole PR.</td>
+                </tr>
+                <tr>
+                  <td><code>D</code></td>
+                  <td>On a re-review, switch between changes only and the full review.</td>
+                </tr>
+                <tr>
+                  <td><code>M</code> / <code>c</code></td>
+                  <td><a href="#merge-a-pr">Merge</a>, or show the <a href="#checks">checks</a>.</td>
+                </tr>
+                <tr>
+                  <td><code>t</code></td>
+                  <td>On your own PR, switch to <a href="#respond-to-a-review">its feedback</a>.</td>
+                </tr>
+                <tr>
+                  <td><code>s</code></td>
+                  <td>Open <a href="#draft-and-submit-comments">submit</a>.</td>
+                </tr>
+                <tr>
+                  <td><code>:</code> / <code>L</code> / <code>?</code> / <code>q</code></td>
+                  <td>Command palette, theme, keys, or back to the PR list.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            A <strong>chapter</strong> shows an explanation, the code hunk, risk and test status, review threads, and linked tests. From 110 columns the tests sit beside the code, and from 140 the
+            chapter list sits on the left. Generated, vendored, and mechanical changes start collapsed. Import-only changes form an optional chapter that <code>n</code>/<code>p</code> skip. Outdated
+            review threads are followed to where their lines are now.
+          </p>
+          <figure class="shot">
+            <a href="images/ask.webp"><img src="images/ask.webp" alt="A question about a changed line, answered inline below the code with file and line references" loading="lazy" /></a>
+          </figure>
+          <p>Press <code>a</code> on a line or range to ask about it. The model can read the whole repository, so answers can cover code outside the diff, and they cite files and lines.</p>
+          <p>
+            Chapters start at entry points such as routes, commands, and handlers, and follow changed code through calls matched by name. They are a reading suggestion, not proof of a call graph. When
+            no entry point is found, the tour uses file order. TypeScript and JavaScript are analysed with the TypeScript compiler; Python, Go, Kotlin, C, C++, Java, Ruby, and Rust with tree-sitter.
+          </p>
+          <h3 id="change-aware-chapters"><a class="anchor" href="#change-aware-chapters" aria-hidden="true">#</a>Change-aware chapters</h3>
+          <p>Some changes are easy to read but hard to judge from a diff. These get their own chapters after the rest, and with a model the explanation says what the change means:</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Chapter</th>
+                  <th>The explanation covers</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Database migrations</td>
+                  <td>Locks and rewrites, possible data loss, rollback, backfills, and deploy order</td>
+                </tr>
+                <tr>
+                  <td>API contracts (OpenAPI, protobuf, GraphQL, Avro)</td>
+                  <td>Which changes break clients and which are additive, and the clients in the repo that rely on them</td>
+                </tr>
+                <tr>
+                  <td>Dependencies and runtimes</td>
+                  <td><code>name old → new</code> with highlights between versions: features, breaking changes, security fixes. New packages get an overview</td>
+                </tr>
+                <tr>
+                  <td>Infrastructure (Terraform, Kubernetes, Helm, and similar)</td>
+                  <td>Resources created, destroyed, or replaced, and IAM, network, scaling, and secret changes</td>
+                </tr>
+                <tr>
+                  <td>CI and workflows</td>
+                  <td>New triggers, permissions, and secrets, and risky patterns such as <code>pull_request_target</code> or unpinned actions</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            A manifest and its lockfile are read together: each dependency hunk lists the lockfile changes it caused, instead of the lockfile&#39;s own diff. A lockfile changed on its own gets a
+            one-page summary.
+          </p>
+          <p>
+            The model has no internet access, so upgrade notes come from a changelog in the checkout when there is one, and are otherwise marked as inferred. To keep a file out of these chapters,
+            classify it with a <a href="repo-config.html#kinds"><code>kinds</code> rule</a>.
+          </p>
+          <h3 id="chapter-keys"><a class="anchor" href="#chapter-keys" aria-hidden="true">#</a>Chapter keys</h3>
+          <p>The key bar shows the common keys. The rest are in the help (<code>?</code>) and the command palette (<code>:</code>).</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>n</code> / <code>p</code></td>
+                  <td>Next hunk (marking this one read), or previous. At the end of the tour, a summary card offers <code>s</code> to submit.</td>
+                </tr>
+                <tr>
+                  <td><code>j</code> / <code>k</code>, <code>J</code> / <code>K</code></td>
+                  <td>Move the cursor one line or ten.</td>
+                </tr>
+                <tr>
+                  <td><code>v</code></td>
+                  <td>Start or end a line range.</td>
+                </tr>
+                <tr>
+                  <td><code>N</code> / <code>P</code>, <code>]</code> / <code>[</code></td>
+                  <td>Next or previous chapter.</td>
+                </tr>
+                <tr>
+                  <td><code>c</code> / <code>C</code></td>
+                  <td>Comment on the line or range, or on the chapter. On your draft, <code>c</code> edits it.</td>
+                </tr>
+                <tr>
+                  <td><code>e</code></td>
+                  <td>Open the review threads on the line. <code>Tab</code> selects a comment, <code>+</code> reacts.</td>
+                </tr>
+                <tr>
+                  <td><code>y</code></td>
+                  <td>Reply to a thread on the line. <code>Enter</code> asks before posting; <code>Ctrl+J</code> adds a line.</td>
+                </tr>
+                <tr>
+                  <td><code>a</code></td>
+                  <td>Ask the model about the selection. <code>Enter</code> asks a follow-up; <code>↑</code>/<code>↓</code> scroll.</td>
+                </tr>
+                <tr>
+                  <td><code>Tab</code> / <code>Shift+Tab</code></td>
+                  <td>Move focus between the chapter list, explanation, code, and tests.</td>
+                </tr>
+                <tr>
+                  <td><code>t</code> / <code>T</code></td>
+                  <td>Focus the tests (or toggle to them when narrow), or hide the test pane.</td>
+                </tr>
+                <tr>
+                  <td><code>U</code></td>
+                  <td>Show or hide notes on possible test gaps.</td>
+                </tr>
+                <tr>
+                  <td><code>d</code></td>
+                  <td>Open the chapter diagram. <code>b</code> there opens it as SVG in your browser.</td>
+                </tr>
+                <tr>
+                  <td><code>r</code></td>
+                  <td>Toggle the raw unified diff.</td>
+                </tr>
+                <tr>
+                  <td><code>S</code></td>
+                  <td>Switch between inline and split view.</td>
+                </tr>
+                <tr>
+                  <td><code>+</code> / <code>-</code></td>
+                  <td>Show more or fewer lines around the hunk.</td>
+                </tr>
+                <tr>
+                  <td><code>w</code></td>
+                  <td>Hide or show whitespace-only changes.</td>
+                </tr>
+                <tr>
+                  <td><code>x</code> / <code>z</code> / <code>u</code></td>
+                  <td>Mark the hunk skipped, deferred, or unread.</td>
+                </tr>
+                <tr>
+                  <td><code>m</code></td>
+                  <td>Move the hunk to another chapter.</td>
+                </tr>
+                <tr>
+                  <td><code>f</code></td>
+                  <td>Change the chapter order.</td>
+                </tr>
+                <tr>
+                  <td><code>D</code></td>
+                  <td>On a re-review, switch between changes only and the full review.</td>
+                </tr>
+                <tr>
+                  <td><code>R</code></td>
+                  <td>Rebuild the tour on a newer PR head.</td>
+                </tr>
+                <tr>
+                  <td><code>i</code></td>
+                  <td>Open the team checklist for this chapter.</td>
+                </tr>
+                <tr>
+                  <td><code>o</code></td>
+                  <td>Open your coding agent in the PR&#39;s checkout with this hunk as its prompt.</td>
+                </tr>
+                <tr>
+                  <td><code>b</code> / <code>s</code></td>
+                  <td>Back to the briefing, or open submit.</td>
+                </tr>
+                <tr>
+                  <td><code>\</code></td>
+                  <td>Show or hide the chapter list.</td>
+                </tr>
+                <tr>
+                  <td><code>:</code></td>
+                  <td>Command palette: every action, chapter, and file.</td>
+                </tr>
+                <tr>
+                  <td><code>L</code></td>
+                  <td>Choose a color theme.</td>
+                </tr>
+                <tr>
+                  <td><code>?</code> / <code>h</code></td>
+                  <td>List the keys and marks.</td>
+                </tr>
+                <tr>
+                  <td><code>Esc</code> / <code>q</code> / <code>Q</code></td>
+                  <td>Back to the briefing, or quit.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Moved code is marked with where its other half is, such as <code>↕ 7 lines moved from line 66</code>.</p>
+          <h3 id="tests-risk-and-review-prompts"><a class="anchor" href="#tests-risk-and-review-prompts" aria-hidden="true">#</a>Tests, risk, and review prompts</h3>
+          <p>
+            Tests are linked by coverage data, names, and file conventions. Only coverage marks a hunk tested; a name match marks it partial. New or changed test cases show their diff in the Tests
+            pane. Possible test gaps show as a line in the explanation; <code>U</code> expands them.
+          </p>
+          <p>
+            Risk scores flag changes to authentication, payments, migrations, public APIs, concurrency, and similar areas. The briefing may also flag likely missing migrations, changesets, docs, or
+            translations. These are prompts to look, not verdicts. The model can raise a hunk&#39;s risk but never lower it, so a PR&#39;s text can&#39;t talk the tour out of a warning.
+          </p>
+          <p>The agent pre-checks the team&#39;s checklist items; confirm each one with <code>i</code>. Confirmations stay local.</p>
+          <h2 id="draft-and-submit-comments"><a class="anchor" href="#draft-and-submit-comments" aria-hidden="true">#</a>Draft and submit comments</h2>
+          <p>Select a line or range and press <code>c</code>, or <code>C</code> for the whole chapter. Comments stay local drafts until you submit.</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>In the comment editor</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>Tab</code> / <code>Shift+Tab</code></td>
+                  <td>Complete a suggestion, or cycle the label: blocking, question, suggestion, nit.</td>
+                </tr>
+                <tr>
+                  <td><code>Enter</code> / <code>Ctrl+J</code></td>
+                  <td>Save, or add a line (<code>Shift+Enter</code> too, where the terminal supports it).</td>
+                </tr>
+                <tr>
+                  <td><code>@</code></td>
+                  <td>Mention someone, or <a href="#reference-code-in-a-comment">reference code</a>.</td>
+                </tr>
+                <tr>
+                  <td><code>Ctrl+T</code></td>
+                  <td>Have the model propose a <a href="#ai-code-suggestions">code suggestion</a>.</td>
+                </tr>
+                <tr>
+                  <td><code>Ctrl+O</code></td>
+                  <td>Write the comment in <code>$EDITOR</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>Ctrl+G</code> / <code>Ctrl+D</code></td>
+                  <td>Write a GitHub code suggestion in <code>$EDITOR</code>, or remove it.</td>
+                </tr>
+                <tr>
+                  <td><code>Ctrl+X</code></td>
+                  <td>Delete the draft (press twice).</td>
+                </tr>
+                <tr>
+                  <td><code>Esc</code></td>
+                  <td>Close the innermost layer; with unsaved text, press again to discard.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h3 id="reference-code-in-a-comment"><a class="anchor" href="#reference-code-in-a-comment" aria-hidden="true">#</a>Reference code in a comment</h3>
+          <p>
+            Type <code>@</code> and part of a name to insert a reference to a function, declaration, file, line range, or review thread, such as <code>`releaseInventory()`</code> or
+            <code>`stock.ts:84-96`</code>. When the review posts, each becomes a link to that code at the commit you reviewed, so it stays correct after new pushes.
+          </p>
+          <p>
+            People appear first, then code. On a code row, <code>→</code> opens a preview where <code>j</code>/<code>k</code> and <code>v</code> pick exact lines and <code>Enter</code> inserts them.
+            Filters narrow the list:
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Lists</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>@f:</code> / <code>@s:</code></td>
+                  <td>Files, or declarations.</td>
+                </tr>
+                <tr>
+                  <td><code>@callers:</code></td>
+                  <td>Possible callers of the commented code, matched by name.</td>
+                </tr>
+                <tr>
+                  <td><code>@tests:</code></td>
+                  <td>Tests linked to the commented change.</td>
+                </tr>
+                <tr>
+                  <td><code>@threads:</code></td>
+                  <td>Review threads on the PR.</td>
+                </tr>
+                <tr>
+                  <td><code>@recent:</code></td>
+                  <td>Places you visited this session.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Typing the start of a filter name (<code>@thr</code>) offers it at the top of the list.</p>
+          <h3 id="ai-code-suggestions"><a class="anchor" href="#ai-code-suggestions" aria-hidden="true">#</a>AI code suggestions</h3>
+          <p>
+            <code>Ctrl+T</code> asks the model for replacement code for the commented lines. Add an optional instruction and press <code>Enter</code>. The model sees the lines, the enclosing
+            declaration, linked tests, callers, and code you referenced. The proposal is marked <strong>not verified</strong>: it is checked for shape but never compiled or run. <code>Enter</code> or
+            <code>a</code> accepts it, <code>r</code> refines it, <code>e</code> edits it in <code>$EDITOR</code>, and <code>Esc</code> discards it. Suggestions only work on new lines within one hunk,
+            as on GitHub.
+          </p>
+          <h3 id="submit"><a class="anchor" href="#submit" aria-hidden="true">#</a>Submit</h3>
+          <p>Press <code>s</code> to see your drafts grouped by label, with unread work and a suggested verdict.</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>e</code> / <code>x</code></td>
+                  <td>Edit or delete a draft.</td>
+                </tr>
+                <tr>
+                  <td><code>a</code> / <code>c</code> / <code>r</code></td>
+                  <td>Set the verdict: Approve, Comment, or Request changes.</td>
+                </tr>
+                <tr>
+                  <td><code>w</code></td>
+                  <td>Write a review summary.</td>
+                </tr>
+                <tr>
+                  <td><code>p</code></td>
+                  <td>Preview a draft as it will post.</td>
+                </tr>
+                <tr>
+                  <td><code>P</code></td>
+                  <td>Post every draft as <strong>one GitHub review</strong>, after you confirm.</td>
+                </tr>
+                <tr>
+                  <td><code>?</code></td>
+                  <td>List the keys.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>A draft whose line left the diff moves to the nearest line or the review body, and its row says so before you post.</p>
+          <h2 id="review-after-a-new-push"><a class="anchor" href="#review-after-a-new-push" aria-hidden="true">#</a>Review after a new push</h2>
+          <p>
+            When the author pushes, a bar offers <code>R</code> to rebuild on the new head. Drafts and reading state carry over. The new tour starts in <strong>changes only</strong> mode, showing just
+            the hunks that changed since your last pass; <code>D</code> switches to the full review and back. The briefing also says whether the lines you commented on changed or your threads were
+            resolved.
+          </p>
+          <h2 id="respond-to-a-review"><a class="anchor" href="#respond-to-a-review" aria-hidden="true">#</a>Respond to a review</h2>
+          <p>
+            On your own PR, <code>gr feedback</code> (or <code>gr feedback 1234</code>, a URL, or <code>owner/repo#1234</code>) turns the review into a work list. <code>Enter</code> on a PR under
+            <strong>Your PRs</strong> opens it too. It uses an existing tour of the head, or builds a quick static one.
+          </p>
+          <h3 id="the-feedback-briefing"><a class="anchor" href="#the-feedback-briefing" aria-hidden="true">#</a>The feedback briefing</h3>
+          <p>
+            The left side shows the PR: whether it can merge, a summary, your description, and the feedback chapters. The right side shows the feedback: what changed since your last visit, each
+            reviewer&#39;s verdict, the checks, thread counts, and with a model, themes that group related comments.
+          </p>
+          <figure class="shot">
+            <a href="images/feedback.webp"
+              ><img
+                src="images/feedback.webp"
+                alt="The feedback briefing: whether the PR can merge, its summary and your description, and the feedback chapters on the left; reviews, checks, thread counts, and themes on the right"
+                loading="lazy"
+            /></a>
+          </figure>
+          <p>
+            Threads are grouped by the code they&#39;re on, with change requests first. <strong>Probably addressed</strong> marks a thread whose lines your own commits changed after it was written,
+            with no reviewer reply since. It&#39;s a prompt to check; gr never resolves a thread on its own.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>n</code> / <code>Enter</code></td>
+                  <td>Start or resume, or open the selected chapter.</td>
+                </tr>
+                <tr>
+                  <td><code>s</code></td>
+                  <td>Open the send screen.</td>
+                </tr>
+                <tr>
+                  <td><code>y</code></td>
+                  <td><a href="#comment-on-the-pr">Comment on the PR</a>.</td>
+                </tr>
+                <tr>
+                  <td><code>V</code> / <code>g</code> / <code>r</code></td>
+                  <td>Read the review summaries, the PR&#39;s general comments, or your full description.</td>
+                </tr>
+                <tr>
+                  <td><code>A</code></td>
+                  <td><a href="#ask-for-reviews">Ask for reviews</a>.</td>
+                </tr>
+                <tr>
+                  <td><code>c</code> / <code>M</code></td>
+                  <td><a href="#checks">Checks</a>, or <a href="#merge-a-pr">merge</a>.</td>
+                </tr>
+                <tr>
+                  <td><code>t</code></td>
+                  <td>Open the full tour; <code>t</code> in the tour comes back.</td>
+                </tr>
+                <tr>
+                  <td><code>Y</code></td>
+                  <td>Copy the PR&#39;s link.</td>
+                </tr>
+                <tr>
+                  <td><code>R</code></td>
+                  <td>Read the feedback again.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h3 id="feedback-keys"><a class="anchor" href="#feedback-keys" aria-hidden="true">#</a>Feedback keys</h3>
+          <p>Each thread shows its code with the commented line marked, and the discussion. Files the comment links to, and code it names, show on the right at the commit the link names.</p>
+          <figure class="shot">
+            <a href="images/feedback-thread.webp"
+              ><img
+                src="images/feedback-thread.webp"
+                alt="A review thread in gr feedback: the commented code, the discussion, and the files the comment links to, read at the commit it names"
+                loading="lazy"
+            /></a>
+          </figure>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>n</code> / <code>p</code>, <code>]</code> / <code>[</code></td>
+                  <td>Next or previous thread, or chapter.</td>
+                </tr>
+                <tr>
+                  <td><code>j</code> / <code>k</code>, <code>J</code> / <code>K</code></td>
+                  <td>Scroll the discussion. <code>Tab</code> selects a comment.</td>
+                </tr>
+                <tr>
+                  <td><code>y</code></td>
+                  <td>Write or edit a reply. <code>Enter</code> queues it, <code>Ctrl+R</code> marks the thread to resolve on send, <code>Esc</code> cancels.</td>
+                </tr>
+                <tr>
+                  <td><code>Ctrl+T</code></td>
+                  <td>In the reply editor, have the model draft a reply.</td>
+                </tr>
+                <tr>
+                  <td><code>Space</code></td>
+                  <td>Triage: <code>1</code> will do, <code>2</code> done, <code>3</code> won&#39;t do, <code>4</code> discuss. Triage stays local.</td>
+                </tr>
+                <tr>
+                  <td><code>Z</code></td>
+                  <td>Resolve or unresolve the thread now.</td>
+                </tr>
+                <tr>
+                  <td><code>+</code></td>
+                  <td>React to the selected comment.</td>
+                </tr>
+                <tr>
+                  <td><code>a</code></td>
+                  <td>Ask the model about the thread.</td>
+                </tr>
+                <tr>
+                  <td><code>o</code></td>
+                  <td>Show a prompt to paste into your coding agent to make the fix.</td>
+                </tr>
+                <tr>
+                  <td><code>e</code></td>
+                  <td>Give the discussion or the code more room.</td>
+                </tr>
+                <tr>
+                  <td><code>l</code></td>
+                  <td>Show the next linked file.</td>
+                </tr>
+                <tr>
+                  <td><code>H</code></td>
+                  <td>Show or hide resolved threads.</td>
+                </tr>
+                <tr>
+                  <td><code>s</code> / <code>M</code> / <code>Y</code> / <code>L</code></td>
+                  <td>Send, merge, copy the link, or change the theme.</td>
+                </tr>
+                <tr>
+                  <td><code>R</code></td>
+                  <td>Read the feedback again, or rebuild after you push. Triage and replies are kept.</td>
+                </tr>
+                <tr>
+                  <td><code>b</code>, <code>q</code>, <code>Esc</code> / <code>Q</code></td>
+                  <td>Back to the feedback briefing, or quit.</td>
+                </tr>
+                <tr>
+                  <td><code>?</code> / <code>h</code></td>
+                  <td>List the keys.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h3 id="send"><a class="anchor" href="#send" aria-hidden="true">#</a>Send</h3>
+          <p>
+            The send screen lists your queued replies and comment, the threads they will resolve, and reviewers to ask again. Nothing reaches GitHub until you press <code>P</code> and confirm. Replies
+            post as one review, so each reviewer gets one notification. Threads resolve after their replies, then the ticked reviewers are re-requested.
+          </p>
+          <p>
+            <code>j</code>/<code>k</code> move, <code>e</code> edits, <code>z</code> toggles resolve, <code>x</code> deletes, <code>r</code> ticks a reviewer to re-request, and <code>Esc</code> goes
+            back. After a new push, <code>P</code> waits until <code>R</code> reads the feedback again.
+          </p>
+          <h3 id="comment-on-the-pr"><a class="anchor" href="#comment-on-the-pr" aria-hidden="true">#</a>Comment on the PR</h3>
+          <p>
+            A review summary has no thread to reply in. Press <code>y</code> on the feedback briefing to write a comment on the PR&#39;s conversation, optionally quoting a summary or comment (pick it
+            with <code>j</code>/<code>k</code> and <code>Enter</code>). <code>@</code> completes names, <code>Enter</code> queues it, <code>Shift+Enter</code> adds a line, and
+            <code>Esc</code> cancels. It posts with your replies.
+          </p>
+          <h3 id="ask-for-reviews"><a class="anchor" href="#ask-for-reviews" aria-hidden="true">#</a>Ask for reviews</h3>
+          <p>Press <code>A</code> on the feedback briefing or on your PR in the list to see who is asked to review. These act on GitHub at once:</p>
+          <ul>
+            <li><code>a</code> (or <code>Enter</code>) asks more people or <code>@org/team</code>, with completion.</li>
+            <li><code>x</code> withdraws an unanswered request.</li>
+            <li><code>r</code> asks a reviewer to review again.</li>
+          </ul>
+          <p><code>j</code>/<code>k</code> select, and <code>Esc</code> closes.</p>
+          <h2 id="checks"><a class="anchor" href="#checks" aria-hidden="true">#</a>Checks</h2>
+          <p>
+            Press <code>c</code> on the PR list or a briefing to see the head&#39;s checks, failures first, with duration and whether each is required. Only each check&#39;s latest run counts. Running
+            checks refresh every 20 seconds; <code>R</code> refreshes now, and <code>?</code> lists the keys.
+          </p>
+          <p>
+            <code>Enter</code> on a GitHub Actions job opens its log at the first error. <code>j</code>/<code>k</code> scroll, <code>d</code>/<code>u</code> move half a page (<code>PgDn</code>/<code
+              >PgUp</code
+            >
+            a whole one), <code>g</code>/<code>G</code> go to the top or end, <code>n</code>/<code>N</code> jump between errors, and <code>Esc</code> goes back. For other checks,
+            <code>Enter</code> opens their page in the browser; <code>o</code> opens any check&#39;s page.
+          </p>
+          <h2 id="merge-a-pr"><a class="anchor" href="#merge-a-pr" aria-hidden="true">#</a>Merge a PR</h2>
+          <p>Press <code>M</code> on the PR list, a briefing, or in the feedback. The dialog shows whether GitHub will let the PR merge and what blocks it. You need write access.</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>m</code></td>
+                  <td>Choose squash, merge commit, or rebase, from what the repository allows.</td>
+                </tr>
+                <tr>
+                  <td><code>e</code> / <code>b</code></td>
+                  <td>Edit the commit title or body. With a model, the message is drafted for you.</td>
+                </tr>
+                <tr>
+                  <td><code>g</code> / <code>x</code></td>
+                  <td>Draft the message again, or stop drafting and use GitHub&#39;s default.</td>
+                </tr>
+                <tr>
+                  <td><code>d</code></td>
+                  <td>Delete the branch after merging.</td>
+                </tr>
+                <tr>
+                  <td><code>u</code></td>
+                  <td>Update a branch that is behind its base: <code>Enter</code> merges the base in, <code>r</code> rebases.</td>
+                </tr>
+                <tr>
+                  <td><code>r</code></td>
+                  <td>Mark a draft PR ready for review.</td>
+                </tr>
+                <tr>
+                  <td><code>P</code></td>
+                  <td>Merge, after you confirm.</td>
+                </tr>
+                <tr>
+                  <td><code>?</code></td>
+                  <td>List the keys.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>The merge names the head commit you saw, so GitHub refuses it if someone pushed in the meantime.</p>
+          <h2 id="preview-your-own-branch"><a class="anchor" href="#preview-your-own-branch" aria-hidden="true">#</a>Preview your own branch</h2>
+          <p>
+            <code>gr preview</code> (or <code>l</code> on the PR list) tours your branch before you open a PR, uncommitted changes included, against its merge base with the default branch. Commit
+            messages stand in for the description. It works without <code>gh</code>.
+          </p>
+          <p>If the tour includes changes that aren&#39;t yours, your copy of the default branch is out of date: run <code>git fetch</code> and try again.</p>
+          <h2 id="commands-and-options"><a class="anchor" href="#commands-and-options" aria-hidden="true">#</a>Commands and options</h2>
+          <pre><code class="language-sh">gr                            # choose from PRs awaiting your review
+gr review 1234               # PR number in the current repository
+gr review https://github.com/owner/repo/pull/1234
+gr review owner/repo#1234
+gr review                    # current branch&#39;s open PR
+gr feedback                  # work through the review on your own PR
+gr preview                   # tour the current branch before opening a PR
+gr open 1234                 # open a tour in a new tmux or Terminal window
+gr open --preview            # open gr preview in a new tmux or Terminal window
+gr build 1234 --comment      # build a tour without the TUI and post it to the PR (for CI)
+gr config                    # set up or change the model, GitHub access, and theme
+gr cleanup                   # remove managed worktrees and prune old tours
+</code></pre>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Option</th>
+                  <th>Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>--no-agent</code></td>
+                  <td>Build the tour from static analysis only, with no model calls.</td>
+                </tr>
+                <tr>
+                  <td><code>--fresh</code></td>
+                  <td>Rebuild the tour even if one is cached or shared on the PR.</td>
+                </tr>
+                <tr>
+                  <td><code>--comment</code></td>
+                  <td>With <code>build</code>, post the tour to the PR. See <a href="ci.html">Share tours from CI</a>.</td>
+                </tr>
+                <tr>
+                  <td><code>--out &lt;file&gt;</code></td>
+                  <td>With <code>build</code>, write the tour JSON to a file, or <code>-</code> for stdout.</td>
+                </tr>
+                <tr>
+                  <td><code>--preview</code></td>
+                  <td>With <code>open</code>, open <code>gr preview</code> instead of a PR.</td>
+                </tr>
+                <tr>
+                  <td><code>--days &lt;n&gt;</code></td>
+                  <td>With <code>cleanup</code>, delete tours not opened in this many days (default 90).</td>
+                </tr>
+                <tr>
+                  <td><code>--force</code></td>
+                  <td>With <code>install-claude-command</code> or <code>install-codex-skill</code>, replace an existing file.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Models and keys live in the config file, not in options; see <a href="configuration.html">Configuration</a>. <code>GR_DEBUG=1</code> prints stack traces, and
+            <code>GR_DEBUG_MODEL</code> logs model calls (see <a href="configuration.html#debugging-model-calls">Debugging model calls</a>). <code>gr</code> checks npm for updates once a day and
+            offers them before a tour; <code>GR_NO_UPDATE_CHECK=1</code> turns that off. For terminal support and tmux settings, see <a href="terminals.html">Terminals</a>.
+          </p>
+          <h3 id="use-from-claude-code-or-codex"><a class="anchor" href="#use-from-claude-code-or-codex" aria-hidden="true">#</a>Use from Claude Code or Codex</h3>
+          <ul>
+            <li>
+              <strong>Claude Code:</strong> <code>gr install-claude-command</code> adds a <code>/guided-review</code> command that opens <code>gr preview</code> of your local changes in a new tmux or
+              Terminal window.
+            </li>
+            <li><strong>Codex:</strong> <code>gr install-codex-skill</code> adds a <code>guided-review</code> skill that does the same. Restart Codex afterwards.</li>
+          </ul>
+          <p>Both stop rather than overwrite a file you&#39;ve changed; pass <code>--force</code> to replace it.</p>
+        </main>
+      </div>
+      <footer>
+        <span>MIT licensed</span>
+        <span
+          ><a href="https://github.com/HaydenMeloche/guided-review">GitHub</a> · <a href="https://github.com/HaydenMeloche/guided-review/releases">Releases</a> ·
+          <a href="https://www.npmjs.com/package/@haydenmeloche/guided-review">npm</a> · <a href="https://github.com/HaydenMeloche/guided-review/blob/master/ARCHITECTURE.md">Architecture</a></span
+        >
+      </footer>
+    </div>
+  </body>
+</html>

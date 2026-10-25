@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { documents, section } from './helpers/usageDoc.js';
 import { docKeys, helpOf, type KeyDef } from '../src/tui/keys.js';
 import { CHECK_LOG_KEYS, CHECKS_KEYS, MERGE_KEYS, PICKER_KEYS, REVIEW_BRIEFING_KEYS, SUBMIT_KEYS, mergeBar, pickerBar } from '../src/tui/screenKeys.js';
 
@@ -7,8 +8,6 @@ import { CHECK_LOG_KEYS, CHECKS_KEYS, MERGE_KEYS, PICKER_KEYS, REVIEW_BRIEFING_K
 const pairs = (hints: [string, string, string?][]) => hints.map(([k, label]) => [k, label]);
 
 const read = (rel: string) => fs.readFileSync(new URL(rel, import.meta.url), 'utf8');
-const usage = read('../docs/usage.md');
-const section = (from: string, to: string) => usage.slice(usage.indexOf(from), usage.indexOf(to));
 
 // Every `input === 'x'` a screen's handlers read, leaving out the Ctrl chords.
 function literals(src: string): Set<string> {
@@ -18,11 +17,11 @@ function literals(src: string): Set<string> {
 const chars = (defs: KeyDef<never>[]) => new Set(defs.flatMap((d) => d.keys.filter((k) => k.length === 1)));
 
 const screens: [string, string, KeyDef<never>[], string][] = [
-  ['the PR list', '../src/tui/PickerScreen.tsx', PICKER_KEYS, section('## Pick a PR', '## Read the tour')],
-  ['the briefing', '../src/tui/BriefingScreen.tsx', REVIEW_BRIEFING_KEYS, section('## Read the tour', '### Change-aware chapters')],
-  ['the submit screen', '../src/tui/SubmitScreen.tsx', SUBMIT_KEYS, section('## Draft and submit comments', '## Review after a new push')],
-  ['the merge dialog', '../src/tui/MergeScreen.tsx', MERGE_KEYS, section('## Merge a PR', '## Preview your own branch')],
-  ['checks', '../src/tui/ChecksScreen.tsx', [...CHECKS_KEYS, ...CHECK_LOG_KEYS] as KeyDef<never>[], section('## Checks', '## Merge a PR')],
+  ['the PR list', '../src/tui/PickerScreen.tsx', PICKER_KEYS, section('pick-a-pr', 'read-the-tour')],
+  ['the briefing', '../src/tui/BriefingScreen.tsx', REVIEW_BRIEFING_KEYS, section('read-the-tour', 'change-aware-chapters')],
+  ['the submit screen', '../src/tui/SubmitScreen.tsx', SUBMIT_KEYS, section('draft-and-submit-comments', 'review-after-a-new-push')],
+  ['the merge dialog', '../src/tui/MergeScreen.tsx', MERGE_KEYS, section('merge-a-pr', 'preview-your-own-branch')],
+  ['checks', '../src/tui/ChecksScreen.tsx', [...CHECKS_KEYS, ...CHECK_LOG_KEYS] as KeyDef<never>[], section('checks', 'merge-a-pr')],
 ];
 
 describe('screen keys', () => {
@@ -34,8 +33,8 @@ describe('screen keys', () => {
       expect(unlisted).toEqual([]);
     });
 
-    it(`has every key ${name} lists in docs/usage.md`, () => {
-      const missing = docKeys(defs).filter((k) => !docs.includes(`\`${k}\``));
+    it(`has every key ${name} lists in docs/usage.html`, () => {
+      const missing = docKeys(defs).filter((k) => !documents(docs, k));
       expect(missing).toEqual([]);
     });
   }

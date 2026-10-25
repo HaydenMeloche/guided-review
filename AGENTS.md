@@ -31,7 +31,7 @@ If a change alters how a screen looks, it shows up as a diff of the golden scree
 - Edit `src/`, not `dist/`. `dist/` and `coverage/` are build output.
 - Pass text that comes from GitHub or a model through `sanitizeTerminal` (or `renderMarkdown`) before it reaches `<Text>`.
 - `claude/` and `codex/` are skills shipped to users of `gr`. Agent config for working on this repo lives in `.claude/`.
-- When you change a command, flag, key, or config option, update `docs/` and the README to match.
+- When you change a command, flag, key, or config option, update the matching page in `docs/` (the website; the README stays brief and links to it).
 
 ## Commits and releases
 

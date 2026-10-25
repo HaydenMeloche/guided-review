@@ -1,13 +1,13 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { documents, section } from './helpers/usageDoc.js';
 import { BRIEFING_KEYS, docKeys, REPLY_CTRL_DOC, REPLY_CTRL_KEYS, SEND_KEYS, THREAD_KEYS, barOf, briefingBar, sendBar, threadBar, type KeyDef } from '../src/tui/author/keys.js';
 
 // The bar's hints without their groups.
 const pairs = (hints: [string, string, string?][]) => hints.map(([k, label]) => [k, label]);
 
 const read = (rel: string) => fs.readFileSync(new URL(rel, import.meta.url), 'utf8');
-const usage = read('../docs/usage.md');
-const section = usage.slice(usage.indexOf('## Respond to a review'), usage.indexOf('## Checks'));
+const feedback = section('respond-to-a-review', 'checks');
 
 // Every `input === 'x'` a screen's handlers read, leaving out the Ctrl chords.
 function literals(src: string): Set<string> {
@@ -31,15 +31,15 @@ describe('feedback keys', () => {
       expect(unlisted).toEqual([]);
     });
 
-    it(`has every key ${name} lists in docs/usage.md`, () => {
-      const missing = docKeys(defs).filter((k) => !section.includes(`\`${k}\``));
+    it(`has every key ${name} lists in docs/usage.html`, () => {
+      const missing = docKeys(defs).filter((k) => !documents(feedback, k));
       expect(missing).toEqual([]);
     });
   }
 
   it('documents the reply editor’s Ctrl keys', () => {
     expect(REPLY_CTRL_KEYS).toHaveLength(REPLY_CTRL_DOC.length);
-    expect(REPLY_CTRL_DOC.filter((k) => !section.includes(`\`${k}\``))).toEqual([]);
+    expect(REPLY_CTRL_DOC.filter((k) => !documents(feedback, k))).toEqual([]);
   });
 });
 

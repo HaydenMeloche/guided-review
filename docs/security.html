@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Data, privacy, and security · Guided Review</title>
+    <meta name="description" content="What Guided Review sends where, what it saves, and its security model." />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232f6f5e'/><text x='16' y='22' font-family='monospace' font-size='15' font-weight='700' fill='white' text-anchor='middle'>gr</text></svg>"
+    />
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <div class="wrap wide">
+      <header class="top">
+        <a class="brand" href="./"><span class="mark">gr</span>Guided Review</a>
+        <nav class="links">
+          <a href="install.html">Docs</a>
+          <a class="hide-sm" href="https://github.com/HaydenMeloche/guided-review/releases">Releases</a>
+          <a href="https://github.com/HaydenMeloche/guided-review">GitHub</a>
+        </nav>
+      </header>
+      <div class="doc">
+        <aside class="doc-nav">
+          <nav aria-label="Documentation">
+            <p class="nav-title">Documentation</p>
+            <ul>
+              <li><a href="install.html">Install</a></li>
+              <li><a href="usage.html">Using Guided Review</a></li>
+              <li><a href="configuration.html">Configuration</a></li>
+              <li><a href="repo-config.html">Team configuration</a></li>
+              <li><a href="ci.html">Share tours from CI</a></li>
+              <li><a href="security.html" aria-current="page">Privacy and security</a></li>
+              <li><a href="terminals.html">Terminals</a></li>
+            </ul>
+          </nav>
+          <nav aria-label="On this page" class="on-page">
+            <p class="nav-title">On this page</p>
+            <ul>
+              <li><a href="#data-and-privacy">Data and privacy</a></li>
+              <li><a href="#security-model">Security model</a></li>
+              <li><a href="#saved-data">Saved data</a></li>
+            </ul>
+          </nav>
+        </aside>
+        <main class="prose">
+          <h1>Data, privacy, and security</h1>
+          <p>What Guided Review sends where, what it stores locally, and how it limits what a model can do with untrusted PR content.</p>
+          <h2 id="data-and-privacy"><a class="anchor" href="#data-and-privacy" aria-hidden="true">#</a>Data and privacy</h2>
+          <p>Guided Review has no telemetry and runs no server of its own. It sends data to these places only:</p>
+          <ul>
+            <li>
+              <strong>Your model provider.</strong> The PR description, diff, review threads, linked issues from the PR&#39;s own repository, and any repository files the agent reads go to the
+              provider in your config (Anthropic, OpenAI, Codex, Cursor, Bedrock, Vertex, or your compatible endpoint). With no AI model chosen in <code>gr config</code>, or with
+              <code>--no-agent</code>, nothing goes to a model.
+            </li>
+            <li>
+              <strong>GitHub, through <code>gh</code> or your personal access token.</strong> It reads PR data, and it writes only when you act: posting a review (<code>P</code> on the submit popup),
+              replying to a thread, adding a reaction, resolving a thread (<code>Z</code>), sending queued replies, a comment on the PR&#39;s conversation, resolves, and a re-request for review (<code
+                >P</code
+              >
+              on the send screen), asking for or withdrawing a review request (<code>A</code>), marking a draft ready for review (<code>r</code> in the merge dialog), updating a PR&#39;s branch from
+              its base (<code>u</code> in the merge dialog), or merging a PR (<code>P</code> in the merge dialog).
+            </li>
+            <li>
+              <strong>Your <code>origin</code> remote, for <code>gr preview</code> only.</strong> When your clone doesn&#39;t already record origin&#39;s default branch, <code>gr preview</code> asks
+              origin for it with <code>git ls-remote</code>, using your usual git credentials. It never prompts for a password or passphrase, and it sends nothing else (see
+              <a href="usage.html#preview-your-own-branch">Preview your own branch</a>).
+            </li>
+          </ul>
+          <p>
+            <code>gr preview</code> tours your real checkout, so your uncommitted changes go to the model, and the agent can read any file in that checkout, including gitignored ones such as
+            <code>.env</code>. Linked issues in other repositories are shown as links but never fetched.
+          </p>
+          <p>Local data:</p>
+          <ul>
+            <li><code>~/.guided-review/</code> holds drafts, reading state, cached tours and model output, worktrees, and cached clones. The directory is kept owner-only (<code>0700</code>).</li>
+            <li>
+              For Q&amp;A, the Claude Code provider saves session transcripts where Claude Code normally does (<code>~/.claude/projects/</code>), so follow-up questions can resume them; briefing and
+              narration runs are not saved there. The Codex provider saves its sessions under <code>~/.codex/sessions/</code>, and the Cursor provider saves its agents in the Cursor SDK&#39;s local
+              store.
+            </li>
+          </ul>
+          <h2 id="security-model"><a class="anchor" href="#security-model" aria-hidden="true">#</a>Security model</h2>
+          <p>PR content is untrusted: a diff, description, or comment can contain text aimed at the model. Guided Review limits what a model can do with it:</p>
+          <ul>
+            <li>
+              <strong>Claude Code provider.</strong> A <code>PreToolUse</code> hook checks every tool call, including ones Claude Code would approve on its own. <code>Read</code>, <code>Grep</code>,
+              and <code>Glob</code> are denied outside the worktree, after resolving symlinks, so a symlink committed in the PR cannot point the agent at your files. The shell is limited to an
+              allowlist of read-only <code>git</code> and <code>gh</code> commands. Flags that write files, run programs, or take a file path outside the worktree are refused. <code>gh</code> is
+              pinned to the PR&#39;s own repository, and git runs without external diff or textconv drivers.
+            </li>
+            <li>
+              <strong>Codex provider.</strong> Runs under a permission profile that cannot read your home directory, write files, or reach the network (see
+              <a href="configuration.html#codex">Codex</a>).
+            </li>
+            <li>
+              <strong>Anthropic API, Cursor, OpenAI, and compatible endpoints.</strong> These get <code>read_file</code>, <code>search_repo</code>, and <code>git_history</code>, which resolve paths
+              inside the worktree. Remote endpoints must use HTTPS.
+            </li>
+            <li>
+              <strong>Files from the PR.</strong> Static analysis reads only regular files inside the worktree, up to a size limit, and never follows symlinks. Review configuration comes from the
+              merge base (see <a href="repo-config.html">Team configuration</a>).
+            </li>
+            <li>
+              <strong>Terminal output.</strong> Control characters and escape sequences are stripped from PR text, CI job logs, and model output before they reach your terminal, so a PR title cannot
+              write to your clipboard or redraw the screen. Image links show their host.
+            </li>
+            <li>
+              <strong>Shared tours.</strong> A tour posted to the PR is imported only from <code>github-actions[bot]</code>, and only when its code matches the PR&#39;s diff (see
+              <a href="ci.html">Share tours from CI</a>). Its narration was written by the CI job&#39;s model and goes through the same terminal sanitizing as local model output.
+            </li>
+            <li>
+              <strong>GitHub writes.</strong> A review posts only after you press <code>P</code> and confirm. Thread replies in a review tour post when you press Enter in the reply editor, and
+              reactions post when you choose one. In <code>gr feedback</code>, replies are queued locally and post only from the send screen after <code>P</code> and a confirmation;
+              <code>Z</code> resolves a thread only after its own confirmation. A merge happens only after <code>P</code> and a confirmation in the merge dialog, and names the head commit it showed
+              you, so a later push makes GitHub refuse it. Updating a branch works the same way: only after <code>u</code> and a confirmation, naming the head it showed you. In the reviewers popup
+              (<code>A</code>), a review request goes out when you press <code>Enter</code> on the names you typed or <code>r</code> on a reviewer, and <code>x</code> withdraws one, each without a
+              further confirmation, as on GitHub. Nothing posts on its own, and no thread is ever resolved automatically.
+            </li>
+            <li>
+              <strong>Review comments and your coding agent.</strong> A review comment is text from someone else. <code>o</code> in <code>gr feedback</code> writes a prompt for your coding agent that
+              quotes the reviewer&#39;s text under a header marking it as untrusted, shows it to you, and copies it to the clipboard when you press <code>Enter</code>. gr never starts an agent from
+              <code>gr feedback</code>: you paste the prompt into your own agent, in your own checkout, where it runs with its own permissions, so read the prompt first.
+            </li>
+            <li>
+              <strong>Model prompts in <code>gr feedback</code>.</strong> Themes, thread classes, drafted replies, and merge commit messages are written by your configured model with the same
+              read-only tools as the tour, and their prompts mark review comments, descriptions, and commit messages as untrusted data. A drafted reply or commit message is shown as a proposal and
+              posts only as part of a send or merge you confirm.
+            </li>
+            <li><code>~/.guided-review/config.json</code> is written with owner-only permissions. Prefer <code>apiKeyEnv</code> over storing <code>apiKey</code> in the file.</li>
+          </ul>
+          <p>Model output is still text from a model that has read untrusted input. Treat narration as a reading aid, not a verdict.</p>
+          <h2 id="saved-data"><a class="anchor" href="#saved-data" aria-hidden="true">#</a>Saved data</h2>
+          <p>
+            Tours, read/skipped/deferred state, drafts, position, chapter moves, checklist confirmations, and for <code>gr feedback</code> your thread triage, queued replies, what your last visit saw,
+            and the model&#39;s themes and classes are saved in SQLite at <code>~/.guided-review/gr.db</code>. Read state uses hunk content rather than line number, so it can survive a new push. A
+            completed tour is cached by PR head and model routing and opens immediately, while review threads refresh in the background; use <code>--fresh</code> to rebuild it. If narration stopped
+            partway (for example, you quit or the model was unavailable), reopening the PR narrates only the chapters that are missing.
+          </p>
+        </main>
+      </div>
+      <footer>
+        <span>MIT licensed</span>
+        <span
+          ><a href="https://github.com/HaydenMeloche/guided-review">GitHub</a> · <a href="https://github.com/HaydenMeloche/guided-review/releases">Releases</a> ·
+          <a href="https://www.npmjs.com/package/@haydenmeloche/guided-review">npm</a> · <a href="https://github.com/HaydenMeloche/guided-review/blob/master/ARCHITECTURE.md">Architecture</a></span
+        >
+      </footer>
+    </div>
+  </body>
+</html>

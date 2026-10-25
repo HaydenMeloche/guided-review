@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Configuration · Guided Review</title>
+    <meta name="description" content="Model providers, GitHub access, color themes, and config.json." />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232f6f5e'/><text x='16' y='22' font-family='monospace' font-size='15' font-weight='700' fill='white' text-anchor='middle'>gr</text></svg>"
+    />
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <div class="wrap wide">
+      <header class="top">
+        <a class="brand" href="./"><span class="mark">gr</span>Guided Review</a>
+        <nav class="links">
+          <a href="install.html">Docs</a>
+          <a class="hide-sm" href="https://github.com/HaydenMeloche/guided-review/releases">Releases</a>
+          <a href="https://github.com/HaydenMeloche/guided-review">GitHub</a>
+        </nav>
+      </header>
+      <div class="doc">
+        <aside class="doc-nav">
+          <nav aria-label="Documentation">
+            <p class="nav-title">Documentation</p>
+            <ul>
+              <li><a href="install.html">Install</a></li>
+              <li><a href="usage.html">Using Guided Review</a></li>
+              <li><a href="configuration.html" aria-current="page">Configuration</a></li>
+              <li><a href="repo-config.html">Team configuration</a></li>
+              <li><a href="ci.html">Share tours from CI</a></li>
+              <li><a href="security.html">Privacy and security</a></li>
+              <li><a href="terminals.html">Terminals</a></li>
+            </ul>
+          </nav>
+          <nav aria-label="On this page" class="on-page">
+            <p class="nav-title">On this page</p>
+            <ul>
+              <li><a href="#first-run-and-gr-config">First run and gr config</a></li>
+              <li><a href="#reviewing-without-ai">Reviewing without AI</a></li>
+              <li><a href="#github-access">GitHub access</a></li>
+              <li><a href="#fast-mode-and-priority-processing">Fast mode and priority processing</a></li>
+              <li><a href="#codex">Codex</a></li>
+              <li><a href="#cursor">Cursor</a></li>
+              <li><a href="#color-themes">Color themes</a></li>
+              <li><a href="#config-file">Config file</a></li>
+              <li><a href="#choose-models-by-task">Choose models by task</a></li>
+              <li><a href="#cost">Cost</a></li>
+            </ul>
+          </nav>
+        </aside>
+        <main class="prose">
+          <h1>Configuration</h1>
+          <p>
+            Model providers, GitHub access, themes, and <code>~/.guided-review/config.json</code>. For rules a team commits to its repository, see <a href="repo-config.html">Team configuration</a>.
+          </p>
+          <h2 id="first-run-and-gr-config"><a class="anchor" href="#first-run-and-gr-config" aria-hidden="true">#</a>First run and <code>gr config</code></h2>
+          <p>
+            The first <code>gr</code> run opens setup, then carries on with your command. <code>gr config</code> (or <code>gr setup</code>) runs it again from your current settings. Nothing is saved
+            until the last step; <code>Ctrl+C</code> leaves without saving. Setup steps:
+          </p>
+          <ol>
+            <li><strong>Color theme:</strong> your terminal&#39;s colors, or one of 65 <a href="#color-themes">themes</a>.</li>
+            <li>
+              <strong>Model provider:</strong> setup marks what this machine already has with a ✓, such as a Codex login, an <code>ANTHROPIC_API_KEY</code>, or Ollama running locally.
+              <code>Enter</code> picks a found provider with default models; <code>c</code> opens its details.
+            </li>
+            <li>
+              <strong>Details:</strong> the endpoint for a compatible server, the API key (an environment variable, or pasted into <code>config.json</code>), a model for summaries and narration and
+              one for Q&amp;A, and <a href="#fast-mode-and-priority-processing">fast mode</a> where it&#39;s offered.
+            </li>
+            <li><strong>Coding agent:</strong> what <code>o</code> opens in a chapter: Claude Code, Codex, the Cursor CLI, Gemini CLI, opencode, pi, or a custom command.</li>
+            <li><strong>GitHub access:</strong> only when <code>gh</code> is missing or signed out. See <a href="#github-access">GitHub access</a>.</li>
+            <li><strong>Finish:</strong> setup tests each model and shows how long it took to answer, so a wrong key shows up now rather than mid-review.</li>
+          </ol>
+          <p>
+            <strong>Which provider:</strong> an Anthropic, OpenAI, or Cursor API key is fastest. These run inside <code>gr</code>, and the Anthropic and OpenAI APIs stream answers. Codex works from
+            your ChatGPT plan with no key, but starts a process per request, so tours are slower.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Provider</th>
+                  <th>Default models (summaries / Q&amp;A)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Anthropic API</td>
+                  <td><code>claude-haiku-5-5</code> / <code>claude-opus-5-5</code></td>
+                </tr>
+                <tr>
+                  <td>OpenAI API, Codex</td>
+                  <td><code>gpt-6-luna</code> / <code>gpt-6.1-sol</code></td>
+                </tr>
+                <tr>
+                  <td>Cursor</td>
+                  <td>Grok 4.7, low effort and Fast / high effort</td>
+                </tr>
+                <tr>
+                  <td>Claude Code, Bedrock, Vertex</td>
+                  <td><code>haiku</code> / <code>opus</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p><code>gr config --edit</code> opens the file in <code>$VISUAL</code> or <code>$EDITOR</code>, for settings setup doesn&#39;t ask about, such as any model not in its list.</p>
+          <h2 id="reviewing-without-ai"><a class="anchor" href="#reviewing-without-ai" aria-hidden="true">#</a>Reviewing without AI</h2>
+          <p>
+            Choose <strong>No AI model</strong> in setup (<code>&quot;provider&quot;: &quot;none&quot;</code>), or pass <code>--no-agent</code> for one review. Everything works from static analysis
+            except the briefing summary, narration, Q&amp;A, and AI suggestions, and nothing is sent to a model. <code>gr build</code> needs a model. Your previous model settings are kept, so choosing
+            that provider again restores them.
+          </p>
+          <h2 id="github-access"><a class="anchor" href="#github-access" aria-hidden="true">#</a>GitHub access</h2>
+          <p><code>gr</code> uses the GitHub CLI and your <code>gh auth login</code> by default. Without <code>gh</code>, use a personal access token:</p>
+          <ul>
+            <li>
+              <strong>Token:</strong> create one at <a href="https://github.com/settings/personal-access-tokens">github.com/settings/personal-access-tokens</a>. A fine-grained token needs read access
+              to Contents and Metadata, and read and write to Pull requests and Issues. A classic token needs <code>repo</code> (and <code>read:org</code> for private organizations).
+            </li>
+            <li>
+              <strong>Where it lives:</strong> an environment variable (default <code>GITHUB_TOKEN</code>) or a file with mode <code>600</code>. <code>config.json</code> stores only the variable name
+              or path.
+            </li>
+            <li><strong>GitHub Enterprise Server:</strong> set the API URL to <code>https://&lt;host&gt;/api/v3</code>.</li>
+          </ul>
+          <h2 id="fast-mode-and-priority-processing"><a class="anchor" href="#fast-mode-and-priority-processing" aria-hidden="true">#</a>Fast mode and priority processing</h2>
+          <p>
+            <code>&quot;fastMode&quot;: true</code> gives faster answers at a higher price. Setup offers it for Q&amp;A with the <code>anthropic</code>, <code>openai</code>, and
+            <code>codex</code> providers:
+          </p>
+          <pre><code class="language-json">{ &quot;roles&quot;: { &quot;qa&quot;: { &quot;model&quot;: &quot;claude-opus-5-5&quot;, &quot;fastMode&quot;: true } } }
+</code></pre>
+          <ul>
+            <li><strong>Anthropic API:</strong> Anthropic&#39;s fast mode, on Opus models only, at roughly double the price. Switching speed invalidates the prompt cache.</li>
+            <li><strong>OpenAI and Codex:</strong> priority processing. On a ChatGPT plan it uses up your Codex limits faster.</li>
+          </ul>
+          <p>Other providers ignore it.</p>
+          <h2 id="codex"><a class="anchor" href="#codex" aria-hidden="true">#</a>Codex</h2>
+          <p>
+            The <code>codex</code> provider runs <code>codex exec</code> with your <code>codex login</code>. Each run is sandboxed: it can read only the PR worktree and the tools Codex needs, cannot
+            write or reach the network, and ignores your <code>~/.codex/config.toml</code>, rules, MCP servers, and hooks. This needs a Codex CLI with permission profiles. Set models in Guided
+            Review&#39;s config, not Codex&#39;s.
+          </p>
+          <h2 id="cursor"><a class="anchor" href="#cursor" aria-hidden="true">#</a>Cursor</h2>
+          <p>
+            The <code>cursor</code> provider runs Cursor&#39;s hosted models through the Cursor SDK, with a key from <code>$CURSOR_API_KEY</code>. Cursor&#39;s own tools, rules, hooks, and MCP servers
+            are off; the agent gets only the read-only tools the other providers use. Model settings such as effort, speed, and context go in <code>modelParams</code>.
+          </p>
+          <h2 id="color-themes"><a class="anchor" href="#color-themes" aria-hidden="true">#</a>Color themes</h2>
+          <p>
+            By default <code>gr</code> uses your terminal&#39;s colors. It also offers all 65 <a href="https://shiki.style/themes">shiki themes</a>, 21 of them light. A theme colors the whole
+            interface, paints its own background, and is used by diagrams opened in the browser.
+          </p>
+          <p>Colors mean the same thing everywhere: cyan for keys and selection, magenta for anything the model wrote, green and red for good and bad, and yellow for what needs your attention.</p>
+          <p>
+            Choose a theme in setup, or press <code>L</code> on the PR list, briefing, or a chapter. The screen previews each theme as you move. <code>/</code> searches (<code>light</code> or
+            <code>dark</code> filters), <code>Enter</code> saves, and <code>Esc</code> restores the one you had. Themes look best with 24-bit color; see <a href="terminals.html">Terminals</a>.
+            <code>NO_COLOR</code> turns colors off.
+          </p>
+          <h2 id="config-file"><a class="anchor" href="#config-file" aria-hidden="true">#</a>Config file</h2>
+          <p><code>~/.guided-review/config.json</code> is written with owner-only permissions. The default, with Codex:</p>
+          <pre><code class="language-json">{
+  &quot;provider&quot;: &quot;codex&quot;,
+  &quot;model&quot;: &quot;gpt-6.1-sol&quot;,
+  &quot;chapterOrder&quot;: &quot;guide&quot;,
+  &quot;roles&quot;: {
+    &quot;briefing&quot;: { &quot;model&quot;: &quot;gpt-6-luna&quot; },
+    &quot;narration&quot;: { &quot;model&quot;: &quot;gpt-6-luna&quot; },
+    &quot;qa&quot;: { &quot;model&quot;: &quot;gpt-6.1-sol&quot; }
+  }
+}
+</code></pre>
+          <p><strong>Model settings</strong></p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>provider</code></td>
+                  <td>
+                    <code>claude-code</code>, <code>anthropic</code>, <code>codex</code>, <code>cursor</code>, <code>openai</code>, <code>openai-compatible</code>, <code>bedrock</code>,
+                    <code>vertex</code>, or <code>none</code>.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>model</code></td>
+                  <td>The fallback model, used when a role sets none.</td>
+                </tr>
+                <tr>
+                  <td><code>roles</code></td>
+                  <td>Per-task overrides for <code>briefing</code>, <code>narration</code>, and <code>qa</code>. See <a href="#choose-models-by-task">Choose models by task</a>.</td>
+                </tr>
+                <tr>
+                  <td><code>baseUrl</code></td>
+                  <td>API base URL for <code>openai-compatible</code> (including <code>/v1</code>) or <code>anthropic</code>. HTTPS, except on localhost.</td>
+                </tr>
+                <tr>
+                  <td><code>apiKeyEnv</code> / <code>apiKey</code></td>
+                  <td>The variable holding the key, or the key itself.</td>
+                </tr>
+                <tr>
+                  <td><code>effort</code></td>
+                  <td>
+                    <code>low</code>, <code>medium</code>, <code>high</code>, <code>xhigh</code>, or <code>max</code>, for Claude and OpenAI models. Setup sets <code>low</code> for briefing and
+                    narration to keep tours fast.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>fastMode</code></td>
+                  <td>See <a href="#fast-mode-and-priority-processing">Fast mode</a>.</td>
+                </tr>
+                <tr>
+                  <td><code>modelParams</code></td>
+                  <td>
+                    Cursor only: the model variant, such as <code>{ &quot;reasoning_effort&quot;: &quot;low&quot;, &quot;fast&quot;: &quot;true&quot; }</code>. Without it, some models default to the
+                    expensive Max Mode.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>maxOutputTokens</code></td>
+                  <td>Anthropic API output limit per response (default 16000).</td>
+                </tr>
+                <tr>
+                  <td><code>toolCalling</code></td>
+                  <td><code>false</code> for a compatible endpoint that can&#39;t call functions. Q&amp;A is then limited to the selected code.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p><strong>Interface settings</strong> (most are also toggled by a key during a tour, which saves them here)</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>theme</code></td>
+                  <td><code>terminal</code> (default) or a shiki theme name, such as <code>nord</code> or <code>github-light</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>chapterOrder</code></td>
+                  <td><code>guide</code> (default), <code>risk</code>, <code>size</code>, or <code>file</code>. Key: <code>f</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>hideWhitespace</code></td>
+                  <td>Hide whitespace-only changes (default <code>true</code>). Key: <code>w</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>splitDiff</code></td>
+                  <td>Side-by-side diffs (default <code>false</code>). Key: <code>S</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>sidebar</code></td>
+                  <td>Show the chapter list on wide terminals (default <code>true</code>). Key: <code>\</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>shortExplanation</code></td>
+                  <td>Show only the first lines of each explanation (default <code>false</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>glyphs</code></td>
+                  <td><code>unicode</code> (default) or <code>ascii</code>, for fonts that draw the marks badly.</td>
+                </tr>
+                <tr>
+                  <td><code>icons</code></td>
+                  <td><code>nerd</code> for <a href="https://www.nerdfonts.com">Nerd Font</a> file icons (default <code>none</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>codingAgent</code></td>
+                  <td>
+                    What <code>o</code> opens: <code>claude</code> (default), <code>codex</code>, <code>cursor</code>, <code>gemini</code>, <code>opencode</code>, <code>pi</code>, or
+                    <code>custom</code>.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>codingAgentCommand</code></td>
+                  <td>With <code>custom</code>, the command, such as <code>&quot;aider --message&quot;</code>. The prompt goes last, or where you write <code>{prompt}</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>github</code></td>
+                  <td>
+                    <code>{ &quot;tokenEnv&quot;: &quot;GITHUB_TOKEN&quot; }</code> or <code>{ &quot;tokenFile&quot;: &quot;…&quot; }</code>, plus optional <code>&quot;apiUrl&quot;</code>. See
+                    <a href="#github-access">GitHub access</a>.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>A local compatible server without a key:</p>
+          <pre><code class="language-json">{ &quot;provider&quot;: &quot;openai-compatible&quot;, &quot;model&quot;: &quot;llama3&quot;, &quot;baseUrl&quot;: &quot;http://localhost:11434/v1&quot; }
+</code></pre>
+          <h2 id="choose-models-by-task"><a class="anchor" href="#choose-models-by-task" aria-hidden="true">#</a>Choose models by task</h2>
+          <p>A role can set its own model, or a different provider with its own key. This uses Claude Code for summaries and OpenAI for Q&amp;A:</p>
+          <pre><code class="language-json">{
+  &quot;provider&quot;: &quot;claude-code&quot;,
+  &quot;model&quot;: &quot;opus&quot;,
+  &quot;roles&quot;: {
+    &quot;briefing&quot;: { &quot;model&quot;: &quot;haiku&quot; },
+    &quot;narration&quot;: { &quot;model&quot;: &quot;haiku&quot; },
+    &quot;qa&quot;: { &quot;provider&quot;: &quot;openai&quot;, &quot;model&quot;: &quot;gpt-6.1-sol&quot;, &quot;apiKeyEnv&quot;: &quot;OPENAI_API_KEY&quot; }
+  }
+}
+</code></pre>
+          <p>A failing role falls back to the top-level model. Claude Code, Bedrock, and Vertex can&#39;t be mixed with one another in one run. If no model is available, you get a plain tour.</p>
+          <h2 id="cost"><a class="anchor" href="#cost" aria-hidden="true">#</a>Cost</h2>
+          <p>
+            A tour makes one briefing call, then narrates chapters with up to six calls at once; Q&amp;A makes one call per question. To keep large PRs affordable, the briefing prompt is capped, small
+            and low-risk hunks share one summary, lockfiles are sent as parsed package changes, and an interrupted tour resumes where it stopped. Prompt caching is used where the provider supports it.
+            Claude Code, Codex, and Cursor count tours against your plan&#39;s limits.
+          </p>
+          <h3 id="debugging-model-calls"><a class="anchor" href="#debugging-model-calls" aria-hidden="true">#</a>Debugging model calls</h3>
+          <p>Set <code>GR_DEBUG_MODEL</code> to a file path to log one JSON line per model call, with its role, model, time, and token counts:</p>
+          <pre><code class="language-sh">GR_DEBUG_MODEL=/tmp/gr-model.jsonl gr review 123
+</code></pre>
+          <p><code>GR_DEBUG_MODEL=1</code> writes to stderr instead, which mixes into the interface.</p>
+        </main>
+      </div>
+      <footer>
+        <span>MIT licensed</span>
+        <span
+          ><a href="https://github.com/HaydenMeloche/guided-review">GitHub</a> · <a href="https://github.com/HaydenMeloche/guided-review/releases">Releases</a> ·
+          <a href="https://www.npmjs.com/package/@haydenmeloche/guided-review">npm</a> · <a href="https://github.com/HaydenMeloche/guided-review/blob/master/ARCHITECTURE.md">Architecture</a></span
+        >
+      </footer>
+    </div>
+  </body>
+</html>

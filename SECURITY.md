@@ -22,5 +22,5 @@ Guided Review is pre-1.0. Only the latest release gets security fixes.
 ## Out of scope
 
 - A model producing a wrong or misleading explanation. The tour is a reading aid, not a verdict. Always read the code.
-- Data you have chosen to send to your configured model provider, as described in [Data, privacy, and security](docs/security.md#data-and-privacy).
+- Data you have chosen to send to your configured model provider, as described in [Data, privacy, and security](https://haydenmeloche.github.io/guided-review/security.html#data-and-privacy).
 - Issues that need an attacker who already controls your machine, your `~/.guided-review` directory, or your global git config.

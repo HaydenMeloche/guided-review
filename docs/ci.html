@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Share tours from CI · Guided Review</title>
+    <meta name="description" content="Build a tour once in GitHub Actions and post it to the PR." />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232f6f5e'/><text x='16' y='22' font-family='monospace' font-size='15' font-weight='700' fill='white' text-anchor='middle'>gr</text></svg>"
+    />
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <div class="wrap wide">
+      <header class="top">
+        <a class="brand" href="./"><span class="mark">gr</span>Guided Review</a>
+        <nav class="links">
+          <a href="install.html">Docs</a>
+          <a class="hide-sm" href="https://github.com/HaydenMeloche/guided-review/releases">Releases</a>
+          <a href="https://github.com/HaydenMeloche/guided-review">GitHub</a>
+        </nav>
+      </header>
+      <div class="doc">
+        <aside class="doc-nav">
+          <nav aria-label="Documentation">
+            <p class="nav-title">Documentation</p>
+            <ul>
+              <li><a href="install.html">Install</a></li>
+              <li><a href="usage.html">Using Guided Review</a></li>
+              <li><a href="configuration.html">Configuration</a></li>
+              <li><a href="repo-config.html">Team configuration</a></li>
+              <li><a href="ci.html" aria-current="page">Share tours from CI</a></li>
+              <li><a href="security.html">Privacy and security</a></li>
+              <li><a href="terminals.html">Terminals</a></li>
+            </ul>
+          </nav>
+        </aside>
+        <main class="prose">
+          <h1>Share tours from CI</h1>
+          <p>
+            A CI job can build the tour once and post it to the PR, so reviewers open it without spending their own model calls or waiting for narration. When <code>gr review</code> finds no cached
+            tour for the PR head, it looks for one on the PR and uses it if it qualifies.
+          </p>
+          <pre><code class="language-yaml"># .github/workflows/guided-review.yml
+name: Guided Review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+  pull-requests: write
+concurrency:
+  group: guided-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  tour:
+    # Fork PRs get no secrets and a read-only token.
+    if: github.event.pull_request.head.repo.full_name == github.repository &amp;&amp; !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: HaydenMeloche/guided-review@v0.1.0
+        with:
+          provider: anthropic
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+</code></pre>
+          <p>
+            The action has no default provider: set <code>provider</code> (or <code>config</code>, below) and pass the matching key. The example above uses the Anthropic API, where the model defaults
+            to <code>claude-haiku-5-5</code>. To use OpenAI, set <code>provider: openai</code> and pass <code>OPENAI_API_KEY</code> instead:
+          </p>
+          <pre><code class="language-yaml">      - uses: HaydenMeloche/guided-review@v0.1.0
+        with:
+          provider: openai
+          # model: gpt-6.1-sol  # optional; defaults to gpt-6-luna
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+</code></pre>
+          <p>
+            To use Cursor, set <code>provider: cursor</code> and pass a Cursor API key (Cursor Dashboard → API Keys) as <code>CURSOR_API_KEY</code>. The model defaults to <code>grok-4.7</code> at low
+            effort, Fast, with 256k context (Cursor&#39;s own default for it is Max Mode). Naming another <code>model</code> uses that model&#39;s default variant; for a specific one, pass the
+            <code>config</code> input with <code>modelParams</code>:
+          </p>
+          <pre><code class="language-yaml">      - uses: HaydenMeloche/guided-review@v0.1.0
+        with:
+          provider: cursor
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+</code></pre>
+          <p>
+            For any other setup, pass the <code>config</code> input (the contents of a <code>config.json</code>), which overrides <code>provider</code> and <code>model</code>. Claude Code and Codex
+            logins aren&#39;t available in CI, so use an API-key provider, Bedrock, or Vertex there. Outside GitHub Actions, run <code>gr build &lt;pr&gt; --comment</code> with
+            <code>GH_TOKEN</code> set and a config under <code>$GR_HOME</code>. <code>gr build</code> needs a model: with <code>--no-agent</code> or
+            <code>&quot;provider&quot;: &quot;none&quot;</code> it stops, because a tour without AI is the one each reviewer&#39;s <code>gr</code> builds for itself.
+          </p>
+          <p>
+            The tour travels gzipped inside a hidden part of one comment, which the job updates on each push. The comment leaves out the code: the reader fills in the diff lines from its own diff, and
+            test and covered-code snippets from its own checkout of the head. A tour whose encoded size exceeds GitHub&#39;s 65,536-character comment limit is not posted: the job logs a warning and
+            still succeeds, and reviewers build the tour locally as usual. A reader uses a shared tour only when all of these hold:
+          </p>
+          <ul>
+            <li>the comment was written by <code>github-actions[bot]</code>, which only the repository&#39;s own workflows can post as;</li>
+            <li>the tour is complete and was built for the PR&#39;s current head commit; and</li>
+            <li>every file and hunk in it matches, line for line, the diff the reader fetched, so the code shown is the PR&#39;s code.</li>
+          </ul>
+          <p>
+            Otherwise the reader builds the tour itself. Review threads, reviews, and re-review deltas are still fetched and computed locally. Q&amp;A runs on the reader&#39;s own model.
+            <code>--fresh</code> ignores a shared tour.
+          </p>
+        </main>
+      </div>
+      <footer>
+        <span>MIT licensed</span>
+        <span
+          ><a href="https://github.com/HaydenMeloche/guided-review">GitHub</a> · <a href="https://github.com/HaydenMeloche/guided-review/releases">Releases</a> ·
+          <a href="https://www.npmjs.com/package/@haydenmeloche/guided-review">npm</a> · <a href="https://github.com/HaydenMeloche/guided-review/blob/master/ARCHITECTURE.md">Architecture</a></span
+        >
+      </footer>
+    </div>
+  </body>
+</html>

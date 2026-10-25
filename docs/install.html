@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Install and set up · Guided Review</title>
+    <meta name="description" content="Install Guided Review, sign in to GitHub, and choose a model." />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232f6f5e'/><text x='16' y='22' font-family='monospace' font-size='15' font-weight='700' fill='white' text-anchor='middle'>gr</text></svg>"
+    />
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <div class="wrap wide">
+      <header class="top">
+        <a class="brand" href="./"><span class="mark">gr</span>Guided Review</a>
+        <nav class="links">
+          <a href="install.html">Docs</a>
+          <a class="hide-sm" href="https://github.com/HaydenMeloche/guided-review/releases">Releases</a>
+          <a href="https://github.com/HaydenMeloche/guided-review">GitHub</a>
+        </nav>
+      </header>
+      <div class="doc">
+        <aside class="doc-nav">
+          <nav aria-label="Documentation">
+            <p class="nav-title">Documentation</p>
+            <ul>
+              <li><a href="install.html" aria-current="page">Install</a></li>
+              <li><a href="usage.html">Using Guided Review</a></li>
+              <li><a href="configuration.html">Configuration</a></li>
+              <li><a href="repo-config.html">Team configuration</a></li>
+              <li><a href="ci.html">Share tours from CI</a></li>
+              <li><a href="security.html">Privacy and security</a></li>
+              <li><a href="terminals.html">Terminals</a></li>
+            </ul>
+          </nav>
+          <nav aria-label="On this page" class="on-page">
+            <p class="nav-title">On this page</p>
+            <ul>
+              <li><a href="#quick-start">Quick start</a></li>
+              <li><a href="#requirements">Requirements</a></li>
+              <li><a href="#from-npm">From npm</a></li>
+              <li><a href="#from-source">From source</a></li>
+              <li><a href="#configure-a-model">Configure a model</a></li>
+              <li><a href="#use-from-claude-code-or-codex">Use from Claude Code or Codex</a></li>
+              <li><a href="#next-steps">Next steps</a></li>
+            </ul>
+          </nav>
+        </aside>
+        <main class="prose">
+          <h1>Install and set up</h1>
+          <p>Install Guided Review, sign in to GitHub, and choose a model.</p>
+          <h2 id="quick-start"><a class="anchor" href="#quick-start" aria-hidden="true">#</a>Quick start</h2>
+          <pre><code class="language-sh">npm install -g @haydenmeloche/guided-review
+gr   # the first run walks you through setup, then lists PRs awaiting your review
+</code></pre>
+          <p>
+            If <code>gr</code> runs something else, a shell alias is shadowing it: Oh My Zsh&#39;s git plugin defines <code>alias gr=&#39;git remote&#39;</code>. Use <code>guided-review</code>, which
+            the package also installs, or <code>unalias gr</code> in your shell config.
+          </p>
+          <h2 id="requirements"><a class="anchor" href="#requirements" aria-hidden="true">#</a>Requirements</h2>
+          <ul>
+            <li>Node 22.13 or newer (Guided Review uses the built-in <code>node:sqlite</code>)</li>
+            <li><code>git</code></li>
+            <li>
+              The <a href="https://cli.github.com/">GitHub CLI</a> (<code>gh</code>), signed in with <code>gh auth login</code>, or a GitHub
+              <a href="configuration.html#github-access">personal access token</a>
+            </li>
+            <li><a href="https://github.com/BurntSushi/ripgrep">ripgrep</a> (<code>rg</code>), optional; the model&#39;s <code>search_repo</code> tool needs it</li>
+            <li>A model provider, optional; see <a href="#configure-a-model">Configure a model</a></li>
+            <li>An interactive terminal; <code>gr</code> does not run through a pipe</li>
+            <li>macOS or Linux, including WSL. Native Windows is untested.</li>
+          </ul>
+          <h2 id="from-npm"><a class="anchor" href="#from-npm" aria-hidden="true">#</a>From npm</h2>
+          <pre><code class="language-sh">npm install -g @haydenmeloche/guided-review
+</code></pre>
+          <p>This puts <code>gr</code> and <code>guided-review</code> on your <code>PATH</code>.</p>
+          <h2 id="from-source"><a class="anchor" href="#from-source" aria-hidden="true">#</a>From source</h2>
+          <pre><code class="language-sh">git clone https://github.com/HaydenMeloche/guided-review.git
+cd guided-review
+pnpm install
+pnpm build
+pnpm add -g .
+</code></pre>
+          <p>If pnpm&#39;s global binary directory is not on your <code>PATH</code>, run <code>pnpm setup</code> once and restart your shell.</p>
+          <h2 id="configure-a-model"><a class="anchor" href="#configure-a-model" aria-hidden="true">#</a>Configure a model</h2>
+          <p>
+            The first run walks you through setup: a color theme, a model provider, the coding agent <code>o</code> opens, and GitHub access. It finds what your machine already has, such as a Codex
+            login or an <code>ANTHROPIC_API_KEY</code>, and tests each model before saving. Run <code>gr config</code> to go through it again. An Anthropic, OpenAI, or Cursor API key is the fastest
+            choice; Codex works from your Codex CLI login with no key. With Claude, OpenAI, and Codex models, setup runs summaries and narration at low effort to keep tours quick; Q&amp;A uses the
+            model&#39;s default. To review without AI, choose <strong>No AI model</strong> in setup, or pass <code>--no-agent</code> for one review. See
+            <a href="configuration.html">Configuration</a> for every provider, compatible endpoints, Bedrock, Vertex, and GitHub tokens.
+          </p>
+          <p>
+            The tour is built from static analysis of the diff and the checkout. A model adds the briefing&#39;s summary, each chapter&#39;s explanation, and answers to your questions. Without one,
+            everything else still works, and nothing leaves your machine.
+          </p>
+          <h2 id="use-from-claude-code-or-codex"><a class="anchor" href="#use-from-claude-code-or-codex" aria-hidden="true">#</a>Use from Claude Code or Codex</h2>
+          <p>
+            <code>gr install-claude-command</code> adds a <code>/guided-review</code> command to Claude Code, and <code>gr install-codex-skill</code> adds a skill to Codex. Both preview your local
+            changes in a new terminal window. See <a href="usage.html#use-from-claude-code-or-codex">Use from Claude Code or Codex</a>.
+          </p>
+          <h2 id="next-steps"><a class="anchor" href="#next-steps" aria-hidden="true">#</a>Next steps</h2>
+          <ul>
+            <li><a href="usage.html">Using Guided Review</a>: the picker, briefing, chapters, keys, comments, re-reviews, responding to a review, merging, and every command and option</li>
+            <li><a href="repo-config.html">Repository configuration</a>: share review rules with your team in <code>.guided-review.json</code></li>
+            <li><a href="ci.html">Share tours from CI</a>: build the tour once in GitHub Actions</li>
+          </ul>
+        </main>
+      </div>
+      <footer>
+        <span>MIT licensed</span>
+        <span
+          ><a href="https://github.com/HaydenMeloche/guided-review">GitHub</a> · <a href="https://github.com/HaydenMeloche/guided-review/releases">Releases</a> ·
+          <a href="https://www.npmjs.com/package/@haydenmeloche/guided-review">npm</a> · <a href="https://github.com/HaydenMeloche/guided-review/blob/master/ARCHITECTURE.md">Architecture</a></span
+        >
+      </footer>
+    </div>
+  </body>
+</html>

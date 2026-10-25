@@ -1,6 +1,6 @@
 import type { Hint } from './KeyBar.js';
 
-// A screen's keys, once: what each key is, how docs/usage.md names it, its entry in the key bar
+// A screen's keys, once: what each key is, how docs/usage.html names it, its entry in the key bar
 // (its label can depend on the screen's state), and its row in the help. The screens' useInput
 // handlers run the actions; tests check every key a handler reads is listed and every listed
 // key is in the docs.
@@ -9,7 +9,7 @@ export type Bar<C> = { shown: string; label: string | ((c: C) => string); when?:
 
 export interface KeyDef<C> {
   keys: string[]; // the characters the handler reads
-  doc?: string[]; // how docs/usage.md writes them in backticks, if not the same as `keys`
+  doc?: string[]; // how docs/usage.html writes them as code, if not the same as `keys`
   alias?: boolean; // another key's twin: the docs need not name it
   bar?: Bar<C>; // absent: not in the key bar
   help?: string; // its line in the help; absent: left out of the help
