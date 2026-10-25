@@ -3,6 +3,7 @@ import { SessionStore } from './sessions.js';
 import { assertSecureEndpoint, ModelError, postModel, sseData } from './http.js';
 import { parseToolArgs, REPO_TOOLS } from './repoTools.js';
 import { runToolLoop, type ModelOpts } from './toolLoop.js';
+import { openAIStrictSchema } from './output.js';
 
 type ResponseItem = {
   type: string;
@@ -51,10 +52,19 @@ export async function runOpenAI<T>(prompt: string, config: ProviderRunConfig, op
   assertSecureEndpoint(url);
   const { key, source } = resolveApiKey(config);
   if (!key) throw new ModelError(`set ${source} to use the OpenAI provider`);
+  // Effort, the answer's schema as a strict response format (so the API guarantees JSON that
+  // matches it), and priority processing, which is faster and costs more.
+  const options = {
+    ...(config.effort ? { reasoning: { effort: config.effort } } : {}),
+    ...(opts.schema ? { text: { format: { type: 'json_schema', name: 'answer', strict: true, schema: openAIStrictSchema(opts.schema) } } } : {}),
+    ...(config.fastMode ? { service_tier: 'priority' } : {}),
+  };
   return runToolLoop<unknown, T>(prompt, config, opts, {
     prefix: 'openai',
     store: conversations,
     start: [],
+    nativeSchema: true,
+    optionalNulls: true,
     user: (content) => ({ role: 'user', content }),
     async turn(input) {
       const { response, streamed } = await postModel(
@@ -67,6 +77,7 @@ export async function runOpenAI<T>(prompt: string, config: ProviderRunConfig, op
           store: false,
           stream: !!opts.onText,
           ...(config.toolCalling === false ? {} : { tools: responseTools, tool_choice: 'auto' }),
+          ...options,
         },
         opts.signal,
       );

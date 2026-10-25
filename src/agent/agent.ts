@@ -42,8 +42,10 @@ const BACKOFF_MS = [5_000, 15_000, 40_000];
 // A server's retry-after is honoured up to this long.
 const MAX_RETRY_AFTER_MS = 60_000;
 
-// The providers that send `effort`; fastMode is Anthropic API only.
-const SENDS_EFFORT = new Set<AgentConfig['provider']>(['anthropic', 'claude-code', 'bedrock', 'vertex', undefined]);
+// The providers that send `effort`, and those with a fast mode (Anthropic's fast mode, OpenAI's
+// priority processing).
+const SENDS_EFFORT = new Set<AgentConfig['provider']>(['anthropic', 'claude-code', 'bedrock', 'vertex', 'openai', 'codex', undefined]);
+const SENDS_FAST_MODE = new Set<AgentConfig['provider']>(['anthropic', 'openai', 'codex']);
 
 function stampOf(config: AgentConfig, usage: CallUsage | undefined, elapsedMs: number): ModelStamp {
   const counts = Object.fromEntries(Object.entries(usage ?? {}).filter(([, v]) => typeof v === 'number' && Number.isFinite(v))) as CallUsage;
@@ -52,7 +54,7 @@ function stampOf(config: AgentConfig, usage: CallUsage | undefined, elapsedMs: n
     model: config.model,
     baseUrl: config.baseUrl,
     ...(config.effort && SENDS_EFFORT.has(config.provider) ? { effort: config.effort } : {}),
-    ...(config.fastMode && config.provider === 'anthropic' ? { fastMode: true } : {}),
+    ...(config.fastMode && SENDS_FAST_MODE.has(config.provider) ? { fastMode: true } : {}),
     ...counts,
     elapsedMs,
   };

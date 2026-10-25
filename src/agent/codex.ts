@@ -2,9 +2,9 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { AgentConfig } from './types.js';
+import type { AgentConfig, CallUsage, ProviderResult } from './types.js';
 import { ModelError, retryableStatus } from './http.js';
-import { finishOutput, withSchemaInstruction } from './output.js';
+import { finishOutput, openAIStrictSchema } from './output.js';
 import type { ModelOpts } from './toolLoop.js';
 
 // Runs `codex exec`, which reuses the Codex CLI login (ChatGPT or API key). Codex's sandbox
@@ -144,12 +144,29 @@ function stop(child: ChildProcess): void {
   }, 3_000).unref();
 }
 
+type CodexUsage = { input_tokens?: number; cached_input_tokens?: number; output_tokens?: number };
+
 interface CodexEvent {
   type: string;
   thread_id?: string;
   message?: string;
   error?: { message?: string };
   item?: { type: string; text?: string };
+  usage?: CodexUsage;
+}
+
+// turn.completed's usage is the thread's running total, so a resumed turn's own counts are the
+// difference from the total last seen for that thread here. A thread resumed without one (from an
+// earlier gr process) reports no counts rather than the whole thread's.
+const threadTotals = new Map<string, CodexUsage>();
+
+function usageOf(total: CodexUsage | undefined, before: CodexUsage | undefined): CallUsage | undefined {
+  if (!total) return undefined;
+  const n = (field: keyof CodexUsage) => (typeof total[field] === 'number' ? total[field] - (before?.[field] ?? 0) : undefined);
+  const input = n('input_tokens');
+  const cached = n('cached_input_tokens');
+  // input_tokens includes the cached ones; CallUsage counts them apart.
+  return { inputTokens: input === undefined ? undefined : input - (cached ?? 0), outputTokens: n('output_tokens'), cacheReadTokens: cached };
 }
 
 function modelError(message: string): ModelError {
@@ -166,26 +183,55 @@ function modelError(message: string): ModelError {
   return new ModelError(`codex: ${detail}`, status !== undefined && retryableStatus(status));
 }
 
-export function codexArgs(config: AgentConfig & { cwd: string }, resume?: string, bin = resolveCodexBinary()): string[] {
+// Effort, priority processing (Codex's "fast" service tier, which it sends as "priority"), and the
+// answer's schema. Options before `resume` apply to the resumed turn too, --output-schema included.
+export function codexArgs(config: AgentConfig & { cwd: string }, resume?: string, bin = resolveCodexBinary(), schemaFile?: string): string[] {
   const model = config.model ? ['-m', config.model] : [];
-  const base = [...BASE_ARGS, ...permissionArgs(config.cwd, bin), ...model];
+  const effort = config.effort ? ['-c', `model_reasoning_effort="${config.effort}"`] : [];
+  const fast = config.fastMode ? ['-c', 'service_tier="fast"'] : [];
+  const schema = schemaFile ? ['--output-schema', schemaFile] : [];
+  const base = [...BASE_ARGS, ...permissionArgs(config.cwd, bin), ...model, ...effort, ...fast, ...schema];
   return resume ? [...base, 'resume', resume, '-'] : [...base, '-C', config.cwd, '-'];
 }
 
-export async function runCodex<T>(prompt: string, config: AgentConfig & { cwd: string; resume?: string }, opts: ModelOpts, systemPrompt: string): Promise<{ value: T; sessionId: string }> {
+export async function runCodex<T>(
+  prompt: string,
+  config: AgentConfig & { cwd: string; resume?: string; keepSession?: boolean },
+  opts: ModelOpts,
+  systemPrompt: string,
+): Promise<ProviderResult<T> & { sessionId: string }> {
   const resume = config.resume?.startsWith('codex:') ? config.resume.slice('codex:'.length) : undefined;
-  // `codex exec` has no system prompt option, so a new session gets it as a preamble.
-  const input = withSchemaInstruction(resume ? prompt : `${systemPrompt}\n\n${prompt}`, opts.schema);
+  // `codex exec` has no system prompt option, so a new session gets it as a preamble. The schema
+  // goes as --output-schema, which Codex sends as a strict response format, so it needs a file.
+  const input = resume ? prompt : `${systemPrompt}\n\n${prompt}`;
 
   opts.signal?.throwIfAborted();
+  const schemaDir = opts.schema ? fs.mkdtempSync(path.join(os.tmpdir(), 'gr-codex-schema-')) : undefined;
+  try {
+    const schemaFile = schemaDir && path.join(schemaDir, 'schema.json');
+    if (schemaFile) fs.writeFileSync(schemaFile, JSON.stringify(openAIStrictSchema(opts.schema!)));
+    return await exec<T>(input, config, opts, resume, schemaFile);
+  } finally {
+    if (schemaDir) fs.rmSync(schemaDir, { recursive: true, force: true });
+  }
+}
+
+async function exec<T>(
+  input: string,
+  config: AgentConfig & { cwd: string; keepSession?: boolean },
+  opts: ModelOpts,
+  resume: string | undefined,
+  schemaFile: string | undefined,
+): Promise<ProviderResult<T> & { sessionId: string }> {
   const bin = resolveCodexBinary();
-  const child = spawn(bin ?? 'codex', codexArgs(config, resume, bin), { cwd: config.cwd, stdio: ['pipe', 'pipe', 'pipe'] });
+  const child = spawn(bin ?? 'codex', codexArgs(config, resume, bin, schemaFile), { cwd: config.cwd, stdio: ['pipe', 'pipe', 'pipe'] });
   track(child);
   const abort = () => stop(child);
   opts.signal?.addEventListener('abort', abort, { once: true });
 
   let threadId = resume;
   let message: string | undefined;
+  let total: CodexUsage | undefined;
   let failure: Error | undefined;
   let stderr = '';
   let buffered = '';
@@ -196,6 +242,7 @@ export async function runCodex<T>(prompt: string, config: AgentConfig & { cwd: s
       message = event.item.text;
       if (!opts.schema) opts.onText?.(message);
     }
+    if (event.type === 'turn.completed' && event.usage) total = event.usage;
     if (event.type === 'turn.failed') failure = modelError(event.error?.message ?? 'turn failed');
     if (event.type === 'error' && event.message && !failure) failure = modelError(event.message);
   };
@@ -247,5 +294,8 @@ export async function runCodex<T>(prompt: string, config: AgentConfig & { cwd: s
         : '';
     throw modelError(`exited with status ${code}${stderr.trim() ? `: ${stderr.trim().split('\n').pop()}` : ''}.${hint}`);
   }
-  return { value: finishOutput<T>(message, opts.schema), sessionId: `codex:${threadId}` };
+  const value = finishOutput<T>(message, opts.schema, true);
+  const usage = threadId && (!resume || threadTotals.has(threadId)) ? usageOf(total, threadTotals.get(threadId)) : undefined;
+  if (threadId && total && config.keepSession !== false) threadTotals.set(threadId, total);
+  return { value, sessionId: `codex:${threadId}`, ...(usage ? { usage } : {}) };
 }

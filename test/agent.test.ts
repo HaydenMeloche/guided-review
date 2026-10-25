@@ -4,22 +4,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // retry, backoff and fallback logic without any network or SDK.
 vi.mock('../src/agent/anthropic.js', () => ({ runAnthropic: vi.fn() }));
 vi.mock('../src/agent/openaiResponses.js', () => ({ runOpenAI: vi.fn() }));
+vi.mock('../src/agent/openaiCompatible.js', () => ({ runCompatible: vi.fn() }));
 
 import { AgentUnavailableError, ask, run, runRole } from '../src/agent/agent.js';
 import { runAnthropic } from '../src/agent/anthropic.js';
 import { ModelError } from '../src/agent/http.js';
 import { runOpenAI } from '../src/agent/openaiResponses.js';
+import { runCompatible } from '../src/agent/openaiCompatible.js';
 import type { ProviderRunConfig } from '../src/agent/types.js';
 import type { Hunk } from '../src/types.js';
 
 const anthropic = vi.mocked(runAnthropic);
 const openai = vi.mocked(runOpenAI);
+const compatible = vi.mocked(runCompatible);
 
 const options: ProviderRunConfig = { cwd: '/repo', provider: 'anthropic', model: 'claude-x', apiKey: 'k' };
 
 beforeEach(() => {
   anthropic.mockReset();
   openai.mockReset();
+  compatible.mockReset();
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -86,10 +90,16 @@ describe('run: retry and backoff', () => {
     });
   });
 
-  it('stamps no effort for a provider that does not send it', async () => {
+  it('stamps effort and fast mode on OpenAI, which sends them as reasoning effort and priority processing', async () => {
     openai.mockResolvedValue({ value: 'ok', usage: { toolTurns: 0 } });
     const r = await run<string>('q', { cwd: '/repo', provider: 'openai', model: 'gpt-x', apiKey: 'k', effort: 'low', fastMode: true });
-    expect(r.modelUsed).toEqual({ provider: 'openai', model: 'gpt-x', baseUrl: undefined, toolTurns: 0, elapsedMs: expect.any(Number) });
+    expect(r.modelUsed).toEqual({ provider: 'openai', model: 'gpt-x', baseUrl: undefined, effort: 'low', fastMode: true, toolTurns: 0, elapsedMs: expect.any(Number) });
+  });
+
+  it('stamps no effort or fast mode for a provider that does not send them', async () => {
+    compatible.mockResolvedValue({ value: 'ok', usage: { toolTurns: 0 } });
+    const r = await run<string>('q', { cwd: '/repo', provider: 'openai-compatible', model: 'llama', baseUrl: 'http://localhost:1/v1', effort: 'low', fastMode: true });
+    expect(r.modelUsed).toEqual({ provider: 'openai-compatible', model: 'llama', baseUrl: 'http://localhost:1/v1', toolTurns: 0, elapsedMs: expect.any(Number) });
   });
 
   it('gives up after the last backoff and reports the agent as unavailable', async () => {

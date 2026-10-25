@@ -156,7 +156,7 @@ export const PRESET_MODELS: Partial<Record<Provider, ModelPair>> = {
 
 // Providers whose preset runs the briefing and narration at low effort: fewer thinking tokens
 // and tool calls on tasks that summarize. Q&A keeps the model's default.
-const LOW_EFFORT_PRESETS = new Set<Provider>(['anthropic', 'claude-code', 'bedrock', 'vertex']);
+const LOW_EFFORT_PRESETS = new Set<Provider>(['anthropic', 'claude-code', 'bedrock', 'vertex', 'openai', 'codex']);
 
 export function presetUserConfig(provider: Provider, models: ModelPair, connection: Omit<AgentConfig, 'provider' | 'model' | 'modelParams'> = {}): UserConfig & AgentRouting {
   // When either task has a variant, both name theirs ({} for the default), so one can't inherit

@@ -17,6 +17,8 @@ export interface ToolLoopAdapter<M> {
   start: M[];
   // The adapter gives the model the schema as its response format, so the prompt need not.
   nativeSchema?: boolean;
+  // That format is openAIStrictSchema's, where optional properties come back as null.
+  optionalNulls?: boolean;
   user(text: string): M;
   // Sends the conversation and appends the model's reply to it. `streamed` means onText already
   // saw the text. `usage` is the turn's token counts, when the response gave them.
@@ -53,7 +55,7 @@ export async function runToolLoop<M, T>(prompt: string, config: ProviderRunConfi
     }
     if (!text) throw new Error('model returned an empty answer');
     if (!streamed) opts.onText?.(text);
-    const value = finishOutput<T>(text, opts.schema);
+    const value = finishOutput<T>(text, opts.schema, adapter.optionalNulls);
     const usage = { ...tokens, toolTurns };
     if (config.keepSession === false) return { value, usage };
     store.set(id, history);

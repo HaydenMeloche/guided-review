@@ -40,21 +40,25 @@ By default `gr` talks to GitHub through the GitHub CLI and your `gh auth login`.
 
 With a token, `gr` also sends it to git as an HTTP header when it clones or fetches PR commits over HTTPS, through environment variables, so it never appears on a command line or in a clone's config.
 
-The OpenAI provider uses the Responses API, which supports read-only repository tools. OpenAI-compatible endpoints use Chat Completions. Both need an API key from the OpenAI platform.
+The OpenAI provider uses the Responses API, which supports read-only repository tools and gets briefing and narration answers through strict structured outputs, so they always match the expected JSON. OpenAI-compatible endpoints use Chat Completions and are asked for JSON in the prompt. Both need an API key from the OpenAI platform.
 
-## Anthropic API fast mode
+## Fast mode and priority processing
 
-With `"fastMode": true`, the `anthropic` provider sends its requests to the beta Messages endpoint with the `fast-mode-2026-02-01` beta and `speed: "fast"`, which streams output tokens much faster. Caching and the repository tools work as usual. It is off by default and setup never turns it on. Keep in mind:
+`"fastMode": true` buys faster answers at a higher price. It is off by default and setup never turns it on. It is meant for Q&A, where you wait on every answer, so set it in `roles.qa`:
+
+```json
+{ "roles": { "qa": { "model": "claude-opus-5-5", "fastMode": true } } }
+```
+
+With the `anthropic` provider it is Anthropic's fast mode: requests go to the beta Messages endpoint with the `fast-mode-2026-02-01` beta and `speed: "fast"`, which streams output tokens much faster. Caching and the repository tools work as usual. Keep in mind:
 
 - It works only on the Claude API (the `anthropic` provider), not through Claude Code, Bedrock, or Vertex, and only on Opus 5.5, Opus 5, and Opus 4.8.
 - It costs roughly double the standard price.
-- It is meant for Q&A, where you wait on every answer; set it in `roles.qa`:
-
-  ```json
-  { "roles": { "qa": { "model": "claude-opus-5-5", "fastMode": true } } }
-  ```
-
 - Switching between fast and standard speed invalidates the prompt cache, so the first request after a switch is billed as uncached input.
+
+With the `openai` and `codex` providers it is OpenAI's priority processing: the `openai` provider sends `service_tier: "priority"`, and the `codex` provider runs `codex exec` with `service_tier="fast"`, which Codex sends as the priority tier. Priority requests are served faster and cost more than standard ones; with a ChatGPT plan they use up your Codex limits faster. Codex skips the setting, with a warning, for a model that doesn't offer it.
+
+Other providers ignore `fastMode`.
 
 ## Codex
 
@@ -110,8 +114,8 @@ Without a config file, a theme chosen with `L` lasts until you quit. Themes need
 | `apiKey` | The key itself. It takes precedence over `apiKeyEnv`. Use it when an environment variable is impractical. |
 | `modelParams` | Cursor only: the model's variant, as the parameter IDs and values Cursor lists, such as `{ "reasoning_effort": "low", "fast": "true", "context": "256k" }`. Without it, Cursor uses the model's default variant, which for some models is Max Mode, the most expensive. Set it beside `model`, at the top level or in a role; a role that names a different model doesn't inherit the top-level one. Setup writes it. |
 | `maxOutputTokens` | Maximum output tokens per model response for the Anthropic API (default 16000). Lower it for models with smaller output limits. |
-| `effort` | How much effort the model spends on a task: `low`, `medium`, `high`, `xhigh`, or `max`. Sent by the Anthropic API, Claude Code, Bedrock, and Vertex providers; others ignore it. Without it, the model uses its own default. Setup writes `"effort": "low"` for `briefing` and `narration` with those providers: summaries and narration need less deliberation than Q&A, and low effort means fewer thinking tokens and fewer tool calls, so tours finish sooner and cost less. Q&A is left at the model's default. Like other fields, a role's own `effort` wins over the top-level one. Changing it does not rebuild a cached tour. |
-| `fastMode` | Anthropic API only: `true` runs that task in [fast mode](#anthropic-api-fast-mode). Default `false`. Meant for the `qa` role. |
+| `effort` | How much effort the model spends on a task: `low`, `medium`, `high`, `xhigh`, or `max`. Sent by the Anthropic API, Claude Code, Bedrock, and Vertex providers (as the model's effort), and by OpenAI and Codex (as the reasoning effort); others ignore it. Without it, the model uses its own default. Setup writes `"effort": "low"` for `briefing` and `narration` with those providers: summaries and narration need less deliberation than Q&A, and low effort means fewer thinking tokens and fewer tool calls, so tours finish sooner and cost less. Q&A is left at the model's default. Like other fields, a role's own `effort` wins over the top-level one. Changing it does not rebuild a cached tour. |
+| `fastMode` | Anthropic API, OpenAI, and Codex: `true` runs that task in Anthropic's fast mode or with OpenAI's priority processing, faster and more expensive (see [Fast mode and priority processing](#fast-mode-and-priority-processing)). Default `false`. Meant for the `qa` role. |
 | `toolCalling` | Set `false` for a compatible endpoint that cannot call functions. Generation still receives the supplied diff, but Q&A is limited to the selected code. |
 | `chapterOrder` | The chapter order a tour opens in: `guide` (default), `risk`, `size` (small first), or `file`. Also read with `--no-agent`. Press `f` during a tour to switch; a PR you have already opened reopens in the order you last used there. |
 | `hideWhitespace` | Whether diffs hide whitespace-only changes (default `true`). Pressing `w` during a tour switches it and saves the choice here, so the next tour opens the same way. Also read with `--no-agent`. |

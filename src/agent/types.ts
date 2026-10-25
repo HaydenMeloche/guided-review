@@ -14,10 +14,11 @@ export interface AgentConfig {
   // A Cursor model's variant, such as { reasoning_effort: 'low', fast: 'true' }. Without them
   // Cursor picks the model's default variant, which can be its most expensive one.
   modelParams?: Record<string, string>;
-  // How much effort the model spends (thinking and tool calls) on Anthropic and the Claude Agent
-  // SDK providers. Unset leaves the provider's default.
+  // How much effort the model spends (thinking and tool calls) on the Anthropic, Claude Agent
+  // SDK, OpenAI, and Codex providers. Unset leaves the provider's default.
   effort?: Effort;
-  // The Anthropic API's fast mode (beta): faster output at a higher price, on models that offer it.
+  // Faster output at a higher price, on models that offer it: the Anthropic API's fast mode
+  // (beta), or OpenAI's priority processing on the openai and codex providers.
   fastMode?: boolean;
 }
 

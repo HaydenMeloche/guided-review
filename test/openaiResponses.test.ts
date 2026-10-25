@@ -100,4 +100,56 @@ describe('OpenAI Responses provider', () => {
     const result = await runOpenAI<string>('q', { provider: 'openai', model: 'gpt-x', cwd }, {}, 'sys');
     expect(result.usage).toEqual({ inputTokens: 100, outputTokens: 12, cacheReadTokens: 200, toolTurns: 0 });
   });
+
+  it('sends effort as reasoning.effort and fastMode as the priority service tier, only when set', async () => {
+    const cwd = fixture();
+    const fetchMock = vi.fn().mockImplementation(async () => Response.json({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: 'ok' }] }] }));
+    vi.stubGlobal('fetch', fetchMock);
+    await runOpenAI('q', { provider: 'openai', model: 'gpt-x', cwd, effort: 'max', fastMode: true }, {}, 'sys');
+    await runOpenAI('q', { provider: 'openai', model: 'gpt-x', cwd, fastMode: false }, {}, 'sys');
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ reasoning: { effort: 'max' }, service_tier: 'priority' });
+    const plain = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(plain).not.toHaveProperty('reasoning');
+    expect(plain).not.toHaveProperty('service_tier');
+    expect(plain).not.toHaveProperty('text');
+  });
+
+  it('sends the answer schema as a strict text format and drops the nulls it gives for optional fields', async () => {
+    const cwd = fixture();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(Response.json({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: '{"hunks":[{"id":"h1","risk":null}],"note":null}' }] }] }));
+    vi.stubGlobal('fetch', fetchMock);
+    const schema = {
+      type: 'object',
+      properties: {
+        hunks: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, risk: { type: 'integer', minimum: 0, maximum: 3 } }, required: ['id'] } },
+        note: { type: 'string' },
+      },
+      required: ['hunks'],
+    };
+    const result = await runOpenAI<unknown>('Narrate', { provider: 'openai', model: 'gpt-x', cwd, effort: 'low' }, { schema }, 'sys');
+    expect(result.value).toEqual({ hunks: [{ id: 'h1' }] });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.input[0]).toEqual({ role: 'user', content: 'Narrate' });
+    expect(body.text).toEqual({
+      format: {
+        type: 'json_schema',
+        name: 'answer',
+        strict: true,
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            hunks: {
+              type: 'array',
+              items: { type: 'object', additionalProperties: false, properties: { id: { type: 'string' }, risk: { type: ['integer', 'null'] } }, required: ['id', 'risk'] },
+            },
+            note: { type: ['string', 'null'] },
+          },
+          required: ['hunks', 'note'],
+        },
+      },
+    });
+  });
 });

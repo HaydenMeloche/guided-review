@@ -137,8 +137,21 @@ describe('setup answers', () => {
     const same = buildConfig(current, modelDefaults('anthropic', current as never), undefined, undefined);
     expect(same.roles).toMatchObject({ briefing: { effort: 'low' }, narration: { effort: 'medium' }, qa: { fastMode: true } });
     const other = buildConfig(current, modelDefaults('openai', current as never), undefined, undefined);
-    expect(other.roles?.narration).not.toHaveProperty('effort');
+    // Another provider starts from its own preset, not the effort set by hand.
+    expect(other.roles?.narration?.effort).toBe('low');
     expect(other.roles?.qa).not.toHaveProperty('fastMode');
+  });
+
+  it('presets low effort for OpenAI and Codex summaries and keeps priority processing set by hand', () => {
+    for (const provider of ['openai', 'codex'] as const) {
+      const current: UserConfig = presetUserConfig(provider, PRESET_MODELS[provider]!);
+      expect(current.roles).toMatchObject({ briefing: { effort: 'low' }, narration: { effort: 'low' } });
+      expect(current.roles!.qa).not.toHaveProperty('effort');
+      expect(current).not.toHaveProperty('fastMode');
+      current.roles!.qa = { ...current.roles!.qa, effort: 'xhigh', fastMode: true };
+      const same = buildConfig(current, modelDefaults(provider, current as never), undefined, undefined);
+      expect(same.roles).toMatchObject({ narration: { effort: 'low' }, qa: { effort: 'xhigh', fastMode: true } });
+    }
   });
 
   it('leaves effort and fast mode out of what the tour cache compares', () => {

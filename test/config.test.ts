@@ -140,8 +140,8 @@ describe('user config', () => {
     expect(configForRole(routing, 'qa').effort).toBe('high');
   });
 
-  it('presets low effort for the briefing and narration on Claude providers, and none for Q&A', () => {
-    for (const provider of ['anthropic', 'claude-code', 'bedrock', 'vertex'] as const) {
+  it('presets low effort for the briefing and narration on Claude, OpenAI, and Codex, and none for Q&A', () => {
+    for (const provider of ['anthropic', 'claude-code', 'bedrock', 'vertex', 'openai', 'codex'] as const) {
       const config = presetUserConfig(provider, PRESET_MODELS[provider]!);
       expect(configForRole(config, 'briefing').effort).toBe('low');
       expect(configForRole(config, 'narration').effort).toBe('low');
@@ -149,7 +149,7 @@ describe('user config', () => {
       expect(config.effort).toBeUndefined();
       expect(config.fastMode).toBeUndefined();
     }
-    for (const provider of ['openai', 'codex', 'cursor'] as const) {
+    for (const provider of ['cursor'] as const) {
       const config = presetUserConfig(provider, PRESET_MODELS[provider]!);
       expect(configForRole(config, 'narration').effort).toBeUndefined();
     }
