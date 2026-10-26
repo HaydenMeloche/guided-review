@@ -17,6 +17,8 @@ describe('isImportOnlyHunk', () => {
   it('accepts multi-line import blocks, including a hunk that starts inside one', () => {
     expect(isImportOnlyHunk(h('a.ts', ' import {', '   a,', '+  b,', '   c,', " } from './x'"))).toBe(true);
     expect(isImportOnlyHunk(h('a.ts', '   a,', '+  type B,', '-  c as d,', " } from './x'", ' ', ' const x = 1'))).toBe(true);
+    expect(isImportOnlyHunk(h('a.go', ' \t"fmt"', '+\t"strings"', ' )'))).toBe(true);
+    expect(isImportOnlyHunk(h('a.rs', '     fmt,', '+    io,', ' };'))).toBe(true);
   });
 
   it('rejects hunks that change code too', () => {
@@ -24,6 +26,8 @@ describe('isImportOnlyHunk', () => {
     expect(isImportOnlyHunk(h('A.kt', '+import com.acme.Foo', '+val foo = Foo()'))).toBe(false);
     expect(isImportOnlyHunk(h('a.ts', ' import {', '+  b,', " } from './x'", '-const y = 2'))).toBe(false);
     expect(isImportOnlyHunk(h('a.ts', ' const a = {', '+  b,', ' }'))).toBe(false); // object literal, not imports
+    expect(isImportOnlyHunk(h('a.ts', '     b,', '+    c', '   }'))).toBe(false); // the end of one, starting inside it
+    expect(isImportOnlyHunk(h('q.graphql', '       clSignedDate', '+      creditorInsuranceStatus', '     }', '     totalCount'))).toBe(false); // a field in a selection
     expect(isImportOnlyHunk(h('a.ts', ' // a', '+', ' // b'))).toBe(false); // blank-only change
   });
 });

@@ -33,6 +33,14 @@ const BLOCK_ITEM = /^\s*((type\s+)?[\w$]+(\s+as\s+[\w$]+)?\s*,?|(\w+\s+)?"[^"]+"
 
 const isBlank = (s: string) => /^\s*$/.test(s);
 
+// How an import block ends in a language that has them, for a hunk that starts inside one.
+function leadingClose(file: string): RegExp | undefined {
+  if (/\.([cm]?[jt]sx?|vue|svelte)$/.test(file)) return /^\s*\}\s*from\s+['"][^'"]+['"]\s*;?\s*$/;
+  if (/\.(go|py)$/.test(file)) return /^\s*\)\s*$/;
+  if (/\.rs$/.test(file)) return /^\s*\};?\s*$/;
+  return undefined;
+}
+
 // A line that is, or opens, an import statement; also a quoted Go import spec on its own line.
 export function isImportLine(text: string): boolean {
   return SINGLE_LINE.some((re) => re.test(text)) || BLOCK_OPEN.some((re) => re.test(text)) || /^\s*(\w+\s+)?"[^"]+"\s*$/.test(text);
@@ -56,8 +64,10 @@ export function isImportOnlyHunk(h: Hunk): boolean {
     }
   });
   // The hunk may begin inside an import block whose opening line is above it:
-  // leading item lines count when a block close follows them.
-  const close = h.lines.findIndex((l, i) => BLOCK_CLOSE.test(l.text) && !kinds[i]);
+  // leading item lines count when the language's import close follows them. A bare
+  // `}` or `)` is not enough: it also ends a GraphQL selection or an object literal.
+  const ownClose = leadingClose(h.file);
+  const close = ownClose ? h.lines.findIndex((l, i) => ownClose.test(l.text) && !kinds[i]) : -1;
   if (close >= 0 && h.lines.slice(0, close).every((l, i) => kinds[i] || isBlank(l.text) || BLOCK_ITEM.test(l.text))) {
     for (let i = 0; i <= close; i++) kinds[i] = true;
   }
