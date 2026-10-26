@@ -88,9 +88,17 @@ export function draftsAt(drafts: Draft[], hunk: Hunk, line?: number, side: 'LEFT
 
 // The review threads and the newest unposted draft on the cursor line, which E and X act on. Split,
 // a removed line shares its replacement's row, so its threads and drafts are on the cursor line too.
-export function cursorNotes(hunk: Hunk | undefined, cursor: number, hidden: ReadonlyMap<number, Fold>, partner: number[], threads: ExistingThread[], drafts: Draft[]) {
+export function cursorNotes(
+  hunk: Hunk | undefined,
+  cursor: number,
+  hidden: ReadonlyMap<number, Fold>,
+  partner: number[],
+  threads: ExistingThread[],
+  drafts: Draft[],
+  run?: { start: number; end: number }, // a folded run of imports on the cursor's row: its lines' notes too
+) {
   const side = (l: DiffLine) => [l.kind === 'del' ? l.oldLine : l.newLine, l.kind === 'del' ? 'LEFT' : 'RIGHT'] as const;
-  const lines = [hunk?.lines[cursor], hidden.get(partner[cursor]) === 'beside' ? hunk?.lines[partner[cursor]] : undefined];
+  const lines = run ? (hunk?.lines.slice(run.start, run.end + 1) ?? []) : [hunk?.lines[cursor], hidden.get(partner[cursor]) === 'beside' ? hunk?.lines[partner[cursor]] : undefined];
   const on = lines.flatMap((l) => (hunk && l ? [side(l)] : []));
   return {
     threads: on.flatMap(([line, s]) => threadAt(threads, hunk!.file, line, s)),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Chapter } from '../src/types.js';
-import { isImportOnlyHunk, separateImportChapter } from '../src/analysis/imports.js';
+import { importRuns, isImportOnlyHunk, separateImportChapter } from '../src/analysis/imports.js';
 import { progress } from '../src/tui/nav.js';
 import { chapter, hunkFromDiff as h, tour } from './fixtures/tour.js';
 
@@ -29,6 +29,22 @@ describe('isImportOnlyHunk', () => {
     expect(isImportOnlyHunk(h('a.ts', '     b,', '+    c', '   }'))).toBe(false); // the end of one, starting inside it
     expect(isImportOnlyHunk(h('q.graphql', '       clSignedDate', '+      creditorInsuranceStatus', '     }', '     totalCount'))).toBe(false); // a field in a selection
     expect(isImportOnlyHunk(h('a.ts', ' // a', '+', ' // b'))).toBe(false); // blank-only change
+  });
+});
+
+describe('importRuns', () => {
+  it('finds the imports a hunk that changes code too adds or removes, blank lines between them included', () => {
+    const hunk = h('A.kt', ' package acme', ' ', ' import acme.A', '-import acme.B', ' ', '+import acme.C', ' ', ' @Api', '-class Foo(', '+open class Foo(');
+    expect(importRuns(hunk)).toEqual([{ start: 0, end: 5, added: 1, removed: 1 }]);
+  });
+
+  it('finds none in an import-only hunk, or among imports nothing changes', () => {
+    expect(importRuns(h('a.ts', " import { a } from './a'", "+import { b } from './b'"))).toEqual([]);
+    expect(importRuns(h('a.ts', " import { a } from './a'", ' ', '+go();'))).toEqual([]);
+  });
+
+  it('reads a block of imports the hunk starts inside', () => {
+    expect(importRuns(h('a.ts', '   a,', '+  b,', " } from './x';", ' ', '+go(b);'))).toEqual([{ start: 0, end: 2, added: 1, removed: 0 }]);
   });
 });
 

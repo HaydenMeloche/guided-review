@@ -12,6 +12,7 @@ import { GUTTER, SPLIT_GUTTER } from '../paneWidths.js';
 import { SURFACES } from '../theme.js';
 import { draftsAt, movedNote, threadAt } from './lineNotes.js';
 import { G } from '../glyphs.js';
+import type { ImportRun } from '../../analysis/imports.js';
 
 export const SourcePane = React.memo(function SourcePane(props: {
   inline?: { afterIdx: number; node: React.ReactNode; height: number }; // comment editor under the selected line
@@ -22,6 +23,7 @@ export const SourcePane = React.memo(function SourcePane(props: {
   split: boolean; // old and new side by side
   partner: number[]; // pairChangedLines(hunk.lines)
   hidden: ReadonlyMap<number, Fold>; // removed lines folded into their replacement (foldedLines)
+  runs?: ReadonlyMap<number, ImportRun>; // folded runs of imports, by their first line, drawn as one row
   ignoreWhitespace: boolean;
   scroll: number;
   setScroll: (n: number) => void;
@@ -125,6 +127,27 @@ export const SourcePane = React.memo(function SourcePane(props: {
       const moved = movedNote(hunk, j);
       if (moved) out.push({ idx: i, node: <Text color="blue">{truncate(`          ${moved}`, width)}</Text> });
     };
+    // A folded run of imports: one row on its first line, with the notes of every line in it.
+    const importRow = (i: number) => {
+      const r = props.runs?.get(i);
+      if (!r) return false;
+      const counts = [r.removed && `${r.removed} removed`, r.added && `${r.added} added`].filter(Boolean).join(', ');
+      const text = `${' '.repeat(10)}│ ${G.folded} ${r.added + r.removed === 1 ? 'import' : 'imports'}: ${counts} · I to show`;
+      const draw = (bg?: string) => (
+        <Text backgroundColor={bg} dimColor>
+          {truncate(text, width)}
+          {bg ? ' '.repeat(Math.max(0, width - text.length)) : ''}
+        </Text>
+      );
+      out.push({ idx: i, node: draw(), paint: draw });
+      for (let k = r.start; k <= r.end; k++) notesUnder(k, i);
+      return true;
+    };
+    // A line paired with one in a folded run of imports is not its replacement.
+    const foldOf = (i: number) => {
+      const f = props.hidden.get(i);
+      return f === 'imports' ? undefined : f;
+    };
     if (props.split) {
       // Old on the left, new on the right; a removed line shares its replacement's row.
       const half = Math.max(8, Math.floor((width - 2) / 2));
@@ -151,8 +174,8 @@ export const SourcePane = React.memo(function SourcePane(props: {
       };
       const blank = ' '.repeat(half);
       hunk.lines.forEach((l, i) => {
-        if (props.hidden.has(i)) return;
-        const beside = l.kind === 'add' && props.hidden.has(props.partner[i]) ? props.partner[i] : undefined;
+        if (props.hidden.has(i) || importRow(i)) return;
+        const beside = l.kind === 'add' && foldOf(props.partner[i]) ? props.partner[i] : undefined;
         const side = (bg?: string) => ({ left: cells(l.kind === 'add' ? beside : i, 'old', bg), right: cells(l.kind === 'del' ? undefined : i, 'new', bg) });
         const plain = side();
         for (let k = 0; k < Math.max(plain.left.length, plain.right.length); k++) {
@@ -171,10 +194,10 @@ export const SourcePane = React.memo(function SourcePane(props: {
       return out;
     }
     hunk.lines.forEach((l, i) => {
-      if (props.hidden.has(i)) return;
+      if (props.hidden.has(i) || importRow(i)) return;
       // An added line whose removed partner is folded into it shows once, on a plain background:
       // marked ~ when only whitespace changed, or + with just the added words in green.
-      const fold = props.hidden.get(props.partner[i]);
+      const fold = foldOf(props.partner[i]);
       const reindented = fold === 'whitespace';
       const kind = fold ? 'ctx' : l.kind;
       const no = `${(fold ? hunk.lines[props.partner[i]].oldLine : l.oldLine) ?? ''}`.padStart(4) + ' ' + `${l.newLine ?? ''}`.padStart(4);
@@ -199,7 +222,7 @@ export const SourcePane = React.memo(function SourcePane(props: {
       notesUnder(i, i);
     });
     return out;
-  }, [hunk, props.raw, props.split, props.partner, props.hidden, props.ignoreWhitespace, words, props.threads, props.drafts, width, highlights]);
+  }, [hunk, props.raw, props.split, props.partner, props.hidden, props.runs, props.ignoreWhitespace, words, props.threads, props.drafts, width, highlights]);
 
   // Keep the cursor in view.
   const cursorRow = rows.findIndex((r) => r.idx === cursor);

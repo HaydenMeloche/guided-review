@@ -64,6 +64,7 @@ export type Action =
   | 'moreContext'
   | 'lessContext'
   | 'whitespace'
+  | 'imports'
   | 'skip'
   | 'defer'
   | 'unread'
@@ -273,6 +274,12 @@ export const KEYS: KeyRow[] = [
     bind: [{ mode: 'code', on: ['S'], do: 'split', palette: 'Split view: old beside new, or inline' }],
   },
   { keys: 'w', group: 'Settings', help: 'Hide or show whitespace-only changes', bind: [{ mode: 'code', on: ['w'], do: 'whitespace', palette: 'Hide or show whitespace-only changes' }] },
+  {
+    keys: 'I',
+    group: 'Settings',
+    help: 'Fold or show the imports of a hunk that changes code too',
+    bind: [{ mode: 'code', on: ['I'], do: 'imports', palette: 'Fold or show the imports in a hunk' }],
+  },
   { keys: 'r', group: 'Settings', help: 'Raw unified diff for the hunk', bind: [{ mode: 'code', on: ['r'], do: 'raw', when: hunk, palette: 'Raw unified diff' }] },
   { keys: 'T', group: 'Settings', help: 'Hide or show the test pane beside the code', bind: [{ mode: 'code', on: ['T'], do: 'testPane', palette: 'Hide or show the test pane' }] },
   { keys: 'U', group: 'Settings', help: 'Expand or collapse possible test gaps in the explanation', bind: [{ mode: 'code', on: ['U'], do: 'untested', palette: 'Show or hide possible test gaps' }] },

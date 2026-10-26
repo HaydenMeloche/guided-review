@@ -66,8 +66,9 @@ export function pairChangedLines(lines: DiffLine[]): number[] {
 
 // Why a removed line is folded into the added line that replaces it: that line differs only in
 // whitespace (folded only while whitespace is ignored), keeps every word and adds some, or sits
-// beside it in a split view.
-export type Fold = 'whitespace' | 'insertion' | 'beside';
+// beside it in a split view. `imports`: any line of a run of imports folded to its first line's
+// row (importRuns), which is not a replacement for the line paired with it.
+export type Fold = 'whitespace' | 'insertion' | 'beside' | 'imports';
 
 // Removed lines to show folded into their partner rather than as their own line.
 export function foldedLines(lines: DiffLine[], partner: number[], ignoreWhitespace: boolean): Map<number, Fold> {

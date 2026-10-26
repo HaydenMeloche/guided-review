@@ -1449,6 +1449,29 @@ describe('feedback round: guide, tests, inline comments, description', () => {
     ui.unmount();
   });
 
+  it('folds the imports of a hunk that changes code too, with their threads, until I shows them', async () => {
+    const h = hunkFromDiff('src/a.ts', " import { a } from './a';", "-import { b } from './b';", "-import { c } from './c';", "+import { d } from './d';", ' ', '-go(b, c);', '+go(d);');
+    const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
+    t.existingThreads = [{ id: 't1', path: 'src/a.ts', line: 2, isResolved: false, isOutdated: false, comments: [{ id: '1', author: 'alice', body: 'Why d?', createdAt: '' }] }];
+    const ui = render(<Harness tour={t} onDraft={() => {}} onState={() => {}} onReply={async () => {}} />);
+    await waitFor(() => expect(ui.lastFrame()).toContain('imports: 2 removed, 1 added · I to show'));
+    expect(ui.lastFrame()).not.toContain("import { b } from './b'");
+    expect(ui.lastFrame()).toContain('1 review thread');
+    // The cursor starts on the code; k, past the blank line, lands on the folded row, which holds
+    // the import's thread.
+    expect(ui.lastFrame()).not.toContain('e thread');
+    ui.stdin.write('k');
+    await tick();
+    ui.stdin.write('k');
+    await waitFor(() => expect(ui.lastFrame()).toContain('e thread'));
+    ui.stdin.write('c');
+    await waitFor(() => expect(ui.lastFrame()).toContain('press I to show them'));
+    ui.stdin.write('I');
+    await waitFor(() => expect(ui.lastFrame()).toContain("import { b } from './b'"));
+    expect(ui.lastFrame()).not.toContain('I to show');
+    ui.unmount();
+  });
+
   it('opens the comment editor inline under the selected line', async () => {
     const t = fixtureTour();
     const ui = render(screen(t));

@@ -46,9 +46,9 @@ export function isImportLine(text: string): boolean {
   return SINGLE_LINE.some((re) => re.test(text)) || BLOCK_OPEN.some((re) => re.test(text)) || /^\s*(\w+\s+)?"[^"]+"\s*$/.test(text);
 }
 
-// True when every added or removed line in the hunk is part of an import statement.
-export function isImportOnlyHunk(h: Hunk): boolean {
-  const kinds = h.lines.map(() => false); // per line: belongs to an import statement
+// Per line of the hunk: whether it belongs to an import statement.
+function importLines(h: Hunk): boolean[] {
+  const kinds = h.lines.map(() => false);
   let inBlock = false;
   h.lines.forEach((l, i) => {
     const t = l.text;
@@ -71,7 +71,12 @@ export function isImportOnlyHunk(h: Hunk): boolean {
   if (close >= 0 && h.lines.slice(0, close).every((l, i) => kinds[i] || isBlank(l.text) || BLOCK_ITEM.test(l.text))) {
     for (let i = 0; i <= close; i++) kinds[i] = true;
   }
+  return kinds;
+}
 
+// True when every added or removed line in the hunk is part of an import statement.
+export function isImportOnlyHunk(h: Hunk): boolean {
+  const kinds = importLines(h);
   let changed = 0;
   for (let i = 0; i < h.lines.length; i++) {
     const l = h.lines[i];
@@ -80,6 +85,39 @@ export function isImportOnlyHunk(h: Hunk): boolean {
     changed++;
   }
   return changed > 0;
+}
+
+// A run of import lines in a hunk that changes code too, with the imports it adds and removes.
+export interface ImportRun {
+  start: number; // index into hunk.lines
+  end: number; // inclusive
+  added: number;
+  removed: number;
+}
+
+// The runs of import lines (blank lines between them included) that add or remove an import, in
+// a hunk that also changes other code: what the chapter screen folds to one row. None in an
+// import-only hunk, whose imports are what it shows, or in a new file, whose imports open it.
+export function importRuns(h: Hunk): ImportRun[] {
+  if (h.oldStart === 0) return [];
+  const kinds = importLines(h);
+  const runs: ImportRun[] = [];
+  let i = 0;
+  while (i < h.lines.length) {
+    if (!kinds[i]) {
+      i++;
+      continue;
+    }
+    let end = i;
+    for (let j = i + 1; j < h.lines.length && (kinds[j] || isBlank(h.lines[j].text)); j++) if (kinds[j]) end = j;
+    const run = h.lines.slice(i, end + 1);
+    const added = run.filter((l) => l.kind === 'add' && !isBlank(l.text)).length;
+    const removed = run.filter((l) => l.kind === 'del' && !isBlank(l.text)).length;
+    if (added + removed) runs.push({ start: i, end, added, removed });
+    i = end + 1;
+  }
+  const inRun = (i: number) => runs.some((r) => i >= r.start && i <= r.end);
+  return h.lines.some((l, i) => l.kind !== 'ctx' && !isBlank(l.text) && !inRun(i)) ? runs : [];
 }
 
 // Flags import-only hunks in hand-written and test files and takes them out of

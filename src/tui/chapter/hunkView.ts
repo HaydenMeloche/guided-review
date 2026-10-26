@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { DiffFile, Hunk, Tour } from '../../types.js';
 import { foldedLines, pairChangedLines, type Fold } from '../../diff/lines.js';
 import { safeReadFile } from '../../analysis/safeRead.js';
+import { importRuns, type ImportRun } from '../../analysis/imports.js';
 import { fileLines, headFor, withContext } from '../../diff/context.js';
 
 export const CONTEXT_STEP = 10; // lines + and - add or remove on each side of a hunk
@@ -92,7 +93,7 @@ export function useHunkView(diffHunk: Hunk | undefined, tour: Pick<Tour, 'files'
 // Folds depend on the layout (a split diff folds every replaced line), which depends on the view,
 // so they come in after it: this resets the view when the hunk changes, keeps the cursor and range
 // ends off folded lines, and returns how j/k move the cursor over them.
-export function useFoldedCursor(view: HunkView, hidden: ReadonlyMap<number, Fold>, partner: number[]) {
+export function useFoldedCursor(view: HunkView, hidden: ReadonlyMap<number, Fold>, partner: number[], land: (i: number) => number) {
   const { hunk, setCursor, setAnchor } = view;
   // Reset per-hunk view state when the hunk changes; the test side jumps to the matching case.
   useEffect(() => {
@@ -119,9 +120,9 @@ export function useFoldedCursor(view: HunkView, hidden: ReadonlyMap<number, Fold
   // Folding a line moves a cursor or range end off it onto its replacement. Updaters, so a
   // cursor the hunk reset just placed is the one checked.
   useEffect(() => {
-    setCursor((c) => (hidden.has(c) ? partner[c] : c));
-    setAnchor((a) => (a !== null && hidden.has(a) ? partner[a] : a));
-  }, [hidden, partner, setCursor, setAnchor]);
+    setCursor((c) => (hidden.has(c) ? land(c) : c));
+    setAnchor((a) => (a !== null && hidden.has(a) ? land(a) : a));
+  }, [hidden, land, setCursor, setAnchor]);
 
   const visibleLine = (i: number, dir: 1 | -1) => {
     const n = hunk?.lines.length ?? 0;
@@ -133,13 +134,28 @@ export function useFoldedCursor(view: HunkView, hidden: ReadonlyMap<number, Fold
 }
 
 // Removed lines folded into the line replacing them; the cursor steps over them. Split, every
-// removed line with a replacement sits beside it, on the replacement's row.
-export function useFolds(hunk: Hunk | undefined, ignoreWhitespace: boolean, split: boolean) {
+// removed line with a replacement sits beside it, on the replacement's row. With `foldImports`,
+// the imports a hunk that changes code too adds or removes fold to one row, on the run's first
+// line (`runs`, by that line); `land` is where a cursor on a folded line goes.
+export function useFolds(hunk: Hunk | undefined, ignoreWhitespace: boolean, split: boolean, foldImports = false) {
   const partner = useMemo(() => (hunk ? pairChangedLines(hunk.lines) : []), [hunk]);
+  const runs = useMemo(() => new Map<number, ImportRun>(hunk && foldImports && !hunk.importOnly ? importRuns(hunk).map((r) => [r.start, r]) : []), [hunk, foldImports]);
   const hidden = useMemo(() => {
     const folds = hunk ? foldedLines(hunk.lines, partner, ignoreWhitespace) : new Map<number, Fold>();
     if (split && hunk) for (const [i, p] of partner.entries()) if (p >= 0 && hunk.lines[i].kind === 'del' && !folds.has(i)) folds.set(i, 'beside');
+    for (const r of runs.values()) {
+      folds.delete(r.start);
+      for (let i = r.start + 1; i <= r.end; i++) folds.set(i, 'imports');
+    }
     return folds;
-  }, [hunk, partner, ignoreWhitespace, split]);
-  return { partner, hidden };
+  }, [hunk, partner, ignoreWhitespace, split, runs]);
+  const land = useCallback(
+    (i: number) => {
+      if (hidden.get(i) !== 'imports') return partner[i];
+      for (const r of runs.values()) if (i >= r.start && i <= r.end) return r.start;
+      return i;
+    },
+    [hidden, partner, runs],
+  );
+  return { partner, hidden, runs, land };
 }

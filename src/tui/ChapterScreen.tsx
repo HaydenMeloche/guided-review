@@ -129,6 +129,7 @@ export function ChapterScreen(props: {
   const [sidebar, toggleSidebar] = useSetting(props.sidebar, props.toggleSidebar, true);
   const [shortExplanation, toggleExplanation] = useSetting(props.shortExplanation, props.toggleExplanation, false);
   const [showUntested, setShowUntested] = useState(false);
+  const [foldImports, setFoldImports] = useState(true);
   const [overlay, setOverlay] = useState<Overlay>(NONE);
   const close = () => setOverlay(NONE);
   const show = (kind: Exclude<OverlayKind, 'none' | 'comment' | 'move'>) => setOverlay({ kind });
@@ -176,10 +177,10 @@ export function ChapterScreen(props: {
   });
   const { wide, listWidth, mainWidth, sideBySide, srcWidth, splitView, bodyHeight, askHeight } = plan;
 
-  const { partner, hidden } = useFolds(hunk, ignoreWhitespace, splitView);
-  const moveCursor = useFoldedCursor(view, hidden, partner);
+  const { partner, hidden, runs, land } = useFolds(hunk, ignoreWhitespace, splitView, foldImports);
+  const moveCursor = useFoldedCursor(view, hidden, partner, land);
   const cursorLine = hunk?.lines[cursor];
-  const { threads: cursorThreads, draft: cursorDraft } = cursorNotes(hunk, cursor, hidden, partner, tour.existingThreads, props.drafts);
+  const { threads: cursorThreads, draft: cursorDraft } = cursorNotes(hunk, cursor, hidden, partner, tour.existingThreads, props.drafts, runs.get(cursor));
   useEffect(() => {
     setSummarySel(0);
     setShowUntested(false);
@@ -366,6 +367,7 @@ export function ChapterScreen(props: {
     unread: () => props.setState([hunk!], 'unread'),
     raw: () => setRaw((r) => !r),
     whitespace: toggleWhitespace,
+    imports: () => setFoldImports((f) => !f),
     split: () => {
       if (!wantSplit && srcWidth < MIN_SPLIT_WIDTH) setFlash('Split view needs a wider terminal; showing it once there is room.');
       toggleSplit();
@@ -381,6 +383,7 @@ export function ChapterScreen(props: {
     comment: () => {
       // c on a line that holds your draft edits it.
       if (anchor === null && cursorDraft) return openComposer(cursorDraft);
+      if (anchor === null && runs.has(cursor)) return setFlash('These imports are folded: press I to show them, then comment on one.');
       if (crossesContext(hunk!, sel)) return setFlash('This range crosses dimmed lines outside the PR’s diff: GitHub can’t take one comment across them. Select one side.');
       const a = lineAnchor(hunk!, sel);
       if (!a && anchorLines(hunk!, sel).length === 0) return setFlash('This is context outside the PR’s diff: GitHub can’t take a comment on it.');
@@ -777,6 +780,7 @@ export function ChapterScreen(props: {
                       split={splitView}
                       partner={partner}
                       hidden={hidden}
+                      runs={runs}
                       ignoreWhitespace={ignoreWhitespace}
                       scroll={scroll}
                       setScroll={setScroll}

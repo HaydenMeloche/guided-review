@@ -27,6 +27,7 @@
 
  ‹b,dim›Settings   ‹/›‹cyan›S             ‹/›Split view (old beside new) or inline
  ‹b,dim›           ‹/›‹cyan›w             ‹/›Hide or show whitespace-only changes
+ ‹b,dim›           ‹/›‹cyan›I             ‹/›Fold or show the imports of a hunk that changes code too
  ‹b,dim›           ‹/›‹cyan›r             ‹/›Raw unified diff for the hunk
  ‹b,dim›           ‹/›‹cyan›T             ‹/›Hide or show the test pane beside the code
  ‹b,dim›           ‹/›‹cyan›U             ‹/›Expand or collapse possible test gaps in the explanation
@@ -45,7 +46,6 @@
  ‹b,dim›           ‹/›‹cyan›q             ‹/›go up a level
  ‹b,dim›           ‹/›‹cyan›Q             ‹/›quit
  ‹b,dim›           ‹/›‹cyan›?             ‹/›these keys
-
 
 
 
