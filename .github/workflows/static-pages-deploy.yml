@@ -4,6 +4,10 @@ name: Deploy static content to Pages
 on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
+  # Redeploys the docs once a release has published to npm
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
@@ -20,6 +24,7 @@ concurrency:
 jobs:
   # Single deploy job since we're just deploying
   deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -27,6 +32,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # The released commit, not master's tip; empty on a manual run, which checks out the chosen branch
+          ref: ${{ github.event.workflow_run.head_sha }}
       - name: Setup Pages
         uses: actions/configure-pages@v6
       - name: Upload artifact
