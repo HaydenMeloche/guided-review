@@ -59,7 +59,7 @@ describe('chapterLayout heights', () => {
     expect(p.explainLines).toEqual([]);
     expect(p.bodyHeight).toBe(34);
     expect(p.threadHeight).toBe(17);
-    expect(p.askHeight).toBe(14);
+    expect(p.askHeight).toBe(20);
   });
 
   it('cuts a long explanation to explainMax, ending in a note', () => {

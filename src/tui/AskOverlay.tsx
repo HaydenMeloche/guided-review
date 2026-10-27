@@ -34,7 +34,9 @@ export function AskOverlay(props: {
   const [q, setQ] = useState('');
   const [turns, setTurns] = useState<AskTurn[]>([]);
   const [busy, setBusy] = useState(false);
-  const [scroll, setScroll] = useState(0); // rows up from the bottom of the thread
+  // The first row shown. A new question moves it to that question: the view follows the answer
+  // only until the question reaches the top, then stays, so the answer reads from its start.
+  const [scroll, setScroll] = useState(0);
   const abort = useRef<AbortController | null>(null);
   // The newest streamed text not yet on screen, and the timer that will flush it.
   const pending = useRef<string | undefined>(undefined);
@@ -68,7 +70,8 @@ export function AskOverlay(props: {
     const history = turns;
     setTurns([...history, { question, answer: '' }]);
     setQ('');
-    setScroll(0);
+    // The new question starts after the thread so far and the blank row before it.
+    setScroll(lines.length + (history.length ? 1 : 0));
     if (!props.agent) return;
     setBusy(true);
     abort.current = new AbortController();
@@ -101,18 +104,17 @@ export function AskOverlay(props: {
   const inputRows = busy ? 0 : Math.min(2, Math.max(1, wrap(q, Math.max(10, inner)).length));
   const room = Math.max(0, props.height - 4 - inputRows); // border, title, input, and footer
   const maxScroll = Math.max(0, lines.length - room);
-  const offset = Math.min(scroll, maxScroll);
-  const top = maxScroll - offset;
+  const top = Math.min(scroll, maxScroll);
 
   useInput((_input, key) => {
     if (key.escape) {
       abort.current?.abort();
       return props.onClose();
     }
-    if (key.upArrow) setScroll((s) => Math.min(maxScroll, s + 1));
-    if (key.downArrow) setScroll((s) => Math.max(0, s - 1));
-    if (key.pageUp) setScroll((s) => Math.min(maxScroll, s + room));
-    if (key.pageDown) setScroll((s) => Math.max(0, s - room));
+    if (key.upArrow) setScroll(Math.max(0, top - 1));
+    if (key.downArrow) setScroll(Math.min(maxScroll, top + 1));
+    if (key.pageUp) setScroll(Math.max(0, top - room));
+    if (key.pageDown) setScroll(Math.min(maxScroll, top + room));
   });
 
   return (

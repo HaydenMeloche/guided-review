@@ -191,7 +191,7 @@ export function BriefingScreen(props: {
 
   // Wide terminals: text on the left, the overview diagram on the right at its natural
   // size (up to 60% of the width). Narrow terminals stack the diagram under the text.
-  const askHeight = overlay === 'ask' ? Math.min(14, Math.max(5, height - 10)) : 0;
+  const askHeight = overlay === 'ask' ? Math.min(Math.max(5, height - 10), Math.max(16, Math.floor(height * 0.6))) : 0;
   const bodyH = height - 4 - askHeight; // title, margin, status line, key bar
 
   // The briefing is a dashboard with a text budget: the author's description and the chapters

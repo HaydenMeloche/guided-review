@@ -112,7 +112,7 @@ export function chapterLayout(i: LayoutInput) {
     lockHeight,
     // Inline under the line, a thread takes at most half the body, so the code stays in view.
     threadHeight: Math.min(Math.max(6, bodyHeight - 2), Math.max(8, Math.floor(bodyHeight * 0.5))),
-    askHeight: Math.min(14, Math.max(5, bodyHeight - 2)),
+    askHeight: Math.min(Math.max(5, bodyHeight - 2), Math.max(16, Math.floor(bodyHeight * 0.6))),
     askWidth: i.testFocus ? testInlineWidth : hunk ? srcWidth - 1 : mainWidth,
     collapsed,
     sourcePaneShown: hunk && (sideBySide || !i.testFocus || !i.linkedTests),

@@ -278,15 +278,7 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
   const footerRows = 2;
   const bodyH = Math.max(6, height - headerRows - footerRows);
   const editorRows =
-    mode.kind === 'reply'
-      ? 6
-      : mode.kind === 'ai' || mode.kind === 'refine'
-        ? 9
-        : mode.kind === 'ask'
-          ? Math.min(14, Math.max(6, Math.floor(bodyH / 2)))
-          : mode.kind === 'react' || mode.kind === 'triage'
-            ? 2
-            : 0;
+    mode.kind === 'reply' ? 6 : mode.kind === 'ai' || mode.kind === 'refine' ? 9 : mode.kind === 'ask' ? Math.max(6, Math.floor(bodyH * 0.6)) : mode.kind === 'react' || mode.kind === 'triage' ? 2 : 0;
   const codeRows = !code ? 1 : expanded ? 4 : Math.min(code.hunk.lines.length + 1, Math.max(4, Math.floor((bodyH - editorRows) * 0.45)));
   const threadRows = Math.max(3, bodyH - codeRows - editorRows - 1);
   const maxScroll = Math.max(0, lines.length - threadRows);
