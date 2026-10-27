@@ -1193,6 +1193,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
               }}
               onBack={() => setPhase(submitFrom)}
               onQuit={requestQuit}
+              loadMentionUsers={local ? undefined : () => getMentionUsers(tour.repo)}
             />
           )}
         </ReviewPopup>

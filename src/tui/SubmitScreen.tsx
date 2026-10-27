@@ -10,6 +10,8 @@ import { progress, truncate, type States } from './nav.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
 import { LabelChip } from './CommentEditor.js';
 import { TextInput } from './TextInput.js';
+import { mentionHighlight } from './completion.js';
+import { useMentions } from './chapter/mentions.js';
 import { KeyBar } from './KeyBar.js';
 import { PostPreview } from './PostPreview.js';
 import { suggestionStillApplies } from './composer.js';
@@ -41,6 +43,7 @@ export function SubmitScreen(props: {
   onPosted: (ids: string[], review: { id: number; url: string }, moved: { draftId: string; note: string }[]) => void;
   onBack: () => void;
   onQuit?: () => void; // Q
+  loadMentionUsers?: () => Promise<string[]>; // collaborators for @mentions in the summary
 }) {
   const { tour, states, width } = props;
   const pending = useMemo(() => props.drafts.filter((d) => !d.posted), [props.drafts]);
@@ -60,6 +63,9 @@ export function SubmitScreen(props: {
   const payloadOpts = useMemo(() => ({ host, suggestionStillApplies: stillApplies }), [host, stillApplies]);
   const notes = useMemo(() => new Map(pending.map((d) => [d.id, postingNote(tour, d, payloadOpts)])), [tour, pending, payloadOpts]);
   const [previewing, setPreviewing] = useState<Draft>();
+  const mentions = useMentions(tour, mode === 'summary', props.loadMentionUsers);
+  const highlight = useMemo(() => [mentionHighlight(mentions)].filter((r) => r !== undefined), [mentions]);
+  const [completing, setCompleting] = useState(false); // TextInput's list owns Esc while open
 
   const checklist = props.checklist ?? [];
   const confirmed = checklist.filter((c) => props.confirms?.[c.id]);
@@ -116,7 +122,7 @@ export function SubmitScreen(props: {
     setMode('preview');
   }
 
-  useInput((_i, key) => key.escape && setMode('list'), { isActive: mode === 'summary' });
+  useInput((_i, key) => key.escape && setMode('list'), { isActive: mode === 'summary' && !completing });
 
   const listRoom = Math.max(3, props.height - 14 - unread.length);
 
@@ -156,7 +162,17 @@ export function SubmitScreen(props: {
       <Box marginTop={1} flexDirection="column">
         <Text bold>Summary</Text>
         {mode === 'summary' ? (
-          <TextInput value={summary} onChange={setSummary} onSubmit={() => setMode('list')} width={width - 4} placeholder="Optional review body" maxRows={4} />
+          <TextInput
+            value={summary}
+            onChange={setSummary}
+            onSubmit={() => setMode('list')}
+            width={width - 4}
+            placeholder="Optional review body · @ to mention someone"
+            maxRows={4}
+            mentions={mentions}
+            highlightTokens={highlight}
+            onCompleting={setCompleting}
+          />
         ) : (
           <Text dimColor={!summary}>{safe(summary) || '(none — w to write one)'}</Text>
         )}

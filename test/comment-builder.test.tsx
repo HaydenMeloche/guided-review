@@ -1018,6 +1018,38 @@ describe('submit screen', () => {
     expect(vi.mocked(postReview).mock.calls[0][2].comments[0].body).toContain('```suggestion\nx\n```');
     ui.unmount();
   });
+
+  it('@mentions people in the summary, loading collaborators when it opens; esc closes the list before the field', async () => {
+    const { postReview } = await import('../src/github/gh.js');
+    vi.mocked(postReview).mockClear();
+    const load = vi.fn(async () => ['thea', 'bob']);
+    const ui = render(submit([], { loadMentionUsers: load }));
+    await waitFor(() => expect(ui.lastFrame()).toContain('w to write one'));
+    expect(load).not.toHaveBeenCalled();
+    ui.stdin.write('w');
+    await waitFor(() => expect(load).toHaveBeenCalled());
+    await tick();
+    ui.stdin.write('Thanks @th');
+    await waitFor(() => expect(ui.lastFrame()).toContain('▸ @thea'));
+    ui.stdin.write(ESC);
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('▸ @thea'));
+    expect(ui.lastFrame()).toContain('Thanks @th'); // still writing
+    for (const k of ['\u007f', '\u007f', '\u007f', '@', 't', 'h']) {
+      ui.stdin.write(k);
+      await tick();
+    }
+    await waitFor(() => expect(ui.lastFrame()).toContain('▸ @thea'));
+    ui.stdin.write('\r');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Thanks @thea'));
+    ui.stdin.write('\r');
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('tab insert'));
+    ui.stdin.write('P');
+    await waitFor(() => expect(ui.lastFrame()).toContain('esc cancel'));
+    ui.stdin.write('y');
+    await waitFor(() => expect(postReview).toHaveBeenCalled());
+    expect(vi.mocked(postReview).mock.calls[0][2].body).toContain('Thanks @thea');
+    ui.unmount();
+  });
 });
 
 describe('thread reply', () => {
