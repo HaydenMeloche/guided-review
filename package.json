@@ -62,7 +62,7 @@
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.292",
     "@anthropic-ai/sdk": "^0.135.0",
-    "@cursor/sdk": "1.0.37",
+    "@cursor/sdk": "1.0.40",
     "ink": "^8.0.0",
     "marked": "^18.1.0",
     "meow": "^14.1.0",
