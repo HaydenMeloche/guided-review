@@ -320,7 +320,7 @@ describe('ChapterScreen', () => {
         }}
       />,
     );
-    await waitFor(() => expect(ui.lastFrame()).toContain('1 review thread · 2 comments · e to read'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('1 open review thread · 2 comments · e to read'));
     ui.stdin.write('e');
     await waitFor(() => expect(ui.lastFrame()).toContain('@alice'));
     expect(ui.lastFrame()).toContain('Could this fail?');
@@ -351,6 +351,32 @@ describe('ChapterScreen', () => {
     await waitFor(() => expect(ui.lastFrame()).toContain('Reply to review thread'));
     expect(ui.lastFrame()).toContain(line.text.trim().slice(0, 20));
     ui.unmount();
+  });
+  it('notes resolved threads apart from open ones, and says so in the thread', async () => {
+    const tour = fixtureTour();
+    const hunk = tour.hunks[tour.chapters[0].hunkIds[0]];
+    const line = hunk.lines.find((l) => l.kind === 'add')!;
+    const thread = (id: string, isResolved: boolean, body: string) => ({
+      id,
+      path: hunk.file,
+      line: line.newLine,
+      originalLine: line.newLine,
+      isResolved,
+      isOutdated: false,
+      comments: [{ id, author: 'alice', body, createdAt: '' }],
+    });
+    tour.existingThreads = [thread('t1', true, 'Settled already.')];
+    const ui = render(<Harness tour={tour} onDraft={() => {}} onState={() => {}} />);
+    await waitFor(() => expect(ui.lastFrame()).toContain('✓ 1 resolved thread · 1 comment · e to read'));
+    expect(ui.lastFrame()).not.toContain('open review thread');
+    ui.unmount();
+
+    tour.existingThreads = [thread('t1', true, 'Settled already.'), thread('t2', false, 'Still wondering.')];
+    const both = render(<Harness tour={tour} onDraft={() => {}} onState={() => {}} />);
+    await waitFor(() => expect(both.lastFrame()).toContain('1 open review thread · 1 comment · e to read'));
+    expect(both.lastFrame()).toContain('✓ 1 resolved thread · 1 comment');
+    expect(both.lastFrame()).not.toContain('resolved thread · 1 comment · e to read');
+    both.unmount();
   });
   it('suggests repository collaborators in a draft mention', async () => {
     const tour = fixtureTour();
@@ -857,6 +883,20 @@ describe('ThreadView', () => {
       await tick();
     }
     await waitFor(() => expect(ui.lastFrame()).toContain('Final point'));
+    ui.unmount();
+  });
+  it('marks a resolved thread beside its title', () => {
+    const ui = render(
+      <ThreadView
+        threads={[{ id: 'done', path: 'src/a.ts', line: 1, isResolved: true, isOutdated: true, comments: [{ author: 'alice', body: 'Fixed, thanks.', createdAt: '' }] }]}
+        width={45}
+        height={9}
+        mentions={[]}
+        onClose={() => {}}
+      />,
+    );
+    expect(ui.lastFrame()).toContain('Thread 1  ✓ resolved · outdated');
+    expect(ui.lastFrame()).toContain('Fixed, thanks.');
     ui.unmount();
   });
 });
@@ -1498,7 +1538,7 @@ describe('feedback round: guide, tests, inline comments, description', () => {
     const ui = render(<Harness tour={t} onDraft={() => {}} onState={() => {}} onReply={async () => {}} />);
     await waitFor(() => expect(ui.lastFrame()).toContain('imports: 2 removed, 1 added · I to show'));
     expect(ui.lastFrame()).not.toContain("import { b } from './b'");
-    expect(ui.lastFrame()).toContain('1 review thread');
+    expect(ui.lastFrame()).toContain('1 open review thread');
     // The cursor starts on the code; k, past the blank line, lands on the folded row, which holds
     // the import's thread.
     expect(ui.lastFrame()).not.toContain('e thread');

@@ -12,6 +12,7 @@ import { GUTTER, SPLIT_GUTTER } from '../paneWidths.js';
 import { SURFACES } from '../theme.js';
 import { draftsAt, movedNote, threadAt } from './lineNotes.js';
 import { G } from '../glyphs.js';
+import { plural } from '../plural.js';
 import type { ImportRun } from '../../analysis/imports.js';
 
 export const SourcePane = React.memo(function SourcePane(props: {
@@ -100,17 +101,29 @@ export const SourcePane = React.memo(function SourcePane(props: {
       const l = hunk.lines[j];
       const line = l.kind === 'del' ? l.oldLine : l.newLine;
       const threads = threadAt(props.threads, hunk.file, line, l.kind === 'del' ? 'LEFT' : 'RIGHT');
-      if (threads.length)
+      // Open threads stand out; resolved ones are a dim note of their own, so they never read as open.
+      const open = threads.filter((t) => !t.isResolved);
+      const resolved = threads.filter((t) => t.isResolved);
+      const comments = (ts: ExistingThread[]) =>
+        plural(
+          ts.reduce((n, t) => n + t.comments.length, 0),
+          'comment',
+        );
+      if (open.length) {
+        const outdated = open.filter((t) => t.isOutdated).length;
         out.push({
           idx: i,
           node: (
             <Text color="cyan">
-              {truncate(
-                `          ${G.thread} ${threads.length} review ${threads.length === 1 ? 'thread' : 'threads'} · ${threads.reduce((n, t) => n + t.comments.length, 0)} comments · e to read`,
-                width,
-              )}
+              {truncate(`          ${G.thread} ${plural(open.length, 'open review thread')}${outdated ? ` (${outdated} outdated)` : ''} · ${comments(open)} · e to read`, width)}
             </Text>
           ),
+        });
+      }
+      if (resolved.length)
+        out.push({
+          idx: i,
+          node: <Text dimColor>{truncate(`          ${G.done} ${plural(resolved.length, 'resolved thread')} · ${comments(resolved)}${open.length ? '' : ' · e to read'}`, width)}</Text>,
         });
       for (const d of draftsAt(props.drafts, hunk, line, l.kind === 'del' ? 'LEFT' : 'RIGHT')) {
         out.push({

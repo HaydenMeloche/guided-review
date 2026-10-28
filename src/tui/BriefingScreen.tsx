@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useInput } from './input.js';
 import { Box, Text, useSelected, useTheme } from './themed.js';
 import { ROLES } from './theme.js';
-import type { Chapter, ChapterOrder, Flag, Tour } from '../types.js';
+import type { Chapter, ChapterOrder, ExistingThread, Flag, Tour } from '../types.js';
 import { chapterState, meter, ORDER_LABEL, pad, progress, riskMark, stateMark, type States } from './nav.js';
 import { DiagramView } from './DiagramView.js';
 import { renderGraph } from '../diagram/text.js';
@@ -76,6 +76,15 @@ const FLAG_COLOR: Record<string, string> = {
 
 // One screen: the goal, an overview diagram, the chapter list with reading state
 // and size, and anything flagged up front.
+// "3 open review threads and 2 resolved", or just the one kind when the PR has only that.
+function threadCounts(threads: ExistingThread[]): string {
+  const resolved = threads.filter((t) => t.isResolved).length;
+  const open = threads.length - resolved;
+  if (!resolved) return plural(open, 'open review thread');
+  if (!open) return plural(resolved, 'resolved review thread');
+  return `${plural(open, 'open review thread')} and ${resolved} resolved`;
+}
+
 export function BriefingScreen(props: {
   tour: Tour;
   chapters: Chapter[];
@@ -401,7 +410,7 @@ export function BriefingScreen(props: {
           ))}
         </Box>
       ) : null}
-      {tour.existingThreads.length ? <Text dimColor>{plural(tour.existingThreads.length, 'existing review thread')} shown inline.</Text> : null}
+      {tour.existingThreads.length ? <Text dimColor>{threadCounts(tour.existingThreads)} shown inline.</Text> : null}
       {tour.overview && diagramBelowH >= 6 ? (
         <Box marginTop={1} height={diagramBelowH} overflow="hidden" flexShrink={0}>
           <DiagramView graph={tour.overview} width={leftW} height={diagramBelowH} interactive={false} />

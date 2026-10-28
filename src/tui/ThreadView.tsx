@@ -10,6 +10,7 @@ import { Confirm } from './Confirm.js';
 import { BORDER } from './theme.js';
 import { Hints } from './KeyBar.js';
 import { Spinner } from './Spinner.js';
+import { G } from './glyphs.js';
 
 const safe = sanitizeTerminal;
 const REACTIONS: { content: ReactionContent; emoji: string }[] = [
@@ -50,11 +51,20 @@ export function ThreadView(props: {
   const { lines, commentStarts } = useMemo(() => {
     const out: MdLine[] = [];
     const starts: number[] = [];
-    out.push([{ text: `Thread ${selected + 1}${thread.isResolved ? ' · resolved' : thread.isOutdated ? ' · outdated' : ''}`, bold: true, color: 'cyan' }]);
+    // A resolved thread says so in green beside its title, and its comments read dim, as history.
+    out.push([
+      { text: `Thread ${selected + 1}`, bold: true, color: 'cyan' },
+      ...(thread.isResolved
+        ? [{ text: `  ${G.done} resolved${thread.isOutdated ? ' · outdated' : ''}`, bold: true, color: 'green' }]
+        : thread.isOutdated
+          ? [{ text: '  outdated', bold: true, color: 'yellow' }]
+          : []),
+    ]);
+    const dim = (ls: MdLine[]) => (thread.isResolved ? ls.map((l) => l.map((s) => ({ ...s, dim: true }))) : ls);
     for (const [index, comment] of thread.comments.entries()) {
       starts.push(out.length);
       out.push([{ text: `${index === selectedComment ? '▸ ' : '  '}@${safe(comment.author)}`, bold: true, color: index === selectedComment ? 'cyan' : undefined }]);
-      out.push(...renderMarkdown(safe(comment.body), Math.max(10, props.width - 6)));
+      out.push(...dim(renderMarkdown(safe(comment.body), Math.max(10, props.width - 6))));
       const counts = (comment.reactionGroups ?? [])
         .filter((group) => group.reactors.totalCount > 0)
         .map((group) => `${REACTIONS.find((reaction) => reaction.content === group.content)?.emoji ?? group.content}${group.reactors.totalCount}${group.viewerHasReacted ? '*' : ''}`);

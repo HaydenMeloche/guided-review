@@ -14,7 +14,7 @@ export function reviewLegend(): MdLine[] {
     row('Tests', mark(COVERAGE.tested, 'tested'), mark(COVERAGE.partial, 'partly tested'), mark(COVERAGE.untested, 'untested')),
     [],
     row('On a line', mark({ mark: G.draft, color: 'cyan' }, 'your draft'), mark({ mark: G.thread, color: 'cyan' }, 'review thread'), mark({ mark: G.moved, color: 'blue' }, 'moved code')),
-    row('', mark({ mark: G.cursor, color: 'cyan' }, 'cursor'), mark({ mark: G.range, color: 'blue' }, 'range')),
+    row('', mark({ mark: G.done, color: 'gray' }, 'resolved thread'), mark({ mark: G.cursor, color: 'cyan' }, 'cursor'), mark({ mark: G.range, color: 'blue' }, 'range')),
     row('Hunks', [{ text: 'NEW', color: 'yellow', bold: true }, { text: ' changed since your last review' }]),
   ];
 }
