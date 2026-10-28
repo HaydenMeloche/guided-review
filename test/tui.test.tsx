@@ -577,6 +577,48 @@ describe('ChapterScreen', () => {
     ui.unmount();
   });
 
+  it('n on a collapsed generated chapter marks its hunks read and moves on', async () => {
+    const gen = hunkFromDiff('src/gen/api.ts', '-export const a = 1;', '+export const a = 2;');
+    const gen2 = hunkFromDiff('src/gen/api.ts', '-export const b = 1;', '+export const b = 2;');
+    const t = makeTour([gen, gen2], [{ kind: 'generated', title: 'src/gen/api.ts', hunkIds: [gen.id, gen2.id], collapsed: true }], { files: filesFor([gen, gen2]) });
+    const states: States = {};
+    let writes = 0;
+    const ui = render(
+      <ChapterScreen
+        tour={t}
+        chapters={t.chapters}
+        states={{}}
+        drafts={[]}
+        ci={0}
+        hi={-1}
+        order="flow"
+        deltaOnly={false}
+        width={150}
+        height={40}
+        setPos={() => {}}
+        setState={(hs, st) => {
+          writes++;
+          for (const h of hs) states[h.id] = st;
+        }}
+        saveDraft={() => {}}
+        deleteDraft={() => {}}
+        moveHunk={() => {}}
+        toggleOrder={() => {}}
+        toggleDelta={() => {}}
+        openSubmit={() => {}}
+        openBriefing={() => {}}
+        openInAgent={() => {}}
+        quit={() => {}}
+      />,
+    );
+    await waitFor(() => expect(ui.lastFrame()).toContain('collapsed'));
+    ui.stdin.write('n');
+    // Both hunks are marked read in one write.
+    await waitFor(() => expect(states).toEqual({ [gen.id]: 'read', [gen2.id]: 'read' }));
+    expect(writes).toBe(1);
+    ui.unmount();
+  });
+
   it('opens the dependencies chapter on the lockfile summary, and n reads it and goes to the manifest', async () => {
     const manifest = hunkFromDiff('package.json', '-    "zod": "^3.22.0",', '+    "zod": "^4.0.0",');
     const lock = hunkFromDiff('pnpm-lock.yaml', '-  zod@3.22.0:', '+  zod@4.0.0:');

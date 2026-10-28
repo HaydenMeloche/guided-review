@@ -341,11 +341,11 @@ export function ChapterScreen(props: {
         const withLocks = locks.length ? ` with its ${plural(locks.length, 'lockfile hunk')}` : '';
         setFlash(`${G.read} hunk ${at?.n} read${withLocks} · ${p.read + p.skipped}/${p.total} in this chapter`, 'info');
       }
-      // Folded hunks are read as their summary: n on it marks them read.
-      if (collapsedView && chapter?.folded?.length) {
+      // A collapsed chapter's hunks, and folded ones, are read as their summary: n on it marks them read.
+      if (collapsedView && chapter) {
         const unread = summaryIds.map((id) => tour.hunks[id]).filter((h) => h && stateOf(states, h) === 'unread');
         if (unread.length) props.setState(unread, 'read');
-        if (unread.length) setFlash(`${G.read} lockfile summary read · ${plural(unread.length, 'hunk')}`, 'info');
+        if (unread.length) setFlash(`${G.read} ${chapter.folded?.length ? 'lockfile ' : ''}summary read · ${plural(unread.length, 'hunk')}`, 'info');
       }
       next(collapsedView ? undefined : 'read');
     },
