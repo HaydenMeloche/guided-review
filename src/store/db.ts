@@ -340,6 +340,14 @@ export class Store {
     });
   }
 
+  // Restarting a tour: every hunk unread again, and no saved place to resume from.
+  clearReadStates(repo: string, pr: number): void {
+    this.tx(() => {
+      this.stmt('DELETE FROM read_states WHERE repo = ? AND pr = ?').run(repo, pr);
+      this.stmt('DELETE FROM positions WHERE repo = ? AND pr = ?').run(repo, pr);
+    });
+  }
+
   listDrafts(repo: string, pr: number): Draft[] {
     const rows = this.stmt('SELECT json FROM drafts WHERE repo = ? AND pr = ? ORDER BY created_at').all(repo, pr) as Row[];
     return rows.map((r) => normalizeDraft(JSON.parse(r.json as string) as Draft));

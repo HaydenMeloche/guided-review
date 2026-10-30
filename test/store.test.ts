@@ -43,6 +43,16 @@ describe('Store', () => {
     expect(store.getMoves('o/r', 1)).toEqual({ abc: 'c2' });
   });
 
+  it('restarts a tour: no read states, no saved place, drafts and other PRs kept', () => {
+    store.setReadStates('o/r', 1, ['abc', 'def'], 'read');
+    store.setReadState('o/r', 2, 'abc', 'read');
+    store.setPosition('o/r', 1, { chapterId: 'c1', hunkId: 'h', order: 'risk' });
+    store.clearReadStates('o/r', 1);
+    expect(store.getReadStates('o/r', 1)).toEqual({});
+    expect(store.getPosition('o/r', 1)).toBeUndefined();
+    expect(store.getReadStates('o/r', 2)).toEqual({ abc: 'read' });
+  });
+
   it('numbers the copies of a change in a tour saved before copies were numbered', () => {
     const [a, b] = [hunk('h1', 'f.ts', []), hunk('h2', 'f.ts', [])].map((h) => ({ ...h, contentHash: 'same' }));
     store.saveTour(tour([a, b], [], { headSha: 'h1' }));

@@ -1009,6 +1009,54 @@ describe('BriefingScreen and SubmitScreen', () => {
     expect(ui.lastFrame()).toContain('Please cover the error case.');
     ui.unmount();
   });
+  it('restarts the tour from the palette, after asking', async () => {
+    const tour = fixtureTour();
+    const read = Object.values(tour.hunks).slice(0, 2);
+    let restarted = 0;
+    const briefing = (states: States) => (
+      <BriefingScreen
+        tour={tour}
+        chapters={tour.chapters}
+        order="flow"
+        cycleOrder={() => {}}
+        states={states}
+        width={140}
+        height={45}
+        onStart={() => {}}
+        onSubmit={() => {}}
+        onRestart={() => restarted++}
+        onQuit={() => {}}
+      />
+    );
+    // Nothing read: nothing to restart.
+    const fresh = render(briefing({}));
+    fresh.stdin.write(':');
+    await waitFor(() => expect(fresh.lastFrame()).toContain('Change the chapter order'));
+    expect(fresh.lastFrame()).not.toContain('Restart the tour');
+    fresh.unmount();
+
+    const ui = render(briefing(Object.fromEntries(read.map((h) => [h.contentHash, 'read' as const]))));
+    ui.stdin.write(':');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Change the chapter order'));
+    ui.stdin.write('restart');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Restart the tour: mark every hunk unread'));
+    ui.stdin.write('\r');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Mark the 2 hunks you went through unread and start the tour over?'));
+    // Any other key keeps reading.
+    ui.stdin.write('x');
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('start the tour over?'));
+    expect(restarted).toBe(0);
+    ui.stdin.write(':');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Change the chapter order'));
+    ui.stdin.write('restart');
+    await tick();
+    ui.stdin.write('\r');
+    await waitFor(() => expect(ui.lastFrame()).toContain('start the tour over?'));
+    ui.stdin.write('y');
+    await waitFor(() => expect(restarted).toBe(1));
+    await waitFor(() => expect(ui.lastFrame()).toContain('Tour restarted: 2 hunks unread again.'));
+    ui.unmount();
+  });
   it('on your own PR, offers t to go back to its feedback', async () => {
     const tour = fixtureTour();
     let opened = 0;

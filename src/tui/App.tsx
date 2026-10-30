@@ -1051,6 +1051,11 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         height={height}
         active={active}
         onTheme={theme.show}
+        onRestart={() => {
+          store.clearReadStates(tour.repo, tour.pr);
+          setStates({});
+          setPosState({ ci: 0, hi: firstHunk(chapters, 0) });
+        }}
         onStart={resume}
         onSubmit={() => {
           setSubmitFrom('briefing');
