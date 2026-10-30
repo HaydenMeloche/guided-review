@@ -16,6 +16,11 @@ describe('code pane widths', () => {
     expect(codePaneWidths(100, ['x'.repeat(80)], ['x'.repeat(45)])).toEqual({ source: 60, test: 40 });
   });
 
+  it('widens the source pane for a note under its lines, as room allows', () => {
+    expect(codePaneWidths(150, ['anyOrNull(),'], ['x'.repeat(20)], 'source', false, 70)).toEqual({ source: 71, test: 40 });
+    expect(codePaneWidths(100, ['anyOrNull(),'], ['x'.repeat(45)], 'source', false, 70).source).toBeGreaterThan(40);
+  });
+
   it('expands the focused test pane to its longest line', () => {
     expect(codePaneWidths(100, ['x'.repeat(80)], ['x'.repeat(45)], 'test')).toEqual({ source: 40, test: 60 });
     expect(codePaneWidths(100, ['x'.repeat(80)], ['x'.repeat(90)], 'test')).toEqual({ source: 40, test: 60 });

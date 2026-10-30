@@ -603,6 +603,53 @@ describe('ChapterScreen', () => {
     ui.unmount();
   });
 
+  // Three hunks of one test file making the same change, and one other.
+  const copiesTour = () => {
+    const [a, b, c] = [1, 2, 3].map((n) => ({ ...hunkFromDiff('test/app.test.ts', ` ctx${n}`, '+  anyOrNull(),'), contentHash: n === 1 ? 'chg' : `chg#${n}` }));
+    const d = hunkFromDiff('test/app.test.ts', '-  oldCall(),', '+  newCall(),');
+    return makeTour([a, b, c, d], [{ kind: 'tests', title: 'Test-only changes', hunkIds: [a.id, b.id, c.id, d.id] }], { files: filesFor([a, b, c, d]) });
+  };
+
+  it('asks on n whether to read every copy of the same change, and y reads them all', async () => {
+    let states: States = {};
+    const ui = render(<Harness tour={copiesTour()} onDraft={() => {}} onState={(s) => (states = s)} />);
+    await waitFor(() => expect(ui.lastFrame()).toContain('↻ same change in 2 other hunks · 2 unread'));
+    ui.stdin.write('n');
+    await waitFor(() => expect(ui.lastFrame()).toContain('The same change, 3 times in app.test.ts'));
+    expect(ui.lastFrame()).toContain('+ anyOrNull(),');
+    expect(ui.lastFrame()).toContain('2 other hunks making it are still unread.');
+    expect(ui.lastFrame()).toContain('read all 3');
+    expect(states).toEqual({});
+    ui.stdin.write('y');
+    await waitFor(() => expect(states).toEqual({ chg: 'read', 'chg#2': 'read', 'chg#3': 'read' }));
+    // On past the copies, to the other hunk.
+    await waitFor(() => expect(ui.lastFrame()).toContain('hunk 4/4'));
+    expect(ui.lastFrame()).toContain('the same change read in 3 hunks');
+    ui.unmount();
+  });
+
+  it('reads the copies one at a time after Enter, without asking again, and esc stays', async () => {
+    let states: States = {};
+    const ui = render(<Harness tour={copiesTour()} onDraft={() => {}} onState={(s) => (states = s)} />);
+    await waitFor(() => expect(ui.lastFrame()).toContain('hunk 1/4'));
+    ui.stdin.write('n');
+    await waitFor(() => expect(ui.lastFrame()).toContain('still unread'));
+    ui.stdin.write('\u001b');
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('still unread'));
+    expect(ui.lastFrame()).toContain('hunk 1/4');
+    ui.stdin.write('n');
+    await waitFor(() => expect(ui.lastFrame()).toContain('still unread'));
+    ui.stdin.write('\r');
+    await waitFor(() => expect(ui.lastFrame()).toContain('hunk 2/4'));
+    expect(states).toEqual({ chg: 'read' });
+    expect(ui.lastFrame()).toContain('same change in 2 other hunks · 1 unread');
+    ui.stdin.write('n');
+    await waitFor(() => expect(ui.lastFrame()).toContain('hunk 3/4'));
+    expect(states).toEqual({ chg: 'read', 'chg#2': 'read' });
+    expect(ui.lastFrame()).toContain('all read');
+    ui.unmount();
+  });
+
   it('n on a collapsed generated chapter marks its hunks read and moves on', async () => {
     const gen = hunkFromDiff('src/gen/api.ts', '-export const a = 1;', '+export const a = 2;');
     const gen2 = hunkFromDiff('src/gen/api.ts', '-export const b = 1;', '+export const b = 2;');

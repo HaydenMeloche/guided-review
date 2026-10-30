@@ -10,7 +10,7 @@ import { clean, codeChunks } from './text.js';
 import { DIFF_BACKGROUND, SyntaxText, WORD_BACKGROUND } from './SyntaxText.js';
 import { GUTTER, SPLIT_GUTTER } from '../paneWidths.js';
 import { SURFACES } from '../theme.js';
-import { draftsAt, movedNote, threadAt } from './lineNotes.js';
+import { copiesNote, draftsAt, movedNote, threadAt } from './lineNotes.js';
 import { G } from '../glyphs.js';
 import { plural } from '../plural.js';
 import type { ImportRun } from '../../analysis/imports.js';
@@ -29,6 +29,7 @@ export const SourcePane = React.memo(function SourcePane(props: {
   scroll: number;
   setScroll: (n: number) => void;
   threads: ExistingThread[];
+  copies?: { others: number; unread: number }; // other hunks making the same change in this file
   drafts: Draft[];
   root?: string;
   headSha: string;
@@ -96,6 +97,7 @@ export const SourcePane = React.memo(function SourcePane(props: {
     }
     const reindentedOnly = (l: DiffLine, i: number) => l.kind === 'ctx' || props.hidden.get(i) === 'whitespace' || props.hidden.get(props.partner[i]) === 'whitespace';
     if (props.ignoreWhitespace && hunk.lines.every(reindentedOnly)) out.push({ idx: -1, node: <Text dimColor>{truncate('  whitespace-only changes hidden · w to show', width)}</Text> });
+    const lastChanged = hunk.lines.findLastIndex((l) => l.kind !== 'ctx');
     // Review threads, drafts and a moved block's origin under line j, on rows of line i.
     const notesUnder = (j: number, i: number) => {
       const l = hunk.lines[j];
@@ -137,6 +139,8 @@ export const SourcePane = React.memo(function SourcePane(props: {
           ),
         });
       }
+      // Under the last changed line: the other hunks of this file that make the same change.
+      if (props.copies && j === lastChanged) out.push({ idx: i, node: <Text color="blue">{truncate(copiesNote(props.copies), width)}</Text> });
       const moved = movedNote(hunk, j);
       if (moved) out.push({ idx: i, node: <Text color="blue">{truncate(`          ${moved}`, width)}</Text> });
     };
@@ -235,7 +239,7 @@ export const SourcePane = React.memo(function SourcePane(props: {
       notesUnder(i, i);
     });
     return out;
-  }, [hunk, props.raw, props.split, props.partner, props.hidden, props.runs, props.ignoreWhitespace, words, props.threads, props.drafts, width, highlights]);
+  }, [hunk, props.raw, props.split, props.partner, props.hidden, props.runs, props.ignoreWhitespace, words, props.threads, props.copies, props.drafts, width, highlights]);
 
   // Keep the cursor in view.
   const cursorRow = rows.findIndex((r) => r.idx === cursor);

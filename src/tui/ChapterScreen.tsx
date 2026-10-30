@@ -15,7 +15,7 @@ import { KeyBar, type Hint } from './KeyBar.js';
 import { initComposer, isLineAnchor, sameAnchor, type ComposerEnv, type ComposerState, type ReferenceServices } from './composer.js';
 import { generateSuggestion } from '../agent/suggest.js';
 import { safe } from './chapter/text.js';
-import { cursorNotes } from './chapter/lineNotes.js';
+import { copiesNote, cursorNotes } from './chapter/lineNotes.js';
 import { useMentions } from './chapter/mentions.js';
 import { linkedTests } from './chapter/linkedTests.js';
 import { SourcePane } from './chapter/SourcePane.js';
@@ -35,6 +35,8 @@ import { plural } from './plural.js';
 import { chapterLayout, overlaySlots, type OverlayKind } from './chapter/layout.js';
 import { G } from './glyphs.js';
 import { hunkKeys } from '../review/hunkState.js';
+import { sameChange } from '../diff/parse.js';
+import { CopiesCard, COPIES_CARD_LINES } from './chapter/CopiesCard.js';
 import { WIDE } from './breakpoints.js';
 import { EndCard } from './chapter/EndCard.js';
 import { EVENT_TEXT, suggestVerdict } from '../review/submit.js';
@@ -153,6 +155,24 @@ export function ChapterScreen(props: {
   const collapsedView = opensOnSummary(chapter) && hi < 0;
   const summaryIds = useMemo(() => (chapter ? summaryHunkIds(chapter) : []), [chapter]);
   const filesByPath = useMemo(() => new Map(tour.files.map((f) => [f.path, f])), [tour.files]);
+  // Hunks that make the same change in one file (a line added to 15 tests), by that change.
+  const copies = useMemo(() => {
+    const m = new Map<string, Hunk[]>();
+    for (const h of Object.values(tour.hunks)) {
+      const k = sameChange(h);
+      const group = m.get(k);
+      if (group) group.push(h);
+      else m.set(k, [h]);
+    }
+    return m;
+  }, [tour.hunks]);
+  const copiesOf = (h: Hunk) => copies.get(sameChange(h)) ?? [h];
+  const hunkCopies = useMemo(() => {
+    const others = hunk ? (copies.get(sameChange(hunk)) ?? []).filter((h) => h.id !== hunk.id) : [];
+    return others.length ? { others: others.length, unread: others.filter((h) => stateOf(states, h) === 'unread').length } : undefined;
+  }, [hunk, copies, states]);
+  const [askCopies, setAskCopies] = useState<Hunk[]>(); // n's question: read these unread copies too?
+  const oneByOne = useRef(new Set<string>()); // changes whose copies the reviewer reads one at a time
   // A lockfile pair's manifest page lists the lockfile's package changes under the diff.
   const at = chapter && hunk ? hunkPosition(chapter, hi) : undefined;
   const lockList = useMemo(() => (chapter && hunk ? lockPage(tour, chapter, hunk.id) : undefined), [tour, chapter, hunk]);
@@ -161,6 +181,7 @@ export function ChapterScreen(props: {
     height,
     banner: !!banner,
     hunkLines: hunk?.lines,
+    noteWidth: hunkCopies ? copiesNote(hunkCopies).length : 0,
     testLines: testCodeLines,
     linkedTests: hasLinkedTests,
     collapsedHunks: collapsedView ? summaryIds.length : undefined,
@@ -229,10 +250,12 @@ export function ChapterScreen(props: {
     const othersDone = pair.hunkIds.every((id) => id === h.id || !tour.hunks[id] || stateOf(states, tour.hunks[id]) !== 'unread');
     return othersDone ? pair.lockHunkIds.map((id) => tour.hunks[id]).filter((l) => l && stateOf(states, l) === 'unread') : [];
   };
-  const next = (mark?: ReadState) => {
+  const next = (mark?: ReadState, past?: Set<string>) => {
     if (hunk && mark) props.setState([hunk, ...pairedLocks(hunk)], mark);
     if (!chapter) return;
-    const to = nextPos(chapters, ci, hi);
+    let to = nextPos(chapters, ci, hi);
+    // Past the hunks just read with this one, when they follow it.
+    while (to && past?.has(chapters[to.ci].hunkIds[to.hi])) to = nextPos(chapters, to.ci, to.hi);
     if (to) return go(to);
     // The last hunk: a card says what the review comes to, and s submits it.
     show('end');
@@ -303,6 +326,31 @@ export function ChapterScreen(props: {
     setTestCursor(0);
     setTestIdx((i) => (n ? (i + by + n) % n : 0));
   };
+  // n: this hunk read (a collapsed chapter's summary: its hunks), then on to the next.
+  const readAndNext = () => {
+    if (!collapsedView && hunk && chapter) {
+      const locks = pairedLocks(hunk);
+      const p = progress(tour, { ...states, ...Object.fromEntries([hunk, ...locks].flatMap(hunkKeys).map((k) => [k, 'read'])) }, chapter.hunkIds);
+      const withLocks = locks.length ? ` with its ${plural(locks.length, 'lockfile hunk')}` : '';
+      setFlash(`${G.read} hunk ${at?.n} read${withLocks} · ${p.read + p.skipped}/${p.total} in this chapter`, 'info');
+    }
+    // A collapsed chapter's hunks, and folded ones, are read as their summary: n on it marks them read.
+    if (collapsedView && chapter) {
+      const unread = summaryIds.map((id) => tour.hunks[id]).filter((h) => h && stateOf(states, h) === 'unread');
+      if (unread.length) props.setState(unread, 'read');
+      if (unread.length) setFlash(`${G.read} ${chapter.folded?.length ? 'lockfile ' : ''}summary read · ${plural(unread.length, 'hunk')}`, 'info');
+    }
+    next(collapsedView ? undefined : 'read');
+  };
+  // y to n's question: this hunk and the unread copies of its change read, then on past them.
+  const readCopies = (others: Hunk[]) => {
+    if (!hunk || !chapter) return;
+    const all = [hunk, ...pairedLocks(hunk), ...others];
+    props.setState(all, 'read');
+    const p = progress(tour, { ...states, ...Object.fromEntries(all.flatMap(hunkKeys).map((k) => [k, 'read'])) }, chapter.hunkIds);
+    setFlash(`${G.read} the same change read in ${plural(others.length + 1, 'hunk')} · ${p.read + p.skipped}/${p.total} in this chapter`, 'info');
+    next(undefined, new Set(copiesOf(hunk).map((h) => h.id)));
+  };
   const actions: Record<Action, () => void> = {
     briefing: () => props.openBriefing(),
     quit: () => props.quit(),
@@ -335,19 +383,12 @@ export function ChapterScreen(props: {
     },
     // Code
     next: () => {
-      if (!collapsedView && hunk && chapter) {
-        const locks = pairedLocks(hunk);
-        const p = progress(tour, { ...states, ...Object.fromEntries([hunk, ...locks].flatMap(hunkKeys).map((k) => [k, 'read'])) }, chapter.hunkIds);
-        const withLocks = locks.length ? ` with its ${plural(locks.length, 'lockfile hunk')}` : '';
-        setFlash(`${G.read} hunk ${at?.n} read${withLocks} · ${p.read + p.skipped}/${p.total} in this chapter`, 'info');
+      // The same change is in other unread hunks: ask whether to read them all now.
+      if (!collapsedView && hunk && !oneByOne.current.has(sameChange(hunk))) {
+        const others = copiesOf(hunk).filter((h) => h.id !== hunk.id && stateOf(states, h) === 'unread');
+        if (others.length) return setAskCopies(others);
       }
-      // A collapsed chapter's hunks, and folded ones, are read as their summary: n on it marks them read.
-      if (collapsedView && chapter) {
-        const unread = summaryIds.map((id) => tour.hunks[id]).filter((h) => h && stateOf(states, h) === 'unread');
-        if (unread.length) props.setState(unread, 'read');
-        if (unread.length) setFlash(`${G.read} ${chapter.folded?.length ? 'lockfile ' : ''}summary read · ${plural(unread.length, 'hunk')}`, 'info');
-      }
-      next(collapsedView ? undefined : 'read');
+      readAndNext();
     },
     prev: () => go(prevPos(chapters, ci, hi)),
     nextChapter: () => go(ci < chapters.length - 1 ? { ci: ci + 1, hi: firstHunk(chapters, ci + 1) } : undefined),
@@ -465,7 +506,7 @@ export function ChapterScreen(props: {
       const none = unboundKey(input, key);
       if (none) setFlash(none, 'quiet');
     },
-    { isActive: props.active !== false && overlay.kind === 'none' },
+    { isActive: props.active !== false && overlay.kind === 'none' && !askCopies },
   );
 
   useInput(
@@ -563,6 +604,33 @@ export function ChapterScreen(props: {
         height: height - 4,
         node: (w: number, h: number) => <Reader title={`${chapter.title}${hunk ? ` · ${hunk.file}` : ''}`} lines={plan.explainAll} width={w} height={h} onClose={close} />,
       };
+    if (askCopies && hunk) {
+      const changed = hunk.lines.filter((l) => l.kind !== 'ctx');
+      const answer = (fn: () => void) => () => {
+        setAskCopies(undefined);
+        fn();
+      };
+      return {
+        tone: 'decision' as const,
+        width: Math.min(72, width - 4),
+        height: 8 + Math.min(changed.length, COPIES_CARD_LINES) + (changed.length > COPIES_CARD_LINES ? 1 : 0),
+        node: (w: number) => (
+          <CopiesCard
+            file={hunk.file}
+            changed={changed}
+            unread={askCopies.length}
+            total={copiesOf(hunk).length}
+            width={w}
+            onAll={answer(() => readCopies(askCopies))}
+            onOne={answer(() => {
+              oneByOne.current.add(sameChange(hunk));
+              readAndNext();
+            })}
+            onClose={() => setAskCopies(undefined)}
+          />
+        ),
+      };
+    }
     if (overlay.kind === 'end') {
       const p = progress(tour, hunk ? { ...states, ...Object.fromEntries(hunkKeys(hunk).map((k) => [k, stateOf(states, hunk) === 'unread' ? 'read' : stateOf(states, hunk)])) } : states);
       const verdict = suggestVerdict(tour, props.drafts, states);
@@ -785,6 +853,7 @@ export function ChapterScreen(props: {
                       scroll={scroll}
                       setScroll={setScroll}
                       threads={tour.existingThreads}
+                      copies={hunkCopies}
                       drafts={props.drafts}
                       root={svc?.root}
                       headSha={tour.headSha}

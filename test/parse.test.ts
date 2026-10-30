@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseUnifiedDiff } from '../src/diff/parse.js';
+import { parseUnifiedDiff, sameChange } from '../src/diff/parse.js';
 import { matchGlob } from '../src/util/glob.js';
 
 const DIFF = `diff --git a/src/billing/invoice.ts b/src/billing/invoice.ts
@@ -104,6 +104,19 @@ describe('parseUnifiedDiff', () => {
 `);
     expect(hunks[0]).toMatchObject({ oldLines: 1, newLines: 1, oldStart: 3 });
     expect(hunks[0].lines).toHaveLength(2);
+  });
+
+  it('numbers the copies of a change made in several places of one file', () => {
+    const copy = (at: number) => `@@ -${at},2 +${at},3 @@\n ctx${at}\n+  anyOrNull(),\n ctx${at + 1}\n`;
+    const file = (path: string, ...at: number[]) => `diff --git a/${path} b/${path}\n--- a/${path}\n+++ b/${path}\n${at.map(copy).join('')}`;
+    const { hunks } = parseUnifiedDiff(file('a.kt', 10, 40, 80) + file('b.kt', 10));
+    const [first, second, third, other] = hunks;
+    expect(second.contentHash).toBe(`${first.contentHash}#2`);
+    expect(third.contentHash).toBe(`${first.contentHash}#3`);
+    expect(new Set([first, second, third].map(sameChange))).toEqual(new Set([first.contentHash]));
+    // Another file's same lines are another change.
+    expect(other.contentHash).not.toContain('#');
+    expect(sameChange(other)).not.toBe(first.contentHash);
   });
 });
 

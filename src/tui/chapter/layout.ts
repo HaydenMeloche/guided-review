@@ -14,6 +14,7 @@ export interface LayoutInput {
   height: number;
   banner: boolean;
   hunkLines?: DiffLine[]; // the hunk on screen, if any
+  noteWidth?: number; // the widest note under the hunk's lines, which the code pane makes room for
   testLines: DiffLine[]; // the selected linked test's code
   linkedTests: boolean; // a test, or the code a test covers, is linked to the hunk
   collapsedHunks?: number; // a collapsed chapter's summary is on screen, listing this many hunks
@@ -43,6 +44,7 @@ export function chapterLayout(i: LayoutInput) {
     i.testLines.map((l) => l.text),
     i.testFocus ? 'test' : 'source',
     i.split,
+    i.noteWidth,
   );
   const showTests = i.linkedTests && !i.hideTests;
   // A split diff too narrow to read beside the tests stacks them instead: t still opens them.

@@ -4,7 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Store } from '../src/store/db.js';
 import type { Draft } from '../src/types.js';
-import { tour } from './fixtures/tour.js';
+import { hunk, tour } from './fixtures/tour.js';
 
 let dir: string;
 let store: Store;
@@ -41,6 +41,13 @@ describe('Store', () => {
     expect(store.getPosition('o/r', 1)).toEqual({ chapterId: 'c1', hunkId: 'h', order: 'flow' });
     store.setMove('o/r', 1, 'abc', 'c2');
     expect(store.getMoves('o/r', 1)).toEqual({ abc: 'c2' });
+  });
+
+  it('numbers the copies of a change in a tour saved before copies were numbered', () => {
+    const [a, b] = [hunk('h1', 'f.ts', []), hunk('h2', 'f.ts', [])].map((h) => ({ ...h, contentHash: 'same' }));
+    store.saveTour(tour([a, b], [], { headSha: 'h1' }));
+    const loaded = store.loadTour('o/r', 1, 'h1')!;
+    expect([loaded.hunks.h1.contentHash, loaded.hunks.h2.contentHash]).toEqual(['same', 'same#2']);
   });
 
   it('upserts drafts and marks them posted', () => {

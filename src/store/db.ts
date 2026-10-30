@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { gunzipSync, gzipSync } from 'node:zlib';
+import { numberCopies } from '../diff/parse.js';
 import type { DatabaseSync as DatabaseSyncType, StatementSync } from 'node:sqlite';
 import type { AgentRole } from '../agent/types.js';
 import type { ChapterOrder, CodeRef, Draft, ReadState, SuggestionMeta, Tour } from '../types.js';
@@ -124,7 +125,11 @@ export const JOURNAL_SIZE_LIMIT = 8 * 1024 * 1024;
 const PR_STATE_TABLES = ['read_states', 'positions', 'moves', 'checklist_confirms', 'thread_triage', 'feedback_visits', 'feedback_model'];
 
 const packTour = (t: Tour): Uint8Array => gzipSync(JSON.stringify(t), { level: 1 });
-const unpackTour = (blob: unknown): Tour => JSON.parse(gunzipSync(blob as Uint8Array).toString('utf8')) as Tour;
+const unpackTour = (blob: unknown): Tour => {
+  const tour = JSON.parse(gunzipSync(blob as Uint8Array).toString('utf8')) as Tour;
+  numberCopies(Object.values(tour.hunks)); // tours saved before copies were numbered
+  return tour;
+};
 
 const nonEmpty = (v: unknown): v is string => typeof v === 'string' && v.length > 0;
 

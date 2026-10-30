@@ -81,6 +81,9 @@ function notesFor(hunk: Hunk): Map<number, string> {
   return notes;
 }
 
+// Under a hunk's last changed line: the other hunks of its file that make the same change.
+export const copiesNote = (c: { others: number; unread: number }) => `          ${G.copies} same change in ${plural(c.others, 'other hunk')} · ${c.unread ? `${c.unread} unread` : 'all read'}`;
+
 export function draftsAt(drafts: Draft[], hunk: Hunk, line?: number, side: 'LEFT' | 'RIGHT' = 'RIGHT') {
   if (line === undefined) return [];
   return drafts.filter((d) => (d.anchor.type === 'line' || d.anchor.type === 'range') && d.anchor.file === hunk.file && d.anchor.line === line && d.anchor.side === side);

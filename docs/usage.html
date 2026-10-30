@@ -282,7 +282,11 @@
               <tbody>
                 <tr>
                   <td><code>n</code> / <code>p</code></td>
-                  <td>Next hunk (marking this one read), or previous. At the end of the tour, a summary card offers <code>s</code> to submit.</td>
+                  <td>
+                    Next hunk (marking this one read), or previous. When other unread hunks in the file make the same change, marked <code>↻</code>, <code>n</code> asks first: <code>y</code> reads
+                    them all and goes past them, <code>Enter</code> reads just this one and steps through the rest without asking again. At the end of the tour, a summary card offers <code>s</code> to
+                    submit.
+                  </td>
                 </tr>
                 <tr>
                   <td><code>j</code> / <code>k</code>, <code>J</code> / <code>K</code></td>

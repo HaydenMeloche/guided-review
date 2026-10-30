@@ -200,5 +200,26 @@ export function parseUnifiedDiff(diff: string): { files: DiffFile[]; hunks: Hunk
       return h.id;
     });
   }
+  numberCopies(hunks);
   return { files, hunks };
 }
+
+// The same change made in several places of one file (a line added to 15 tests) would share a
+// hash, and so a read state: each copy after the first gets its place among them, hash#2, hash#3.
+// Hunks in diff order. A fused hunk's parts are numbered the same way, so a tour saved before
+// copies were numbered can be numbered as it loads; numbering twice changes nothing.
+export function numberCopies(hunks: Hunk[]) {
+  const seen = new Map<string, number>();
+  const number = (k: string) => {
+    const n = (seen.get(k) ?? 0) + 1;
+    seen.set(k, n);
+    return n > 1 ? `${k}#${n}` : k;
+  };
+  for (const h of hunks) {
+    if (h.parts) h.parts = h.parts.map(number);
+    else h.contentHash = number(h.contentHash);
+  }
+}
+
+// The hash a hunk's copies share (see numberCopies).
+export const sameChange = (h: Hunk) => h.contentHash.replace(/#\d+$/, '');
