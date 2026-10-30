@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { render } from 'ink-testing-library';
 import { describe, expect, it } from 'vitest';
 import { ReviewPopup } from '../src/tui/ReviewPopup.js';
+import { checksPopup } from '../src/tui/prPopups.js';
 import { SubmitScreen } from '../src/tui/SubmitScreen.js';
 import { hunk, tour } from './fixtures/tour.js';
 import { waitFor } from './helpers/waitFor.js';
@@ -104,6 +105,30 @@ describe('submit dialog', () => {
     expect(ui.lastFrame()).toMatch(/P\s+post/);
     ui.stdin.write('P');
     await waitFor(() => expect(ui.lastFrame()).toContain('esc cancel'));
+    ui.unmount();
+  });
+});
+
+describe('a popup over a screen', () => {
+  it('leaves the screen behind mounted as it opens and closes', async () => {
+    let mounts = 0;
+    function Screen() {
+      useEffect(() => {
+        mounts++;
+      }, []);
+      return <Text>screen</Text>;
+    }
+    const at = (open: boolean) =>
+      open ? (
+        checksPopup({ background: <Screen />, width: 40, height: 12, repo: 'acme/app', number: 1, loaded: { headSha: 'abc', checks: [], refreshing: false, onRefresh: () => {} }, onClose: () => {} })
+      ) : (
+        <ReviewPopup background={<Screen />} width={40} height={12} maxWidth={40} maxHeight={12} />
+      );
+    const ui = render(at(false));
+    ui.rerender(at(true));
+    ui.rerender(at(false));
+    await waitFor(() => expect(ui.lastFrame()).toContain('screen'));
+    expect(mounts).toBe(1);
     ui.unmount();
   });
 });

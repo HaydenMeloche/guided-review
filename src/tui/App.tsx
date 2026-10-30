@@ -35,7 +35,7 @@ import { Hints, KeyBar, type Hint } from './KeyBar.js';
 import { plural } from './plural.js';
 import { codingAgentLaunch, type CodingAgentSetting } from '../codingAgent.js';
 import { AuthorMode } from './author/AuthorMode.js';
-import { ChecksPopup, MergePopup, ReviewersPopup } from './prPopups.js';
+import { checksPopup as checksPopupOver, mergePopup as mergePopupOver, reviewersPopup } from './prPopups.js';
 import { mergeReadiness, type Readiness } from '../review/merge.js';
 import { placedThreads } from '../review/feedback.js';
 import { loadThreadDiffs } from '../review/threadDiffs.js';
@@ -827,27 +827,25 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     // A merge started from the picker has no checkout: a model drafting its message gets an empty
     // directory to work in, and the PR's own text in the prompt.
     const mergeAgent = (cwd?: string) => (opts.agent && !opts.noAgent ? { cwd: cwd ?? emptyDir(), ...opts.agent } : undefined);
-    const mergePopup = (background: ReactNode, t: Target, withTour?: Tour) => (
-      <MergePopup
-        background={background}
-        width={columns}
-        height={rows}
-        repo={t.repo}
-        number={t.number}
-        tour={withTour}
-        agent={mergeAgent(withTour ? worktree || undefined : undefined)}
-        onCancel={() => setMerging(undefined)}
-        onQuit={requestQuit}
-        onDone={(notice) => {
+    const mergePopup = (background: ReactNode, t: Target, withTour?: Tour) =>
+      mergePopupOver({
+        background,
+        width: columns,
+        height: rows,
+        repo: t.repo,
+        number: t.number,
+        tour: withTour,
+        agent: mergeAgent(withTour ? worktree || undefined : undefined),
+        onCancel: () => setMerging(undefined),
+        onQuit: requestQuit,
+        onDone: (notice) => {
           setMerging(undefined);
           setMerged((m) => new Set(m).add(keyFor(t)));
           showMerged(notice);
-        }}
-      />
-    );
-    const checksPopup = (background: ReactNode, t: Target) => (
-      <ChecksPopup background={background} width={columns} height={rows} repo={t.repo} number={t.number} onClose={() => setChecking(undefined)} onQuit={requestQuit} />
-    );
+        },
+      });
+    const checksPopup = (background: ReactNode, t: Target) =>
+      checksPopupOver({ background, width: columns, height: rows, repo: t.repo, number: t.number, onClose: () => setChecking(undefined), onQuit: requestQuit });
     if (phase === 'pick') {
       const picker = (active: boolean) => (
         <PickerScreen
@@ -888,20 +886,18 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       if (merging) return mergePopup(picker(false), merging);
       if (checking) return checksPopup(picker(false), checking);
       if (askingReviewers)
-        return (
-          <ReviewersPopup
-            background={picker(false)}
-            width={columns}
-            height={rows}
-            repo={askingReviewers.repo}
-            number={askingReviewers.number}
-            onQuit={requestQuit}
-            onClose={(changed) => {
-              setAskingReviewers(undefined);
-              if (changed) setPickerReload((n) => n + 1);
-            }}
-          />
-        );
+        return reviewersPopup({
+          background: picker(false),
+          width: columns,
+          height: rows,
+          repo: askingReviewers.repo,
+          number: askingReviewers.number,
+          onQuit: requestQuit,
+          onClose: (changed) => {
+            setAskingReviewers(undefined);
+            if (changed) setPickerReload((n) => n + 1);
+          },
+        });
       return withThemePicker(picker);
     }
     if (phase === 'error') {

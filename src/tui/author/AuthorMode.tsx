@@ -41,7 +41,7 @@ import { FeedbackBriefing } from './FeedbackBriefing.js';
 import { FeedbackScreen } from './FeedbackScreen.js';
 import { SendScreen } from './SendScreen.js';
 import { CommentComposer } from './CommentComposer.js';
-import { ChecksPopup, MergePopup, ReviewersPopup } from '../prPopups.js';
+import { checksPopup, mergePopup, reviewersPopup } from '../prPopups.js';
 import { CHECK_POLL_MS } from '../ChecksScreen.js';
 import { ReviewPopup } from '../ReviewPopup.js';
 import { useMentions } from '../chapter/mentions.js';
@@ -400,53 +400,47 @@ export function AuthorMode(props: {
   const popupOpen = merging || checksOpen || reviewersOpen || !!handoff || !!composing || screen === 'send';
   const background = base(props.active && !popupOpen);
   if (reviewersOpen) {
-    return (
-      <ReviewersPopup
-        background={background}
-        width={width}
-        height={height}
-        repo={tour.repo}
-        number={tour.pr}
-        onQuit={props.onQuit}
-        onClose={(changed) => {
-          setReviewersOpen(false);
-          if (changed) refreshPending();
-        }}
-      />
-    );
+    return reviewersPopup({
+      background,
+      width,
+      height,
+      repo: tour.repo,
+      number: tour.pr,
+      onQuit: props.onQuit,
+      onClose: (changed) => {
+        setReviewersOpen(false);
+        if (changed) refreshPending();
+      },
+    });
   }
   if (checksOpen) {
-    return (
-      <ChecksPopup
-        background={background}
-        width={width}
-        height={height}
-        repo={tour.repo}
-        number={tour.pr}
-        loaded={{ headSha: live.merge?.headSha ?? tour.headSha, checks: live.merge?.checks.items ?? [], refreshing: checksRefreshing, onRefresh: refreshChecks }}
-        onClose={() => setChecksOpen(false)}
-        onQuit={props.onQuit}
-      />
-    );
+    return checksPopup({
+      background,
+      width,
+      height,
+      repo: tour.repo,
+      number: tour.pr,
+      loaded: { headSha: live.merge?.headSha ?? tour.headSha, checks: live.merge?.checks.items ?? [], refreshing: checksRefreshing, onRefresh: refreshChecks },
+      onClose: () => setChecksOpen(false),
+      onQuit: props.onQuit,
+    });
   }
   if (merging) {
-    return (
-      <MergePopup
-        background={background}
-        width={width}
-        height={height}
-        repo={tour.repo}
-        number={tour.pr}
-        tour={tour}
-        agent={agent}
-        onCancel={() => setMerging(false)}
-        onQuit={props.onQuit}
-        onDone={(n) => {
-          setMerging(false);
-          props.onMerged(n);
-        }}
-      />
-    );
+    return mergePopup({
+      background,
+      width,
+      height,
+      repo: tour.repo,
+      number: tour.pr,
+      tour,
+      agent,
+      onCancel: () => setMerging(false),
+      onQuit: props.onQuit,
+      onDone: (n) => {
+        setMerging(false);
+        props.onMerged(n);
+      },
+    });
   }
   if (handoff) {
     return (
@@ -536,7 +530,9 @@ export function AuthorMode(props: {
       </ReviewPopup>
     );
   }
-  return background;
+  // In a ReviewPopup with nothing over it: the same element as with a popup open, so the screen
+  // behind keeps its state as popups come and go.
+  return <ReviewPopup background={background} width={width} height={height} maxWidth={width} maxHeight={height} />;
 }
 
 // The prompt for the author's coding agent, to copy: it carries reviewer text, so it is read first.

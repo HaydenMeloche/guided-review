@@ -9,8 +9,11 @@ import { ReviewersScreen } from './ReviewersScreen.js';
 
 // The merge, checks and reviewers popups, over whichever screen opened them: the picker, a review
 // briefing, or the feedback screens. One place for their size and wiring.
+//
+// Plain functions, not components: each returns a ReviewPopup, the element the screen behind sits
+// in with or without a popup open, so opening one never remounts that screen and loses its state.
 
-export function MergePopup(props: {
+export function mergePopup(props: {
   background: ReactNode;
   width: number;
   height: number;
@@ -33,7 +36,7 @@ export function MergePopup(props: {
 
 // With `checks`, the caller already holds them (and keeps them fresh); without, the popup reads
 // the PR's checks itself.
-export function ChecksPopup(props: {
+export function checksPopup(props: {
   background: ReactNode;
   width: number;
   height: number;
@@ -67,7 +70,7 @@ export function ChecksPopup(props: {
   );
 }
 
-export function ReviewersPopup(props: { background: ReactNode; width: number; height: number; repo: string; number: number; onClose: (changed: boolean) => void; onQuit?: () => void }) {
+export function reviewersPopup(props: { background: ReactNode; width: number; height: number; repo: string; number: number; onClose: (changed: boolean) => void; onQuit?: () => void }) {
   return (
     <ReviewPopup background={props.background} width={props.width} height={props.height} maxWidth={90} maxHeight={26} tone="input">
       {(w, h) => <ReviewersScreen repo={props.repo} number={props.number} width={w} height={h} onClose={props.onClose} onQuit={props.onQuit} />}
