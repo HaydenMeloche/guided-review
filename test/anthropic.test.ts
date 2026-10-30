@@ -250,7 +250,7 @@ describe('Anthropic provider', () => {
     expect(result.value).toBe('fast answer');
     expect(updates.at(-1)).toBe('fast answer');
     for (const [url, init] of fetchMock.mock.calls.slice(0, 2)) {
-      expect(String(url)).toBe('https://api.anthropic.com/v1/messages?beta=true');
+      expect(String(url)).toBe('https://api.anthropic.com/v1/messages');
       expect(new Headers(init.headers).get('anthropic-beta')).toBe('fast-mode-2026-02-01');
       const body = JSON.parse(init.body);
       expect(body).toMatchObject({ speed: 'fast', output_config: { effort: 'high' }, cache_control: { type: 'ephemeral' } });
