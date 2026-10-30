@@ -83,6 +83,7 @@ export function ChapterScreen(props: {
   deltaOnly: boolean;
   banner?: string; // a notice that needs a decision (the author pushed); esc folds it into the header
   busy?: string; // background work, shown quietly in the header
+  writingBriefing?: boolean; // the model's briefing is still being written; narration follows it
   agent?: AgentCtx;
   aiOff?: string; // why the agent is absent
   width: number;
@@ -195,7 +196,13 @@ export function ChapterScreen(props: {
     explainScroll,
     listOpen: overlay.kind === 'comment' && !!overlay.composer.listOpen,
     lockRows: lockList ? (w) => lockListLines(lockList, w - 1).length : undefined,
-    explain: (w) => (chapter ? explanation({ tour, chapter, hunk, hi, collapsed: collapsedView, files: filesByPath, confirms: svc?.confirms, linkedTests: hasLinkedTests, showUntested }, w) : []),
+    explain: (w) =>
+      chapter
+        ? explanation(
+            { tour, chapter, hunk, hi, collapsed: collapsedView, writingBriefing: props.writingBriefing, files: filesByPath, confirms: svc?.confirms, linkedTests: hasLinkedTests, showUntested },
+            w,
+          )
+        : [],
   });
   const { wide, listWidth, mainWidth, sideBySide, srcWidth, splitView, bodyHeight, askHeight } = plan;
 

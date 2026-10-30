@@ -96,6 +96,7 @@ export function BriefingScreen(props: {
   toggleDelta?: () => void;
   states: States;
   analyzing?: string; // chapters still being narrated, shown at the header's right end
+  writingBriefing?: boolean; // the model's briefing is still being written over this static tour
   agent?: AgentCtx;
   aiOff?: string; // why the agent is absent
   width: number;
@@ -134,6 +135,14 @@ export function BriefingScreen(props: {
     );
     keepSel.current = undefined;
   }, [chapters]);
+  // The briefing reorders flow chapters when it lands; the selection stays on its chapter.
+  const [plainChapters, setPlainChapters] = useState<Chapter[]>();
+  if (tour.mode === 'plain' && plainChapters !== chapters) setPlainChapters(chapters);
+  if (tour.mode === 'agent' && plainChapters) {
+    setPlainChapters(undefined);
+    const i = chapters.findIndex((c) => c.id === plainChapters[sel]?.id);
+    if (i >= 0 && i !== sel) setSel(i);
+  }
 
   // Per-render work over the whole tour is memoized, so j/k only re-renders the list.
   const prog = useMemo(() => progress(tour, states), [tour, states]);
@@ -244,7 +253,7 @@ export function BriefingScreen(props: {
   const desc = descAll.slice(0, BUDGET.description);
   // A cut between paragraphs would end on a blank row.
   while (desc.length && !desc[desc.length - 1].some((s) => s.text.trim())) desc.pop();
-  const topRows = (props.readiness ? 1 : 0) + intent.length + rrRows;
+  const topRows = (props.readiness ? 1 : 0) + intent.length + (props.writingBriefing ? 1 : 0) + rrRows;
   const restRows =
     (watchShown.length ? watchShown.length + 2 + (watch.length > watchShown.length ? 1 : 0) : 0) +
     (desc.length ? desc.length + 2 : 0) +
@@ -269,6 +278,11 @@ export function BriefingScreen(props: {
       {intent.map((l, i) => (
         <MdLineView key={i} line={l} />
       ))}
+      {props.writingBriefing ? (
+        <Text dimColor wrap="truncate">
+          The model is writing the briefing: its summary, chapter titles and order arrive here.
+        </Text>
+      ) : null}
       {rr ? (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
           <Text wrap="truncate">
@@ -440,7 +454,7 @@ export function BriefingScreen(props: {
       <TitleBar
         repo={tour.repo}
         title={`#${tour.pr} ${tour.title}`}
-        note={`@${tour.author} · ${tour.headSha.slice(0, 8)} · ${tour.mode === 'agent' ? 'guided' : 'plain mode'}`}
+        note={`@${tour.author} · ${tour.headSha.slice(0, 8)} · ${tour.mode === 'agent' || props.writingBriefing ? 'guided' : 'plain mode'}`}
         busy={props.analyzing}
         where="briefing"
         progress={{ done: prog.readLines, total: prog.totalLines, hunks: `${prog.read + prog.skipped}/${prog.total} hunks` }}

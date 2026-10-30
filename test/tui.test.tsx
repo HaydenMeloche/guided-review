@@ -1054,6 +1054,39 @@ describe('BriefingScreen and SubmitScreen', () => {
     expect(ui.lastFrame()).toContain('Please cover the error case.');
     ui.unmount();
   });
+  it('opens on the static tour while the briefing is written, keeping the selection when it reorders', async () => {
+    const plain: Tour = { ...fixtureTour(), mode: 'plain' };
+    expect(plain.chapters.length).toBeGreaterThan(1);
+    const started: (number | undefined)[] = [];
+    const screen = (tour: Tour, writing: boolean) => (
+      <BriefingScreen
+        tour={tour}
+        chapters={tour.chapters}
+        order="flow"
+        cycleOrder={() => {}}
+        states={{}}
+        writingBriefing={writing}
+        width={140}
+        height={45}
+        onStart={(ci) => started.push(ci)}
+        onSubmit={() => {}}
+        onQuit={() => {}}
+      />
+    );
+    const ui = render(screen(plain, true));
+    await waitFor(() => expect(ui.lastFrame()).toContain('The model is writing the briefing'));
+    expect(ui.lastFrame()).not.toContain('plain mode');
+    ui.stdin.write('j');
+    await tick();
+    const selected = plain.chapters[1].id;
+    const briefed: Tour = { ...plain, mode: 'agent', chapters: [...plain.chapters].reverse() };
+    ui.rerender(screen(briefed, false));
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('The model is writing the briefing'));
+    ui.stdin.write('\r');
+    await tick();
+    expect(briefed.chapters[started[0]!].id).toBe(selected);
+    ui.unmount();
+  });
   it('restarts the tour from the palette, after asking', async () => {
     const tour = fixtureTour();
     const read = Object.values(tour.hunks).slice(0, 2);

@@ -442,9 +442,9 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
             // Sessions in the session table win over any a cached tour carried.
             agentSessions.current = { ...tr.agentSessions, ...agentSessions.current };
             setTour({ ...tr, agentSessions: { ...agentSessions.current } });
-            // Show the briefing as soon as it is written; chapters keep narrating behind it.
-            const briefingReady = tr.mode === 'agent' || tr.complete || opts.noAgent;
-            if (!shown && briefingReady) {
+            // Show the briefing on the first tour in, the static one on a fresh build: the model's
+            // briefing fills it in when written, and chapters keep narrating behind it.
+            if (!shown) {
               shown = true;
               setDeltaOnly(!!tr.rereview?.newHunkIds.length);
               setPhase('briefing');
@@ -527,6 +527,17 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     if (!tour) return [];
     return chaptersForOrder(tour, order, moves, deltaOnly);
   }, [tour, order, moves, deltaOnly]);
+  // The briefing reorders flow chapters under a reader who opened the static tour; the position
+  // follows its chapter and hunk. Adjusted during render, so the stale index never draws.
+  const [plainChapters, setPlainChapters] = useState<{ head: string; chapters: Chapter[] }>();
+  const tourHead = tour ? `${tour.repo}#${tour.pr}@${tour.headSha}` : '';
+  if (tour?.mode === 'plain' && plainChapters?.chapters !== chapters) setPlainChapters({ head: tourHead, chapters });
+  if (tour?.mode === 'agent' && plainChapters) {
+    setPlainChapters(undefined);
+    if (plainChapters.head === tourHead) setPosState((p) => positionAfterOrderChange(plainChapters.chapters, p, chapters));
+  }
+  const writingBriefing = steps.some((s) => s.name === 'Writing briefing' && !s.done);
+  const busy = writingBriefing ? 'writing briefing' : narration ? `narrating ${narration.done}/${narration.total}` : analyzing ? 'narrating' : undefined;
   // The whole tour, so a re-review can show the chapters it leaves out, greyed.
   const allChapters: Chapter[] = useMemo(() => {
     if (!tour) return [];
@@ -926,14 +937,14 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         ...shown,
         ...Array.from({ length: INTRO_STEPS - shown.length }, () => ' '),
         ' ',
-        [{ text: `The briefing opens as soon as it is written · ${back ? 'q for the PR list · Q to quit' : 'q to quit'}`, dim: true }],
+        [{ text: `The briefing opens once the diff is mapped · ${back ? 'q for the PR list · Q to quit' : 'q to quit'}`, dim: true }],
       ];
     };
     if (phase === 'load' || !tour) {
       return <TourIntro width={width} height={height} lines={introLines} onBack={back} onQuit={requestQuit} />;
     }
     const agent =
-      tour.mode === 'agent' && worktree
+      (tour.mode === 'agent' || writingBriefing) && worktree
         ? {
             cwd: worktree,
             ...opts.agent,
@@ -1045,7 +1056,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         deltaOnly={deltaOnly}
         toggleDelta={toggleDelta}
         states={states}
-        analyzing={narration ? `narrating ${narration.done}/${narration.total}` : analyzing ? 'narrating' : undefined}
+        analyzing={busy}
+        writingBriefing={writingBriefing}
         agent={agent}
         aiOff={aiOff}
         width={width}
@@ -1085,7 +1097,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         order={order}
         deltaOnly={deltaOnly}
         banner={banner}
-        busy={narration ? `narrating ${narration.done}/${narration.total}` : analyzing ? 'narrating' : undefined}
+        busy={busy}
+        writingBriefing={writingBriefing}
         agent={agent}
         aiOff={aiOff}
         width={width}

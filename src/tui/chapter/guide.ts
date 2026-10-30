@@ -56,7 +56,18 @@ export function noTestHint(hunk: Hunk, nameGuess?: string): string | undefined {
 // The explanation above the code, `width` wide: narration, notes on the chapter or hunk, and
 // possible test gaps (U expands them). A filename-only test guess becomes a one-line hint.
 export function explanation(
-  o: { tour: Tour; chapter: Chapter; hunk?: Hunk; hi: number; collapsed: boolean; files: Map<string, DiffFile>; confirms?: Record<string, boolean>; linkedTests: boolean; showUntested: boolean },
+  o: {
+    tour: Tour;
+    chapter: Chapter;
+    hunk?: Hunk;
+    hi: number;
+    collapsed: boolean;
+    files: Map<string, DiffFile>;
+    confirms?: Record<string, boolean>;
+    linkedTests: boolean;
+    showUntested: boolean;
+    writingBriefing?: boolean;
+  },
   width: number,
 ): GuideLine[] {
   const { tour, chapter, hunk, hi, collapsed } = o;
@@ -80,7 +91,8 @@ export function explanation(
   const untestedBranches = hi <= 0 ? chapter.untestedBranches : [];
   const testGapSummary = [hint ? 'No linked test' : '', untestedBranches.length ? `${plural(untestedBranches.length, 'possible untested behavior')}` : ''].filter(Boolean).join(' · ');
   return [
-    ...guideLines(narration, !!hunk?.narrationInferred, chapterNotes, width, tour.mode, !!hunk),
+    // Narration waits on the briefing, so a tour still being briefed is not plain.
+    ...guideLines(narration, !!hunk?.narrationInferred, chapterNotes, width, o.writingBriefing ? 'agent' : tour.mode, !!hunk),
     ...(testGapSummary
       ? [
           [],
