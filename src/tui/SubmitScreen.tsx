@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { use, useMemo, useState } from 'react';
 import { useInput } from './input.js';
 import { Box, Text } from './themed.js';
 import { Confirm } from './Confirm.js';
@@ -8,7 +8,7 @@ import { postReview, type ReviewPayload } from '../github/gh.js';
 import { githubWebHost } from '../github/auth.js';
 import { progress, truncate, type States } from './nav.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
-import { LabelChip } from './CommentEditor.js';
+import { CommentLabels, LabelChip } from './CommentEditor.js';
 import { TextInput } from './TextInput.js';
 import { mentionHighlight } from './completion.js';
 import { useMentions } from './chapter/mentions.js';
@@ -47,11 +47,14 @@ export function SubmitScreen(props: {
 }) {
   const { tour, states, width } = props;
   const pending = useMemo(() => props.drafts.filter((d) => !d.posted), [props.drafts]);
+  const labels = use(CommentLabels);
+  // Grouped by label, blocking first; in the order written when comments carry no label.
   const ordered = useMemo(() => {
+    if (!labels) return pending;
     const g = groupByLabel(pending);
     return LABELS.flatMap((l) => g[l]);
-  }, [pending]);
-  const verdict = useMemo(() => suggestVerdict(tour, props.drafts, states), [tour, props.drafts, states]);
+  }, [pending, labels]);
+  const verdict = useMemo(() => suggestVerdict(tour, props.drafts, states, labels), [tour, props.drafts, states, labels]);
   const [event, setEvent] = useState<Event>(verdict.event);
   const [sel, setSel] = useState(0);
   const [summary, setSummary] = useState('');
@@ -60,7 +63,7 @@ export function SubmitScreen(props: {
   const host = useMemo(() => props.host ?? githubWebHost(), [props.host]);
   // Posting, the preview and the hints share these options, so each shows what posts.
   const stillApplies = useMemo(() => suggestionStillApplies(tour), [tour]);
-  const payloadOpts = useMemo(() => ({ host, suggestionStillApplies: stillApplies }), [host, stillApplies]);
+  const payloadOpts = useMemo(() => ({ host, suggestionStillApplies: stillApplies, labels }), [host, stillApplies, labels]);
   const notes = useMemo(() => new Map(pending.map((d) => [d.id, postingNote(tour, d, payloadOpts)])), [tour, pending, payloadOpts]);
   const [previewing, setPreviewing] = useState<Draft>();
   const mentions = useMentions(tour, mode === 'summary', props.loadMentionUsers);
@@ -182,7 +185,7 @@ export function SubmitScreen(props: {
         {!ordered.length ? <Text dimColor>No draft comments.</Text> : null}
         {ordered.slice(top, top + listRoom).map((d, k) => {
           const i = top + k;
-          const header = d.label !== lastLabel ? d.label : '';
+          const header = labels && d.label !== lastLabel ? d.label : '';
           lastLabel = d.label;
           const where =
             d.anchor.type === 'line'
@@ -202,7 +205,7 @@ export function SubmitScreen(props: {
             <Text key={d.id} wrap="truncate">
               <Text inverse={i === sel}>
                 {header ? <LabelChip label={d.label} /> : null}
-                {' '.repeat(Math.max(1, 13 - (header ? header.length + 2 : 0)))}
+                {' '.repeat(labels ? Math.max(1, 13 - (header ? header.length + 2 : 0)) : 1)}
                 {text}
               </Text>
               {note ? <Text dimColor>{`  ${note}`}</Text> : null}

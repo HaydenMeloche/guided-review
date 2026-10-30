@@ -17,6 +17,7 @@ import {
   loadThemeSetting,
   loadUserConfig,
   loadViewSetting,
+  loadCommentLabels,
   readUserConfigFile,
   saveThemeSetting,
   saveViewSetting,
@@ -324,6 +325,7 @@ async function main() {
   let splitDiff: boolean;
   let sidebar: boolean;
   let shortExplanation: boolean;
+  let commentLabels: boolean;
   let themeName: string | undefined;
   let glyphs: GlyphSetting;
   let icons: IconSetting;
@@ -335,6 +337,7 @@ async function main() {
     splitDiff = loadViewSetting('splitDiff', config);
     sidebar = loadViewSetting('sidebar', config);
     shortExplanation = loadViewSetting('shortExplanation', config);
+    commentLabels = loadCommentLabels(config);
     themeName = loadThemeSetting(config);
     glyphs = loadGlyphSetting(config);
     icons = loadIconSetting(config);
@@ -362,6 +365,7 @@ async function main() {
     splitDiff,
     sidebar,
     shortExplanation,
+    commentLabels,
     tipsSeen,
     saveTipSeen: config ? saveTipSeen : undefined,
     saveViewSetting,

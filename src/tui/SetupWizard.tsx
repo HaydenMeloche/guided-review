@@ -42,7 +42,7 @@ import { SCREEN_RENDER } from './renderOptions.js';
 // missing, the coding agent o opens, GitHub access when gh isn't signed in, and a finish screen
 // that sends one request to each model before saving. The caller saves the config the wizard returns.
 
-type Step = 'welcome' | 'theme' | 'provider' | 'details' | 'agent' | 'github' | 'finish';
+type Step = 'welcome' | 'theme' | 'provider' | 'details' | 'agent' | 'comments' | 'github' | 'finish';
 
 export interface Detected {
   providers: ProviderFinding[];
@@ -150,12 +150,13 @@ export function SetupWizard(props: WizardProps) {
   const [modelRow, setModelRow] = useState<string>(); // rowKey of the provider row the answers are for
   const [github, setGitHub] = useState<GitHubAnswers>();
   const [codingAgent, setCodingAgent] = useState<CodingAgentSetting>();
+  const [commentLabels, setCommentLabels] = useState<boolean>();
   const savedAgent: CodingAgentSetting | undefined = props.current?.codingAgent && { agent: props.current.codingAgent, command: props.current.codingAgentCommand };
 
   // GitHub needs a step only when gh can't be used as it is, or the config already has a token.
   const needsGitHub = !detected || !detected.github.login || !!props.current?.github;
   const githubAnswers = github ?? githubDefaults(props.current?.github, detected?.github.installed ?? true);
-  const afterAgent = (): Step => (needsGitHub ? 'github' : 'finish');
+  const afterComments = (): Step => (needsGitHub ? 'github' : 'finish');
 
   // Ctrl+C leaves setup, as it does everywhere else in gr.
   useInput((input, key) => {
@@ -168,7 +169,14 @@ export function SetupWizard(props: WizardProps) {
 
   const width = columns - 2;
   const height = rows - 2;
-  const steps: [Step, string][] = [['theme', 'Theme'], ['provider', 'Model'], ['agent', 'Coding agent'], ...(needsGitHub ? ([['github', 'GitHub']] as [Step, string][]) : []), ['finish', 'Finish']];
+  const steps: [Step, string][] = [
+    ['theme', 'Theme'],
+    ['provider', 'Model'],
+    ['agent', 'Coding agent'],
+    ['comments', 'Comments'],
+    ...(needsGitHub ? ([['github', 'GitHub']] as [Step, string][]) : []),
+    ['finish', 'Finish'],
+  ];
   const stepIndex = steps.findIndex(([s]) => s === (step === 'details' ? 'provider' : step));
   const body = height - 1;
 
@@ -237,7 +245,20 @@ export function SetupWizard(props: WizardProps) {
         onBack={back}
         onChoose={(agent) => {
           setCodingAgent(agent);
-          go(afterAgent());
+          go('comments');
+        }}
+      />
+    );
+  } else if (step === 'comments') {
+    screen = (
+      <CommentsStep
+        width={width}
+        height={body}
+        labels={commentLabels ?? props.current?.commentLabels !== false}
+        onBack={back}
+        onChoose={(labels) => {
+          setCommentLabels(labels);
+          go(afterComments());
         }}
       />
     );
@@ -247,7 +268,7 @@ export function SetupWizard(props: WizardProps) {
     );
   } else if (step === 'finish' && model) {
     const github = needsGitHub ? githubConfig(githubAnswers) : props.current?.github;
-    const config = buildConfig(props.current, model, theme, github, codingAgent);
+    const config = buildConfig(props.current, model, theme, github, codingAgent, commentLabels);
     screen = (
       <FinishStep
         width={width}
@@ -549,6 +570,50 @@ function CodingAgentStep(props: { width: number; height: number; detected?: Dete
                 ['esc', 'back'],
               ]
         }
+      />
+    </Box>
+  );
+}
+
+// Whether comments carry a label. Off, the comment box offers none and comments post as written.
+function CommentsStep(props: { width: number; height: number; labels: boolean; onBack: () => void; onChoose: (labels: boolean) => void }) {
+  const selectedRow = useSelected();
+  const rows = [
+    { labels: true, name: 'Label comments', detail: 'blocking, question, suggestion or nit, chosen with Tab; posts as **[nit]**' },
+    { labels: false, name: 'Plain comments', detail: 'no labels; comments post as written' },
+  ];
+  const [sel, setSel] = useState(props.labels ? 0 : 1);
+  // Read through a ref, so keys that arrive together (↓ then Enter) each see the last move.
+  const selRef = useRef(sel);
+  useInput((input, key) => {
+    const move = (to: number) => {
+      selRef.current = to;
+      setSel(to);
+    };
+    if (key.downArrow || input === 'j') return move(1);
+    if (key.upArrow || input === 'k') return move(0);
+    if (key.escape) return props.onBack();
+    if (key.return) return props.onChoose(rows[selRef.current].labels);
+  });
+  const nameW = Math.max(...rows.map((r) => r.name.length)) + 2;
+  return (
+    <Box flexDirection="column" width={props.width} height={props.height}>
+      <StepTitle width={props.width} title="Comments" about="A label says what a comment asks of the author. Blocking comments suggest requesting changes when you submit." />
+      {rows.map((r, i) => (
+        <Text key={r.name} {...selectedRow(i === sel)} wrap="truncate">
+          {pad(`   ${r.name}`, nameW + 3)}
+          <Text dimColor>{r.detail}</Text>
+        </Text>
+      ))}
+      <Box flexGrow={1} />
+      <KeyBar
+        accent
+        width={props.width}
+        keys={[
+          ['j/k', 'move'],
+          ['enter', 'choose'],
+          ['esc', 'back'],
+        ]}
       />
     </Box>
   );

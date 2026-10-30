@@ -57,6 +57,7 @@ export function describeUserConfig(config: UserConfig): string[] {
   lines.push(`Chapter order: ${config.chapterOrder ?? DEFAULT_CHAPTER_ORDER}`);
   lines.push(`Theme: ${config.theme ?? `${TERMINAL_THEME} (your terminal's colors)`}`);
   lines.push(`Coding agent (o): ${codingAgentName(config.codingAgent && { agent: config.codingAgent, command: config.codingAgentCommand })}`);
+  lines.push(`Comments: ${config.commentLabels === false ? 'plain, no labels' : 'labeled (blocking, question, suggestion, nit)'}`);
   lines.push(`GitHub: ${describeGitHub(config.github)}`);
   return lines;
 }
@@ -283,8 +284,15 @@ export function replacesOverrides(current: UserConfig | undefined, provider: Pro
 }
 
 // The config setup saves. Settings it doesn't ask about (chapter order, the diff toggles) are kept,
-// and so is the coding agent when none is given.
-export function buildConfig(current: UserConfig | undefined, model: ModelAnswers, theme: string | undefined, github: GitHubConfig | undefined, codingAgent?: CodingAgentSetting): UserConfig {
+// and so are the coding agent and comment labels when none is given.
+export function buildConfig(
+  current: UserConfig | undefined,
+  model: ModelAnswers,
+  theme: string | undefined,
+  github: GitHubConfig | undefined,
+  codingAgent?: CodingAgentSetting,
+  commentLabels?: boolean,
+): UserConfig {
   const previous = previousRouting(current);
   let config: UserConfig;
   if (model.provider === NO_PROVIDER) {
@@ -328,6 +336,7 @@ export function buildConfig(current: UserConfig | undefined, model: ModelAnswers
   if (agent) config.codingAgent = agent.agent;
   if (agent?.agent === CUSTOM_AGENT) config.codingAgentCommand = agent.command?.trim();
   if (github) config.github = github;
+  if ((commentLabels ?? current?.commentLabels) === false) config.commentLabels = false; // on when unset
   return config;
 }
 

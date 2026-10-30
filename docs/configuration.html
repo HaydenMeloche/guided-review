@@ -72,6 +72,7 @@
               one for Q&amp;A, and <a href="#fast-mode-and-priority-processing">fast mode</a> where it&#39;s offered.
             </li>
             <li><strong>Coding agent:</strong> what <code>o</code> opens in a chapter: Claude Code, Codex, the Cursor CLI, Gemini CLI, opencode, pi, or a custom command.</li>
+            <li><strong>Comments:</strong> labeled (blocking, question, suggestion, or nit) or plain. See <code>commentLabels</code> below.</li>
             <li><strong>GitHub access:</strong> only when <code>gh</code> is missing or signed out. See <a href="#github-access">GitHub access</a>.</li>
             <li><strong>Finish:</strong> setup tests each model and shows how long it took to answer, so a wrong key shows up now rather than mid-review.</li>
           </ol>
@@ -269,6 +270,13 @@
                 <tr>
                   <td><code>shortExplanation</code></td>
                   <td>Show only the first lines of each explanation (default <code>false</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>commentLabels</code></td>
+                  <td>
+                    Label comments as blocking, question, suggestion, or nit (default <code>true</code>). With <code>false</code>, the comment box offers no label, comments post as written, and labels
+                    no longer shape the suggested verdict.
+                  </td>
                 </tr>
                 <tr>
                   <td><code>glyphs</code></td>

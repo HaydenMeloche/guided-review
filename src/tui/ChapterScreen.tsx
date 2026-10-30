@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { use, useEffect, useMemo, useRef, useState } from 'react';
 import { useInput } from './input.js';
 import { Box, Text } from './themed.js';
 import type { Chapter, ChapterOrder, Draft, DraftAnchor, ExistingThread, Hunk, ReactionContent, ReadState, ThreadComment, Tour } from '../types.js';
 import { ChecklistPanel, Reader } from './Panels.js';
 import { firstHunk, hunkPosition, lockPairOfHunk, nextPos, opensOnSummary, pad, pageOf, prevPos, progress, stateOf, summaryHunkIds, type States } from './nav.js';
 import { DiagramView } from './DiagramView.js';
-import { CommentEditor, type SetComposer } from './CommentEditor.js';
+import { CommentEditor, CommentLabels, type SetComposer } from './CommentEditor.js';
 import { INLINE_ROWS, inlineComposerSlot } from './AiSuggestion.js';
 import { ThreadView } from './ThreadView.js';
 import { AskOverlay } from './AskOverlay.js';
@@ -154,6 +154,7 @@ export function ChapterScreen(props: {
   const hasLinkedTests = linked.any;
   const collapsedView = opensOnSummary(chapter) && hi < 0;
   const summaryIds = useMemo(() => (chapter ? summaryHunkIds(chapter) : []), [chapter]);
+  const labels = use(CommentLabels);
   const filesByPath = useMemo(() => new Map(tour.files.map((f) => [f.path, f])), [tour.files]);
   // Hunks that make the same change in one file (a line added to 15 tests), by that change.
   const copies = useMemo(() => {
@@ -270,7 +271,7 @@ export function ChapterScreen(props: {
     setAnchor(null);
     close();
     if (!edited && props.takeTip?.('first-draft')) return setFlash(`Tip: drafts stay on your machine until you submit them all at once with s.`, 'tip');
-    setFlash(`Draft ${edited ? 'updated' : 'saved'} (${d.label}). Nothing posts until you submit.`, 'info');
+    setFlash(`Draft ${edited ? 'updated' : 'saved'}${labels ? ` (${d.label})` : ''}. Nothing posts until you submit.`, 'info');
   };
 
   // ---------- references: composer, recent locations ----------
@@ -633,7 +634,7 @@ export function ChapterScreen(props: {
     }
     if (overlay.kind === 'end') {
       const p = progress(tour, hunk ? { ...states, ...Object.fromEntries(hunkKeys(hunk).map((k) => [k, stateOf(states, hunk) === 'unread' ? 'read' : stateOf(states, hunk)])) } : states);
-      const verdict = suggestVerdict(tour, props.drafts, states);
+      const verdict = suggestVerdict(tour, props.drafts, states, labels);
       const pending = props.drafts.filter((d) => !d.posted).length;
       const optional = chapters.some((c) => c.optional);
       return {
@@ -717,7 +718,7 @@ export function ChapterScreen(props: {
             ? () => {
                 props.deleteDraft(pending);
                 close();
-                setFlash(`Draft deleted (${pending.label}).`, 'info');
+                setFlash(`Draft deleted${labels ? ` (${pending.label})` : ''}.`, 'info');
               }
             : undefined
         }

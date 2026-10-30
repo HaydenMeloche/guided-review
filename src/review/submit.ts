@@ -19,6 +19,7 @@ export interface PayloadOptions {
   // Whether a suggestion written against an earlier head still replaces the same lines. By
   // default it applies only when written at the tour's head (or carries no meta).
   suggestionStillApplies?: (d: Draft) => boolean;
+  labels?: boolean; // false: comments post as written, without their **[label]** tag
 }
 
 // Why a suggestion posts as plain code: its range was split, it moved to another line, it is on
@@ -35,12 +36,15 @@ function proseOf(d: Draft, host: string, repo: string): string {
 
 // `applicable`: the suggestion is offered as one GitHub can apply. It is not when the comment
 // landed on fewer lines than the suggestion was written for: applying it would duplicate code.
-function formatBody(d: Draft, ctx: { host: string; repo: string }, note?: string, applicable = true): string {
-  let body = `**[${d.label}]** ${proseOf(d, ctx.host, ctx.repo)}`;
+function formatBody(d: Draft, ctx: { host: string; repo: string; labels: boolean }, note?: string, applicable = true): string {
+  let body = `${tag(d, ctx)}${proseOf(d, ctx.host, ctx.repo)}`;
   if (d.suggestion !== undefined) body += `\n\n\`\`\`${applicable ? 'suggestion' : ''}\n${d.suggestion.replace(/\n$/, '')}\n\`\`\``;
   if (note) body += `\n\n${note}`;
   return body;
 }
+
+// The bold label a comment starts with, unless labels are off.
+const tag = (d: Draft, ctx: { labels: boolean }) => (ctx.labels ? `**[${d.label}]** ` : '');
 
 // The line number of `l` on `side`, when GitHub's diff has it there. Expanded context is not in it.
 export const lineOn = (l: DiffLine, side: Side) => (l.expanded ? undefined : side === 'RIGHT' ? (l.kind !== 'del' ? l.newLine : undefined) : l.kind !== 'add' ? l.oldLine : undefined);
@@ -88,7 +92,7 @@ export function buildReviewPayload(
   summary: string,
   opts: PayloadOptions = {},
 ): { payload: ReviewPayload; moved: { draftId: string; note: string }[]; demoted: { draftId: string; reason: DemotedReason }[] } {
-  const ctx = { host: opts.host ?? 'github.com', repo: tour.repo };
+  const ctx = { host: opts.host ?? 'github.com', repo: tour.repo, labels: opts.labels ?? true };
   const stillApplies = opts.suggestionStillApplies ?? defaultStillApplies(tour.headSha);
   const comments: ReviewComment[] = [];
   const moved: { draftId: string; note: string }[] = [];
@@ -168,7 +172,7 @@ export function buildReviewPayload(
     for (const label of LABELS) {
       for (const d of groups[label]) {
         const f = flowLevel.find((x) => x.draft === d)!;
-        lines.push(`- **[${label}]** ${f.where}: ${proseOf(d, ctx.host, ctx.repo).split('\n')[0]}`);
+        lines.push(`- ${tag(d, ctx)}${f.where}: ${proseOf(d, ctx.host, ctx.repo).split('\n')[0]}`);
       }
     }
     parts.push(lines.join('\n'));
@@ -206,17 +210,19 @@ const LOGIC_CHAPTERS = new Set(['flow', 'supporting']);
 // A verdict as the screens name it.
 export const EVENT_TEXT: Record<ReviewPayload['event'], string> = { APPROVE: 'Approve', REQUEST_CHANGES: 'Request changes', COMMENT: 'Comment' };
 
-export function suggestVerdict(tour: Tour, drafts: Draft[], readStates: Record<string, ReadState>): { event: ReviewPayload['event']; reasons: string[] } {
+// `labels`: false when comments carry none, so a draft says nothing about blocking or asking.
+export function suggestVerdict(tour: Tour, drafts: Draft[], readStates: Record<string, ReadState>, labels = true): { event: ReviewPayload['event']; reasons: string[] } {
   const pending = drafts.filter((d) => !d.posted);
   const groups = groupByLabel(pending);
   const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
-  if (groups.blocking.length > 0) {
+  if (labels && groups.blocking.length > 0) {
     return { event: 'REQUEST_CHANGES', reasons: [`${plural(groups.blocking.length, 'blocking comment')} to resolve.`] };
   }
 
   const reasons: string[] = [];
-  if (groups.question.length > 0) reasons.push(`${plural(groups.question.length, 'open question')} for the author.`);
+  if (labels && groups.question.length > 0) reasons.push(`${plural(groups.question.length, 'open question')} for the author.`);
+  if (!labels && pending.length > 0) reasons.push(`${plural(pending.length, 'comment')} for the author.`);
 
   const logicHunks = tour.chapters.filter((c) => LOGIC_CHAPTERS.has(c.kind)).flatMap((c) => c.hunkIds);
   const unread = [...new Set(logicHunks)].filter((id) => {

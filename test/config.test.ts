@@ -12,6 +12,7 @@ import {
   loadThemeSetting,
   loadViewSetting,
   loadGlyphSetting,
+  loadCommentLabels,
   loadTipsSeen,
   saveTipSeen,
   parseRepoConfig,
@@ -207,6 +208,17 @@ describe('user config', () => {
     expect(loadTipsSeen()).toEqual(['first-chapter']);
     fs.writeFileSync(file, '{"tipsSeen":"all"}\n');
     expect(() => loadTipsSeen()).toThrow(/"tipsSeen" must be a list of tip names/);
+  });
+
+  it('reads whether comments carry labels without a provider: on by default', () => {
+    const file = configFile();
+    expect(loadCommentLabels()).toBe(true);
+    fs.writeFileSync(file, '{"commentLabels":false}\n');
+    expect(loadCommentLabels()).toBe(false);
+    fs.writeFileSync(file, '{"provider":"openai","commentLabels":false}\n');
+    expect(loadUserConfig().commentLabels).toBe(false);
+    fs.writeFileSync(file, '{"commentLabels":"no"}\n');
+    expect(() => loadCommentLabels()).toThrow(/"commentLabels" must be true or false/);
   });
 
   it('reads the glyph set without a provider: unicode by default, or ascii', () => {

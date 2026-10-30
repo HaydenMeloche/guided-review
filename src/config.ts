@@ -117,6 +117,7 @@ export type UserConfig = Omit<AgentRouting, 'provider'> & {
   splitDiff?: boolean;
   sidebar?: boolean;
   shortExplanation?: boolean;
+  commentLabels?: boolean; // false: comments carry no label (blocking, question, suggestion, nit)
   theme?: string;
   glyphs?: GlyphSetting;
   icons?: IconSetting;
@@ -256,6 +257,18 @@ function parseViewSetting(raw: Record<string, unknown>, key: ViewSetting, where:
   if (raw[key] === undefined) return undefined;
   if (typeof raw[key] !== 'boolean') throw new UserConfigError(`${where}: "${key}" must be true or false`);
   return raw[key];
+}
+
+// "commentLabels": false leaves labels out of reviews: the comment box offers none, and comments
+// post as written, without a **[nit]** tag. On when unset. Readable without a model provider.
+function parseCommentLabels(raw: Record<string, unknown>, where: string): boolean | undefined {
+  if (raw.commentLabels === undefined) return undefined;
+  if (typeof raw.commentLabels !== 'boolean') throw new UserConfigError(`${where}: "commentLabels" must be true or false`);
+  return raw.commentLabels;
+}
+
+export function loadCommentLabels(raw = readUserConfigFile()): boolean {
+  return (raw && parseCommentLabels(raw, userConfigPath())) ?? true;
 }
 
 // A view setting, readable without a model provider: hideWhitespace is on when unset, splitDiff off.
@@ -419,6 +432,8 @@ export function loadUserConfig(raw = readUserConfigFile()): UserConfig {
     const value = parseViewSetting(raw, key, file);
     if (value !== undefined) out[key] = value;
   }
+  const commentLabels = parseCommentLabels(raw, file);
+  if (commentLabels !== undefined) out.commentLabels = commentLabels;
   const theme = parseTheme(raw, file);
   if (theme) out.theme = theme;
   const glyphs = parseChoice(raw, 'glyphs', GLYPH_SETTINGS, file);

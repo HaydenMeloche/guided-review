@@ -365,10 +365,17 @@ describe('model lists', () => {
 describe('setup wizard', () => {
   const codexFound: Detected = { providers: [{ provider: 'codex', detail: 'signed in using ChatGPT' }], github: { installed: true, login: 'octocat' } };
 
-  // The coding agent step, taking the agent under the cursor.
+  // The comments step, keeping the choice under the cursor.
+  async function keepComments(ui: Awaited<ReturnType<typeof wizard>>['ui']) {
+    await waitFor(() => expect(ui.lastFrame()).toContain('Plain comments'));
+    ui.stdin.write(ENTER);
+  }
+
+  // The coding agent and comments steps, taking what is under the cursor.
   async function keepAgent(ui: Awaited<ReturnType<typeof wizard>>['ui']) {
     await waitFor(() => expect(ui.lastFrame()).toContain('Coding agent'));
     ui.stdin.write(ENTER);
+    await keepComments(ui);
   }
 
   it('lists found providers first, and keeps compatible endpoints and no model among the others', () => {
@@ -669,7 +676,9 @@ describe('setup wizard', () => {
     await keepAgent(ui);
     await waitFor(() => expect(ui.lastFrame()).toContain('Provider: openai-compatible (http://localhost:11434/v1)'));
     ui.stdin.write('b');
-    await waitFor(() => expect(ui.lastFrame()).toContain('Coding agent'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('Plain comments'));
+    ui.stdin.write(ESC);
+    await waitFor(() => expect(ui.lastFrame()).toContain('Custom command'));
     ui.stdin.write(ESC);
     await waitFor(() => expect(ui.lastFrame()).toContain('LM Studio is running'));
     ui.stdin.write(DOWN);
@@ -779,6 +788,7 @@ describe('setup wizard', () => {
     ui.stdin.write(DOWN);
     ui.stdin.write(DOWN);
     ui.stdin.write(ENTER);
+    await keepComments(ui);
     await waitFor(() => expect(ui.lastFrame()).toContain('Ready to save'));
     expect(ui.lastFrame()).toContain('Coding agent (o): Gemini CLI');
     ui.stdin.write(ENTER);
@@ -809,6 +819,7 @@ describe('setup wizard', () => {
     ui.stdin.write('aider --message');
     await waitFor(() => expect(ui.lastFrame()).toContain('aider --message'));
     ui.stdin.write(ENTER);
+    await keepComments(ui);
     await waitFor(() => expect(ui.lastFrame()).toContain('Ready to save'));
     expect(ui.lastFrame()).toContain('Coding agent (o): custom command (aider --message)');
     ui.stdin.write(ENTER);
@@ -816,6 +827,37 @@ describe('setup wizard', () => {
     const result = onDone.mock.calls[0][0];
     expect(result.kind === 'saved' && result.config).toMatchObject({ codingAgent: 'custom', codingAgentCommand: 'aider --message' });
     ui.unmount();
+  });
+
+  it('turns comment labels off, and keeps that choice when setup runs again', async () => {
+    const { ui, onDone } = await wizard(codexFound, {});
+    ui.stdin.write(ENTER);
+    await waitFor(() => expect(ui.lastFrame()).toContain('Color theme'));
+    ui.stdin.write(ENTER);
+    await waitFor(() => expect(ui.lastFrame()).toContain('Found on this machine'));
+    ui.stdin.write(ENTER);
+    await waitFor(() => expect(ui.lastFrame()).toContain('Coding agent'));
+    ui.stdin.write(ENTER);
+    await waitFor(() => expect(ui.lastFrame()).toContain('Plain comments'));
+    ui.stdin.write(DOWN);
+    ui.stdin.write(ENTER);
+    await waitFor(() => expect(ui.lastFrame()).toContain('Comments: plain, no labels'));
+    ui.stdin.write(ENTER);
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    const result = onDone.mock.calls[0][0];
+    expect(result.kind === 'saved' && result.config.commentLabels).toBe(false);
+    ui.unmount();
+
+    // Run again on that config, the cursor starts on plain comments.
+    const again = await wizard(codexFound, {}, result.kind === 'saved' ? result.config : undefined);
+    again.ui.stdin.write(ENTER);
+    await waitFor(() => expect(again.ui.lastFrame()).toContain('Color theme'));
+    again.ui.stdin.write(ENTER);
+    await waitFor(() => expect(again.ui.lastFrame()).toContain('Found on this machine'));
+    again.ui.stdin.write(ENTER);
+    await keepAgent(again.ui);
+    await waitFor(() => expect(again.ui.lastFrame()).toContain('Comments: plain, no labels'));
+    again.ui.unmount();
   });
 
   it('keeps Claude Code under the cursor for a saved config without a coding agent', async () => {

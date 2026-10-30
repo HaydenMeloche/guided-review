@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { use, useMemo, useState } from 'react';
 import { useInput } from './input.js';
 import { Box, Text } from './themed.js';
 import type { Draft, Tour } from '../types.js';
 import { buildReviewPayload } from '../review/submit.js';
+import { CommentLabels } from './CommentEditor.js';
 import { KeyBar } from './KeyBar.js';
 import { truncate, wrap } from './nav.js';
 import { sanitizeTerminal } from '../util/sanitize.js';
@@ -13,7 +14,8 @@ export function PostPreview(props: { draft: Draft; tour: Tour; host: string; sti
   const { draft, tour, width } = props;
   const [scroll, setScroll] = useState(0);
   const { host, stillApplies } = props;
-  const built = useMemo(() => buildReviewPayload(tour, [draft], 'COMMENT', '', { host, suggestionStillApplies: stillApplies }), [tour, draft, host, stillApplies]);
+  const labels = use(CommentLabels);
+  const built = useMemo(() => buildReviewPayload(tour, [draft], 'COMMENT', '', { host, suggestionStillApplies: stillApplies, labels }), [tour, draft, host, stillApplies, labels]);
   const comment = built.payload.comments[0];
   const where = comment ? `${comment.path}:${comment.start_line ? `${comment.start_line}-` : ''}${comment.line} ${comment.side}` : 'the review body';
   const body = comment?.body ?? built.payload.body;

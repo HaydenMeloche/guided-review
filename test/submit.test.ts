@@ -69,6 +69,19 @@ describe('buildReviewPayload', () => {
     expect(payload.comments[1]).toMatchObject({ line: 11 });
     expect(payload.body).toMatch(/Sum\n\n### Flow-level comments\n- \*\*\[question\]\*\* "handler"/);
   });
+
+  it('posts comments as written, without a label, when labels are off', () => {
+    const { payload } = buildReviewPayload(
+      t,
+      [draft({ type: 'line', hunkId: 'h1', file: 'src/a.ts', line: 11, side: 'RIGHT' }, { label: 'nit', body: 'naming' }), draft({ type: 'node', chapterId: 'c0', nodeId: 'n1' })],
+      'COMMENT',
+      'Sum',
+      { labels: false },
+    );
+    expect(payload.comments[0].body).toBe('naming');
+    expect(payload.body).toMatch(/### Flow-level comments\n- "handler" in flow "Checkout flow": why\?/);
+    expect(JSON.stringify(payload)).not.toContain('**[');
+  });
 });
 
 describe('suggestVerdict', () => {
@@ -80,6 +93,10 @@ describe('suggestVerdict', () => {
     const v = suggestVerdict(t, [], { 'hash-h1': 'read' });
     expect(v.event).toBe('COMMENT');
     expect(v.reasons[0]).toBe('1 hand-written hunk not marked read.');
+  });
+  it('reads nothing into a draft when comments carry no label', () => {
+    const v = suggestVerdict(t, [draft({ type: 'chapter', chapterId: 'c0' }, { label: 'blocking' })], { 'hash-h1': 'read', 'hash-h2': 'read' }, false);
+    expect(v).toEqual({ event: 'COMMENT', reasons: ['1 comment for the author.'] });
   });
   it('approves when all read and nothing open', () => {
     expect(suggestVerdict(t, [], { 'hash-h1': 'read', 'hash-h2': 'read' }).event).toBe('APPROVE');

@@ -20,7 +20,7 @@ import { ChapterScreen, type Services } from './ChapterScreen.js';
 import { BriefingScreen } from './BriefingScreen.js';
 import { SubmitScreen } from './SubmitScreen.js';
 import { ReviewPopup } from './ReviewPopup.js';
-import { CommentEditor } from './CommentEditor.js';
+import { CommentEditor, CommentLabels } from './CommentEditor.js';
 import { aiChromeRows } from './AiSuggestion.js';
 import { initComposer, type ComposerEnv, type ComposerState, type ReferenceServices } from './composer.js';
 import { pushRecent, type RecentLocation } from './references.js';
@@ -62,6 +62,7 @@ export interface AppOptions {
   splitDiff?: boolean; // the user's saved S setting; off when unset
   sidebar?: boolean; // the user's saved \ setting; on when unset
   shortExplanation?: boolean; // the explanation cut to its first lines; off when unset
+  commentLabels?: boolean; // comments carry a label (blocking, question, suggestion, nit); on when unset
   tipsSeen?: string[]; // first-run tips already shown
   saveTipSeen?: (tip: string) => void; // records one; unset with no config file, where tips can't be remembered and so don't show
   saveViewSetting?: (key: ViewSetting, value: boolean) => void; // records a w or S toggle for next time
@@ -180,7 +181,9 @@ export function App(opts: AppOptions) {
     <ThemeContext value={palette}>
       <PreviewingContext value={!!themes && palette.name !== committed.current}>
         <Box flexDirection="column" width={palette.bg ? columns : undefined} height={palette.bg ? rows : undefined} backgroundColor={palette.bg}>
-          <Screens {...opts} theme={theme} />
+          <CommentLabels value={opts.commentLabels ?? true}>
+            <Screens {...opts} theme={theme} />
+          </CommentLabels>
         </Box>
       </PreviewingContext>
     </ThemeContext>
@@ -653,7 +656,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     const prompt = [
       `I'm reviewing ${tour.repo}#${tour.pr} (${tour.url}) at ${tour.headSha.slice(0, 8)}, chapter "${c.title}".`,
       h ? `Here is the hunk:\n\`\`\`diff\n${hunkText}\n\`\`\`` : '',
-      related.length ? `My draft comments:\n${related.map((d) => `- [${d.label}] line ${(d.anchor as { line: number }).line}: ${d.body}`).join('\n')}` : '',
+      related.length ? `My draft comments:\n${related.map((d) => `- ${opts.commentLabels === false ? '' : `[${d.label}] `}line ${(d.anchor as { line: number }).line}: ${d.body}`).join('\n')}` : '',
       threads.length ? `Existing review threads:\n${threads.map((t) => `- line ${t.line ?? t.originalLine}: ${t.comments.map((x) => `@${x.author}: ${x.body}`).join(' / ')}`).join('\n')}` : '',
       'Help me dig into this.',
     ]

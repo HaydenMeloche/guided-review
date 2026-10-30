@@ -14,6 +14,7 @@ import { defaultRepoConfig } from '../src/config.js';
 import { buildReviewPayload } from '../src/review/submit.js';
 import { ChapterScreen } from '../src/tui/ChapterScreen.js';
 import { ThreadView } from '../src/tui/ThreadView.js';
+import { CommentLabels } from '../src/tui/CommentEditor.js';
 import { SubmitScreen } from '../src/tui/SubmitScreen.js';
 import { BriefingScreen, stripFileRefs } from '../src/tui/BriefingScreen.js';
 import { leadThenDim } from '../src/tui/chapter/guide.js';
@@ -508,6 +509,33 @@ describe('ChapterScreen', () => {
     expect(drafts[0].body).toBe('this leaks if the retry fails?');
     expect(drafts[0].anchor.type).toBe('line');
     expect(ui.lastFrame()).toContain('Draft saved');
+    ui.unmount();
+  });
+
+  it('offers no label in the comment box when labels are off', async () => {
+    const tour = fixtureTour();
+    const drafts: Draft[] = [];
+    const ui = render(
+      <CommentLabels value={false}>
+        <Harness tour={tour} onDraft={(d) => drafts.push(d)} onState={() => {}} />
+      </CommentLabels>,
+    );
+    await waitFor(() => expect(ui.lastFrame()).toContain('hunk 1/'));
+    ui.stdin.write('c');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Comment on'));
+    expect(ui.lastFrame()).toContain('posts as written');
+    expect(ui.lastFrame()).not.toMatch(/ blocking | question | suggestion | nit /);
+    expect(ui.lastFrame()).not.toContain('tab label');
+    ui.stdin.write('\t'); // does nothing
+    await tick();
+    ui.stdin.write('naming');
+    await tick();
+    ui.stdin.write('\r');
+    await waitFor(() => expect(drafts).toHaveLength(1));
+    await waitFor(() => expect(ui.lastFrame()).toContain('Draft saved. Nothing posts until you submit.'));
+    // Under the line, the draft shows without a label chip.
+    expect(ui.lastFrame()).toMatch(/✎ naming/);
+    expect(ui.lastFrame()).not.toMatch(/ question +✎/);
     ui.unmount();
   });
 

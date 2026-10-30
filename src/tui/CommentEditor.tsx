@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
+import { createContext, use, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
 import { useApp } from 'ink';
 import { useInput } from './input.js';
 import { Box, Text } from './themed.js';
@@ -35,9 +35,14 @@ import { sanitizeTerminal } from '../util/sanitize.js';
 const LABELS: CommentLabel[] = ['blocking', 'question', 'suggestion', 'nit'];
 export const LABEL_COLOR: Record<CommentLabel, string> = { blocking: 'red', question: 'blue', suggestion: 'cyan', nit: 'gray' };
 
+// Whether comments carry a label: "commentLabels" in config.json, on when unset. Off, no screen
+// shows or offers one.
+export const CommentLabels = createContext(true);
+
 // A comment's label as a colored chip, the same in the composer, under the line, and on the
-// submit screen, so a blocking comment looks the same in all three.
+// submit screen, so a blocking comment looks the same in all three. Nothing with labels off.
 export function LabelChip(props: { label: CommentLabel; selected?: boolean }) {
+  if (!use(CommentLabels)) return null;
   return (
     <Text backgroundColor={SURFACES.popup} color={LABEL_COLOR[props.label]} inverse={props.selected} bold={props.selected}>
       {` ${props.label} `}
@@ -243,18 +248,25 @@ export function CommentEditor(props: {
       <Text backgroundColor={SURFACES.popup} color={layer.startsWith('ai') ? 'magenta' : 'cyan'}>{` ${LAYER_NAME[layer]} `}</Text>
     </Box>
   );
-  // The labels, and what the chosen one does: it posts as a bold tag that groups the review.
-  const labels = (note: string) => (
-    <Text wrap="truncate">
-      {LABELS.map((l, i) => (
-        <Text key={l}>
-          {i ? ' ' : ''}
-          <LabelChip label={l} selected={l === st.label} />
-        </Text>
-      ))}
-      <Text dimColor>{`  posts as **[${st.label}]**${note ? ` · ${note}` : ''}`}</Text>
-    </Text>
-  );
+  // The labels, and what the chosen one does: it posts as a bold tag that groups the review. With
+  // labels off the row stays, so the composer keeps its height, and says how the comment posts.
+  const labelsOn = use(CommentLabels);
+  const labels = (note: string) =>
+    !labelsOn ? (
+      <Text dimColor wrap="truncate">
+        {note ? `${note} · posts as written` : 'posts as written'}
+      </Text>
+    ) : (
+      <Text wrap="truncate">
+        {LABELS.map((l, i) => (
+          <Text key={l}>
+            {i ? ' ' : ''}
+            <LabelChip label={l} selected={l === st.label} />
+          </Text>
+        ))}
+        <Text dimColor>{`  posts as **[${st.label}]**${note ? ` · ${note}` : ''}`}</Text>
+      </Text>
+    );
   const listHeight = full ? Math.max(0, (props.height ?? 0) - 12) : props.listRows;
   const field = (rows: number) => (
     <TextInput
@@ -278,7 +290,7 @@ export function CommentEditor(props: {
         if (props.state && !!props.state.listOpen !== open) patch({ listOpen: open });
       }}
       listHeight={listHeight}
-      onTab={(reverse) => set((s) => ({ ...s, label: LABELS[(LABELS.indexOf(s.label) + (reverse ? LABELS.length - 1 : 1)) % LABELS.length] }))}
+      onTab={labelsOn ? (reverse) => set((s) => ({ ...s, label: LABELS[(LABELS.indexOf(s.label) + (reverse ? LABELS.length - 1 : 1)) % LABELS.length] })) : undefined}
     />
   );
   // Where the reference at the cursor points; hidden while the completion list is open.
@@ -299,7 +311,7 @@ export function CommentEditor(props: {
     ...((offerAi ? [['ctrl+t', inner >= 90 ? AI_HINT : inner >= 60 ? AI_HINT_SHORT : 'AI fix']] : []) as Hint[]),
     ...((env ? [['@', 'people/code']] : []) as Hint[]),
     ['ctrl+j', 'newline'],
-    ['tab', 'label'],
+    ...((labelsOn ? [['tab', 'label']] : []) as Hint[]),
     ['ctrl+o', 'body in $EDITOR'],
     ...((canSuggest ? [['ctrl+g', 'suggestion in $EDITOR']] : []) as Hint[]),
     ...((st.suggestion !== undefined ? [['ctrl+d', 'drop suggestion']] : []) as Hint[]),
