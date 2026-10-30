@@ -98,10 +98,31 @@ export const SourcePane = React.memo(function SourcePane(props: {
     const reindentedOnly = (l: DiffLine, i: number) => l.kind === 'ctx' || props.hidden.get(i) === 'whitespace' || props.hidden.get(props.partner[i]) === 'whitespace';
     if (props.ignoreWhitespace && hunk.lines.every(reindentedOnly)) out.push({ idx: -1, node: <Text dimColor>{truncate('  whitespace-only changes hidden · w to show', width)}</Text> });
     const lastChanged = hunk.lines.findLastIndex((l) => l.kind !== 'ctx');
-    // Review threads, drafts and a moved block's origin under line j, on rows of line i.
+    // Split view: old on the left, new on the right, each half wide.
+    const half = Math.max(8, Math.floor((width - 2) / 2));
+    // Review threads, drafts and a moved block's origin under line j, on rows of line i. In split
+    // view they sit in line j's pane: a removed line's on the left, any other's on the right.
     const notesUnder = (j: number, i: number) => {
       const l = hunk.lines[j];
       const line = l.kind === 'del' ? l.oldLine : l.newLine;
+      const w = props.split ? half : width;
+      const push = (node: React.ReactNode) =>
+        out.push({
+          idx: i,
+          node: props.split ? (
+            <Box>
+              <Box width={half} flexShrink={0}>
+                {l.kind === 'del' ? node : null}
+              </Box>
+              <Text dimColor>│</Text>
+              <Box width={half} flexShrink={0}>
+                {l.kind === 'del' ? null : node}
+              </Box>
+            </Box>
+          ) : (
+            node
+          ),
+        });
       const threads = threadAt(props.threads, hunk.file, line, l.kind === 'del' ? 'LEFT' : 'RIGHT');
       // Open threads stand out; resolved ones are a dim note of their own, so they never read as open.
       const open = threads.filter((t) => !t.isResolved);
@@ -113,36 +134,22 @@ export const SourcePane = React.memo(function SourcePane(props: {
         );
       if (open.length) {
         const outdated = open.filter((t) => t.isOutdated).length;
-        out.push({
-          idx: i,
-          node: (
-            <Text color="cyan">
-              {truncate(`          ${G.thread} ${plural(open.length, 'open review thread')}${outdated ? ` (${outdated} outdated)` : ''} · ${comments(open)} · e to read`, width)}
-            </Text>
-          ),
-        });
+        push(<Text color="cyan">{truncate(`          ${G.thread} ${plural(open.length, 'open review thread')}${outdated ? ` (${outdated} outdated)` : ''} · ${comments(open)} · e to read`, w)}</Text>);
       }
-      if (resolved.length)
-        out.push({
-          idx: i,
-          node: <Text dimColor>{truncate(`          ${G.done} ${plural(resolved.length, 'resolved thread')} · ${comments(resolved)}${open.length ? '' : ' · e to read'}`, width)}</Text>,
-        });
+      if (resolved.length) push(<Text dimColor>{truncate(`          ${G.done} ${plural(resolved.length, 'resolved thread')} · ${comments(resolved)}${open.length ? '' : ' · e to read'}`, w)}</Text>);
       for (const d of draftsAt(props.drafts, hunk, line, l.kind === 'del' ? 'LEFT' : 'RIGHT')) {
-        out.push({
-          idx: i,
-          node: (
-            <Text wrap="truncate">
-              {'          '}
-              <LabelChip label={d.label} />
-              <Text color={LABEL_COLOR[d.label]}>{truncate(` ${G.draft}${d.posted ? ' (posted)' : ''} ${clean(d.body).replace(/\s+/g, ' ')}`, Math.max(1, width - 12 - d.label.length))}</Text>
-            </Text>
-          ),
-        });
+        push(
+          <Text wrap="truncate">
+            {'          '}
+            <LabelChip label={d.label} />
+            <Text color={LABEL_COLOR[d.label]}>{truncate(` ${G.draft}${d.posted ? ' (posted)' : ''} ${clean(d.body).replace(/\s+/g, ' ')}`, Math.max(1, w - 12 - d.label.length))}</Text>
+          </Text>,
+        );
       }
       // Under the last changed line: the other hunks of this file that make the same change.
-      if (props.copies && j === lastChanged) out.push({ idx: i, node: <Text color="blue">{truncate(copiesNote(props.copies), width)}</Text> });
+      if (props.copies && j === lastChanged) push(<Text color="blue">{truncate(copiesNote(props.copies), w)}</Text>);
       const moved = movedNote(hunk, j);
-      if (moved) out.push({ idx: i, node: <Text color="blue">{truncate(`          ${moved}`, width)}</Text> });
+      if (moved) push(<Text color="blue">{truncate(`          ${moved}`, w)}</Text>);
     };
     // A folded run of imports: one row on its first line, with the notes of every line in it.
     const importRow = (i: number) => {
@@ -167,7 +174,6 @@ export const SourcePane = React.memo(function SourcePane(props: {
     };
     if (props.split) {
       // Old on the left, new on the right; a removed line shares its replacement's row.
-      const half = Math.max(8, Math.floor((width - 2) / 2));
       const codeW = Math.max(1, half - SPLIT_GUTTER);
       const cells = (j: number | undefined, side: 'old' | 'new', bg?: string): React.ReactNode[] => {
         if (j === undefined) return [];
