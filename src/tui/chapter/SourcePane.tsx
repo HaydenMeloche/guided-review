@@ -29,7 +29,7 @@ export const SourcePane = React.memo(function SourcePane(props: {
   scroll: number;
   setScroll: (n: number) => void;
   threads: ExistingThread[];
-  copies?: { others: number; unread: number }; // other hunks making the same change in this file
+  copies?: { others: number; unread: number }; // other hunks making the same change
   drafts: Draft[];
   root?: string;
   headSha: string;

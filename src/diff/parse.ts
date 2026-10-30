@@ -221,5 +221,19 @@ export function numberCopies(hunks: Hunk[]) {
   }
 }
 
-// The hash a hunk's copies share (see numberCopies).
-export const sameChange = (h: Hunk) => h.contentHash.replace(/#\d+$/, '');
+// What a hunk's copies share: its changed lines, wherever they are and however deep they're
+// indented (a field added to a mock in 20 files). Lines keep their indent relative to each other.
+// A change this short (a `}`, a `return;`) says too little to match it in other files.
+export const SAME_CHANGE_MIN_CHARS = 12;
+const changes = new WeakMap<Hunk, string>();
+export const sameChange = (h: Hunk): string => {
+  let k = changes.get(h);
+  if (k !== undefined) return k;
+  const changed = h.lines.filter((l) => l.kind !== 'ctx').map((l) => ({ sign: l.kind === 'add' ? '+' : '-', text: l.text.trimEnd() }));
+  const indent = Math.min(...changed.filter((l) => l.text).map((l) => l.text.length - l.text.trimStart().length));
+  k = changed.map((l) => l.sign + l.text.slice(indent)).join('\n');
+  if (!changed.length) k = h.contentHash;
+  else if (changed.map((l) => l.text.replace(/\s/g, '')).join('').length < SAME_CHANGE_MIN_CHARS) k = `${h.file}\0${k}`;
+  changes.set(h, k);
+  return k;
+};

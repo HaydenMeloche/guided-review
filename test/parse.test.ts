@@ -113,10 +113,27 @@ describe('parseUnifiedDiff', () => {
     const [first, second, third, other] = hunks;
     expect(second.contentHash).toBe(`${first.contentHash}#2`);
     expect(third.contentHash).toBe(`${first.contentHash}#3`);
-    expect(new Set([first, second, third].map(sameChange))).toEqual(new Set([first.contentHash]));
-    // Another file's same lines are another change.
+    expect(new Set([first, second, third].map(sameChange)).size).toBe(1);
+    // Another file's same lines have their own read state, but are the same change.
     expect(other.contentHash).not.toContain('#');
-    expect(sameChange(other)).not.toBe(first.contentHash);
+    expect(sameChange(other)).toBe(sameChange(first));
+  });
+
+  it('matches a change across files and indents, but a short one only within its file', () => {
+    const hunk = (path: string, ...changed: string[]) =>
+      parseUnifiedDiff(`diff --git a/${path} b/${path}\n--- a/${path}\n+++ b/${path}\n@@ -1,1 +1,${1 + changed.length} @@\n ctx\n${changed.join('\n')}\n`).hunks[0];
+    const mock = hunk('src/a.mock.ts', '+      qualifyingRate: null,');
+    const deeper = hunk('src/b.mock.ts', '+          qualifyingRate: null,  ');
+    expect(sameChange(deeper)).toBe(sameChange(mock));
+    // Lines keep their indent relative to each other.
+    const block = hunk('a.py', '+  if ready:', '+    launch()');
+    expect(sameChange(hunk('b.py', '+    if ready:', '+      launch()'))).toBe(sameChange(block));
+    expect(sameChange(hunk('b.py', '+    if ready:', '+    launch()'))).not.toBe(sameChange(block));
+    // A reindent isn't the same change as an unchanged line.
+    expect(sameChange(hunk('c.ts', '-  value: 1234567890,', '+    value: 1234567890,'))).not.toBe(sameChange(hunk('d.ts', '-  value: 1234567890,', '+  value: 1234567890,')));
+    // Too short to say it's the same change in another file.
+    expect(sameChange(hunk('a.ts', '+  return;'))).not.toBe(sameChange(hunk('b.ts', '+  return;')));
+    expect(sameChange(hunk('a.ts', '+  return;'))).toBe(sameChange(hunk('a.ts', '+      return;')));
   });
 });
 

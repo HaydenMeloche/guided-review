@@ -656,6 +656,23 @@ describe('ChapterScreen', () => {
     ui.unmount();
   });
 
+  it('names the files when the copies of a change are in more than one', async () => {
+    const [a, b, c] = ['src/funding.mock.ts', 'src/prefund.mock.ts', 'src/product.mock.ts'].map((f, n) => ({
+      ...hunkFromDiff(f, ` ctx${n}`, `+${' '.repeat(2 * n + 2)}qualifyingRate: null,`),
+      contentHash: `chg${n}`,
+    }));
+    const t = makeTour([a, b, c], [{ kind: 'tests', title: 'Mocks', hunkIds: [a.id, b.id, c.id] }], { files: filesFor([a, b, c]) });
+    let states: States = {};
+    const ui = render(<Harness tour={t} onDraft={() => {}} onState={(s) => (states = s)} />);
+    await waitFor(() => expect(ui.lastFrame()).toContain('same change in 2 other hunks · 2 unread'));
+    ui.stdin.write('n');
+    await waitFor(() => expect(ui.lastFrame()).toContain('The same change, 3 times in 3 files'));
+    expect(ui.lastFrame()).toMatch(/funding\.mock\.ts *│?\n.*prefund\.mock\.ts *│?\n.*product\.mock\.ts/);
+    ui.stdin.write('y');
+    await waitFor(() => expect(states).toEqual({ chg0: 'read', chg1: 'read', chg2: 'read' }));
+    ui.unmount();
+  });
+
   it('reads the copies one at a time after Enter, without asking again, and esc stays', async () => {
     let states: States = {};
     const ui = render(<Harness tour={copiesTour()} onDraft={() => {}} onState={(s) => (states = s)} />);

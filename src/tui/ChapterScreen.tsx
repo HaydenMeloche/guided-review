@@ -36,7 +36,7 @@ import { chapterLayout, overlaySlots, type OverlayKind } from './chapter/layout.
 import { G } from './glyphs.js';
 import { hunkKeys } from '../review/hunkState.js';
 import { sameChange } from '../diff/parse.js';
-import { CopiesCard, COPIES_CARD_LINES } from './chapter/CopiesCard.js';
+import { CopiesCard, copiesCardHeight } from './chapter/CopiesCard.js';
 import { WIDE } from './breakpoints.js';
 import { EndCard } from './chapter/EndCard.js';
 import { EVENT_TEXT, suggestVerdict } from '../review/submit.js';
@@ -156,7 +156,7 @@ export function ChapterScreen(props: {
   const summaryIds = useMemo(() => (chapter ? summaryHunkIds(chapter) : []), [chapter]);
   const labels = use(CommentLabels);
   const filesByPath = useMemo(() => new Map(tour.files.map((f) => [f.path, f])), [tour.files]);
-  // Hunks that make the same change in one file (a line added to 15 tests), by that change.
+  // Hunks that make the same change (a line added to 15 tests), by that change.
   const copies = useMemo(() => {
     const m = new Map<string, Hunk[]>();
     for (const h of Object.values(tour.hunks)) {
@@ -607,6 +607,7 @@ export function ChapterScreen(props: {
       };
     if (askCopies && hunk) {
       const changed = hunk.lines.filter((l) => l.kind !== 'ctx');
+      const files = [...new Set([hunk.file, ...copiesOf(hunk).map((h) => h.file)])];
       const answer = (fn: () => void) => () => {
         setAskCopies(undefined);
         fn();
@@ -614,10 +615,10 @@ export function ChapterScreen(props: {
       return {
         tone: 'decision' as const,
         width: Math.min(72, width - 4),
-        height: 8 + Math.min(changed.length, COPIES_CARD_LINES) + (changed.length > COPIES_CARD_LINES ? 1 : 0),
+        height: copiesCardHeight(changed.length, files.length),
         node: (w: number) => (
           <CopiesCard
-            file={hunk.file}
+            files={files}
             changed={changed}
             unread={askCopies.length}
             total={copiesOf(hunk).length}
