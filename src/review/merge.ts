@@ -9,6 +9,7 @@ export interface Readiness {
   blockers: string[]; // what stops the merge
   warnings: string[]; // what doesn't, but is worth a look first
   canMerge: boolean; // the viewer may press merge (GitHub still decides)
+  canAutoMerge: boolean; // not mergeable yet, but the viewer may have GitHub merge it once it is
   canMarkReady: boolean; // a draft the viewer may mark ready for review
   canUpdateBranch: boolean; // behind its base, and the viewer may update it from there
 }
@@ -19,8 +20,9 @@ export const unresolvedText = (n: number, atLeast?: boolean) => `${n}${atLeast ?
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 export function mergeReadiness(s: MergeStatus): Readiness {
-  if (s.state === 'MERGED') return { level: 'merged', summary: 'Merged', blockers: [], warnings: [], canMerge: false, canMarkReady: false, canUpdateBranch: false };
-  if (s.state === 'CLOSED') return { level: 'closed', summary: 'Closed without merging', blockers: [], warnings: [], canMerge: false, canMarkReady: false, canUpdateBranch: false };
+  if (s.state === 'MERGED') return { level: 'merged', summary: 'Merged', blockers: [], warnings: [], canMerge: false, canAutoMerge: false, canMarkReady: false, canUpdateBranch: false };
+  if (s.state === 'CLOSED')
+    return { level: 'closed', summary: 'Closed without merging', blockers: [], warnings: [], canMerge: false, canAutoMerge: false, canMarkReady: false, canUpdateBranch: false };
   const blockers: string[] = [];
   const warnings: string[] = [];
   const c = s.checks;
@@ -55,6 +57,9 @@ export function mergeReadiness(s: MergeStatus): Readiness {
     blockers,
     warnings,
     canMerge: s.viewerCanMerge && level !== 'blocked',
+    // Auto-merge waits on checks, reviews and branch protection; a draft or a conflict needs the
+    // author first, and GitHub refuses auto-merge for a PR that can merge now.
+    canAutoMerge: level === 'blocked' && !!s.viewerCanEnableAutoMerge && !s.autoMerge && !s.isDraft && s.mergeable !== 'CONFLICTING' && s.mergeStateStatus !== 'DIRTY' && s.methods.length > 0,
     canMarkReady: s.isDraft && (s.viewerCanUpdate ?? s.viewerCanMerge),
     canUpdateBranch: s.mergeStateStatus === 'BEHIND' && !!s.viewerCanUpdateBranch,
   };

@@ -95,6 +95,22 @@ describe('summarizeChecks', () => {
   });
 });
 
+describe('auto-merge', () => {
+  const waiting = { passed: 1, failed: 0, pending: 1, failedNames: [], requiredFailed: [], requiredPending: ['build'], items: [] };
+  it('is offered for a PR that waits on checks or reviews, when GitHub says the viewer may', () => {
+    expect(mergeReadiness(status({ mergeStateStatus: 'BLOCKED', checks: waiting, viewerCanEnableAutoMerge: true }))).toMatchObject({ canMerge: false, canAutoMerge: true });
+    expect(mergeReadiness(status({ mergeStateStatus: 'BLOCKED', reviewDecision: 'REVIEW_REQUIRED', viewerCanEnableAutoMerge: true })).canAutoMerge).toBe(true);
+    expect(mergeReadiness(status({ mergeStateStatus: 'BLOCKED', checks: waiting, viewerCanEnableAutoMerge: false })).canAutoMerge).toBe(false);
+  });
+
+  it('is not offered for a PR that can merge now, is already set, is a draft, or conflicts', () => {
+    expect(mergeReadiness(status({ viewerCanEnableAutoMerge: true })).canAutoMerge).toBe(false);
+    expect(mergeReadiness(status({ mergeStateStatus: 'BLOCKED', checks: waiting, viewerCanEnableAutoMerge: true, autoMerge: 'squash' })).canAutoMerge).toBe(false);
+    expect(mergeReadiness(status({ isDraft: true, mergeStateStatus: 'DRAFT', viewerCanEnableAutoMerge: true })).canAutoMerge).toBe(false);
+    expect(mergeReadiness(status({ mergeable: 'CONFLICTING', mergeStateStatus: 'DIRTY', viewerCanEnableAutoMerge: true })).canAutoMerge).toBe(false);
+  });
+});
+
 describe('updating a branch behind its base', () => {
   it('is offered only when GitHub says the viewer may', () => {
     expect(mergeReadiness(status({ mergeStateStatus: 'BEHIND', viewerCanUpdateBranch: true }))).toMatchObject({ level: 'blocked', canUpdateBranch: true, canMerge: false });

@@ -3,7 +3,19 @@ import { useInput } from './input.js';
 import { Box, Text } from './themed.js';
 import { Confirm } from './Confirm.js';
 import type { PRInfo, Tour } from '../types.js';
-import { deleteBranch, fetchMergeStatus, fetchPR, markReadyForReview, mergePR, updateBranch, type BranchUpdateMethod, type MergeMethod, type MergeStatus } from '../github/gh.js';
+import {
+  deleteBranch,
+  disableAutoMerge,
+  enableAutoMerge,
+  fetchMergeStatus,
+  fetchPR,
+  markReadyForReview,
+  mergePR,
+  updateBranch,
+  type BranchUpdateMethod,
+  type MergeMethod,
+  type MergeStatus,
+} from '../github/gh.js';
 import { defaultMergeMessage, defaultMethod, mergeReadiness, METHOD_LABEL, type Readiness } from '../review/merge.js';
 import { draftMergeMessage } from '../agent/feedback.js';
 import type { AgentContext } from '../agent/types.js';
@@ -24,7 +36,17 @@ export function ReadinessLine(props: { readiness?: Readiness; width: number; hin
   const r = props.readiness;
   if (!r) return null;
   const mark = r.level === 'ready' ? '✓' : r.level === 'warn' ? '◐' : r.level === 'blocked' ? '✗' : '●';
-  const hint = !props.hint ? '' : r.canMerge ? ' · M to merge' : r.canMarkReady ? ' · M to mark it ready for review' : r.canUpdateBranch ? ' · M to update the branch' : '';
+  const hint = !props.hint
+    ? ''
+    : r.canMerge
+      ? ' · M to merge'
+      : r.canAutoMerge
+        ? ' · M to auto-merge'
+        : r.canMarkReady
+          ? ' · M to mark it ready for review'
+          : r.canUpdateBranch
+            ? ' · M to update the branch'
+            : '';
   return (
     <Text color={LEVEL_COLOR[r.level]} wrap="truncate">
       {truncate(`${mark} ${safe(r.summary)}`, Math.max(10, props.width - hint.length))}
@@ -35,12 +57,19 @@ export function ReadinessLine(props: { readiness?: Readiness; width: number; hin
 
 const DRAFTING = 'Drafting the commit message…';
 
-type Mode = 'loading' | 'review' | 'title' | 'body' | 'confirm' | 'merging' | 'ready-confirm' | 'readying' | 'update-confirm' | 'updating' | 'done' | 'error';
+// After a branch update GitHub answers before it has caught up: for a moment it still reports
+// the old head, or a mergeStateStatus of UNKNOWN for the new one, and its required checks have
+// not reported yet. gr reads the PR again until it settles, so the dialog doesn't offer a merge
+// GitHub is about to refuse.
+export const SETTLE = { tries: 10, delayMs: 1000 };
+
+type Mode = 'loading' | 'review' | 'title' | 'body' | 'confirm' | 'merging' | 'unsetting' | 'ready-confirm' | 'readying' | 'update-confirm' | 'updating' | 'done' | 'error';
 
 // Merge a PR from gr: readiness first, then the method and its commit message. With a model,
 // squash and merge-commit messages are drafted from the PR; rebase takes no message. Nothing
 // is sent before the confirmation, and the merge names the head it was shown, so a push in the
-// meantime makes GitHub refuse it.
+// meantime makes GitHub refuse it. A PR that waits only on checks, reviews or branch protection
+// can have auto-merge turned on instead, with the same method and message.
 export function MergeScreen(props: {
   repo: string;
   number: number;
@@ -70,11 +99,23 @@ export function MergeScreen(props: {
 
   const [reload, setReload] = useState(0);
   const [notice, setNotice] = useState('');
+  const staleHead = useRef<string | undefined>(undefined); // the head before an update, until GitHub moves past it
   useEffect(() => {
     let live = true;
-    Promise.all([fetchMergeStatus(props.repo, props.number), fetchPR(props.repo, props.number)]).then(
+    const read = async () => {
+      for (let i = 1; ; i++) {
+        const s = await fetchMergeStatus(props.repo, props.number);
+        const settled = !staleHead.current || (s.headSha !== staleHead.current && s.mergeStateStatus !== 'UNKNOWN');
+        if (settled || i >= SETTLE.tries || !live) return s;
+        await new Promise((r) => setTimeout(r, SETTLE.delayMs));
+      }
+    };
+    // The PR's commits feed the default message, so after an update they wait for the new head too.
+    const both = staleHead.current ? read().then(async (s) => [s, await fetchPR(props.repo, props.number)] as const) : Promise.all([read(), fetchPR(props.repo, props.number)]);
+    both.then(
       ([s, info]) => {
         if (!live) return;
+        staleHead.current = undefined;
         setStatus(s);
         setPr(info);
         const m = defaultMethod(s.methods) ?? 'squash';
@@ -117,6 +158,7 @@ export function MergeScreen(props: {
     setMode('updating');
     try {
       await updateBranch(status.id, status.headSha, how);
+      staleHead.current = status.headSha;
       setNotice(`${how === 'REBASE' ? 'Rebased' : 'Updated'} ${status.headRef} ${how === 'REBASE' ? 'onto' : 'from'} ${status.baseRef}. Its checks run again on the new head.`);
       setError('');
       setMode('loading');
@@ -128,6 +170,8 @@ export function MergeScreen(props: {
   };
 
   const readiness = status && mergeReadiness(status);
+  const auto = !!readiness?.canAutoMerge;
+  const canMerge = !!readiness?.canMerge || auto; // the method and message apply either way
   const takesMessage = method !== 'rebase';
   const sameRepoBranch = !!status && status.headRepo?.toLowerCase() === status.repo.toLowerCase();
 
@@ -174,7 +218,7 @@ export function MergeScreen(props: {
   // The model drafts once the dialog opens on a method that takes a message.
   const started = useRef(false);
   useEffect(() => {
-    if (mode !== 'review' || started.current || !readiness?.canMerge) return;
+    if (mode !== 'review' || started.current || !canMerge) return;
     started.current = true;
     void draft(method);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -182,7 +226,7 @@ export function MergeScreen(props: {
 
   // The model's draft is on its way: show nothing until it lands, rather than GitHub's default
   // message the draft is about to replace. x stops it and keeps the default.
-  const waitingDraft = takesMessage && !edited && !drafted[method] && (drafting === DRAFTING || (!!props.agent && !!readiness?.canMerge && mode === 'review' && !started.current));
+  const waitingDraft = takesMessage && !edited && !drafted[method] && (drafting === DRAFTING || (!!props.agent && canMerge && mode === 'review' && !started.current));
   const skipDraft = () => {
     abort.current?.abort();
     setDrafting('the model’s draft was skipped: GitHub’s default');
@@ -202,8 +246,20 @@ export function MergeScreen(props: {
   const merge = async () => {
     if (!status) return;
     setMode('merging');
+    const message = takesMessage ? { title: title.trim(), message: body } : {};
+    if (auto) {
+      try {
+        if (!status.id) throw new Error('GitHub gave no id for the PR');
+        await enableAutoMerge(status.id, { method, headSha: status.headSha, ...message });
+        props.onDone(`Auto-merge on for ${status.repo}#${status.number}: GitHub will ${METHOD_LABEL[method].toLowerCase()} once its requirements are met`);
+      } catch (e) {
+        setError(`Could not turn on auto-merge: ${(e as Error).message}`);
+        setMode('review');
+      }
+      return;
+    }
     try {
-      const r = await mergePR(status.repo, status.number, { method, headSha: status.headSha, ...(takesMessage ? { title: title.trim(), message: body } : {}) });
+      const r = await mergePR(status.repo, status.number, { method, headSha: status.headSha, ...message });
       let branch = '';
       if (delBranch && status.headRepo) {
         branch = await deleteBranch(status.headRepo, status.headRef).then(
@@ -214,6 +270,21 @@ export function MergeScreen(props: {
       props.onDone(`Merged ${status.repo}#${status.number} (${METHOD_LABEL[method].toLowerCase()}) as ${r.sha.slice(0, 8)}${branch}`);
     } catch (e) {
       setError(`Merge failed: ${(e as Error).message}`);
+      setMode('review');
+    }
+  };
+
+  const unsetAuto = async () => {
+    if (!status?.id) return;
+    setMode('unsetting');
+    try {
+      await disableAutoMerge(status.id);
+      setNotice('Auto-merge is off.');
+      setError('');
+      setMode('loading');
+      setReload((n) => n + 1);
+    } catch (e) {
+      setError(`Could not turn off auto-merge: ${(e as Error).message}`);
       setMode('review');
     }
   };
@@ -246,12 +317,13 @@ export function MergeScreen(props: {
       if (input === '?' || input === 'h') return setHelp(true);
       if (input === 'r' && readiness?.canMarkReady) return setMode('ready-confirm');
       if (input === 'u' && readiness?.canUpdateBranch) return setMode('update-confirm');
-      if (!readiness?.canMerge) return;
+      if (input === 'a' && status?.autoMerge && status.viewerCanDisableAutoMerge) return void unsetAuto();
+      if (!canMerge || !status) return;
       if (input === 'm') return switchMethod();
       if (input === 'e' && takesMessage) return setMode('title');
       if (input === 'b' && takesMessage) return setMode('body');
       if (input === 'g' && takesMessage && props.agent) return void draft(method);
-      if (input === 'd' && sameRepoBranch && !status.deleteBranchOnMerge) return setDelBranch((d) => !d);
+      if (input === 'd' && !auto && sameRepoBranch && !status.deleteBranchOnMerge) return setDelBranch((d) => !d);
       if (waitingDraft) {
         if (input === 'x') skipDraft();
         return;
@@ -262,7 +334,7 @@ export function MergeScreen(props: {
         return setMode('confirm');
       }
     },
-    { isActive: !help && mode !== 'title' && mode !== 'body' && mode !== 'merging' && mode !== 'readying' },
+    { isActive: !help && mode !== 'title' && mode !== 'body' && mode !== 'merging' && mode !== 'unsetting' && mode !== 'readying' },
   );
   useInput((_i, key) => key.escape && setMode('review'), { isActive: mode === 'title' || mode === 'body' });
 
@@ -277,7 +349,7 @@ export function MergeScreen(props: {
       <Box flexDirection="column" paddingX={1}>
         {head}
         <Text dimColor>
-          <Spinner /> Checking whether it can merge…
+          <Spinner /> {staleHead.current ? 'Waiting for GitHub to finish the update…' : 'Checking whether it can merge…'}
         </Text>
       </Box>
     );
@@ -316,11 +388,28 @@ export function MergeScreen(props: {
             {'  '}◐ {safe(w)}
           </Text>
         ))}
+        {status.autoMerge ? (
+          <>
+            <Text color="cyan" wrap="truncate">
+              Auto-merge is on: GitHub will {METHOD_LABEL[status.autoMerge].toLowerCase()} once its requirements are met.
+              {status.viewerCanDisableAutoMerge ? <Text dimColor> a turns it off</Text> : null}
+            </Text>
+            {status.autoMergeTitle ? (
+              <Text dimColor wrap="truncate">
+                {'  '}as “{safe(status.autoMergeTitle)}”
+              </Text>
+            ) : null}
+          </>
+        ) : auto ? (
+          <Text color="cyan" wrap="truncate">
+            P turns on auto-merge: GitHub merges it once nothing above blocks it.
+          </Text>
+        ) : null}
         {!status.viewerCanMerge && readiness.level !== 'merged' && readiness.level !== 'closed' ? (
           <Text dimColor>You don’t have write access to {safe(status.repo)}, so you can’t merge it.</Text>
         ) : null}
       </Box>
-      {readiness.canMerge ? (
+      {canMerge ? (
         <>
           <Box marginTop={1} flexDirection="column">
             <Text>
@@ -332,7 +421,7 @@ export function MergeScreen(props: {
               ))}
               {status.methods.length > 1 ? <Text dimColor> (m)</Text> : null}
             </Text>
-            {sameRepoBranch && !status.deleteBranchOnMerge ? (
+            {!auto && sameRepoBranch && !status.deleteBranchOnMerge ? (
               <Text>
                 {delBranch ? '[x]' : '[ ]'} Delete {safe(status.headRef)} after merging <Text dimColor>(d)</Text>
               </Text>
@@ -443,6 +532,10 @@ export function MergeScreen(props: {
         <Text color="yellow">
           <Spinner color="yellow" /> Marking it ready for review…
         </Text>
+      ) : mode === 'confirm' && auto ? (
+        <Confirm yes="turn on auto-merge">
+          Auto-merge {safe(props.repo)}#{props.number} into {safe(status.baseRef)} ({METHOD_LABEL[method].toLowerCase()}) once it can?
+        </Confirm>
       ) : mode === 'confirm' ? (
         <Confirm yes="merge">
           {METHOD_LABEL[method]} {safe(props.repo)}#{props.number} into {safe(status.baseRef)}
@@ -450,7 +543,11 @@ export function MergeScreen(props: {
         </Confirm>
       ) : mode === 'merging' ? (
         <Text color="yellow">
-          <Spinner color="yellow" /> Merging…
+          <Spinner color="yellow" /> {auto ? 'Turning on auto-merge…' : 'Merging…'}
+        </Text>
+      ) : mode === 'unsetting' ? (
+        <Text color="yellow">
+          <Spinner color="yellow" /> Turning off auto-merge…
         </Text>
       ) : mode === 'title' || mode === 'body' ? (
         <Hints
@@ -464,7 +561,9 @@ export function MergeScreen(props: {
         <KeyBar
           width={width - 2}
           keys={mergeBar({
-            canMerge: readiness.canMerge,
+            canMerge,
+            auto,
+            autoOn: !!status.autoMerge && !!status.viewerCanDisableAutoMerge,
             waitingDraft: !!waitingDraft,
             methods: status.methods.length > 1,
             message: takesMessage,

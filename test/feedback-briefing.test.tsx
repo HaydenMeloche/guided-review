@@ -134,7 +134,7 @@ describe('the feedback briefing', () => {
           silent={0}
           notes={[]}
           themes={themes}
-          readiness={{ level: 'blocked', summary: 'Blocked: changes requested', blockers: [], warnings: [], canMerge: false, canMarkReady: false, canUpdateBranch: false }}
+          readiness={{ level: 'blocked', summary: 'Blocked: changes requested', blockers: [], warnings: [], canMerge: false, canAutoMerge: false, canMarkReady: false, canUpdateBranch: false }}
           width={width}
           height={height}
           active
@@ -174,7 +174,7 @@ describe('the feedback briefing', () => {
           showHidden={false}
           silent={0}
           notes={[]}
-          readiness={{ level: 'ready', summary: 'Ready to merge', blockers: [], warnings: [], canMerge: !!opts.canMerge, canMarkReady: false, canUpdateBranch: false }}
+          readiness={{ level: 'ready', summary: 'Ready to merge', blockers: [], warnings: [], canMerge: !!opts.canMerge, canAutoMerge: false, canMarkReady: false, canUpdateBranch: false }}
           width={140}
           height={30}
           active

@@ -49,9 +49,17 @@ describe('screen keys', () => {
 
   it('shows only the keys that apply in the bar', () => {
     expect(pairs(pickerBar({ items: false, filter: true, merge: true, checks: true, reviewers: false, theme: false })).map(([k]) => k)).toEqual(['/', 'r']);
-    const base = { canMerge: true, waitingDraft: false, methods: true, message: true, agent: false, canMarkReady: false, canUpdate: false, base: 'main' };
+    const base = { canMerge: true, auto: false, autoOn: false, waitingDraft: false, methods: true, message: true, agent: false, canMarkReady: false, canUpdate: false, base: 'main' };
     expect(pairs(mergeBar(base)).map(([k]) => k)).toEqual(['P', 'm', 'e', 'b']);
     expect(pairs(mergeBar({ ...base, waitingDraft: true })).map(([k]) => k)).toEqual(['x', 'm']);
     expect(pairs(mergeBar({ ...base, canMerge: false, canUpdate: true }))).toEqual([['u', 'update from main']]);
+    expect(pairs(mergeBar({ ...base, auto: true, canUpdate: true }))).toEqual([
+      ['P', 'auto-merge'],
+      ['m', 'method'],
+      ['e', 'edit title'],
+      ['b', 'edit body'],
+      ['u', 'update from main'],
+    ]);
+    expect(pairs(mergeBar({ ...base, canMerge: false, autoOn: true }))).toEqual([['a', 'turn off auto-merge']]);
   });
 });

@@ -98,7 +98,9 @@ export const submitBar = () => barOf(SUBMIT_KEYS, {});
 // ---------- the merge dialog ----------
 
 export interface MergeKeyCtx {
-  canMerge: boolean;
+  canMerge: boolean; // merge now, or turn on auto-merge
+  auto: boolean; // P turns on auto-merge rather than merging
+  autoOn: boolean; // auto-merge is on and the viewer may turn it off
   waitingDraft: boolean; // the model is drafting the message
   methods: boolean; // more than one merge method
   message: boolean; // the method takes a commit message
@@ -110,15 +112,21 @@ export interface MergeKeyCtx {
 
 const merging = (c: MergeKeyCtx) => c.canMerge && !c.waitingDraft;
 export const MERGE_KEYS: KeyDef<MergeKeyCtx>[] = [
-  { keys: ['P'], group: 'Merge', help: 'Merge (asks first; Enter too)', bar: { shown: 'P', label: 'merge', when: merging } },
+  {
+    keys: ['P'],
+    group: 'Merge',
+    help: 'Merge, or turn on auto-merge when checks or reviews still block it (asks first; Enter too)',
+    bar: { shown: 'P', label: (c) => (c.auto ? 'auto-merge' : 'merge'), when: merging },
+  },
+  { keys: ['a'], group: 'Merge', help: 'Turn auto-merge off', bar: { shown: 'a', label: 'turn off auto-merge', when: (c) => c.autoOn } },
   { keys: ['x'], group: 'Merge', help: 'While the model drafts the message: use GitHub’s default', bar: { shown: 'x', label: 'use GitHub’s default', when: (c) => c.canMerge && c.waitingDraft } },
   { keys: ['m'], group: 'Merge', help: 'Switch the merge method', bar: { shown: 'm', label: 'method', when: (c) => c.canMerge && c.methods } },
   { keys: ['e'], group: 'Message', help: 'Edit the commit title', bar: { shown: 'e', label: 'edit title', when: (c) => merging(c) && c.message } },
   { keys: ['b'], group: 'Message', help: 'Edit the commit body', bar: { shown: 'b', label: 'edit body', when: (c) => merging(c) && c.message } },
   { keys: ['g'], group: 'Message', help: 'Have the model draft the message again', bar: { shown: 'g', label: 'draft again', when: (c) => merging(c) && c.message && c.agent } },
-  { keys: ['d'], group: 'Merge', help: 'Delete the branch after merging, or keep it' },
-  { keys: ['r'], group: 'Not ready', help: 'Mark a draft PR ready for review', bar: { shown: 'r', label: 'mark ready for review', when: (c) => !c.canMerge && c.canMarkReady } },
-  { keys: ['u'], group: 'Not ready', help: 'Update the branch from its base', bar: { shown: 'u', label: (c) => `update from ${c.base}`, when: (c) => !c.canMerge && c.canUpdate } },
+  { keys: ['d'], group: 'Merge', help: 'Delete the branch after merging, or keep it (not with auto-merge)' },
+  { keys: ['r'], group: 'Not ready', help: 'Mark a draft PR ready for review', bar: { shown: 'r', label: 'mark ready for review', when: (c) => (!c.canMerge || c.auto) && c.canMarkReady } },
+  { keys: ['u'], group: 'Not ready', help: 'Update the branch from its base', bar: { shown: 'u', label: (c) => `update from ${c.base}`, when: (c) => (!c.canMerge || c.auto) && c.canUpdate } },
   { keys: ['?'] },
   { keys: ['h'], alias: true },
   { keys: ['q'], alias: true },

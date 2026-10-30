@@ -11,7 +11,7 @@ import { FeedbackScreen } from '../src/tui/author/FeedbackScreen.js';
 import { SendScreen } from '../src/tui/author/SendScreen.js';
 import { CommentComposer } from '../src/tui/author/CommentComposer.js';
 import { AuthorMode } from '../src/tui/author/AuthorMode.js';
-import { MergeScreen } from '../src/tui/MergeScreen.js';
+import { MergeScreen, SETTLE } from '../src/tui/MergeScreen.js';
 import { mergeReadiness } from '../src/review/merge.js';
 import { Store } from '../src/store/db.js';
 import {
@@ -23,6 +23,8 @@ import {
   markReadyForReview,
   mergePR,
   updateBranch,
+  enableAutoMerge,
+  disableAutoMerge,
   PartialSendError,
   postIssueComment,
   postThreadReplies,
@@ -52,6 +54,8 @@ vi.mock('../src/github/gh.js', async (orig) => ({
   mergePR: vi.fn(async () => ({ sha: 'merged123456' })),
   markReadyForReview: vi.fn(async () => undefined),
   updateBranch: vi.fn(async () => undefined),
+  enableAutoMerge: vi.fn(async () => undefined),
+  disableAutoMerge: vi.fn(async () => undefined),
   setCommentReaction: vi.fn(async () => []),
 }));
 
@@ -603,7 +607,9 @@ describe('MergeScreen', () => {
       ['r', 'REBASE', 'Rebased feature onto main'],
     ] as const) {
       vi.mocked(updateBranch).mockClear();
-      vi.mocked(fetchMergeStatus).mockResolvedValueOnce({ ...status, id: 'PR_1', headRef: 'feature', baseRef: 'main', mergeStateStatus: 'BEHIND', viewerCanUpdateBranch: true });
+      vi.mocked(fetchMergeStatus)
+        .mockResolvedValueOnce({ ...status, id: 'PR_1', headRef: 'feature', baseRef: 'main', mergeStateStatus: 'BEHIND', viewerCanUpdateBranch: true })
+        .mockResolvedValueOnce({ ...status, headSha: 'new5678' });
       const ui = render(<MergeScreen repo="acme/pay" number={4} width={110} height={30} onDone={noop} onCancel={noop} />);
       await waitFor(() => expect(ui.lastFrame()).toContain('behind main: update the branch · u updates it'));
       expect(ui.lastFrame()).toContain('u update from main');
@@ -618,6 +624,29 @@ describe('MergeScreen', () => {
       await waitFor(() => expect(ui.lastFrame()).toContain('Ready to merge'));
       ui.unmount();
     }
+  });
+
+  it('reads the PR again after an update until GitHub reports the new head and has worked out its state', async () => {
+    const settle = { ...SETTLE };
+    SETTLE.delayMs = 5;
+    const waiting = { ...status.checks, pending: 1, requiredPending: ['test'] };
+    vi.mocked(fetchMergeStatus)
+      .mockReset()
+      .mockResolvedValueOnce({ ...status, id: 'PR_1', mergeStateStatus: 'BEHIND', viewerCanUpdateBranch: true })
+      .mockResolvedValueOnce({ ...status, id: 'PR_1' }) // the old head, still CLEAN
+      .mockResolvedValueOnce({ ...status, id: 'PR_1', headSha: 'new5678', mergeStateStatus: 'UNKNOWN' })
+      .mockResolvedValue({ ...status, id: 'PR_1', headSha: 'new5678', mergeStateStatus: 'BLOCKED', checks: waiting });
+    const ui = render(<MergeScreen repo="acme/pay" number={4} width={110} height={30} onDone={noop} onCancel={noop} />);
+    await waitFor(() => expect(ui.lastFrame()).toContain('u updates it'));
+    ui.stdin.write('u');
+    await waitFor(() => expect(ui.lastFrame()).toContain('from main?'));
+    ui.stdin.write('\r');
+    await waitFor(() => expect(ui.lastFrame()).toContain('waiting on 1 required check'));
+    expect(fetchMergeStatus).toHaveBeenCalledTimes(4);
+    expect(ui.lastFrame()).toContain('head new5678');
+    ui.unmount();
+    Object.assign(SETTLE, settle);
+    vi.mocked(fetchMergeStatus).mockResolvedValue(status);
   });
 
   it('offers no update without permission, and n cancels one', async () => {
@@ -639,6 +668,43 @@ describe('MergeScreen', () => {
     ui.stdin.write('n');
     await waitFor(() => expect(ui.lastFrame()).not.toContain('Update feature from main?'));
     expect(updateBranch).not.toHaveBeenCalled();
+    ui.unmount();
+  });
+
+  it('turns on auto-merge, with the method and message shown, when only checks block the merge', async () => {
+    vi.mocked(mergePR).mockClear();
+    const onDone = vi.fn();
+    const waiting = { ...status.checks, pending: 1, requiredPending: ['build'] };
+    vi.mocked(fetchMergeStatus).mockResolvedValueOnce({ ...status, id: 'PR_1', mergeStateStatus: 'BLOCKED', checks: waiting, viewerCanEnableAutoMerge: true });
+    const ui = render(<MergeScreen repo="acme/pay" number={4} width={110} height={30} onDone={onDone} onCancel={noop} />);
+    await waitFor(() => expect(ui.lastFrame()).toContain('P turns on auto-merge'));
+    expect(ui.lastFrame()).toContain('waiting on 1 required check');
+    expect(ui.lastFrame()).not.toContain('Delete retries after merging');
+    expect(ui.lastFrame()).toContain('P auto-merge');
+    ui.stdin.write('P');
+    await waitFor(() => expect(ui.lastFrame()!.replace(/\s+/g, ' ')).toContain('Auto-merge acme/pay#4 into main (squash and merge) once it can? y turn on auto-merge'));
+    ui.stdin.write('y');
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(expect.stringContaining('Auto-merge on for acme/pay#4')));
+    expect(enableAutoMerge).toHaveBeenCalledWith('PR_1', { method: 'squash', headSha: 'head1234', title: 'Retry payments (#4)', message: '* Retry\n\n* Fix lint' });
+    expect(mergePR).not.toHaveBeenCalled();
+    ui.unmount();
+  });
+
+  it('shows auto-merge that is on, and a turns it off', async () => {
+    vi.mocked(fetchMergeStatus).mockResolvedValueOnce({
+      ...status,
+      id: 'PR_1',
+      mergeStateStatus: 'BLOCKED',
+      autoMerge: 'squash',
+      autoMergeTitle: 'Retry payments (#4)',
+      viewerCanDisableAutoMerge: true,
+    });
+    const ui = render(<MergeScreen repo="acme/pay" number={4} width={110} height={30} onDone={noop} onCancel={noop} />);
+    await waitFor(() => expect(ui.lastFrame()).toContain('Auto-merge is on: GitHub will squash and merge'));
+    expect(ui.lastFrame()).toContain('as “Retry payments (#4)”');
+    ui.stdin.write('a');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Auto-merge is off.'));
+    expect(disableAutoMerge).toHaveBeenCalledWith('PR_1');
     ui.unmount();
   });
 

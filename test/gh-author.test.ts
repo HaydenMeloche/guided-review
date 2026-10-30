@@ -405,6 +405,12 @@ describe('fetchMergeStatus', () => {
       checks: { passed: 1, failed: 0, pending: 0 },
     });
     expect(s).not.toHaveProperty('unresolvedThreadsAtLeast');
+    expect(s).not.toHaveProperty('autoMerge');
+  });
+
+  it('reads whether auto-merge is on and who may change it', async () => {
+    fakeGh({ viewerPermission: () => raw({ pr: { autoMergeRequest: { mergeMethod: 'SQUASH', commitHeadline: 'Retry (#4)' }, viewerCanEnableAutoMerge: false, viewerCanDisableAutoMerge: true } }) });
+    expect(await fetchMergeStatus('o/r', 4)).toMatchObject({ autoMerge: 'squash', autoMergeTitle: 'Retry (#4)', viewerCanEnableAutoMerge: false, viewerCanDisableAutoMerge: true });
   });
 
   it('refuses read-only viewers, lists all three methods in merge, squash, rebase order, and marks a capped thread count', async () => {

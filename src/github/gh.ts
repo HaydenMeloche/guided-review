@@ -1001,6 +1001,10 @@ export interface MergeStatus {
   methods: MergeMethod[]; // what the repository allows, in GitHub's order
   viewerCanMerge: boolean; // write access or more
   deleteBranchOnMerge: boolean;
+  autoMerge?: MergeMethod; // auto-merge is on, with this method: GitHub merges once the requirements are met
+  autoMergeTitle?: string; // the commit title auto-merge will use, when it was given one
+  viewerCanEnableAutoMerge?: boolean; // the repository allows auto-merge and the viewer may turn it on
+  viewerCanDisableAutoMerge?: boolean;
   checks: CheckSummary;
   unresolvedThreads: number;
   unresolvedThreadsAtLeast?: boolean; // the PR has more than the 100 threads read: the count is a lower bound
@@ -1014,6 +1018,7 @@ query($owner: String!, $name: String!, $number: Int!) {
     viewerPermission mergeCommitAllowed squashMergeAllowed rebaseMergeAllowed deleteBranchOnMerge
     pullRequest(number: $number) {
       id title state isDraft viewerCanUpdate viewerCanUpdateBranch mergeable mergeStateStatus reviewDecision headRefOid headRefName baseRefName
+      viewerCanEnableAutoMerge viewerCanDisableAutoMerge autoMergeRequest { mergeMethod commitHeadline }
       headRepository { nameWithOwner }
       commits { totalCount }
       reviewThreads(first: 100) { pageInfo { hasNextPage } nodes { isResolved } }
@@ -1135,6 +1140,9 @@ export async function fetchMergeStatus(repo: string, number: number, signal?: Ab
         isDraft: boolean;
         viewerCanUpdate: boolean;
         viewerCanUpdateBranch: boolean;
+        viewerCanEnableAutoMerge?: boolean;
+        viewerCanDisableAutoMerge?: boolean;
+        autoMergeRequest?: { mergeMethod: string; commitHeadline?: string | null } | null;
         mergeable: string;
         mergeStateStatus: string;
         reviewDecision: string | null;
@@ -1173,6 +1181,10 @@ export async function fetchMergeStatus(repo: string, number: number, signal?: Ab
     methods,
     viewerCanMerge: ['ADMIN', 'MAINTAIN', 'WRITE'].includes(r.viewerPermission ?? ''),
     deleteBranchOnMerge: r.deleteBranchOnMerge,
+    ...(pr.autoMergeRequest ? { autoMerge: pr.autoMergeRequest.mergeMethod.toLowerCase() as MergeMethod } : {}),
+    ...(pr.autoMergeRequest?.commitHeadline ? { autoMergeTitle: pr.autoMergeRequest.commitHeadline } : {}),
+    viewerCanEnableAutoMerge: !!pr.viewerCanEnableAutoMerge,
+    viewerCanDisableAutoMerge: !!pr.viewerCanDisableAutoMerge,
     checks: summarizeChecks(pr.last.nodes[0]?.commit.statusCheckRollup?.contexts.nodes ?? []),
     unresolvedThreads: pr.reviewThreads.nodes.filter((t) => !t.isResolved).length,
     ...(pr.reviewThreads.pageInfo.hasNextPage ? { unresolvedThreadsAtLeast: true } : {}),
@@ -1253,6 +1265,44 @@ export async function mergePR(repo: string, number: number, req: MergeRequest): 
     ? await restJson<{ sha: string }>(auth, path, { method: 'PUT', body })
     : (JSON.parse(await gh(['api', '-X', 'PUT', path, '--input', '-'], { input: JSON.stringify(body) })) as { sha: string });
   return { sha: res.sha };
+}
+
+// Turns on auto-merge: GitHub merges the PR with this method once its requirements are met.
+// GitHub refuses it for a PR that can merge now (merge it instead), and, as with mergePR, when
+// the head moved since the viewer saw it.
+export async function enableAutoMerge(prId: string, req: MergeRequest): Promise<void> {
+  const vars: Record<string, string> = { id: prId, method: req.method.toUpperCase(), head: req.headSha };
+  if (req.method !== 'rebase') {
+    if (req.title !== undefined) vars.title = req.title;
+    if (req.message !== undefined) vars.message = req.message;
+  }
+  await graphql(
+    `
+      mutation ($id: ID!, $method: PullRequestMergeMethod!, $head: GitObjectID!, $title: String, $message: String) {
+        enablePullRequestAutoMerge(input: { pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head, commitHeadline: $title, commitBody: $message }) {
+          pullRequest {
+            id
+          }
+        }
+      }
+    `,
+    vars,
+  );
+}
+
+export async function disableAutoMerge(prId: string): Promise<void> {
+  await graphql(
+    `
+      mutation ($id: ID!) {
+        disablePullRequestAutoMerge(input: { pullRequestId: $id }) {
+          pullRequest {
+            id
+          }
+        }
+      }
+    `,
+    { id: prId },
+  );
 }
 
 export async function deleteBranch(repo: string, branch: string): Promise<void> {
