@@ -89,4 +89,17 @@ describe('local changes on the PR list', () => {
     expect(onLocal).not.toHaveBeenCalled();
     ui.unmount();
   });
+
+  it('shows the cached row at once on coming back, and keeps it through a failed read', async () => {
+    const changes = { branch: 'feature/discount', base: 'main', commits: 2, files: 3, uncommitted: true };
+    const read = vi.fn(async () => {
+      throw new Error('index.lock exists');
+    });
+    const ui = render(<PickerScreen {...props} onLocal={() => {}} readLocalChanges={read} cache={{ changes }} />);
+    expect(ui.lastFrame()).toContain('feature/discount');
+    await waitFor(() => expect(read).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 10));
+    expect(ui.lastFrame()).toContain('feature/discount');
+    ui.unmount();
+  });
 });

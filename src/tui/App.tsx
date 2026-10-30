@@ -27,7 +27,7 @@ import { pushRecent, type RecentLocation } from './references.js';
 import { RepoIndex } from '../analysis/repoIndex.js';
 import { githubWebHost } from '../github/auth.js';
 import { generateSuggestion } from '../agent/suggest.js';
-import { PickerScreen, keyFor, type DownloadJob, type Target as PickTarget } from './PickerScreen.js';
+import { PickerScreen, keyFor, type DownloadJob, type PickerCache, type Target as PickTarget } from './PickerScreen.js';
 import { TourIntro, type IntroLine } from './TourIntro.js';
 import { useTerminalStatus, type TerminalProgress } from './terminalStatus.js';
 import { sanitizeTerminal } from '../util/sanitize.js';
@@ -257,6 +257,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const [checking, setChecking] = useState<Target>(); // the checks popup, over the picker or the briefing
   const [askingReviewers, setAskingReviewers] = useState<Target>(); // the reviewers popup, over the picker
   const [pickerReload, setPickerReload] = useState(0);
+  const pickerCache = useRef<PickerCache>({}); // the list as it was, for coming back from a tour
   // Diffs from each outdated thread's commit to the head, so the tour shows it on its line now.
   const threadDiffs = useRef<Awaited<ReturnType<typeof loadThreadDiffs>>>(new Map());
   const loadGen = useRef(0);
@@ -876,6 +877,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
           onChecks={setChecking}
           onReviewers={setAskingReviewers}
           reload={pickerReload}
+          cache={pickerCache.current}
           merged={merged}
           downloads={downloads}
           onDownload={startDownloads}

@@ -64,6 +64,16 @@ let authoredCache: { prs: AuthoredPR[]; truncated: boolean } | undefined;
 // w: your PRs waiting on reviewers shown too. Kept for the session, like the cache.
 let showWaitingPref = false;
 
+// The review requests as last loaded, kept by the app while a tour is open. Coming back shows
+// them as they were, in the same order and on the same PR, until the next refresh is due.
+export interface PickerCache {
+  prs?: ReviewRequest[];
+  fetchedAt?: number;
+  previews?: Record<string, PRPreview | { error: string }>;
+  selKey?: string;
+  changes?: LocalChanges | null; // the local changes row, as last read
+}
+
 // One PR's tour download, as the app reports it.
 export interface DownloadJob {
   state: 'queued' | 'running' | 'done' | 'failed';
@@ -171,6 +181,7 @@ interface PickerProps {
   onChecks?: (t: Target) => void; // c: the PR's checks and their logs
   onReviewers?: (t: Target) => void; // A, on your own PR: who is asked to review, and asking more
   reload?: number; // a change bumps it: read the lists again
+  cache?: PickerCache; // written as the list loads, read on mount
   merged?: ReadonlySet<string>; // PRs merged this session (keyFor), left off the list: GitHub's search lags
   onQuit: () => void;
   onTheme?: () => void; // L: the color theme picker
@@ -183,7 +194,10 @@ interface PickerProps {
 
 export function PickerScreen(props: PickerProps) {
   const { width, height } = props;
-  const [prs, setPrs] = useState<ReviewRequest[] | undefined>();
+  // The app's cache for this list: one object for the screen's life, so a ref like the rest load() reads.
+  const cacheRef = useRef(props.cache);
+  const cache = cacheRef.current;
+  const [prs, setPrs] = useState<ReviewRequest[] | undefined>(cache?.prs);
   const [authored, setAuthored] = useState<AuthoredPR[]>(() => authoredCache?.prs ?? []);
   const [showWaiting, setShowWaiting] = useState(showWaitingPref);
   // 'loading' until the first answer arrives; a refresh after that keeps the list on screen.
@@ -195,7 +209,7 @@ export function PickerScreen(props: PickerProps) {
   const [sel, setSel] = useState(0);
   const [filter, setFilter] = useState('');
   const [filtering, setFiltering] = useState(false);
-  const [previews, setPreviews] = useState<Record<string, PRPreview | { error: string }>>({});
+  const [previews, setPreviews] = useState<Record<string, PRPreview | { error: string }>>(() => cache?.previews ?? {});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [downloadNotice, setDownloadNotice] = useState('');
   const [hint, setHint] = useState('');
@@ -203,14 +217,14 @@ export function PickerScreen(props: PickerProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [clip, setClip] = useState<{ text: string; target: Target }>();
   // undefined until the first read; null when the checked-out branch matches the default one.
-  const [changes, setChanges] = useState<LocalChanges | null>();
+  const [changes, setChanges] = useState<LocalChanges | null | undefined>(cache?.changes);
   const [help, setHelp] = useState(false);
-  const inflight = useRef(new Set<string>());
+  const inflight = useRef(new Set<string>(Object.keys(cache?.previews ?? {})));
   // load() runs from a timer too, so it reads the list and selection through refs.
   const prsRef = useRef(prs);
   prsRef.current = prs;
   const selKey = useRef('');
-  const restoreKey = useRef<string | undefined>(undefined);
+  const restoreKey = useRef<string | undefined>(cache?.selKey);
   const loading = useRef(false);
 
   // Refreshing keeps the current list on screen until the new one arrives.
@@ -251,6 +265,10 @@ export function PickerScreen(props: PickerProps) {
           const keys = new Set(p.map(keyFor));
           setSelected((prev) => new Set([...prev].filter((id) => keys.has(id))));
           restoreKey.current = selKey.current;
+          if (cacheRef.current) {
+            cacheRef.current.prs = p;
+            cacheRef.current.fetchedAt = Date.now();
+          }
           setPrs(p);
         },
         (e) => {
@@ -264,16 +282,37 @@ export function PickerScreen(props: PickerProps) {
         setRefreshing(false);
       });
   };
-  useEffect(load, []);
+  // Only a bump reloads: the count outlives the screen, so a remount sees it already raised.
+  const reloadSeen = useRef(props.reload);
   useEffect(() => {
-    if (props.reload) load();
+    if (props.reload === reloadSeen.current) return;
+    reloadSeen.current = props.reload;
+    load();
   }, [props.reload]);
   const refreshMs = props.refreshMs ?? REFRESH_MS;
+  // A cached list refreshes when it would have had the screen stayed open; anything else loads now.
   useEffect(() => {
-    const t = setInterval(load, refreshMs);
+    let t: ReturnType<typeof setInterval> | undefined;
+    const fetchedAt = cacheRef.current?.fetchedAt;
+    const due = fetchedAt === undefined ? 0 : fetchedAt + refreshMs - Date.now();
+    const start = () => {
+      load();
+      t = setInterval(load, refreshMs);
+    };
     // load only touches refs and state setters, so the first one stays good.
-    return () => clearInterval(t);
+    if (due <= 0) {
+      start();
+      return () => clearInterval(t);
+    }
+    const first = setTimeout(start, due);
+    return () => {
+      clearTimeout(first);
+      clearInterval(t);
+    };
   }, [refreshMs]);
+  useEffect(() => {
+    if (cacheRef.current) cacheRef.current.previews = previews;
+  }, [previews]);
 
   // Offer a PR link as soon as it lands on the clipboard.
   const readClip = props.readClipboard ?? readClipboard;
@@ -314,8 +353,14 @@ export function PickerScreen(props: PickerProps) {
       if (busy) return;
       busy = true;
       try {
-        const c = await readLocalChanges().catch(() => undefined);
-        if (!stopped) setChanges((prev) => (JSON.stringify(prev) === JSON.stringify(c ?? null) ? prev : (c ?? null)));
+        // A failed read (another git process holding the index, say) keeps the row as it was.
+        const c = await readLocalChanges().then(
+          (c) => c ?? null,
+          () => undefined,
+        );
+        if (stopped || c === undefined) return;
+        if (cacheRef.current) cacheRef.current.changes = c;
+        setChanges((prev) => (JSON.stringify(prev) === JSON.stringify(c) ? prev : c));
       } finally {
         busy = false;
       }
@@ -348,6 +393,7 @@ export function PickerScreen(props: PickerProps) {
   const current = items[Math.min(sel, items.length - 1)];
   const key = current ? `${current.repo}#${current.number}` : '';
   selKey.current = key;
+  if (cache && prs) cache.selKey = key;
 
   // After a refresh, stay on the PR that was highlighted, wherever it moved.
   useLayoutEffect(() => {
