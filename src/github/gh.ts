@@ -1408,3 +1408,92 @@ export async function listAuthoredPRs(signal?: AbortSignal): Promise<{ prs: Auth
   });
   return { prs, truncated: more };
 }
+
+// ---------- PRs you reviewed ----------
+
+// An open PR you reviewed, not yours, that no longer asks for your review: what happened since.
+export interface ReviewedPR extends ReviewRequest {
+  reviewedAt: string; // your latest review
+  newCommits: number; // commits made after it
+  newCommitsAtLeast?: boolean; // more commits than were read: the count is a lower bound
+  replies: number; // unresolved threads you started where someone else spoke last
+}
+
+const REVIEWED_QUERY = `
+query($q: String!, $after: String) {
+  viewer { login }
+  search(query: $q, type: ISSUE, first: 50, after: $after) {
+    pageInfo { hasNextPage endCursor }
+    nodes {
+      ... on PullRequest {
+        number title url updatedAt isDraft
+        author { login }
+        repository { nameWithOwner }
+        labels(first: 10) { nodes { name } }
+        latestReviews(first: 50) { nodes { author { login } submittedAt } }
+        commits(last: 100) { totalCount nodes { commit { committedDate } } }
+        reviewThreads(first: 100) { nodes { isResolved first: comments(first: 1) { nodes { author { login } } } last: comments(last: 1) { nodes { author { login } } } } }
+      }
+    }
+  }
+}`;
+
+export const REVIEWED_LIMIT = 100;
+
+// Open PRs you reviewed that aren't yours and no longer request your review (a re-request puts
+// them back under review requests), a page at a time up to REVIEWED_LIMIT. `truncated` says
+// there were more.
+export async function listReviewedPRs(signal?: AbortSignal): Promise<{ prs: ReviewedPR[]; truncated: boolean }> {
+  type Login = { author: { login: string } | null };
+  type Node = {
+    number: number;
+    title: string;
+    url: string;
+    updatedAt: string;
+    isDraft: boolean;
+    author: { login: string } | null;
+    repository: { nameWithOwner: string };
+    labels: { nodes: { name: string }[] };
+    latestReviews: { nodes: (Login & { submittedAt: string | null })[] };
+    commits: { totalCount: number; nodes: { commit: { committedDate: string } }[] };
+    reviewThreads: { nodes: { isResolved: boolean; first: { nodes: Login[] }; last: { nodes: Login[] } }[] };
+  };
+  type Page = { viewer: { login: string }; search: { pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: (Node | Record<string, never>)[] } };
+  const nodes: Node[] = [];
+  let me = '';
+  let after = '';
+  let more = false;
+  for (let page = 0; page < REVIEWED_LIMIT / 50; page++) {
+    const data = await graphql<Page>(REVIEWED_QUERY, { q: 'is:pr is:open reviewed-by:@me -author:@me -review-requested:@me archived:false sort:updated-desc', ...(after ? { after } : {}) }, signal);
+    me = data.viewer.login;
+    nodes.push(...data.search.nodes.filter((n): n is Node => 'number' in n));
+    more = data.search.pageInfo.hasNextPage && !!data.search.pageInfo.endCursor;
+    if (!more) break;
+    after = data.search.pageInfo.endCursor!;
+  }
+  const by = (n: { nodes: Login[] }) => n.nodes[0]?.author?.login;
+  const prs = nodes.flatMap((n): ReviewedPR[] => {
+    const reviewedAt = n.latestReviews.nodes.find((r) => r.author?.login === me)?.submittedAt;
+    // The search can match a review GitHub's latestReviews doesn't list (a dismissed one): nothing to measure from.
+    if (!reviewedAt) return [];
+    const newCommits = n.commits.nodes.filter((c) => c.commit.committedDate > reviewedAt).length;
+    return [
+      {
+        repo: n.repository.nameWithOwner,
+        number: n.number,
+        title: n.title,
+        author: n.author?.login ?? 'ghost',
+        url: n.url,
+        updatedAt: n.updatedAt,
+        isDraft: n.isDraft,
+        labels: n.labels.nodes.map((l) => l.name),
+        reviewedAt,
+        newCommits,
+        // Every commit read is newer, and there are more than were read.
+        ...(newCommits === n.commits.nodes.length && n.commits.totalCount > n.commits.nodes.length ? { newCommitsAtLeast: true } : {}),
+        replies: n.reviewThreads.nodes.filter((t) => !t.isResolved && by(t.first) === me && by(t.last) !== me).length,
+      },
+    ];
+  });
+  return { prs, truncated: more };
+}

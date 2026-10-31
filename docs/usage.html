@@ -69,10 +69,13 @@
           </p>
           <h2 id="pick-a-pr"><a class="anchor" href="#pick-a-pr" aria-hidden="true">#</a>Pick a PR</h2>
           <p>
-            <code>gr</code> opens the PR list. <strong>Review requests</strong> shows PRs waiting for your review, grouped by repository. <strong>Your PRs</strong> shows your own open PRs that need
-            you: unresolved threads, a new review, changes requested, ready to merge, or no reviewers requested. A line under them counts the rest, which wait on reviewers. Each row shows its state
-            and checks (<code>✓ ready to merge</code>, <code>✗ checks failing</code>). On a wide terminal, a preview shows the description, files, checks, review decision, and whether a tour or drafts
-            already exist. The list refreshes every two minutes.
+            <code>gr</code> opens the PR list. <strong>Review requests</strong> shows PRs waiting for your review, grouped by repository. <strong>Reviewed by you</strong> shows open PRs you already
+            reviewed that have something new: commits since your review (<code>2 new commits</code>), or replies on threads you started (<code>1 reply to you</code>). A line under it counts the PRs
+            you reviewed with nothing new. A PR that asks for your review again moves back under Review requests. <strong>Your PRs</strong> shows your own open PRs that need you: unresolved threads, a
+            new review, changes requested, ready to merge, or no reviewers requested. A line under them counts the rest, which wait on reviewers. Each row shows its state and checks (<code
+              >✓ ready to merge</code
+            >, <code>✗ checks failing</code>). On a wide terminal, a preview shows the description, files, checks, review decision, and whether a tour or drafts already exist. The list refreshes every
+            two minutes.
           </p>
           <div class="table-wrap">
             <table>

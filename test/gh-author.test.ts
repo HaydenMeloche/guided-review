@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../src/util/exec.js', () => ({ run: vi.fn() }));
 
 import { run } from '../src/util/exec.js';
-import { AUTHORED_LIMIT, fetchMergeStatus, listAuthoredPRs, PartialSendError, PendingReviewError, postThreadReplies, resetGhCaches, UncertainSendError } from '../src/github/gh.js';
+import { AUTHORED_LIMIT, fetchMergeStatus, listAuthoredPRs, listReviewedPRs, PartialSendError, PendingReviewError, postThreadReplies, resetGhCaches, UncertainSendError } from '../src/github/gh.js';
 
 const runMock = vi.mocked(run);
 
@@ -425,5 +425,52 @@ describe('fetchMergeStatus', () => {
     expect(s.viewerCanMerge).toBe(false);
     expect(s.methods).toEqual(['merge', 'squash', 'rebase']);
     expect(s).toMatchObject({ unresolvedThreads: 1, unresolvedThreadsAtLeast: true, headRepo: undefined, headCommittedAt: undefined });
+  });
+});
+
+describe('listReviewedPRs', () => {
+  const login = (l: string) => ({ author: { login: l } });
+  const thread = (isResolved: boolean, first: string, last: string) => ({ isResolved, first: { nodes: [login(first)] }, last: { nodes: [login(last)] } });
+  const node = (n: number, extra: Record<string, unknown> = {}) => ({
+    number: n,
+    title: `PR ${n}`,
+    url: `https://github.com/o/r/pull/${n}`,
+    updatedAt: '2026-10-01T00:00:00Z',
+    isDraft: false,
+    author: { login: 'dev' },
+    repository: { nameWithOwner: 'o/r' },
+    labels: { nodes: [] },
+    latestReviews: {
+      nodes: [
+        { ...login('dev2'), submittedAt: '2026-09-30T00:00:00Z' },
+        { ...login('me'), submittedAt: '2026-09-20T00:00:00Z' },
+      ],
+    },
+    commits: { totalCount: 3, nodes: ['2026-09-10T00:00:00Z', '2026-09-25T00:00:00Z', '2026-09-28T00:00:00Z'].map((d) => ({ commit: { committedDate: d } })) },
+    reviewThreads: { nodes: [thread(false, 'me', 'dev'), thread(false, 'me', 'me'), thread(true, 'me', 'dev'), thread(false, 'dev2', 'dev')] },
+    ...extra,
+  });
+  const answer = (nodes: unknown[], hasNextPage = false) => ({ viewer: { login: 'me' }, search: { pageInfo: { hasNextPage, endCursor: hasNextPage ? 'c' : null }, nodes } });
+
+  it('counts commits since your latest review and replies on your open threads', async () => {
+    let query = '';
+    fakeGh({
+      'search(query': (_a, vars) => {
+        query = vars.q;
+        return answer([node(1), node(2, { latestReviews: { nodes: [] } })]);
+      },
+    });
+    const r = await listReviewedPRs();
+    // Only threads you started, unresolved, with someone else last; a PR with no review of yours on record is left out.
+    expect(r.prs).toEqual([expect.objectContaining({ number: 1, reviewedAt: '2026-09-20T00:00:00Z', newCommits: 2, replies: 1 })]);
+    expect(r.prs[0].newCommitsAtLeast).toBeUndefined();
+    expect(query).toContain('reviewed-by:@me -author:@me -review-requested:@me');
+  });
+
+  it('says when every commit read is new and there were more, and when the list was cut off', async () => {
+    fakeGh({ 'search(query': () => answer([node(1, { commits: { totalCount: 150, nodes: [{ commit: { committedDate: '2026-09-29T00:00:00Z' } }] } })], true) });
+    const r = await listReviewedPRs();
+    expect(r.prs[0]).toMatchObject({ newCommits: 1, newCommitsAtLeast: true });
+    expect(r.truncated).toBe(true);
   });
 });

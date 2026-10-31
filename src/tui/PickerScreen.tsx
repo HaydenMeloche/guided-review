@@ -1,7 +1,20 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useInput } from './input.js';
 import { Box, Text, useSelected } from './themed.js';
-import { fetchPRPreview, AUTHORED_LIMIT, listAuthoredPRs, listReviewRequests, parsePRArg, viewerLogin, type AuthoredPR, type PRPreview, type ReviewRequest } from '../github/gh.js';
+import {
+  fetchPRPreview,
+  AUTHORED_LIMIT,
+  listAuthoredPRs,
+  listReviewedPRs,
+  listReviewRequests,
+  parsePRArg,
+  REVIEWED_LIMIT,
+  viewerLogin,
+  type AuthoredPR,
+  type PRPreview,
+  type ReviewedPR,
+  type ReviewRequest,
+} from '../github/gh.js';
 import type { Store } from '../store/db.js';
 import { KeyBar } from './ChapterScreen.js';
 import { TextInput } from './TextInput.js';
@@ -61,6 +74,8 @@ export function clipboardPR(text: string): Target | undefined {
 // Your PRs as last loaded. Module-level, so returning to the picker after a tour shows them at
 // once while they refresh: their search is the slow one (seconds, on GitHub's side).
 let authoredCache: { prs: AuthoredPR[]; truncated: boolean } | undefined;
+// The PRs you reviewed, kept the same way. They only add to the list, so a failure is a note.
+let reviewedCache: { prs: ReviewedPR[]; truncated: boolean } | undefined;
 // w: your PRs waiting on reviewers shown too. Kept for the session, like the cache.
 let showWaitingPref = false;
 
@@ -108,12 +123,18 @@ export function age(iso: string, now = Date.now()): string {
 }
 
 type Row =
-  | { kind: 'section'; title: string; count: number }
-  | { kind: 'note'; text: string }
-  | { kind: 'repo'; repo: string; count: number; own: boolean }
-  | { kind: 'pr'; pr: ReviewRequest | AuthoredPR; index: number };
+  { kind: 'section'; title: string; count: number } | { kind: 'note'; text: string } | { kind: 'repo'; repo: string; count: number; group: Group } | { kind: 'pr'; pr: ListedPR; index: number };
 
-export const isAuthored = (pr: ReviewRequest | AuthoredPR): pr is AuthoredPR => 'openThreads' in pr;
+// The list's sections a repo can head a group in.
+type Group = 'requests' | 'reviewed' | 'yours';
+
+export type ListedPR = ReviewRequest | AuthoredPR | ReviewedPR;
+
+export const isAuthored = (pr: ListedPR): pr is AuthoredPR => 'openThreads' in pr;
+export const isReviewed = (pr: ListedPR): pr is ReviewedPR => 'reviewedAt' in pr;
+
+// A PR you reviewed has something for you: commits since your review, or a reply on your thread.
+export const hasNews = (pr: ReviewedPR) => pr.newCommits > 0 || pr.replies > 0;
 
 const MERGEABLE = ['CLEAN', 'HAS_HOOKS', 'UNSTABLE'];
 export const readyToMerge = (pr: AuthoredPR) => !pr.isDraft && MERGEABLE.includes(pr.mergeStateStatus);
@@ -128,16 +149,24 @@ export function needsAuthor(pr: AuthoredPR): boolean {
 }
 
 // PRs grouped by repo (repos with the most recent activity first), filtered by text, under a
-// Review requests heading and, when you have open PRs, a Your PRs one: the ones that need you,
-// and the ones waiting on reviewers with `showWaiting`, else a line counting them.
-export function pickerRows(prs: ReviewRequest[], filter: string, authored: AuthoredPR[] = [], showWaiting = false, authoredTruncated = false): { rows: Row[]; items: (ReviewRequest | AuthoredPR)[] } {
+// Review requests heading; a Reviewed by you one for the PRs you reviewed with something new,
+// and a line counting the rest; and, when you have open PRs, a Your PRs one: the ones that need
+// you, and the ones waiting on reviewers with `showWaiting`, else a line counting them.
+export function pickerRows(
+  prs: ReviewRequest[],
+  filter: string,
+  authored: AuthoredPR[] = [],
+  showWaiting = false,
+  authoredTruncated = false,
+  reviewed: { prs: ReviewedPR[]; truncated: boolean; error?: string } = { prs: [], truncated: false },
+): { rows: Row[]; items: ListedPR[] } {
   const f = filter.trim().toLowerCase();
   const rows: Row[] = [];
-  const items: (ReviewRequest | AuthoredPR)[] = [];
-  // `own`: your PRs. A repo can head a group in both sections, so it is part of the row's key.
-  const section = (list: (ReviewRequest | AuthoredPR)[], own = false) => {
+  const items: ListedPR[] = [];
+  // A repo can head a group in more than one section, so the section is part of the row's key.
+  const section = (list: ListedPR[], groupOf: Group) => {
     const matching = list.filter((p) => !f || `${p.repo}#${p.number} ${p.title} ${p.author} ${p.labels.join(' ')}`.toLowerCase().includes(f));
-    const groups = new Map<string, (ReviewRequest | AuthoredPR)[]>();
+    const groups = new Map<string, ListedPR[]>();
     for (const p of matching) {
       const group = groups.get(p.repo);
       if (group) group.push(p);
@@ -145,7 +174,7 @@ export function pickerRows(prs: ReviewRequest[], filter: string, authored: Autho
     }
     const ordered = [...groups.entries()].sort((a, b) => b[1][0].updatedAt.localeCompare(a[1][0].updatedAt));
     for (const [repo, group] of ordered) {
-      rows.push({ kind: 'repo', repo, count: group.length, own });
+      rows.push({ kind: 'repo', repo, count: group.length, group: groupOf });
       for (const pr of group) {
         rows.push({ kind: 'pr', pr, index: items.length });
         items.push(pr);
@@ -154,12 +183,21 @@ export function pickerRows(prs: ReviewRequest[], filter: string, authored: Autho
     return matching.length;
   };
   const reviewsAt = rows.push({ kind: 'section', title: 'Review requests', count: 0 }) - 1;
-  rows[reviewsAt] = { kind: 'section', title: 'Review requests', count: section(prs) };
+  rows[reviewsAt] = { kind: 'section', title: 'Review requests', count: section(prs, 'requests') };
   if (!rows[reviewsAt + 1] && !f) rows.push({ kind: 'note', text: 'Nothing is waiting on your review. gr review <number or URL> opens a specific PR.' });
+  const news = reviewed.prs.filter(hasNews);
+  if (news.length) {
+    const at = rows.push({ kind: 'section', title: 'Reviewed by you', count: 0 }) - 1;
+    rows[at] = { kind: 'section', title: 'Reviewed by you', count: section(news, 'reviewed') };
+  }
+  const quiet = reviewed.prs.length - news.length;
+  if (quiet && !f) rows.push({ kind: 'note', text: `${plural(quiet, 'PR')} you reviewed ${quiet === 1 ? 'has' : 'have'} nothing new since` });
+  if (reviewed.truncated) rows.push({ kind: 'note', text: `Looked at the first ${REVIEWED_LIMIT} open PRs you reviewed.` });
+  if (reviewed.error) rows.push({ kind: 'note', text: `The PRs you reviewed couldn’t load (r to retry): ${reviewed.error}` });
   if (!authored.length) return { rows, items };
   const waiting = authored.filter((p) => !needsAuthor(p)).length;
   const yoursAt = rows.push({ kind: 'section', title: 'Your PRs', count: 0 }) - 1;
-  rows[yoursAt] = { kind: 'section', title: 'Your PRs', count: section(showWaiting ? authored : authored.filter(needsAuthor), true) };
+  rows[yoursAt] = { kind: 'section', title: 'Your PRs', count: section(showWaiting ? authored : authored.filter(needsAuthor), 'yours') };
   if (waiting && !f) {
     const are = `${waiting === 1 ? 'is' : 'are'} waiting on reviewers`;
     const none = rows.length - 1 === yoursAt ? 'None need you. ' : '';
@@ -204,6 +242,8 @@ export function PickerScreen(props: PickerProps) {
   const [authoredState, setAuthoredState] = useState<'loading' | 'ready' | { error: string }>(() => (authoredCache ? 'ready' : 'loading'));
   const [authoredTruncated, setAuthoredTruncated] = useState(() => authoredCache?.truncated ?? false);
   const authoredInflight = useRef(false);
+  const [reviewed, setReviewed] = useState<{ prs: ReviewedPR[]; truncated: boolean; error?: string }>(() => reviewedCache ?? { prs: [], truncated: false });
+  const reviewedInflight = useRef(false);
   const scrollTop = useRef(0); // the list's first row on screen
   const [err, setErr] = useState('');
   const [sel, setSel] = useState(0);
@@ -250,6 +290,22 @@ export function PickerScreen(props: PickerProps) {
         )
         .finally(() => {
           authoredInflight.current = false;
+        });
+    }
+    if (!reviewedInflight.current) {
+      reviewedInflight.current = true;
+      Promise.resolve()
+        .then(() => listReviewedPRs())
+        .then(
+          (r) => {
+            reviewedCache = r;
+            setReviewed(r);
+          },
+          // The last list stays; the note says it is out of date.
+          (e: unknown) => setReviewed((r) => ({ ...r, error: (e as Error).message })),
+        )
+        .finally(() => {
+          reviewedInflight.current = false;
         });
     }
     listReviewRequests()
@@ -376,12 +432,13 @@ export function PickerScreen(props: PickerProps) {
   const { merged } = props;
   const { rows, items } = useMemo(() => {
     const open = <T extends Target>(list: T[]) => (merged?.size ? list.filter((p) => !merged.has(keyFor(p))) : list);
-    return pickerRows(open(prs ?? []), filter, open(authored), showWaiting, authoredTruncated);
-  }, [prs, filter, authored, merged, showWaiting, authoredTruncated]);
+    // A failure is worth a line only when the review requests loaded: otherwise their error says it.
+    return pickerRows(open(prs ?? []), filter, open(authored), showWaiting, authoredTruncated, { ...reviewed, prs: open(reviewed.prs), error: prs && !err ? reviewed.error : undefined });
+  }, [prs, err, filter, authored, merged, showWaiting, authoredTruncated, reviewed]);
   // What's already on this machine for each PR: cheap queries, computed once per list.
   const local = useMemo(() => {
     const out: Record<string, Local> = {};
-    for (const p of [...(prs ?? []), ...authored]) {
+    for (const p of [...(prs ?? []), ...authored, ...reviewed.prs]) {
       // listTours is newest first.
       const latest = props.store.listTours(p.repo, p.number)[0];
       out[`${p.repo}#${p.number}`] = { tourHead: latest?.headSha, drafts: props.store.listDrafts(p.repo, p.number).filter((d) => !d.posted).length };
@@ -389,7 +446,7 @@ export function PickerScreen(props: PickerProps) {
     return out;
     // localVersion is a cache buster: finished downloads write to the store behind this memo.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prs, authored, localVersion, props.store]);
+  }, [prs, authored, reviewed, localVersion, props.store]);
   const current = items[Math.min(sel, items.length - 1)];
   const key = current ? `${current.repo}#${current.number}` : '';
   selKey.current = key;
@@ -691,7 +748,7 @@ export function PickerScreen(props: PickerProps) {
             {visible.map((r) => (
               // Rows keep their height: the box clips the last one rather than squeezing them all.
               <Box
-                key={r.kind === 'pr' ? `pr:${keyFor(r.pr)}` : r.kind === 'repo' ? `repo:${r.own}:${r.repo}` : `${r.kind}:${r.kind === 'note' ? r.text : r.title}`}
+                key={r.kind === 'pr' ? `pr:${keyFor(r.pr)}` : r.kind === 'repo' ? `repo:${r.group}:${r.repo}` : `${r.kind}:${r.kind === 'note' ? r.text : r.title}`}
                 flexShrink={0}
                 flexDirection="column"
               >
@@ -702,7 +759,7 @@ export function PickerScreen(props: PickerProps) {
                 ) : r.kind === 'section' ? (
                   <SectionHeading key={`section:${r.title}`} title={r.title} note={`(${r.count})`} width={listW} />
                 ) : r.kind === 'repo' ? (
-                  <Text key={`repo:${r.own ? 'own' : 'review'}:${r.repo}`} color={ROLES.heading} bold wrap="truncate">
+                  <Text key={`repo:${r.group}:${r.repo}`} color={ROLES.heading} bold wrap="truncate">
                     {safe(r.repo)} <Text dimColor>({r.count})</Text>
                   </Text>
                 ) : (
@@ -822,8 +879,9 @@ function LocalChangesRow(props: { changes: LocalChanges; width: number }) {
 }
 
 // Each section of the list in its own color, so local changes, the PRs waiting on your review and
-// your own PRs read apart at a glance.
-const SECTION_COLORS: Record<string, string> = { 'Local changes': 'yellow', 'From clipboard': 'cyan', 'Review requests': 'magenta', 'Your PRs': 'green' };
+// your own PRs read apart at a glance. Reviewed by you is yellow, as what needs attention is,
+// rather than blue, which the repo headings under every section are.
+const SECTION_COLORS: Record<string, string> = { 'Local changes': 'yellow', 'From clipboard': 'cyan', 'Review requests': 'magenta', 'Reviewed by you': 'yellow', 'Your PRs': 'green' };
 
 // A section's heading in its color, with its count or the keys that act on it, and a faint rule
 // in the same color out to the edge of the list.
@@ -922,14 +980,14 @@ export function authorBadges(pr: AuthoredPR): Badge[] {
   return badges.filter((b): b is Badge => !!b);
 }
 
-const PRRow = React.memo(function PRRow(props: { pr: ReviewRequest | AuthoredPR; selected: boolean; marked: boolean; width: number; local?: Local; job?: DownloadJob; spin?: string }) {
+const PRRow = React.memo(function PRRow(props: { pr: ListedPR; selected: boolean; marked: boolean; width: number; local?: Local; job?: DownloadJob; spin?: string }) {
   const { pr, selected, marked, width, job } = props;
   // The selected PR takes the selection surface, as every other list does; the bar stays as a
   // second cue that ties its two rows together.
   const selectedRow = useSelected()(selected);
   const drafts = props.local?.drafts ?? 0;
   const toured = !!props.local?.tourHead;
-  const who: Badge[] = isAuthored(pr) ? authorBadges(pr) : [{ text: `@${pr.author}` }];
+  const who: Badge[] = isAuthored(pr) ? authorBadges(pr) : isReviewed(pr) ? [{ text: `@${pr.author}` }, ...reviewedBadges(pr)] : [{ text: `@${pr.author}` }];
   const meta: Badge[] = [
     ...who,
     ...[age(pr.updatedAt), pr.isDraft ? 'draft' : '', ...pr.labels.slice(0, 2), toured ? 'toured' : '', drafts ? `${plural(drafts, 'draft comment')}` : ''].filter(Boolean).map((text) => ({ text })),
@@ -985,6 +1043,15 @@ const PRRow = React.memo(function PRRow(props: { pr: ReviewRequest | AuthoredPR;
     </Box>
   );
 });
+
+// What happened on a PR you reviewed, short enough for the list: commits since your review, and
+// replies on your threads. The section's heading says the rest.
+function reviewedBadges(pr: ReviewedPR): Badge[] {
+  return [
+    ...(pr.newCommits ? [{ text: `${pr.newCommits}${pr.newCommitsAtLeast ? '+' : ''} new commit${pr.newCommits === 1 && !pr.newCommitsAtLeast ? '' : 's'}`, color: 'yellow' }] : []),
+    ...(pr.replies ? [{ text: `${plural(pr.replies, 'reply', 'replies')} to you`, color: 'yellow' }] : []),
+  ];
+}
 
 const DECISION: Record<string, { text: string; color: string }> = {
   APPROVED: { text: 'approved', color: 'green' },

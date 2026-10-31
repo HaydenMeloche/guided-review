@@ -11,6 +11,7 @@ vi.mock('../src/github/gh.js', async (orig) => ({
   listReviewRequests: vi.fn(async () => [
     { repo: 'acme/app', number: 1, title: 'Review me', author: 'dev', url: 'https://github.com/acme/app/pull/1', updatedAt: '2026-10-08T00:00:00Z', isDraft: false, labels: [] },
   ]),
+  listReviewedPRs: vi.fn(async () => ({ prs: [], truncated: false })),
   listAuthoredPRs: vi.fn(() => new Promise<{ prs: AuthoredPR[]; truncated: boolean }>((r) => (resolveMine = (prs, truncated = false) => r({ prs, truncated })))),
   fetchPRPreview: vi.fn(() => new Promise(() => {})),
   viewerLogin: vi.fn(async () => 'me'),

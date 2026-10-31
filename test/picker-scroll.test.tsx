@@ -40,6 +40,7 @@ vi.mock('../src/github/gh.js', async (orig) => ({
   parsePRArg: (await orig<typeof import('../src/github/gh.js')>()).parsePRArg,
   listReviewRequests: vi.fn(async () => prs),
   AUTHORED_LIMIT: 200,
+  listReviewedPRs: vi.fn(async () => ({ prs: [], truncated: false })),
   listAuthoredPRs: vi.fn(async () => authored),
   fetchPRPreview: vi.fn(() => new Promise(() => {})),
   viewerLogin: vi.fn(async () => 'me'),

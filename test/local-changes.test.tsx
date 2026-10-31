@@ -15,6 +15,7 @@ vi.mock('../src/github/gh.js', async (orig) => ({
     throw new Error('no gh');
   }),
   listReviewRequests: vi.fn(async () => []),
+  listReviewedPRs: vi.fn(async () => ({ prs: [], truncated: false })),
   listAuthoredPRs: vi.fn(async () => ({ prs: [], truncated: false })),
   fetchPRPreview: vi.fn(() => new Promise(() => {})),
   viewerLogin: vi.fn(async () => 'me'),

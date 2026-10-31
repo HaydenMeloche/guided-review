@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { age, authorBadges, needsAuthor, pickerRows } from '../src/tui/PickerScreen.js';
-import type { AuthoredPR, ReviewRequest } from '../src/github/gh.js';
+import type { AuthoredPR, ReviewedPR, ReviewRequest } from '../src/github/gh.js';
 
 const pr = (repo: string, number: number, updatedAt: string, extra: Partial<ReviewRequest> = {}): ReviewRequest => ({
   repo,
@@ -138,5 +138,35 @@ describe('age', () => {
     expect(age('2026-10-07T07:00:00Z', now)).toBe('5h ago');
     expect(age('2026-09-23T12:00:00Z', now)).toBe('14d ago');
     expect(age('2024-08-07T12:00:00Z', now)).toBe('2y ago');
+  });
+});
+
+describe('pickerRows: Reviewed by you', () => {
+  const reviewed = (number: number, newCommits: number, replies: number, repo = 'a/old'): ReviewedPR => ({
+    ...pr(repo, number, '2026-10-01T00:00:00Z'),
+    reviewedAt: '2026-09-20T00:00:00Z',
+    newCommits,
+    replies,
+  });
+  const shape = (rows: ReturnType<typeof pickerRows>['rows']) =>
+    rows.map((r) => (r.kind === 'repo' ? `repo:${r.repo}` : r.kind === 'pr' ? `#${r.pr.number}` : r.kind === 'section' ? `${r.title}:${r.count}` : r.text));
+
+  it('lists the PRs with something new after the review requests, and counts the rest', () => {
+    const { rows, items } = pickerRows([pr('a/old', 1, '2026-10-01T00:00:00Z')], '', [], false, false, { prs: [reviewed(5, 2, 0), reviewed(6, 0, 1), reviewed(7, 0, 0)], truncated: false });
+    expect(shape(rows)).toEqual(['Review requests:1', 'repo:a/old', '#1', 'Reviewed by you:2', 'repo:a/old', '#5', '#6', '1 PR you reviewed has nothing new since']);
+    // The same repo heads a group in each section, under a key of its own.
+    expect(new Set(rows.filter((r) => r.kind === 'repo').map((r) => (r.kind === 'repo' ? r.group : '')))).toEqual(new Set(['requests', 'reviewed']));
+    expect(items.map((p) => p.number)).toEqual([1, 5, 6]);
+  });
+
+  it('leaves the section out when nothing is new, and says when the list was cut off or failed', () => {
+    const { rows } = pickerRows([], '', [], false, false, { prs: [reviewed(7, 0, 0)], truncated: true, error: 'HTTP 502' });
+    expect(shape(rows)).toEqual([
+      'Review requests:0',
+      'Nothing is waiting on your review. gr review <number or URL> opens a specific PR.',
+      '1 PR you reviewed has nothing new since',
+      'Looked at the first 100 open PRs you reviewed.',
+      'The PRs you reviewed couldn’t load (r to retry): HTTP 502',
+    ]);
   });
 });
