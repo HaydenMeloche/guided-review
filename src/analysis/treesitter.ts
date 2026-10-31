@@ -33,6 +33,9 @@ export function supportsTreeSitter(path: string): boolean {
   return lang !== undefined && parsers.has(lang);
 }
 
+// The grammars loaded so far, and every one gr ships.
+export const treeSitterGrammars = (): { loaded: string[]; all: string[] } => ({ loaded: [...parsers.keys()], all: [...ALL_LANGS] });
+
 export function treeSitterReady(): boolean {
   return ready;
 }

@@ -68,6 +68,17 @@ describe('gr commands that print and exit', () => {
     expect(debug.stderr).toContain('    at ');
   });
 
+  it('checks the machine with doctor, without a terminal or setup, and fails on a signed-out gh', async () => {
+    const result = await runGr(box, ['doctor', '--no-agent']);
+    // The sandbox's gh fails every call, so gh is a problem to fix; nothing asks to set up first.
+    expect(result.code).toBe(1);
+    expect(result.stdout).toMatch(/✓ node\s+\d+\.\d+/);
+    expect(result.stdout).toMatch(/✗ gh\s+.*not signed in.*gh auth login/);
+    expect(result.stdout).toContain('model        not set up yet');
+    expect(result.stdout).toMatch(/problems? to fix/);
+    expect(fs.existsSync(path.join(box.env.GR_HOME!, 'config.json'))).toBe(false);
+  });
+
   it('cleans up with no worktrees present', async () => {
     const result = await runGr(box, ['cleanup']);
     expect(result.code).toBe(0);

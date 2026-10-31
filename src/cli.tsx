@@ -71,6 +71,7 @@ ${[
   usage('open [number|URL]', 'Open the tour of a PR (default: this branch) in a new terminal window'),
   usage('open --preview', 'Open the preview of your current branch in a new terminal window'),
   usage('build [number|URL]', 'Build a tour without the TUI (for CI); share it with --comment or --out'),
+  usage('doctor', 'Check what gr needs (git, gh, ripgrep, your model, …) and how to fix what is missing'),
   usage('cleanup [--days n]', 'Remove local PR worktrees (skip worktrees with changes) and old tours'),
   usage('config', 'Choose a model provider (or none), models, API key, and GitHub access'),
   usage('config --edit', 'Open ~/.guided-review/config.json in your editor'),
@@ -87,6 +88,7 @@ ${[
     --comment        With build: post the tour to the PR, where \`${NAME} review\` picks it up
     --out <file>     With build: write the tour JSON to a file (- for stdout)
     --days <n>       With cleanup: delete tours not opened in n days (default ${TOUR_MAX_AGE_DAYS})
+    --no-agent       With doctor: skip the request to your model
 
   Also installed as \`${NAME === 'gr' ? 'guided-review' : 'gr'}\`. Use \`guided-review\` if \`gr\` is a shell alias (Oh My Zsh: git remote).
   Set GR_DEBUG=1 to print stack traces on errors.
@@ -211,6 +213,49 @@ async function main() {
     process.stdout.write(`Removed ${result.tours} old tour(s): the newest ${KEEP_TOURS_PER_PR} per PR are kept, minus any not opened in ${maxAge} days.\n`);
     if (result.prs) process.stdout.write(`Cleared reading state for ${result.prs} PR(s) with no tour left; unposted drafts are kept.\n`);
     return;
+  }
+  if (cmd === 'doctor') {
+    const [{ diagnose, formatFindings, runCommand }, { detectColorDepth }, { viewerLogin }, { readGitHubToken }, { loadGitHubConfig }, { grHome }] = await Promise.all([
+      import('./doctor.js'),
+      import('./tui/theme.js'),
+      import('./github/gh.js'),
+      import('./github/auth.js'),
+      import('./config.js'),
+      import('./paths.js'),
+    ]);
+    let problem: string | undefined;
+    let raw: Record<string, unknown> | null = null;
+    let routing: ReturnType<typeof agentRouting>;
+    try {
+      raw = readUserConfigFile();
+      if (raw) routing = agentRouting(loadUserConfig(raw));
+    } catch (e) {
+      problem = (e as Error).message;
+    }
+    const findings = await diagnose({
+      run: runCommand,
+      env: process.env,
+      platform: process.platform,
+      nodeVersion: process.versions.node,
+      home: grHome(),
+      grammars: async () => {
+        const ts = await import('./analysis/treesitter.js');
+        await ts.initTreeSitter();
+        return ts.treeSitterGrammars();
+      },
+      colorDepth: () => detectColorDepth(),
+      models: async () => (routing && cli.flags.agent ? (await import('./agent/check.js')).checkModels(routing) : undefined),
+      githubToken: () => {
+        const github = raw ? loadGitHubConfig() : undefined;
+        if (!readGitHubToken(github)) return undefined;
+        return github?.tokenEnv ? `$${github.tokenEnv}` : github?.tokenFile;
+      },
+      viewer: () => viewerLogin(),
+      configProblem: () => problem,
+      noModel: !raw ? 'not set up yet: gr config chooses one, or none' : !routing ? 'none: tours are built from static analysis only' : 'not checked (--no-agent)',
+    });
+    process.stdout.write(formatFindings(findings, !!process.stdout.isTTY && !process.env.NO_COLOR));
+    process.exit(findings.some((f) => f.status === 'fail') ? 1 : 0);
   }
   if (cmd === 'install-codex-skill') {
     reportInstall(installCodexSkill({ force: cli.flags.force }), 'Guided Review skill', 'Restart Codex to discover the guided-review skill.');

@@ -850,6 +850,7 @@ gr open --preview            # open gr preview in a new tmux or Terminal window
 gr build 1234 --comment      # build a tour without the TUI and post it to the PR (for CI)
 gr config                    # set up or change the model, GitHub access, and theme
 gr cleanup                   # remove managed worktrees and prune old tours
+gr doctor                    # check git, gh, ripgrep, your model and the rest, with fixes
 </code></pre>
           <div class="table-wrap">
             <table>
@@ -862,7 +863,7 @@ gr cleanup                   # remove managed worktrees and prune old tours
               <tbody>
                 <tr>
                   <td><code>--no-agent</code></td>
-                  <td>Build the tour from static analysis only, with no model calls.</td>
+                  <td>Build the tour from static analysis only, with no model calls. With <code>doctor</code>, skip the request to your model.</td>
                 </tr>
                 <tr>
                   <td><code>--fresh</code></td>
@@ -891,6 +892,12 @@ gr cleanup                   # remove managed worktrees and prune old tours
               </tbody>
             </table>
           </div>
+          <p>
+            <code>gr doctor</code> checks what gr leans on outside itself: Node, git, <code>gh</code> and its sign-in (or a token set in <code>gr config</code>), ripgrep, the tree-sitter grammars,
+            your terminal&#39;s colors, a clipboard tool, how <code>gr open</code> opens a window, <code>$EDITOR</code>, your config, and the size of <code>~/.guided-review</code>. It sends one short
+            request to each model your config uses, as setup does; <code>--no-agent</code> skips that. Each line ends with what to do about it, and it exits with status 1 when something gr needs is
+            missing, so it is the output to paste into a bug report.
+          </p>
           <p>
             Models and keys live in the config file, not in options; see <a href="configuration.html">Configuration</a>. <code>GR_DEBUG=1</code> prints stack traces, and
             <code>GR_DEBUG_MODEL</code> logs model calls (see <a href="configuration.html#debugging-model-calls">Debugging model calls</a>). <code>gr</code> checks npm for updates once a day and
