@@ -133,3 +133,17 @@ export function chapterNotes(tour: Pick<Tour, 'hunks' | 'existingThreads'>, chap
     drafts: drafts.filter((d) => !d.posted && (d.anchor.type === 'line' || d.anchor.type === 'range' ? ids.has(d.anchor.hunkId) : d.anchor.chapterId === chapter.id)).length,
   };
 }
+
+// A chapter's size, for its row on the briefing: the lines its hunks add and remove, leaving out
+// the context shown around them.
+export function chapterSize(tour: Pick<Tour, 'hunks'>, chapter: Chapter): { added: number; removed: number } {
+  let added = 0;
+  let removed = 0;
+  for (const id of chapter.hunkIds)
+    for (const l of tour.hunks[id]?.lines ?? []) {
+      if (l.expanded) continue;
+      if (l.kind === 'add') added++;
+      else if (l.kind === 'del') removed++;
+    }
+  return { added, removed };
+}

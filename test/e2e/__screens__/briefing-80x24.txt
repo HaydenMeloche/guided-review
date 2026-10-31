@@ -6,9 +6,9 @@
  Add discount codes to quotes and orders
 
  ‹b›Chapters‹/›‹cyan,b› · Guided order‹/›‹b,dim› · 0/5 hunks done · ‹/›‹cyan›f‹/› ‹dim›─────────────────────────────────‹/›
- ‹cyan,inv› 1 ‹/›‹bright-black,inv›·‹/›‹inv› createOrder                                                   ‹/›‹dim,inv›▱▱▱▱   0/3‹/›
- ‹dim› 2 ‹/›‹bright-black›·‹/› Dependencies and runtimes                                     ‹dim›▱▱▱▱   0/1‹/›
- ‹dim› 3 ‹/›‹bright-black›·‹/› Config, infra and docs                                        ‹dim›▱▱▱▱   0/1‹/›
+ ‹cyan,inv› 1 ‹/›‹bright-black,inv›·‹/›‹inv› createOrder                                           ‹/›‹dim,inv›▱▱▱▱   0/3  ‹/›‹green,inv›+55‹/›‹inv› ‹/›‹red,inv›−5‹/›
+ ‹dim› 2 ‹/›‹bright-black›·‹/› Dependencies and runtimes                             ‹dim›▱▱▱▱   0/1  ‹/›‹green› +3‹/› ‹red›−2‹/›
+ ‹dim› 3 ‹/›‹bright-black›·‹/› Config, infra and docs                                ‹dim›▱▱▱▱   0/1  ‹/›‹green› +2‹/› ‹dim›−0‹/›
  ‹dim›  ✓ read  – skipped  ◇ deferred  · unread  · ? then tab for every mark‹/›
 
  ‹b›Watch for‹/› ‹dim›────────────────────────────────────────────────────────────────────‹/›

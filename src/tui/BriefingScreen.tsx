@@ -4,7 +4,7 @@ import { Box, Text, useSelected, useTheme } from './themed.js';
 import { ROLES } from './theme.js';
 import type { Chapter, ChapterOrder, Draft, ExistingThread, Flag, Tour } from '../types.js';
 import { chapterState, meter, ORDER_LABEL, pad, progress, stateMark, type States } from './nav.js';
-import { chapterNotes } from './chapter/lineNotes.js';
+import { chapterNotes, chapterSize } from './chapter/lineNotes.js';
 import { DiagramView } from './DiagramView.js';
 import { renderGraph } from '../diagram/text.js';
 import { MdLineView, renderMarkdown } from './markdown.js';
@@ -272,6 +272,10 @@ export function BriefingScreen(props: {
   const usedRows = topRows + 2 + shownCount + (windowed ? 1 : 0) + restRows + (legendRow ? 1 : 0);
   const diagramBelowH = wide ? 0 : Math.max(0, Math.min(16, bodyH - usedRows - 1));
   const numW = String(rows.length).length;
+  // Each chapter's size, +added −removed, in columns that line up down the list.
+  const sizes = new Map(rows.map(({ chapter: c, ci }) => [c.id, ci < 0 ? undefined : chapterSize(tour, c)]));
+  const addW = Math.max(0, ...[...sizes.values()].map((z) => (z ? String(z.added).length : 0))) + 1;
+  const delW = Math.max(0, ...[...sizes.values()].map((z) => (z ? String(z.removed).length : 0))) + 1;
   const labelW = Math.min(30, Math.max(0, ...watchShown.map((w) => w.label.length)) + 2);
 
   const left = (
@@ -364,7 +368,10 @@ export function BriefingScreen(props: {
           const threadNote = said.open ? `${said.open} open` : said.resolved ? `${said.resolved} resolved` : '';
           const draftNote = said.drafts ? `${G.draft} ${said.drafts}` : '';
           const notes = [threadNote, draftNote].filter(Boolean).join(' · ');
-          const tail = `  ${c.optional || unchanged ? '' : `${m.filled}${m.rest} `}${count.padStart(5)}${notes ? `  ${notes}` : ''}`;
+          const size = sizes.get(c.id);
+          const added = size ? `+${size.added}`.padStart(addW) : ' '.repeat(addW);
+          const removed = size ? `−${size.removed}`.padEnd(delW) : ' '.repeat(delW);
+          const tail = `  ${c.optional || unchanged ? '' : `${m.filled}${m.rest} `}${count.padStart(5)}  ${added} ${removed}${notes ? `  ${notes}` : ''}`;
           const selected = !unchanged && ci === sel;
           const quiet = unchanged || (c.collapsed && !selected);
           const n = String(chStart + k + 1).padStart(numW);
@@ -380,7 +387,13 @@ export function BriefingScreen(props: {
                   <Text dimColor>{m.rest}</Text>
                 </>
               )}
-              <Text dimColor>{` ${count.padStart(5)}`}</Text>
+              <Text dimColor>{` ${count.padStart(5)}  `}</Text>
+              <Text color={quiet || !size?.added ? undefined : 'green'} dimColor={!size?.added}>
+                {added}
+              </Text>{' '}
+              <Text color={quiet || !size?.removed ? undefined : 'red'} dimColor={!size?.removed}>
+                {removed}
+              </Text>
               {threadNote ? <Text color={said.open ? 'yellow' : undefined} dimColor={!said.open}>{`  ${threadNote}`}</Text> : null}
               {draftNote ? <Text dimColor>{`${threadNote ? ' · ' : '  '}${draftNote}`}</Text> : null}
             </Text>

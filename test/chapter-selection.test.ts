@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Chapter, DiffLine, Draft, ExistingThread, Hunk } from '../src/types.js';
-import { chapterNotes, cursorNotes } from '../src/tui/chapter/lineNotes.js';
+import { chapterNotes, chapterSize, cursorNotes } from '../src/tui/chapter/lineNotes.js';
 import { linkedTests } from '../src/tui/chapter/linkedTests.js';
 import { anchorLines, crossesContext, describeAnchor, lineAnchor, linkLines, newDraft, selectedCode, selRange, testLineAnchor } from '../src/tui/chapter/selection.js';
 import { diffLines, hunk } from './fixtures/tour.js';
@@ -193,5 +193,13 @@ describe('chapterNotes', () => {
     const draft = (anchor: Draft['anchor'], posted = false) => ({ id: Math.random().toString(), anchor, posted }) as Draft;
     const drafts = [draft({ type: 'line', hunkId: 'h1', file: 'src/a.ts', line: 11, side: 'RIGHT' }), draft({ type: 'chapter', chapterId: 'c2' }), draft({ type: 'chapter', chapterId: 'c1' }, true)];
     expect(chapterNotes(tour, chapter, drafts)).toEqual({ open: 1, resolved: 1, drafts: 1 });
+  });
+});
+
+describe('chapterSize', () => {
+  it('counts the lines a chapter’s hunks add and remove, not the context around them', () => {
+    const chapter = { id: 'c1', hunkIds: ['h1', 'h2', 'gone'] } as Chapter;
+    const tour = { hunks: { h1: fused, h2: hunk('h2', 'src/b.ts', diffLines(['+x', '+y', '-z'], 1)) } };
+    expect(chapterSize(tour, chapter)).toEqual({ added: 4, removed: 2 });
   });
 });
