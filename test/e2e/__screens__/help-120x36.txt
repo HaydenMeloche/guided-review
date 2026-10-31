@@ -21,7 +21,7 @@
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›+ / -         ‹/›‹bg:c235›Show 10 more or fewer lines of the file around the hunk                               ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›│‹/›‹bg:c235›                                                                                                                ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›Read       ‹/›‹cyan,bg:c235›x / z / u     ‹/›‹bg:c235›Mark the hunk skipped / deferred / unread                                             ‹/›‹bright-black,bg:c235›│‹/›
-   ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›f             ‹/›‹bg:c235›Cycle Guided, Risk first, Small first, and File order                                 ‹/›‹bright-black,bg:c235›│‹/›
+   ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›f             ‹/›‹bg:c235›Cycle Guided, Risk first, Small first, File, and Commit order                         ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›D             ‹/›‹bg:c235›Re-review: switch between only new and changed hunks and the full review              ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›│‹/›‹bg:c235›                                                                                                                ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›Settings   ‹/›‹cyan,bg:c235›S             ‹/›‹bg:c235›Split view (old beside new) or inline                                                 ‹/›‹bright-black,bg:c235›│‹/›

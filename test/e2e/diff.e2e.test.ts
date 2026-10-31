@@ -59,3 +59,23 @@ describe('gr diff and gr preview --base', () => {
     expect(await session.exited).not.toBe(0);
   });
 });
+
+describe('commit order', () => {
+  it('cycles to Commit order on f, with a chapter per commit', async () => {
+    fs.writeFileSync(path.join(repo, 'src/fees.ts'), 'export function fee(cents: number): number {\n  return Math.round(cents * 0.03);\n}\n');
+    const commit = (...args: string[]) => execFileSync('git', ['-c', 'user.name=T', '-c', 'user.email=t@e', '-c', 'commit.gpgsign=false', ...args], { cwd: repo });
+    commit('add', '-A');
+    commit('commit', '-qm', 'Charge a fee');
+    const session = gr(['preview']);
+    await session.waitFor('Chapters · Guided order');
+    for (const order of ['Risk first', 'Small first', 'File', 'Commit']) {
+      session.press('f');
+      await session.waitFor(`Chapters · ${order} order`);
+    }
+    const screen = session.screen();
+    expect(screen).toMatch(/1 · Apply a discount to invoice totals[\s\S]*2 · Charge a fee/);
+    // And on round to the guided order.
+    session.press('f');
+    await session.waitFor('Chapters · Guided order');
+  });
+});

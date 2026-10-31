@@ -5,7 +5,7 @@ export type FileKind = 'logic' | 'test' | 'config' | 'mechanical' | 'generated' 
 
 export type ChapterKind = 'flow' | 'supporting' | 'tests' | 'imports' | 'migrations' | 'api' | 'dependencies' | 'lockfiles' | 'infra' | 'ci' | 'config' | 'mechanical' | 'generated' | 'vendored';
 
-export type ChapterOrder = 'flow' | 'risk' | 'size' | 'file';
+export type ChapterOrder = 'flow' | 'risk' | 'size' | 'file' | 'commit';
 
 export type Risk = 0 | 1 | 2 | 3; // none, low, medium, high
 

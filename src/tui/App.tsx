@@ -21,6 +21,7 @@ import {
   type ViewedState,
 } from '../github/gh.js';
 import { hunksViewedOnGitHub, viewedChanges } from '../review/viewed.js';
+import { commitChapters, readCommitHunks } from '../review/commits.js';
 import { ensureWorktree } from '../git/worktree.js';
 import { localChanges, localPreview, type LocalPreview, type LocalTarget } from '../preview.js';
 import { runPipeline } from '../pipeline.js';
@@ -151,8 +152,10 @@ function tabProgress(phase: Phase, narration: { done: number; total: number } | 
   return { state: 'none' };
 }
 
-function chaptersForOrder(tour: Tour, order: ChapterOrder, moves: Record<string, string>, deltaOnly: boolean): Chapter[] {
-  const base = order === 'file' ? fileOrderChapters(tour.files, tour.hunks) : tour.chapters;
+// Commit order's chapters come from git, read when the order is first chosen; until they arrive,
+// the guided ones stand in.
+function chaptersForOrder(tour: Tour, order: ChapterOrder, moves: Record<string, string>, deltaOnly: boolean, byCommit?: Chapter[]): Chapter[] {
+  const base = order === 'file' ? fileOrderChapters(tour.files, tour.hunks) : order === 'commit' && byCommit ? byCommit : tour.chapters;
   // Sorted before the delta filter, so a re-review lists chapters in the same order as the whole tour.
   const chapters = sortChapters(applyMoves(base, tour, moves), tour, order);
   if (!deltaOnly || !tour.rereview) return chapters;
@@ -260,6 +263,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   };
   const [hideTestPane, setHideTestPane] = useState(false);
   const [deltaOnly, setDeltaOnly] = useState(false);
+  // Commit order's chapters for this head, once read (a git log of the tour's commits).
+  const [byCommit, setByCommit] = useState<{ head: string; chapters: Chapter[] }>();
   const [pos, setPosState] = useState({ ci: 0, hi: 0 });
   const [banner, setBanner] = useState<string | undefined>();
   const [pickerNotice, setPickerNotice] = useState<string | undefined>();
@@ -571,10 +576,12 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   }, [pollRepo, pollPr, pollHead, preview, mode, newHead]);
 
   // ---------- derived ----------
+  const tourKey = tour ? `${tour.repo}#${tour.pr}@${tour.headSha}` : '';
+  const commitOrder = byCommit?.head === tourKey ? byCommit.chapters : undefined;
   const chapters: Chapter[] = useMemo(() => {
     if (!tour) return [];
-    return chaptersForOrder(tour, order, moves, deltaOnly);
-  }, [tour, order, moves, deltaOnly]);
+    return chaptersForOrder(tour, order, moves, deltaOnly, commitOrder);
+  }, [tour, order, moves, deltaOnly, commitOrder]);
   // The briefing reorders flow chapters under a reader who opened the static tour; the position
   // follows its chapter and hunk. Adjusted during render, so the stale index never draws.
   const [plainChapters, setPlainChapters] = useState<{ head: string; chapters: Chapter[] }>();
@@ -589,8 +596,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   // The whole tour, so a re-review can show the chapters it leaves out, greyed.
   const allChapters: Chapter[] = useMemo(() => {
     if (!tour) return [];
-    return deltaOnly ? chaptersForOrder(tour, order, moves, false) : chapters;
-  }, [tour, order, moves, deltaOnly, chapters]);
+    return deltaOnly ? chaptersForOrder(tour, order, moves, false, commitOrder) : chapters;
+  }, [tour, order, moves, deltaOnly, commitOrder, chapters]);
 
   // The window title names the PR and where you are in it.
   const subject = local ? `preview ${local.pr.repo}` : target ? `${target.repo}#${target.number}` : undefined;
@@ -600,15 +607,47 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   // Switch between the new or changed hunks and the whole tour, keeping the current hunk when it is in both.
   const toggleDelta = () => {
     if (!tour?.rereview) return;
-    const nextChapters = chaptersForOrder(tour, order, moves, !deltaOnly);
+    const nextChapters = chaptersForOrder(tour, order, moves, !deltaOnly, commitOrder);
     setDeltaOnly(!deltaOnly);
     setPosState(positionAfterOrderChange(chapters, pos, nextChapters));
   };
 
-  const cycleOrder = () => {
+  // Commit order's chapters, read from git once per head. Undefined when they can't be read (no
+  // checkout yet, or git failed), and commit order is then passed over.
+  const readCommitOrder = async (): Promise<Chapter[] | undefined> => {
+    if (!tour || !worktree) return undefined;
+    if (commitOrder) return commitOrder;
+    try {
+      const list = await readCommitHunks(worktree, tour, !!local && !local.copy);
+      const read = commitChapters(tour, list);
+      setByCommit({ head: tourKey, chapters: read });
+      return read.length ? read : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  // A tour reopened in commit order shows the guided chapters until the commits are read, then
+  // moves to them, keeping the reader on the same hunk.
+  useEffect(() => {
+    if (order !== 'commit' || !tour || commitOrder || !worktree) return;
+    let live = true;
+    const shown = chaptersForOrder(tour, 'commit', moves, deltaOnly);
+    void readCommitOrder().then((read) => {
+      if (live && read) setPosState((p) => positionAfterOrderChange(shown, p, chaptersForOrder(tour, 'commit', moves, deltaOnly, read)));
+    });
+    return () => {
+      live = false;
+    };
+    // Once per head and order; the rest is read when the commits arrive.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order, tourKey, worktree, commitOrder]);
+
+  const cycleOrder = async () => {
     if (!tour) return;
-    const next = ORDER_SEQUENCE[(ORDER_SEQUENCE.indexOf(order) + 1) % ORDER_SEQUENCE.length];
-    const nextChapters = chaptersForOrder(tour, next, moves, deltaOnly);
+    let next = ORDER_SEQUENCE[(ORDER_SEQUENCE.indexOf(order) + 1) % ORDER_SEQUENCE.length];
+    const nextCommits = next === 'commit' ? await readCommitOrder() : commitOrder;
+    if (next === 'commit' && !nextCommits) next = ORDER_SEQUENCE[(ORDER_SEQUENCE.indexOf(next) + 1) % ORDER_SEQUENCE.length];
+    const nextChapters = chaptersForOrder(tour, next, moves, deltaOnly, nextCommits);
     const { ci, hi } = positionAfterOrderChange(chapters, pos, nextChapters);
     const chapter = nextChapters[ci];
     setOrder(next);
@@ -1117,7 +1156,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         chapters={chapters}
         allChapters={allChapters}
         order={order}
-        cycleOrder={cycleOrder}
+        cycleOrder={() => void cycleOrder()}
         deltaOnly={deltaOnly}
         toggleDelta={toggleDelta}
         states={states}
@@ -1183,7 +1222,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
           for (const k of hunkKeys(h)) store.setMove(tour.repo, tour.pr, k, chapterId);
           setMoves(store.getMoves(tour.repo, tour.pr));
         }}
-        toggleOrder={cycleOrder}
+        toggleOrder={() => void cycleOrder()}
         hideWhitespace={hideWhitespace}
         toggleWhitespace={() => toggleView('hideWhitespace', hideWhitespace, setHideWhitespace)}
         splitDiff={splitDiff}

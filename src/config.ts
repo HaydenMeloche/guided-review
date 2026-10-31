@@ -80,7 +80,7 @@ export function repoConfigProblems(text: string): string[] {
 }
 
 // The "chapterOrder" values in config.json; "guide" is the guided (flow) order.
-export const CHAPTER_ORDER_SETTINGS = { guide: 'flow', risk: 'risk', size: 'size', file: 'file' } as const satisfies Record<string, ChapterOrder>;
+export const CHAPTER_ORDER_SETTINGS = { guide: 'flow', risk: 'risk', size: 'size', file: 'file', commit: 'commit' } as const satisfies Record<string, ChapterOrder>;
 export type ChapterOrderSetting = keyof typeof CHAPTER_ORDER_SETTINGS;
 export const DEFAULT_CHAPTER_ORDER: ChapterOrderSetting = 'guide';
 

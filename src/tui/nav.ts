@@ -3,11 +3,11 @@ import { sanitizeTerminal } from '../util/sanitize.js';
 import { hunkKeys, stateOf, type States } from '../review/hunkState.js';
 import { G } from './glyphs.js';
 
-export const ORDER_SEQUENCE: ChapterOrder[] = ['flow', 'risk', 'size', 'file'];
-export const ORDER_LABEL: Record<ChapterOrder, string> = { flow: 'Guided', risk: 'Risk first', size: 'Small first', file: 'File' };
+export const ORDER_SEQUENCE: ChapterOrder[] = ['flow', 'risk', 'size', 'file', 'commit'];
+export const ORDER_LABEL: Record<ChapterOrder, string> = { flow: 'Guided', risk: 'Risk first', size: 'Small first', file: 'File', commit: 'Commit' };
 
 export function sortChapters(chapters: Chapter[], tour: Tour, order: ChapterOrder): Chapter[] {
-  if (order === 'flow' || order === 'file') return chapters;
+  if (order === 'flow' || order === 'file' || order === 'commit') return chapters;
   const size = (c: Chapter) => c.hunkIds.reduce((n, id) => n + (tour.hunks[id] ? changedLineCount(tour.hunks[id]) : 0), 0);
   const risk = (c: Chapter) => Math.max(0, ...c.hunkIds.map((id) => tour.hunks[id]?.risk ?? 0));
   return chapters
