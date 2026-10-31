@@ -154,6 +154,24 @@ describe('ChapterScreen', () => {
     ui.unmount();
   });
 
+  it('searches the tour on /, and enter puts the cursor on the line in its chapter', async () => {
+    const tour = fixtureTour();
+    const ui = render(<Harness tour={tour} onDraft={() => {}} onState={() => {}} />);
+    await tick();
+    expect(ui.lastFrame()).not.toContain('line 7');
+    ui.stdin.write('/');
+    await waitFor(() => expect(ui.lastFrame()).toContain('text in this diff or its explanations'));
+    ui.stdin.write('negative total');
+    await waitFor(() => expect(ui.lastFrame()).toContain('1 match · 1 chapter'));
+    expect(ui.lastFrame()).toContain('src/services/invoice.ts:7');
+    ui.stdin.write('\r');
+    await waitFor(() => expect(ui.lastFrame()).toContain('line 7'));
+    // / opens on the last search.
+    ui.stdin.write('/');
+    await waitFor(() => expect(ui.lastFrame()).toContain('1 match · 1 chapter'));
+    ui.unmount();
+  });
+
   it('says a preview has no GitHub link', async () => {
     const tour = { ...fixtureTour(), url: '' };
     const ui = render(<Harness tour={tour} onDraft={() => {}} onState={() => {}} />);

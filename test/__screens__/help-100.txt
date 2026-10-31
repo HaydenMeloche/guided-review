@@ -39,6 +39,7 @@
  ‹b,dim›           ‹/›‹cyan›\             ‹/›Show or hide the chapter list beside the chapter (wide terminals)
 
  ‹b,dim›Go         ‹/›‹cyan›Y / O         ‹/›Copy a permalink to the line or range / open it on GitHub
+ ‹b,dim›           ‹/›‹cyan›/             ‹/›Search the diff and its explanations (not the whole codebase)
  ‹b,dim›           ‹/›‹cyan›:             ‹/›Command palette: every action here, and go to a file or chapter
  ‹b,dim›           ‹/›‹cyan›b / s         ‹/›Briefing / submit screen
  ‹b,dim›           ‹/›‹cyan›esc / q, Q    ‹/›Back to the briefing (esc first clears a range) / quit (progress is save…
@@ -47,7 +48,6 @@
  ‹b,dim›           ‹/›‹cyan›q             ‹/›go up a level
  ‹b,dim›           ‹/›‹cyan›Q             ‹/›quit
  ‹b,dim›           ‹/›‹cyan›?             ‹/›these keys
-
 
 
 

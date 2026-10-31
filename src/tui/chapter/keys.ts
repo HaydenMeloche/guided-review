@@ -84,6 +84,7 @@ export type Action =
   | 'expand'
   | 'skipChapter'
   | 'palette'
+  | 'search'
   | 'sidebar'
   | 'explanation';
 
@@ -322,6 +323,12 @@ export const KEYS: KeyRow[] = [
   },
   // Palette only: no key of its own.
   { keys: '', bind: [{ mode: 'code', on: [], do: 'explanation', palette: 'Short or whole explanation' }] },
+  {
+    keys: '/',
+    group: 'Go',
+    help: 'Search the diff and its explanations (not the whole codebase)',
+    bind: [{ mode: 'code', on: ['/'], do: 'search', palette: 'Search the diff' }],
+  },
   {
     keys: ':',
     group: 'Go',

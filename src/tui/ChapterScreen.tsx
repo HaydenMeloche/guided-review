@@ -31,6 +31,8 @@ import { openExternal } from '../util/openExternal.js';
 import { CONTEXT_STEP, useFoldedCursor, useFolds, useHunkView } from './chapter/hunkView.js';
 import { barEnd, barKeys, PALETTE_HINT, chapterHelp, keyAction, paletteCommands, type Action, type KeyCtx, type View } from './chapter/keys.js';
 import { CommandPalette, type PaletteItem } from './CommandPalette.js';
+import { SearchPanel, type LastSearch } from './chapter/SearchPanel.js';
+import type { SearchHit } from './chapter/search.js';
 import { explanation } from './chapter/guide.js';
 import { lockListLines, lockPage } from './chapter/lockList.js';
 import { unboundKey, useFlash } from './flash.js';
@@ -210,7 +212,10 @@ export function ChapterScreen(props: {
   const { wide, listWidth, mainWidth, sideBySide, srcWidth, splitView, bodyHeight, askHeight } = plan;
 
   const { partner, hidden, runs, land } = useFolds(hunk, ignoreWhitespace, splitView, foldImports);
-  const moveCursor = useFoldedCursor(view, hidden, partner, land);
+  // Where a search sends the cursor in the hunk it opens.
+  const landAt = useRef<{ hunkId: string; line: number } | undefined>(undefined);
+  const moveCursor = useFoldedCursor(view, hidden, partner, land, landAt);
+  const [lastSearch, setLastSearch] = useState<LastSearch>({ query: '', sel: 0 });
   const cursorLine = hunk?.lines[cursor];
   const { threads: cursorThreads, draft: cursorDraft } = cursorNotes(hunk, cursor, hidden, partner, tour.existingThreads, props.drafts, runs.get(cursor));
   useEffect(() => {
@@ -445,6 +450,7 @@ export function ChapterScreen(props: {
     reply: () => (cursorThreads.length ? show('reply') : setFlash('No review thread on this line. Move to a commented line and press y.')),
     thread: () => (cursorThreads.length ? show('thread') : setFlash('No review thread on this line. Move to a commented line and press e.')),
     palette: () => show('palette'),
+    search: () => show('search'),
     sidebar: () => (width >= WIDE ? toggleSidebar() : setFlash(`The chapter list needs ${WIDE} columns; this terminal has ${width}.`)),
     explanation: () => toggleExplanation(),
     commentFlow: () => openComposer(draft({ type: 'chapter', chapterId: chapter.id })),
@@ -624,6 +630,15 @@ export function ChapterScreen(props: {
     return [...commands, ...toChapter, ...toFile];
   };
 
+  // A search hit: its line under the cursor, on its hunk's page. A hunk read as a summary (a
+  // collapsed chapter, a folded lockfile) or on its pair's page opens there.
+  const goToHit = (hit: SearchHit) => {
+    const own = hit.page >= 0 && chapters[hit.ci]?.hunkIds[hit.page] === hit.hunkId && hit.line !== undefined;
+    if (own && hunk?.id === hit.hunkId && diffHunk) view.setCursor(Math.max(0, hunk.lines.indexOf(diffHunk.lines[hit.line!])));
+    else if (own) landAt.current = { hunkId: hit.hunkId, line: hit.line! };
+    props.setPos(hit.ci, hit.page);
+  };
+
   // The diagram, the move list, the checklist, and a chapter or node comment float over the
   // screen, which stays in view around them: the diagram's job is to orient you in that code.
   const floating = (() => {
@@ -726,6 +741,30 @@ export function ChapterScreen(props: {
         width: Math.min(90, width - 4),
         height: Math.min(height - 4, 22),
         node: (w: number, h: number) => <CommandPalette items={paletteItems()} width={w} height={h} onClose={close} />,
+      };
+    if (overlay.kind === 'search')
+      return {
+        tone: 'input' as const,
+        width: Math.min(120, width - 4),
+        height: Math.min(height - 4, 22),
+        node: (w: number, h: number) => (
+          <SearchPanel
+            tour={tour}
+            chapters={chapters}
+            last={lastSearch}
+            width={w}
+            height={h}
+            onClose={(last) => {
+              setLastSearch(last);
+              close();
+            }}
+            onGo={(hit, last) => {
+              setLastSearch(last);
+              close();
+              goToHit(hit);
+            }}
+          />
+        ),
       };
     if (overlay.kind === 'move')
       return { tone: 'input' as const, width: Math.min(70, width - 4), height: chapters.length + 5, node: (w: number) => <MoveList chapters={chapters} sel={overlay.sel} width={w} /> };

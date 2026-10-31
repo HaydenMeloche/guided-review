@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type RefObject } from 'react';
 import type { DiffFile, Hunk, Tour } from '../../types.js';
 import { foldedLines, pairChangedLines, type Fold } from '../../diff/lines.js';
 import { safeReadFile } from '../../analysis/safeRead.js';
@@ -92,8 +92,9 @@ export function useHunkView(diffHunk: Hunk | undefined, tour: Pick<Tour, 'files'
 
 // Folds depend on the layout (a split diff folds every replaced line), which depends on the view,
 // so they come in after it: this resets the view when the hunk changes, keeps the cursor and range
-// ends off folded lines, and returns how j/k move the cursor over them.
-export function useFoldedCursor(view: HunkView, hidden: ReadonlyMap<number, Fold>, partner: number[], land: (i: number) => number) {
+// ends off folded lines, and returns how j/k move the cursor over them. A jump that names its line
+// (search) leaves it in `landAt` for the hunk it goes to, in place of the first change.
+export function useFoldedCursor(view: HunkView, hidden: ReadonlyMap<number, Fold>, partner: number[], land: (i: number) => number, landAt?: RefObject<{ hunkId: string; line: number } | undefined>) {
   const { hunk, setCursor, setAnchor } = view;
   // Reset per-hunk view state when the hunk changes; the test side jumps to the matching case.
   useEffect(() => {
@@ -105,7 +106,9 @@ export function useFoldedCursor(view: HunkView, hidden: ReadonlyMap<number, Fold
           hunk.lines.findIndex((l, i) => l.kind !== 'ctx' && !hidden.has(i)),
         )
       : 0;
-    setCursor(first);
+    const at = landAt?.current;
+    if (landAt) landAt.current = undefined;
+    setCursor(at && at.hunkId === hunk?.id ? at.line : first);
     setAnchor(null);
     view.setScroll(0);
     view.setTestIdx(0);
