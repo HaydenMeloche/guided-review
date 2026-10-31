@@ -71,7 +71,6 @@
               <strong>Details:</strong> the endpoint for a compatible server, the API key (an environment variable, or pasted into <code>config.json</code>), a model for summaries and narration and
               one for Q&amp;A, and <a href="#fast-mode-and-priority-processing">fast mode</a> where it&#39;s offered.
             </li>
-            <li><strong>Coding agent:</strong> what <code>o</code> opens in a chapter: Claude Code, Codex, the Cursor CLI, Gemini CLI, opencode, pi, or a custom command.</li>
             <li><strong>Comments:</strong> labeled (blocking, question, suggestion, or nit) or plain. See <code>commentLabels</code> below.</li>
             <li><strong>GitHub access:</strong> only when <code>gh</code> is missing or signed out. See <a href="#github-access">GitHub access</a>.</li>
             <li><strong>Finish:</strong> setup tests each model and shows how long it took to answer, so a wrong key shows up now rather than mid-review.</li>
@@ -285,17 +284,6 @@
                 <tr>
                   <td><code>icons</code></td>
                   <td><code>nerd</code> for <a href="https://www.nerdfonts.com">Nerd Font</a> file icons (default <code>none</code>).</td>
-                </tr>
-                <tr>
-                  <td><code>codingAgent</code></td>
-                  <td>
-                    What <code>o</code> opens: <code>claude</code> (default), <code>codex</code>, <code>cursor</code>, <code>gemini</code>, <code>opencode</code>, <code>pi</code>, or
-                    <code>custom</code>.
-                  </td>
-                </tr>
-                <tr>
-                  <td><code>codingAgentCommand</code></td>
-                  <td>With <code>custom</code>, the command, such as <code>&quot;aider --message&quot;</code>. The prompt goes last, or where you write <code>{prompt}</code>.</td>
                 </tr>
                 <tr>
                   <td><code>github</code></td>

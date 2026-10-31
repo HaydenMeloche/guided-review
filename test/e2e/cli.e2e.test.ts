@@ -137,8 +137,6 @@ describe('gr with a terminal', () => {
       await session.waitFor(about);
     }
     session.press(KEY.enter);
-    await session.waitFor('Coding agent');
-    session.press(KEY.enter);
     await session.waitFor('Plain comments');
     session.press(KEY.enter);
     // The fake gh runs but isn't signed in, so GitHub access is asked for, starting on gh.

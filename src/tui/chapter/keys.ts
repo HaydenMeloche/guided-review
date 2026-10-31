@@ -72,7 +72,6 @@ export type Action =
   | 'order'
   | 'delta'
   | 'rebase'
-  | 'openInAgent'
   | 'checklist'
   | 'submit'
   | 'help'
@@ -290,12 +289,6 @@ export const KEYS: KeyRow[] = [
     group: 'Settings',
     help: 'Rebuild the tour on a newer PR head after the author pushes',
     bind: [{ mode: 'code', on: ['R'], do: 'rebase', when: (c) => c.rebase, palette: 'Rebuild on the new head' }],
-  },
-  {
-    keys: 'o',
-    group: 'Settings',
-    help: 'Open the hunk in your coding agent (set in gr config)',
-    bind: [{ mode: 'code', on: ['o'], do: 'openInAgent', palette: 'Open the hunk in your coding agent' }],
   },
   {
     keys: 'L',

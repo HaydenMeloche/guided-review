@@ -9,7 +9,6 @@ import { localPreview } from './preview.js';
 import {
   agentRouting,
   loadChapterOrder,
-  loadCodingAgent,
   loadGlyphSetting,
   loadIconSetting,
   loadTipsSeen,
@@ -330,7 +329,6 @@ async function main() {
   let glyphs: GlyphSetting;
   let icons: IconSetting;
   let tipsSeen: string[];
-  let codingAgent: AppOptions['codingAgent'];
   try {
     chapterOrder = loadChapterOrder(config);
     hideWhitespace = loadViewSetting('hideWhitespace', config);
@@ -342,7 +340,6 @@ async function main() {
     glyphs = loadGlyphSetting(config);
     icons = loadIconSetting(config);
     tipsSeen = loadTipsSeen(config);
-    codingAgent = loadCodingAgent(config);
   } catch (error) {
     if (!(error instanceof UserConfigError)) throw error;
     fail(`${error.message}.\n\n  ${EDIT_CONFIG_HINT}`);
@@ -370,7 +367,6 @@ async function main() {
     saveTipSeen: config ? saveTipSeen : undefined,
     saveViewSetting,
     saveTheme: config ? saveThemeSetting : undefined,
-    codingAgent,
     noAgent,
     fresh: cli.flags.fresh,
     localRepo: await localRepoP,

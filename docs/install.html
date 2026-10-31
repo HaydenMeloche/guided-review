@@ -86,11 +86,11 @@ pnpm add -g .
           <p>If pnpm&#39;s global binary directory is not on your <code>PATH</code>, run <code>pnpm setup</code> once and restart your shell.</p>
           <h2 id="configure-a-model"><a class="anchor" href="#configure-a-model" aria-hidden="true">#</a>Configure a model</h2>
           <p>
-            The first run walks you through setup: a color theme, a model provider, the coding agent <code>o</code> opens, and GitHub access. It finds what your machine already has, such as a Codex
-            login or an <code>ANTHROPIC_API_KEY</code>, and tests each model before saving. Run <code>gr config</code> to go through it again. An Anthropic, OpenAI, or Cursor API key is the fastest
-            choice; Codex works from your Codex CLI login with no key. With Claude, OpenAI, and Codex models, setup runs summaries and narration at low effort to keep tours quick; Q&amp;A uses the
-            model&#39;s default. To review without AI, choose <strong>No AI model</strong> in setup, or pass <code>--no-agent</code> for one review. See
-            <a href="configuration.html">Configuration</a> for every provider, compatible endpoints, Bedrock, Vertex, and GitHub tokens.
+            The first run walks you through setup: a color theme, a model provider, comment labels, and GitHub access. It finds what your machine already has, such as a Codex login or an
+            <code>ANTHROPIC_API_KEY</code>, and tests each model before saving. Run <code>gr config</code> to go through it again. An Anthropic, OpenAI, or Cursor API key is the fastest choice; Codex
+            works from your Codex CLI login with no key. With Claude, OpenAI, and Codex models, setup runs summaries and narration at low effort to keep tours quick; Q&amp;A uses the model&#39;s
+            default. To review without AI, choose <strong>No AI model</strong> in setup, or pass <code>--no-agent</code> for one review. See <a href="configuration.html">Configuration</a> for every
+            provider, compatible endpoints, Bedrock, Vertex, and GitHub tokens.
           </p>
           <p>
             The tour is built from static analysis of the diff and the checkout. A model adds the briefing&#39;s summary, each chapter&#39;s explanation, and answers to your questions. Without one,

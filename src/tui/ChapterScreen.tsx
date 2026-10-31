@@ -112,7 +112,6 @@ export function ChapterScreen(props: {
   toggleDelta: () => void;
   openSubmit: () => void;
   openBriefing: () => void;
-  openInAgent: (h: Hunk | undefined, chapter: Chapter) => void;
   rebase?: () => void;
   onTheme?: () => void; // L: the color theme picker
   services?: Services;
@@ -455,7 +454,6 @@ export function ChapterScreen(props: {
     order: () => props.toggleOrder(),
     delta: () => props.toggleDelta(),
     rebase: () => props.rebase?.(),
-    openInAgent: () => props.openInAgent(hunk, chapter),
     submit: () => props.openSubmit(),
     help: () => show('help'),
     checklist: () => {

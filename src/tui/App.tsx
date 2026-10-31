@@ -4,7 +4,6 @@ import { KeysLive, useInput } from './input.js';
 import { Box, PreviewingContext, Text, ThemeContext, useThemePreview } from './themed.js';
 import { terminalPalette, themeList, type Palette, type ThemeInfo } from './theme.js';
 import { ThemePicker } from './ThemePicker.js';
-import { spawnSync } from 'node:child_process';
 import type { Chapter, ChapterOrder, Draft, ExistingThread, Hunk, PRInfo, ReactionContent, ReadState, ThreadComment, Tour } from '../types.js';
 import { Store } from '../store/db.js';
 import { fetchHeadSha, fetchMergeStatus, fetchPR, fetchThreads, getMentionUsers, replyToThread, setCommentReaction, viewerLogin } from '../github/gh.js';
@@ -33,7 +32,6 @@ import { useTerminalStatus, type TerminalProgress } from './terminalStatus.js';
 import { sanitizeTerminal } from '../util/sanitize.js';
 import { Hints, KeyBar, type Hint } from './KeyBar.js';
 import { plural } from './plural.js';
-import { codingAgentLaunch, type CodingAgentSetting } from '../codingAgent.js';
 import { AuthorMode } from './author/AuthorMode.js';
 import { checksPopup as checksPopupOver, mergePopup as mergePopupOver, reviewersPopup } from './prPopups.js';
 import { mergeReadiness, type Readiness } from '../review/merge.js';
@@ -71,7 +69,6 @@ export interface AppOptions {
   preview?: LocalPreview; // gr preview: a tour of a local branch
   palette?: Palette; // the saved theme, loaded before the first frame; the terminal's colors when unset
   saveTheme?: (name: string) => void; // records a theme chosen in the picker; unset when there is no config file
-  codingAgent?: CodingAgentSetting; // the agent o opens; Claude Code when unset
 }
 
 // The theme picker as the screens see it: L opens it over the picker, briefing, or chapter.
@@ -192,7 +189,7 @@ export function App(opts: AppOptions) {
 
 function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const { theme } = opts;
-  const { exit, suspendTerminal } = useApp();
+  const { exit } = useApp();
   const { columns, rows } = useWindowSize();
   const store = useMemo(() => new Store(), []);
   const [phase, setPhase] = useState<Phase>(opts.target || opts.preview ? 'load' : 'pick');
@@ -547,7 +544,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   // The window title names the PR and where you are in it.
   const subject = local ? `preview ${local.pr.repo}` : target ? `${target.repo}#${target.number}` : undefined;
   const title = ['gr', phase === 'pick' ? undefined : subject, titleSpot(phase, !!tour, pos.ci, chapters.length)].filter(Boolean).join(' · ');
-  const rewriteTerminalStatus = useTerminalStatus(title, tabProgress(phase, narration));
+  useTerminalStatus(title, tabProgress(phase, narration));
 
   // Switch between the new or changed hunks and the whole tour, keeping the current hunk when it is in both.
   const toggleDelta = () => {
@@ -658,35 +655,6 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
           }
         : current,
     );
-  };
-
-  const openInAgent = async (h: Hunk | undefined, c: Chapter) => {
-    if (!tour) return;
-    const related = drafts.filter((d) => !d.posted && (d.anchor.type === 'line' || d.anchor.type === 'range') && h && d.anchor.file === h.file);
-    const threads = tour.existingThreads.filter((t) => h && t.path === h.file);
-    const hunkText = h ? `${h.file} ${h.header}\n${h.lines.map((l) => (l.kind === 'add' ? '+' : l.kind === 'del' ? '-' : ' ') + l.text).join('\n')}` : '';
-    const prompt = [
-      `I'm reviewing ${tour.repo}#${tour.pr} (${tour.url}) at ${tour.headSha.slice(0, 8)}, chapter "${c.title}".`,
-      h ? `Here is the hunk:\n\`\`\`diff\n${hunkText}\n\`\`\`` : '',
-      related.length ? `My draft comments:\n${related.map((d) => `- ${opts.commentLabels === false ? '' : `[${d.label}] `}line ${(d.anchor as { line: number }).line}: ${d.body}`).join('\n')}` : '',
-      threads.length ? `Existing review threads:\n${threads.map((t) => `- line ${t.line ?? t.originalLine}: ${t.comments.map((x) => `@${x.author}: ${x.body}`).join(' / ')}`).join('\n')}` : '',
-      'Help me dig into this.',
-    ]
-      .filter(Boolean)
-      .join('\n\n');
-    // A NUL byte from the PR would make spawnSync throw rather than start the agent.
-    const agent = codingAgentLaunch(opts.codingAgent, prompt.replaceAll('\0', ''));
-    await suspendTerminal(() => {
-      // spawnSync throws on arguments it can't pass at all; report those like a failed start.
-      try {
-        const r = spawnSync(agent.command, agent.args, { stdio: 'inherit', cwd: worktree || process.cwd() });
-        if (r.error) process.stderr.write(`Could not start ${agent.command}: ${r.error.message}\n`);
-      } catch (e) {
-        process.stderr.write(`Could not start ${agent.command}: ${(e as Error).message}\n`);
-      }
-    });
-    // The agent sets its own title; put gr's back.
-    rewriteTerminalStatus();
   };
 
   const toggleView = (key: ViewSetting, value: boolean, set: (v: boolean) => void) => {
@@ -1135,7 +1103,6 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
           setPhase('submit');
         }}
         openBriefing={() => setPhase('briefing')}
-        openInAgent={(h, c) => void openInAgent(h, c)}
         rebase={newHead && target ? () => void load(target, false, 'review') : undefined}
         onTheme={theme.show}
         quit={requestQuit}

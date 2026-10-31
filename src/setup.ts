@@ -24,7 +24,6 @@ import { isTheme, TERMINAL_THEME } from './tui/theme.js';
 import { expandHome, resolveGitHubAuth } from './github/auth.js';
 import { configForRole, defaultApiKeyEnv, formatModel, type AgentConfig, type AgentRouting, type Provider } from './agent/types.js';
 import type { ProviderFinding } from './detect.js';
-import { codingAgentName, CUSTOM_AGENT, type CodingAgentSetting } from './codingAgent.js';
 
 function checkBaseUrl(value: string): string | undefined {
   let url: URL;
@@ -56,7 +55,6 @@ export function describeUserConfig(config: UserConfig): string[] {
   if (config.lastProvider) lines.push(`Kept for later: your ${config.lastProvider} settings`);
   lines.push(`Chapter order: ${config.chapterOrder ?? DEFAULT_CHAPTER_ORDER}`);
   lines.push(`Theme: ${config.theme ?? `${TERMINAL_THEME} (your terminal's colors)`}`);
-  lines.push(`Coding agent (o): ${codingAgentName(config.codingAgent && { agent: config.codingAgent, command: config.codingAgentCommand })}`);
   lines.push(`Comments: ${config.commentLabels === false ? 'plain, no labels' : 'labeled (blocking, question, suggestion, nit)'}`);
   lines.push(`GitHub: ${describeGitHub(config.github)}`);
   return lines;
@@ -284,15 +282,8 @@ export function replacesOverrides(current: UserConfig | undefined, provider: Pro
 }
 
 // The config setup saves. Settings it doesn't ask about (chapter order, the diff toggles) are kept,
-// and so are the coding agent and comment labels when none is given.
-export function buildConfig(
-  current: UserConfig | undefined,
-  model: ModelAnswers,
-  theme: string | undefined,
-  github: GitHubConfig | undefined,
-  codingAgent?: CodingAgentSetting,
-  commentLabels?: boolean,
-): UserConfig {
+// and so are the comment labels when none is given.
+export function buildConfig(current: UserConfig | undefined, model: ModelAnswers, theme: string | undefined, github: GitHubConfig | undefined, commentLabels?: boolean): UserConfig {
   const previous = previousRouting(current);
   let config: UserConfig;
   if (model.provider === NO_PROVIDER) {
@@ -332,9 +323,6 @@ export function buildConfig(
   if (current?.hideWhitespace !== undefined) config.hideWhitespace = current.hideWhitespace; // set by w during a tour
   if (current?.splitDiff !== undefined) config.splitDiff = current.splitDiff; // set by S during a tour
   if (theme && theme !== TERMINAL_THEME) config.theme = theme;
-  const agent = codingAgent ?? (current?.codingAgent && { agent: current.codingAgent, command: current.codingAgentCommand });
-  if (agent) config.codingAgent = agent.agent;
-  if (agent?.agent === CUSTOM_AGENT) config.codingAgentCommand = agent.command?.trim();
   if (github) config.github = github;
   if ((commentLabels ?? current?.commentLabels) === false) config.commentLabels = false; // on when unset
   return config;

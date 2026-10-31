@@ -105,7 +105,6 @@ function Harness(props: {
       toggleDelta={() => {}}
       openSubmit={() => {}}
       openBriefing={() => props.onBriefing?.()}
-      openInAgent={() => {}}
       onTheme={props.onTheme}
       quit={() => {}}
     />
@@ -618,7 +617,6 @@ describe('ChapterScreen', () => {
           toggleDelta={() => {}}
           openSubmit={() => {}}
           openBriefing={() => {}}
-          openInAgent={() => {}}
           quit={() => {}}
         />
       );
@@ -725,7 +723,6 @@ describe('ChapterScreen', () => {
         toggleDelta={() => {}}
         openSubmit={() => {}}
         openBriefing={() => {}}
-        openInAgent={() => {}}
         quit={() => {}}
       />,
     );
@@ -771,7 +768,6 @@ describe('ChapterScreen', () => {
         toggleDelta={() => {}}
         openSubmit={() => {}}
         openBriefing={() => {}}
-        openInAgent={() => {}}
         quit={() => {}}
       />,
     );
@@ -810,7 +806,6 @@ describe('ChapterScreen', () => {
         toggleDelta={() => {}}
         openSubmit={() => {}}
         openBriefing={() => {}}
-        openInAgent={() => {}}
         quit={() => {}}
       />,
     );
@@ -870,7 +865,6 @@ describe('ChapterScreen', () => {
         toggleDelta={() => {}}
         openSubmit={() => {}}
         openBriefing={() => {}}
-        openInAgent={() => {}}
         quit={() => {}}
       />
     );
@@ -1259,7 +1253,6 @@ describe('BriefingScreen and SubmitScreen', () => {
         toggleDelta={() => toggled++}
         openSubmit={() => {}}
         openBriefing={() => {}}
-        openInAgent={() => {}}
         quit={() => {}}
       />,
     );
@@ -1405,7 +1398,6 @@ describe('optional import chapter', () => {
         toggleDelta={() => {}}
         openSubmit={() => {}}
         openBriefing={() => {}}
-        openInAgent={() => {}}
         quit={() => {}}
       />,
     );
@@ -1458,7 +1450,6 @@ describe('team checklist in the chapter screen', () => {
         toggleDelta={() => {}}
         openSubmit={() => {}}
         openBriefing={() => {}}
-        openInAgent={() => {}}
         quit={() => {}}
         services={svc}
       />,
@@ -1504,7 +1495,6 @@ describe('lazy @mention users', () => {
         toggleDelta={() => {}}
         openSubmit={() => {}}
         openBriefing={() => {}}
-        openInAgent={() => {}}
         quit={() => {}}
         services={{
           root: '/tmp/none',
@@ -1610,7 +1600,6 @@ describe('feedback round: guide, tests, inline comments, description', () => {
       toggleDelta={() => {}}
       openSubmit={() => {}}
       openBriefing={() => {}}
-      openInAgent={() => {}}
       quit={() => {}}
     />
   );
@@ -1783,7 +1772,6 @@ describe('split view, test pane toggle and expanded context', () => {
       toggleDelta={() => {}}
       openSubmit={() => {}}
       openBriefing={() => {}}
-      openInAgent={() => {}}
       quit={() => {}}
       {...extra}
     />

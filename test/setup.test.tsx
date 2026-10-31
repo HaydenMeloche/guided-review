@@ -1,7 +1,7 @@
 import React from 'react';
 import { render } from 'ink-testing-library';
 import { describe, expect, it, vi } from 'vitest';
-import { detectCodingAgents, detectGitHub, detectProviders } from '../src/detect.js';
+import { detectGitHub, detectProviders } from '../src/detect.js';
 import { checkModels, distinctModels } from '../src/agent/check.js';
 import { cleanLabel, cursorOption, defaultParams, findVariant, KNOWN_MODELS, listModels, type ModelOption } from '../src/agent/models.js';
 import { configForRole, formatModel, routingIdentity } from '../src/agent/types.js';
@@ -47,13 +47,6 @@ describe('provider detection', () => {
     expect(run).toHaveBeenCalledWith('gh', ['api', 'user', '--jq', '.login'], undefined);
     expect(await detectGitHub({ run: async () => ({ ok: false, out: '', missing: true }) })).toEqual({ installed: false });
     expect(await detectGitHub({ run: async () => ({ ok: false, out: 'not logged in' }) })).toEqual({ installed: true });
-  });
-
-  it('finds the coding agents whose commands start', async () => {
-    const run = vi.fn(async (cmd: string) => ({ ok: cmd !== 'gemini', out: '', missing: cmd === 'claude' || cmd === 'opencode' }));
-    // A command that starts but fails is still installed.
-    expect(await detectCodingAgents({ run })).toEqual(['codex', 'cursor', 'gemini', 'pi']);
-    expect(run).toHaveBeenCalledWith('cursor-agent', ['--version'], undefined);
   });
 
   it('stops its probes when told to', async () => {
@@ -105,15 +98,6 @@ describe('setup answers', () => {
     const a = modelDefaults('openai-compatible', previous);
     expect(a).toMatchObject({ keySource: 'none', baseUrl: 'http://localhost:8080/v1' });
     expect(buildConfig(previous, a, undefined, undefined)).not.toHaveProperty('apiKeyEnv');
-  });
-
-  it('keeps the saved coding agent unless another is chosen', () => {
-    const current: UserConfig = { ...presetUserConfig('codex', PRESET_MODELS.codex!), codingAgent: 'opencode' };
-    const answers = modelDefaults('codex', current as never);
-    expect(buildConfig(current, answers, undefined, undefined).codingAgent).toBe('opencode');
-    expect(buildConfig(current, answers, undefined, undefined, { agent: 'cursor' }).codingAgent).toBe('cursor');
-    expect(buildConfig(current, answers, undefined, undefined, { agent: 'custom', command: ' aider --message ' })).toMatchObject({ codingAgent: 'custom', codingAgentCommand: 'aider --message' });
-    expect(buildConfig(undefined, answers, undefined, undefined)).not.toHaveProperty('codingAgent');
   });
 
   it('keeps output caps set by hand while the provider stays, and warns about other overrides', () => {
@@ -371,13 +355,6 @@ describe('setup wizard', () => {
     ui.stdin.write(ENTER);
   }
 
-  // The coding agent and comments steps, taking what is under the cursor.
-  async function keepAgent(ui: Awaited<ReturnType<typeof wizard>>['ui']) {
-    await waitFor(() => expect(ui.lastFrame()).toContain('Coding agent'));
-    ui.stdin.write(ENTER);
-    await keepComments(ui);
-  }
-
   it('lists found providers first, and keeps compatible endpoints and no model among the others', () => {
     const { found, other } = providerRows(codexFound.providers);
     expect(found.map((r) => r.value)).toEqual(['codex']);
@@ -423,7 +400,7 @@ describe('setup wizard', () => {
     expect(ui.lastFrame()).toContain('✓ Codex');
     expect(ui.lastFrame()).toContain('signed in using ChatGPT');
     ui.stdin.write(ENTER);
-    await keepAgent(ui);
+    await keepComments(ui);
     // gh is signed in, so there is no GitHub step.
     await waitFor(() => expect(ui.lastFrame()).toContain('gpt-6-luna answered in 1.2s'));
     expect(ui.lastFrame()).toContain('gh is signed in as octocat');
@@ -486,7 +463,7 @@ describe('setup wizard', () => {
     ui.stdin.write('\u001B[C');
     await waitFor(() => expect(ui.lastFrame()).toContain('◀ on: faster answers, about double the price (Opus only) ▶'));
     ui.stdin.write(ENTER);
-    await keepAgent(ui);
+    await keepComments(ui);
     await waitFor(() => expect(ui.lastFrame()).toContain('GitHub access'));
     expect(ui.lastFrame()).toContain('is not installed');
     ui.stdin.write(ENTER); // the variable
@@ -576,7 +553,7 @@ describe('setup wizard', () => {
     await waitFor(() => expect(ui.lastFrame()).toContain('◀ off: standard speed and price ▶'));
     expect(ui.lastFrame()).toContain('or on: priority processing, faster answers at a higher price');
     ui.stdin.write(ENTER);
-    await keepAgent(ui);
+    await keepComments(ui);
     await waitFor(() => expect(ui.lastFrame()).toContain('Ready to save'));
     ui.stdin.write(ENTER);
     await waitFor(() => expect(onDone).toHaveBeenCalled());
@@ -620,7 +597,7 @@ describe('setup wizard', () => {
     await waitFor(() => expect(ui.lastFrame()).toContain('◀ standard speed ▶'));
     expect(ui.lastFrame()).not.toContain("doesn't offer this combination");
     for (let i = 0; i < 5; i++) ui.stdin.write(ENTER); // the Q&A model and its three parameters
-    await keepAgent(ui);
+    await keepComments(ui);
     await waitFor(() => expect(ui.lastFrame()).toContain('Ready to save'));
     expect(ui.lastFrame()).toContain('Briefing and narration: grok-4.7 (256k, high)');
     expect(ui.lastFrame()).toContain('Q&A: grok-4.7 (256k, high)');
@@ -673,17 +650,15 @@ describe('setup wizard', () => {
     ui.stdin.write(ENTER);
     await waitFor(() => expect(ui.lastFrame()).toContain('Ollama is running'));
     ui.stdin.write(ENTER); // Ollama: everything found, past the details
-    await keepAgent(ui);
+    await keepComments(ui);
     await waitFor(() => expect(ui.lastFrame()).toContain('Provider: openai-compatible (http://localhost:11434/v1)'));
     ui.stdin.write('b');
     await waitFor(() => expect(ui.lastFrame()).toContain('Plain comments'));
     ui.stdin.write(ESC);
-    await waitFor(() => expect(ui.lastFrame()).toContain('Custom command'));
-    ui.stdin.write(ESC);
     await waitFor(() => expect(ui.lastFrame()).toContain('LM Studio is running'));
     ui.stdin.write(DOWN);
     ui.stdin.write(ENTER);
-    await keepAgent(ui);
+    await keepComments(ui);
     await waitFor(() => expect(ui.lastFrame()).toContain('Provider: openai-compatible (http://localhost:1234/v1)'));
     expect(ui.lastFrame()).toContain('Briefing and narration: gemma4');
     ui.stdin.write(ENTER);
@@ -765,7 +740,7 @@ describe('setup wizard', () => {
     await waitFor(() => expect(ui.lastFrame()).toMatch(/Briefing and narration\s+grok-4\.7/));
     ui.stdin.write(ENTER);
     ui.stdin.write(ENTER);
-    await keepAgent(ui);
+    await keepComments(ui);
     await waitFor(() => expect(ui.lastFrame()).toContain('Ready to save'));
     expect(ui.lastFrame()).toContain('Briefing and narration: grok-4.7 (256k, low, fast)');
     ui.stdin.write(ENTER);
@@ -775,68 +750,12 @@ describe('setup wizard', () => {
     ui.unmount();
   });
 
-  it('chooses the coding agent o opens, starting on the first one installed', async () => {
-    const { ui, onDone } = await wizard({ ...codexFound, codingAgents: ['codex', 'gemini'] }, {});
-    ui.stdin.write(ENTER);
-    await waitFor(() => expect(ui.lastFrame()).toContain('Color theme'));
-    ui.stdin.write(ENTER);
-    await waitFor(() => expect(ui.lastFrame()).toContain('Found on this machine'));
-    ui.stdin.write(ENTER);
-    await waitFor(() => expect(ui.lastFrame()).toContain('Coding agent'));
-    expect(ui.lastFrame()).toMatch(/✓ Codex\s+codex is installed/);
-    expect(ui.lastFrame()).toMatch(/Claude Code\s+claude not found/);
-    ui.stdin.write(DOWN);
-    ui.stdin.write(DOWN);
-    ui.stdin.write(ENTER);
-    await keepComments(ui);
-    await waitFor(() => expect(ui.lastFrame()).toContain('Ready to save'));
-    expect(ui.lastFrame()).toContain('Coding agent (o): Gemini CLI');
-    ui.stdin.write(ENTER);
-    await waitFor(() => expect(onDone).toHaveBeenCalled());
-    const result = onDone.mock.calls[0][0];
-    expect(result.kind === 'saved' && result.config.codingAgent).toBe('gemini');
-    ui.unmount();
-  });
-
-  it('takes a custom command for the coding agent, and Esc goes back to the list', async () => {
-    const { ui, onDone } = await wizard(codexFound, {});
-    ui.stdin.write(ENTER);
-    await waitFor(() => expect(ui.lastFrame()).toContain('Color theme'));
-    ui.stdin.write(ENTER);
-    await waitFor(() => expect(ui.lastFrame()).toContain('Found on this machine'));
-    ui.stdin.write(ENTER);
-    await waitFor(() => expect(ui.lastFrame()).toContain('Coding agent'));
-    expect(ui.lastFrame()).toMatch(/pi\s/);
-    ui.stdin.write('G');
-    ui.stdin.write(ENTER);
-    await waitFor(() => expect(ui.lastFrame()).toContain('Runs without a shell'));
-    ui.stdin.write(ESC);
-    await waitFor(() => expect(ui.lastFrame()).not.toContain('Runs without a shell'));
-    ui.stdin.write(ENTER);
-    await waitFor(() => expect(ui.lastFrame()).toContain('Runs without a shell'));
-    ui.stdin.write(ENTER); // empty: stays, with the problem shown
-    await waitFor(() => expect(ui.lastFrame()).toContain('enter the command that starts your agent'));
-    ui.stdin.write('aider --message');
-    await waitFor(() => expect(ui.lastFrame()).toContain('aider --message'));
-    ui.stdin.write(ENTER);
-    await keepComments(ui);
-    await waitFor(() => expect(ui.lastFrame()).toContain('Ready to save'));
-    expect(ui.lastFrame()).toContain('Coding agent (o): custom command (aider --message)');
-    ui.stdin.write(ENTER);
-    await waitFor(() => expect(onDone).toHaveBeenCalled());
-    const result = onDone.mock.calls[0][0];
-    expect(result.kind === 'saved' && result.config).toMatchObject({ codingAgent: 'custom', codingAgentCommand: 'aider --message' });
-    ui.unmount();
-  });
-
   it('turns comment labels off, and keeps that choice when setup runs again', async () => {
     const { ui, onDone } = await wizard(codexFound, {});
     ui.stdin.write(ENTER);
     await waitFor(() => expect(ui.lastFrame()).toContain('Color theme'));
     ui.stdin.write(ENTER);
     await waitFor(() => expect(ui.lastFrame()).toContain('Found on this machine'));
-    ui.stdin.write(ENTER);
-    await waitFor(() => expect(ui.lastFrame()).toContain('Coding agent'));
     ui.stdin.write(ENTER);
     await waitFor(() => expect(ui.lastFrame()).toContain('Plain comments'));
     ui.stdin.write(DOWN);
@@ -855,27 +774,9 @@ describe('setup wizard', () => {
     again.ui.stdin.write(ENTER);
     await waitFor(() => expect(again.ui.lastFrame()).toContain('Found on this machine'));
     again.ui.stdin.write(ENTER);
-    await keepAgent(again.ui);
+    await keepComments(again.ui);
     await waitFor(() => expect(again.ui.lastFrame()).toContain('Comments: plain, no labels'));
     again.ui.unmount();
-  });
-
-  it('keeps Claude Code under the cursor for a saved config without a coding agent', async () => {
-    const current = presetUserConfig('codex', { fast: 'gpt-6-luna', strong: 'gpt-6.1-sol' });
-    const { ui, onDone } = await wizard({ ...codexFound, codingAgents: ['codex'] }, {}, current);
-    await waitFor(() => expect(ui.lastFrame()).toContain('Provider: codex'));
-    ui.stdin.write(ENTER);
-    await waitFor(() => expect(ui.lastFrame()).toContain('Color theme'));
-    ui.stdin.write(ENTER);
-    await waitFor(() => expect(ui.lastFrame()).toContain('Found on this machine'));
-    ui.stdin.write(ENTER);
-    await keepAgent(ui);
-    await waitFor(() => expect(ui.lastFrame()).toContain('Ready to save'));
-    ui.stdin.write(ENTER);
-    await waitFor(() => expect(onDone).toHaveBeenCalled());
-    const result = onDone.mock.calls[0][0];
-    expect(result.kind === 'saved' && result.config.codingAgent).toBe('claude');
-    ui.unmount();
   });
 
   it('shows the saved settings when run again, and q leaves without saving', async () => {

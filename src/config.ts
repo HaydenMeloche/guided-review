@@ -4,7 +4,6 @@ import { grHome } from './paths.js';
 import { TERMINAL_THEME } from './tui/theme.js';
 import type { ChapterOrder, FileKind, KindRule, RepoConfig } from './types.js';
 import { AGENT_ROLES, EFFORTS, PROVIDERS, type AgentConfig, type AgentRouting, type Effort, type Provider } from './agent/types.js';
-import { CODING_AGENT_VALUES, CUSTOM_AGENT, customCommandProblem, DEFAULT_CODING_AGENT, isCodingAgent, type CodingAgent, type CodingAgentSetting } from './codingAgent.js';
 
 export const KINDS: FileKind[] = ['logic', 'test', 'config', 'mechanical', 'generated', 'vendored'];
 const REPO_CONFIG_KEYS = ['kinds', 'testPatterns', 'checklists'];
@@ -122,8 +121,6 @@ export type UserConfig = Omit<AgentRouting, 'provider'> & {
   glyphs?: GlyphSetting;
   icons?: IconSetting;
   tipsSeen?: string[];
-  codingAgent?: CodingAgent;
-  codingAgentCommand?: string; // with "codingAgent": "custom"
   github?: GitHubConfig;
 };
 
@@ -360,24 +357,6 @@ export function saveThemeSetting(theme: string): boolean {
   return true;
 }
 
-function parseCodingAgent(raw: Record<string, unknown>, where: string): CodingAgentSetting | undefined {
-  if (raw.codingAgent === undefined) return undefined;
-  if (!isCodingAgent(raw.codingAgent)) {
-    throw new UserConfigError(`${where}: unknown codingAgent ${JSON.stringify(raw.codingAgent)} (expected ${CODING_AGENT_VALUES.join(', ')})`);
-  }
-  if (raw.codingAgent !== CUSTOM_AGENT) return { agent: raw.codingAgent };
-  const command = typeof raw.codingAgentCommand === 'string' ? raw.codingAgentCommand : undefined;
-  if (!command?.trim()) throw new UserConfigError(`${where}: "codingAgent": "custom" needs a "codingAgentCommand", such as "aider --message"`);
-  const problem = customCommandProblem(command);
-  if (problem) throw new UserConfigError(`${where}: "codingAgentCommand": ${problem}`);
-  return { agent: CUSTOM_AGENT, command };
-}
-
-// The coding agent o opens, readable without a model provider; Claude Code when unset.
-export function loadCodingAgent(raw = readUserConfigFile()): CodingAgentSetting {
-  return (raw && parseCodingAgent(raw, userConfigPath())) ?? { agent: DEFAULT_CODING_AGENT };
-}
-
 function parseGitHubConfig(raw: Record<string, unknown>, where: string): GitHubConfig | undefined {
   if (raw.github === undefined) return undefined;
   if (!raw.github || typeof raw.github !== 'object' || Array.isArray(raw.github)) throw new UserConfigError(`${where}: "github" must be an object`);
@@ -442,11 +421,6 @@ export function loadUserConfig(raw = readUserConfigFile()): UserConfig {
   if (icons) out.icons = icons;
   const tipsSeen = parseTipsSeen(raw, file);
   if (tipsSeen) out.tipsSeen = tipsSeen;
-  const codingAgent = parseCodingAgent(raw, file);
-  if (codingAgent) {
-    out.codingAgent = codingAgent.agent;
-    if (codingAgent.command) out.codingAgentCommand = codingAgent.command;
-  }
   const github = parseGitHubConfig(raw, file);
   if (github) out.github = github;
   if (raw.roles !== undefined) {
