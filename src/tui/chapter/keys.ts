@@ -85,6 +85,7 @@ export type Action =
   | 'skipChapter'
   | 'palette'
   | 'search'
+  | 'history'
   | 'sidebar'
   | 'explanation';
 
@@ -264,6 +265,12 @@ export const KEYS: KeyRow[] = [
     bar: [{ mode: 'code', key: 'x', label: 'skip' }],
   },
   { keys: 'f', group: 'Read', help: 'Cycle Guided, Risk first, Small first, File, and Commit order', bind: [{ mode: 'code', on: ['f'], do: 'order', palette: 'Change the chapter order' }] },
+  {
+    keys: 'H',
+    group: 'Read',
+    help: 'History of the selected lines before the PR (git log -L)',
+    bind: [{ mode: 'code', on: ['H'], do: 'history', when: hunk, palette: 'History of these lines' }],
+  },
   {
     keys: 'D',
     group: 'Read',

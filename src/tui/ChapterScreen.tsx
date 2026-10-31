@@ -32,6 +32,8 @@ import { CONTEXT_STEP, useFoldedCursor, useFolds, useHunkView } from './chapter/
 import { barEnd, barKeys, PALETTE_HINT, chapterHelp, keyAction, paletteCommands, type Action, type KeyCtx, type View } from './chapter/keys.js';
 import { CommandPalette, type PaletteItem } from './CommandPalette.js';
 import { SearchPanel, type LastSearch } from './chapter/SearchPanel.js';
+import { HistoryPanel } from './chapter/HistoryPanel.js';
+import { baseRange, lineHistory } from '../review/history.js';
 import type { SearchHit } from './chapter/search.js';
 import { explanation } from './chapter/guide.js';
 import { lockListLines, lockPage } from './chapter/lockList.js';
@@ -452,6 +454,11 @@ export function ChapterScreen(props: {
     thread: () => (cursorThreads.length ? show('thread') : setFlash('No review thread on this line. Move to a commented line and press e.')),
     palette: () => show('palette'),
     search: () => show('search'),
+    history: () => {
+      if (!svc?.root) return setFlash('History opens once the checkout is ready.');
+      if (!baseRange(hunk!, sel)) return setFlash('These lines are new in the PR: there is no history before it.');
+      show('history');
+    },
     sidebar: () => (width >= WIDE ? toggleSidebar() : setFlash(`The chapter list needs ${WIDE} columns; this terminal has ${width}.`)),
     explanation: () => toggleExplanation(),
     commentFlow: () => openComposer(draft({ type: 'chapter', chapterId: chapter.id })),
@@ -743,6 +750,37 @@ export function ChapterScreen(props: {
         height: Math.min(height - 4, 22),
         node: (w: number, h: number) => <CommandPalette items={paletteItems()} width={w} height={h} onClose={close} />,
       };
+    const range = hunk && baseRange(hunk, sel);
+    if (overlay.kind === 'history' && hunk && range && svc?.root) {
+      const root = svc.root;
+      const path = hunk.oldFile ?? hunk.file;
+      const host = ev?.host ?? 'github.com';
+      // A PR the history names, on the same repository; a local tour of an unknown one has none.
+      const openPR = tour.repo.startsWith('local/')
+        ? undefined
+        : (n: number) => {
+            const url = `https://${host}/${tour.repo}/pull/${n}`;
+            openExternal(url).then(
+              () => setFlash(`Opened #${n} in your browser.`, 'info'),
+              () => copy(url, 'No browser to open here: '),
+            );
+          };
+      return {
+        tone: 'reading' as const,
+        width: Math.min(120, width - 4),
+        height: Math.min(height - 4, 26),
+        node: (w: number, h: number) => (
+          <HistoryPanel
+            title={`History of ${path}:${range.start === range.end ? range.start : `${range.start}-${range.end}`} before the PR`}
+            load={() => lineHistory(root, tour.baseSha, path, range.start, range.end)}
+            width={w}
+            height={h}
+            onOpenPR={openPR}
+            onClose={close}
+          />
+        ),
+      };
+    }
     if (overlay.kind === 'search')
       return {
         tone: 'input' as const,

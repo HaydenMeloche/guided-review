@@ -23,6 +23,7 @@
 
  ‹b,dim›Read       ‹/›‹cyan›x / z / u     ‹/›Mark the hunk skipped / deferred / unread
  ‹b,dim›           ‹/›‹cyan›f             ‹/›Cycle Guided, Risk first, Small first, File, and Commit order
+ ‹b,dim›           ‹/›‹cyan›H             ‹/›History of the selected lines before the PR (git log -L)
  ‹b,dim›           ‹/›‹cyan›D             ‹/›Re-review: switch between only new and changed hunks and the full review
 
  ‹b,dim›Settings   ‹/›‹cyan›S             ‹/›Split view (old beside new) or inline
@@ -48,7 +49,6 @@
  ‹b,dim›           ‹/›‹cyan›q             ‹/›go up a level
  ‹b,dim›           ‹/›‹cyan›Q             ‹/›quit
  ‹b,dim›           ‹/›‹cyan›?             ‹/›these keys
-
 
 
 
