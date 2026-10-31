@@ -432,8 +432,15 @@ async function main() {
   let opts: AppOptions = base;
   if (cmd === 'review') {
     const target = arg ? parsePRArg(arg, await cwdRepoP) : await currentBranchPR(cwd);
-    if (!target) fail('no PR given and the current branch has no open PR. Usage: gr review <number|URL>');
-    opts = { ...base, target };
+    if (target) opts = { ...base, target };
+    else {
+      // A branch with no PR yet is most likely what was meant: offer its preview.
+      const preview = !arg && base.localRepo ? await localPreview(cwd).catch(() => undefined) : undefined;
+      if (!preview?.diff.trim()) fail(`no PR given and the current branch has no open PR. Usage: ${NAME} review <number|URL>`);
+      const yes = await askYes(`No open PR for ${preview.pr.headRef}. Tour the branch against ${preview.pr.baseRef} instead (${NAME} preview)? [Y/n] `);
+      if (!yes) process.exit(0);
+      opts = { ...base, preview };
+    }
   } else if (cmd === 'feedback') {
     const target = arg ? parsePRArg(arg, await cwdRepoP) : await currentBranchPR(cwd);
     if (!target) fail(`no PR given and the current branch has no open PR. Usage: ${NAME} feedback <number|URL>`);
@@ -465,6 +472,17 @@ async function main() {
   // Backstop: stray timers, sockets, or child processes must not keep gr alive
   // after the tour has closed.
   process.exit(0);
+}
+
+// A yes-or-no question on the terminal before the tour starts; Enter is yes.
+async function askYes(question: string): Promise<boolean> {
+  const { createInterface } = await import('node:readline/promises');
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
+  try {
+    return /^(y|yes)?$/i.test((await rl.question(question)).trim());
+  } finally {
+    rl.close();
+  }
 }
 
 // Only the short commands get here: build and the tour exit from main (the tour

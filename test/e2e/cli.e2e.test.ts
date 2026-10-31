@@ -194,10 +194,20 @@ describe('gr with a terminal', () => {
     session.press('q');
   });
 
-  it('explains a missing PR when the branch has none', async () => {
+  it('offers the preview when the branch has no PR, and n leaves', async () => {
     const session = startGr(box, ['review', '--no-agent'], { cwd: fixtureRepo(box) });
-    await session.waitFor('no PR given');
-    expect(await session.exited).toBe(1);
+    await session.waitFor('No open PR for feature/discount. Tour the branch against');
+    session.press('n', KEY.enter);
+    expect(await session.exited).toBe(0);
+  });
+
+  it('opens the preview of a branch with no PR on enter, and the tour takes keys', async () => {
+    const session = startGr(box, ['review', '--no-agent'], { cwd: fixtureRepo(box) });
+    await session.waitFor('[Y/n]');
+    session.press(KEY.enter);
+    await session.waitFor('feature/discount (preview)');
+    session.press('n');
+    await session.waitFor(/hunk 1\/1/);
   });
 
   it('explains a missing PR for feedback when the branch has none', async () => {
