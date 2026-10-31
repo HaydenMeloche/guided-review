@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { baseRefLabel, codeSpans, linkRefs, permalink, refLabel, referencedRefs, uniqueLabels } from '../src/review/refs.js';
+import { createHash } from 'node:crypto';
+import { baseRefLabel, codeSpans, filesTabLink, linkRefs, permalink, refLabel, referencedRefs, uniqueLabels } from '../src/review/refs.js';
 import type { CodeRef } from '../src/types.js';
 
 const SHA = 'a1b2c3d4e5f60718293a4b5c6d7e8f9012345678';
@@ -118,5 +119,14 @@ describe('referencedRefs', () => {
     expect(referencedRefs('see `stock.ts:84-96`, then `foo()`. `gone ` and\n```\n`fenced`\n```', refs).map((r) => r.id)).toEqual(['a', 'b']);
     expect(referencedRefs('no references foo()', refs)).toEqual([]);
     expect(referencedRefs('`x`', [])).toEqual([]);
+  });
+});
+
+describe('filesTabLink', () => {
+  it('anchors the file by the SHA-256 of its path and the lines by side', () => {
+    const url = 'https://github.com/acme/api/pull/812';
+    const diff = createHash('sha256').update('src/a b.ts').digest('hex');
+    expect(filesTabLink(url, 'src/a b.ts', 'R', 48)).toBe(`${url}/files#diff-${diff}R48`);
+    expect(filesTabLink(url, 'src/a b.ts', 'L', 48, 52)).toBe(`${url}/files#diff-${diff}L48-L52`);
   });
 });

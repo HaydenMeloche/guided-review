@@ -17,6 +17,16 @@ export function crossesContext(h: Hunk, [a, b]: Selection): boolean {
   return first >= 0 && sel.slice(first, last + 1).some((l) => l.expanded);
 }
 
+// The lines a link to the selection names: its lines in the new file when it has any, else the
+// removed lines in the old one. Unlike a comment, a link can take expanded context too.
+export function linkLines(h: Hunk, [a, b]: Selection): { side: 'new' | 'old'; start: number; end: number } | undefined {
+  const lines = h.lines.slice(a, b + 1);
+  const added = lines.filter((l) => l.kind !== 'del' && l.newLine !== undefined).map((l) => l.newLine!);
+  const nums = added.length ? added : lines.map((l) => l.oldLine).filter((n) => n !== undefined);
+  if (!nums.length) return undefined;
+  return { side: added.length ? 'new' : 'old', start: Math.min(...nums), end: Math.max(...nums) };
+}
+
 // The code under the selection, prefilled as a suggestion: exactly the lines it replaces.
 export const selectedCode = (h: Hunk, sel: Selection): string =>
   anchorLines(h, sel)

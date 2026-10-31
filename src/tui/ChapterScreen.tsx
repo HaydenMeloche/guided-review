@@ -24,7 +24,10 @@ import { ChapterList, ChapterStrip, ChapterTitle, CollapsedSummary, EmptyChapter
 import { HelpPopup } from './Help.js';
 import { ReviewPopup } from './ReviewPopup.js';
 import { reviewLegend } from './legend.js';
-import { anchorLines, crossesContext, describeAnchor, lineAnchor, newDraft, selectedCode, selRange, testLineAnchor } from './chapter/selection.js';
+import { anchorLines, crossesContext, describeAnchor, lineAnchor, linkLines, newDraft, selectedCode, selRange, testLineAnchor } from './chapter/selection.js';
+import { filesTabLink, permalink } from '../review/refs.js';
+import { writeClipboard } from '../util/clipboard.js';
+import { openExternal } from '../util/openExternal.js';
 import { CONTEXT_STEP, useFoldedCursor, useFolds, useHunkView } from './chapter/hunkView.js';
 import { barEnd, barKeys, PALETTE_HINT, chapterHelp, keyAction, paletteCommands, type Action, type KeyCtx, type View } from './chapter/keys.js';
 import { CommandPalette, type PaletteItem } from './CommandPalette.js';
@@ -462,6 +465,20 @@ export function ChapterScreen(props: {
       const line = lines.slice(cursor).find((l) => l.newLine !== undefined)?.newLine ?? lines.slice(0, cursor).findLast((l) => l.newLine !== undefined)?.newLine ?? 1;
       void props.editFile(hunk!.file, line).then((msg) => msg && setFlash(msg));
     },
+    copyLink: () => {
+      const link = links();
+      if (typeof link === 'string') return setFlash(link);
+      copy(link.permalink);
+    },
+    // With no browser to open (as over SSH), the link is copied instead, as on the PR list.
+    openOnGitHub: () => {
+      const link = links();
+      if (typeof link === 'string') return setFlash(link);
+      openExternal(link.files).then(
+        () => setFlash(`Opened ${link.label} on GitHub.`, 'info'),
+        () => copy(link.files, 'No browser to open here: '),
+      );
+    },
     submit: () => props.openSubmit(),
     help: () => show('help'),
     checklist: () => {
@@ -471,6 +488,29 @@ export function ChapterScreen(props: {
     },
     theme: () => props.onTheme?.(),
   };
+  // Y and O: the selected lines as a permalink pinned to the commit they are in (the head for new
+  // lines, the base for removed ones), and on the PR's Files tab. A string says why there is none.
+  const links = (): { permalink: string; files: string; label: string } | string => {
+    if (!tour.url) return 'A preview has no GitHub link: its lines may not be pushed.';
+    const at = hunk && linkLines(hunk, sel);
+    if (!hunk || !at) return 'No line here to link to.';
+    const sha = at.side === 'new' ? tour.headSha : tour.baseSha;
+    return {
+      permalink: permalink(ev?.host ?? 'github.com', tour.repo, sha, hunk.file, at.start, at.end),
+      files: filesTabLink(tour.url, hunk.file, at.side === 'new' ? 'R' : 'L', at.start, at.end),
+      label: `${hunk.file}:${at.start === at.end ? at.start : `${at.start}-${at.end}`}`,
+    };
+  };
+  const copy = (text: string, why = '') =>
+    void writeClipboard(text).then(
+      (how) =>
+        setFlash(
+          `${why}${how === 'tool' ? 'copied' : 'asked your terminal to copy'} ${text}`.replace(/^./, (c) => c.toUpperCase()),
+          'info',
+        ),
+      (e: unknown) => setFlash(`Couldn't copy the link: ${(e as Error).message}`),
+    );
+
   // The panes Tab moves between, in screen order: the chapter list, the explanation, the code, and
   // the tests, each only when it is on screen.
   const panes = [...(wide ? ['list' as const] : []), ...(plan.explainLines.length ? ['explain' as const] : []), 'code' as const, ...(hasLinkedTests && hunk ? ['tests' as const] : [])];

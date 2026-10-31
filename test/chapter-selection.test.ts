@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Chapter, DiffLine, ExistingThread, Hunk } from '../src/types.js';
 import { cursorNotes } from '../src/tui/chapter/lineNotes.js';
 import { linkedTests } from '../src/tui/chapter/linkedTests.js';
-import { anchorLines, crossesContext, describeAnchor, lineAnchor, newDraft, selectedCode, selRange, testLineAnchor } from '../src/tui/chapter/selection.js';
+import { anchorLines, crossesContext, describeAnchor, lineAnchor, linkLines, newDraft, selectedCode, selRange, testLineAnchor } from '../src/tui/chapter/selection.js';
 import { diffLines, hunk } from './fixtures/tour.js';
 
 // Two diff lines, three lines of expanded context, then two more diff lines.
@@ -162,5 +162,15 @@ describe('linkedTests', () => {
   it('has none without a hunk or links', () => {
     expect(linkedTests(undefined, 0)).toMatchObject({ tests: [], lines: [], any: false });
     expect(linkedTests(hunk('h6', 'src/e.ts', diffLines(['+x'])), 0).any).toBe(false);
+  });
+});
+
+describe('linkLines', () => {
+  it('links the new lines of a selection, or its removed lines when it has none', () => {
+    const h = hunk('h9', 'src/c.ts', diffLines([' a', '-b', '-c', '+d', ' e'], 10));
+    expect(linkLines(h, [0, 0])).toEqual({ side: 'new', start: 10, end: 10 });
+    expect(linkLines(h, [1, 2])).toEqual({ side: 'old', start: 11, end: 12 });
+    // Removed lines inside a range with new ones are left out of it.
+    expect(linkLines(h, [1, 4])).toEqual({ side: 'new', start: 11, end: 12 });
   });
 });

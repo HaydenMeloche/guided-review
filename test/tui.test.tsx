@@ -22,9 +22,13 @@ import { ORDER_SEQUENCE, positionAfterOrderChange, progress, sortChapters, type 
 import { waitFor } from './helpers/waitFor.js';
 import { hunkKeys } from '../src/review/hunkState.js';
 import { filesFor, hunkFromDiff, tour as makeTour } from './fixtures/tour.js';
+import { writeClipboard } from '../src/util/clipboard.js';
 
 // Never reach GitHub from a test: confirming the submit screen posts through this.
 vi.mock('../src/agent/agent.js', async (orig) => ({ ...(await orig<typeof import('../src/agent/agent.js')>()), ask: vi.fn(async () => ({ value: 'An answer.' })) }));
+// Never touch the real clipboard or browser: Y copies and O opens through these.
+vi.mock('../src/util/clipboard.js', async (orig) => ({ ...(await orig<typeof import('../src/util/clipboard.js')>()), writeClipboard: vi.fn(async () => 'tool' as const) }));
+vi.mock('../src/util/openExternal.js', () => ({ openExternal: vi.fn(async () => Promise.reject(new Error('no browser'))) }));
 vi.mock('../src/github/gh.js', async (orig) => ({ ...(await orig<typeof import('../src/github/gh.js')>()), postReview: vi.fn(async () => ({ id: 1, url: 'https://example.test/review/1' })) }));
 
 // A short settle for keypresses that change no output but must land before the next key
@@ -132,6 +136,30 @@ describe('ChapterScreen', () => {
     ui.stdin.write('E');
     await waitFor(() => expect(editFile).toHaveBeenCalledWith(hunk.file, hunk.lines.find((l) => l.newLine !== undefined)!.newLine));
     await waitFor(() => expect(ui.lastFrame()).toContain('Saved in gr’s copy of the PR head.'));
+    ui.unmount();
+  });
+
+  it('copies a permalink to the line on Y, and copies the Files tab link on O with no browser', async () => {
+    const tour = fixtureTour();
+    const hunk = tour.hunks[tour.chapters[0].hunkIds[0]];
+    const line = hunk.lines[0].newLine ?? hunk.lines[0].oldLine;
+    const ui = render(<Harness tour={tour} onDraft={() => {}} onState={() => {}} />);
+    await tick();
+    ui.stdin.write('Y');
+    const pinned = `https://github.com/acme/billing/blob/${hunk.lines[0].kind === 'del' ? tour.baseSha : tour.headSha}/${hunk.file}#L${line}`;
+    await waitFor(() => expect(vi.mocked(writeClipboard)).toHaveBeenCalledWith(pinned));
+    ui.stdin.write('O');
+    await waitFor(() => expect(vi.mocked(writeClipboard)).toHaveBeenLastCalledWith(expect.stringMatching(/^https:\/\/github\.com\/acme\/billing\/pull\/7\/files#diff-[0-9a-f]{64}[RL]\d+$/)));
+    await waitFor(() => expect(ui.lastFrame()).toContain('No browser to open here: copied'));
+    ui.unmount();
+  });
+
+  it('says a preview has no GitHub link', async () => {
+    const tour = { ...fixtureTour(), url: '' };
+    const ui = render(<Harness tour={tour} onDraft={() => {}} onState={() => {}} />);
+    await tick();
+    ui.stdin.write('Y');
+    await waitFor(() => expect(ui.lastFrame()).toContain('A preview has no GitHub link'));
     ui.unmount();
   });
 

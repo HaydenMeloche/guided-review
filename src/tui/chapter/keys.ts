@@ -73,6 +73,8 @@ export type Action =
   | 'delta'
   | 'rebase'
   | 'editor'
+  | 'copyLink'
+  | 'openOnGitHub'
   | 'checklist'
   | 'submit'
   | 'help'
@@ -308,6 +310,15 @@ export const KEYS: KeyRow[] = [
     group: 'Settings',
     help: 'Show or hide the chapter list beside the chapter (wide terminals)',
     bind: [{ mode: 'any', on: ['\\'], do: 'sidebar', palette: 'Show or hide the chapter list' }],
+  },
+  {
+    keys: 'Y / O',
+    group: 'Go',
+    help: 'Copy a permalink to the line or range / open it on GitHub',
+    bind: [
+      { mode: 'code', on: ['Y'], do: 'copyLink', when: hunk, palette: 'Copy a permalink to the line or range' },
+      { mode: 'code', on: ['O'], do: 'openOnGitHub', when: hunk, palette: 'Open the line or range on GitHub' },
+    ],
   },
   // Palette only: no key of its own.
   { keys: '', bind: [{ mode: 'code', on: [], do: 'explanation', palette: 'Short or whole explanation' }] },

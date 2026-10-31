@@ -1,6 +1,6 @@
 import type { DeclKind } from '../analysis/symbols.js';
 import type { CodeRef } from '../types.js';
-import { sha1 } from '../util/hash.js';
+import { sha1, sha256 } from '../util/hash.js';
 
 // A link to `path` pinned to `sha`, so it shows the code the reviewer saw even after new pushes.
 // Each path segment is encoded on its own: a space, '#' or '%' in a name must not end the path.
@@ -9,6 +9,12 @@ export function permalink(host: string, repo: string, sha: string, path: string,
   let url = `https://${host}/${repo}/blob/${sha}/${file}`;
   if (startLine !== undefined) url += endLine !== undefined && endLine !== startLine ? `#L${startLine}-L${endLine}` : `#L${startLine}`;
   return url;
+}
+
+// The lines on the PR's Files tab, which anchors a file by the SHA-256 of its path and a line
+// by its side: R for the new file, L for the old.
+export function filesTabLink(prUrl: string, path: string, side: 'L' | 'R', startLine: number, endLine = startLine): string {
+  return `${prUrl}/files#diff-${sha256(path)}${side}${startLine}${endLine !== startLine ? `-${side}${endLine}` : ''}`;
 }
 
 // Where a ref points: its discussion for a thread, the whole file for a file, else its lines.
