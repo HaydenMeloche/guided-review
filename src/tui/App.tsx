@@ -6,7 +6,7 @@ import { terminalPalette, themeList, type Palette, type ThemeInfo } from './them
 import { ThemePicker } from './ThemePicker.js';
 import type { Chapter, ChapterOrder, Draft, ExistingThread, Hunk, PRInfo, ReactionContent, ReadState, ThreadComment, Tour } from '../types.js';
 import { Store } from '../store/db.js';
-import { fetchHeadSha, fetchMergeStatus, fetchPR, fetchThreads, getMentionUsers, replyToThread, setCommentReaction, viewerLogin } from '../github/gh.js';
+import { fetchHeadSha, fetchMergeStatus, fetchPR, fetchThreads, getMentionUsers, replyToThread, setCommentReaction, setThreadResolved, viewerLogin } from '../github/gh.js';
 import { ensureWorktree } from '../git/worktree.js';
 import { localChanges, localPreview, type LocalPreview, type LocalTarget } from '../preview.js';
 import { runPipeline } from '../pipeline.js';
@@ -660,6 +660,12 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     );
   };
 
+  // Z in a review thread: resolve or unresolve it on GitHub, then show it as GitHub says it is now.
+  const resolveThread = async (thread: ExistingThread, resolved: boolean) => {
+    const isResolved = await setThreadResolved(thread.id, resolved);
+    setTour((current) => (current ? { ...current, existingThreads: current.existingThreads.map((t) => (t.id === thread.id ? { ...t, isResolved } : t)) } : current));
+  };
+
   const reactToComment = async (comment: ThreadComment, content: ReactionContent, remove: boolean) => {
     if (!tour || !comment.nodeId) throw new Error('This comment cannot receive reactions.');
     const reactionGroups = await setCommentReaction(comment.nodeId, content, remove);
@@ -1130,6 +1136,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
           setDrafts(store.listDrafts(d.repo, d.pr));
         }}
         replyToThread={local ? undefined : sendThreadReply}
+        resolveThread={local ? undefined : resolveThread}
         reactToComment={local ? undefined : reactToComment}
         moveHunk={(h, chapterId) => {
           for (const k of hunkKeys(h)) store.setMove(tour.repo, tour.pr, k, chapterId);

@@ -32,6 +32,7 @@ export function ThreadView(props: {
   startReply?: boolean;
   onReply?: (thread: ExistingThread, body: string) => Promise<void>;
   onReact?: (comment: ThreadComment, content: ReactionContent, remove: boolean) => Promise<void>;
+  onResolve?: (thread: ExistingThread, resolved: boolean) => Promise<void>; // Z, after a confirmation
   onNotice?: (text: string) => void; // what a post or reaction did, said on the screen behind
   onClose: () => void;
 }) {
@@ -43,6 +44,7 @@ export function ThreadView(props: {
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false); // Enter in the reply asks before posting
+  const [resolving, setResolving] = useState(false); // Z asks before resolving or unresolving
   const [completing, setCompleting] = useState(false); // the mention list owns Esc while open
   const [error, setError] = useState('');
   const thread = props.threads[selected];
@@ -95,7 +97,29 @@ export function ThreadView(props: {
     }
   };
 
+  const toggleResolved = async () => {
+    setResolving(false);
+    if (!props.onResolve || busy) return;
+    const to = !thread.isResolved;
+    setBusy(true);
+    setError('');
+    try {
+      await props.onResolve(thread, to);
+      props.onNotice?.(`${to ? 'Resolved' : 'Unresolved'} the thread on ${safe(where)}.`);
+    } catch (e) {
+      setError(`${to ? 'Resolve' : 'Unresolve'} failed: ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   useInput((input, key) => {
+    if (resolving) {
+      // Resolving changes the thread on GitHub: y or Enter does it, anything else cancels.
+      if (input === 'y' || key.return) void toggleResolved();
+      else setResolving(false);
+      return;
+    }
     if (composing && confirming) {
       // Posting goes to GitHub: y or Enter posts, anything else returns to the reply.
       if (input === 'y' || key.return) void send();
@@ -116,6 +140,10 @@ export function ThreadView(props: {
     if (key.escape || input === 'e') return props.onClose();
     if (input === 'y' && props.onReply) return setComposing(true);
     if (input === '+' && props.onReact && thread.comments[selectedComment]?.nodeId) return setReactionMenu(true);
+    if (input === 'Z' && props.onResolve && !busy) {
+      if (thread.isResolved ? thread.viewerCanUnresolve === false : thread.viewerCanResolve === false) return setError('You can’t change whether this thread is resolved.');
+      return setResolving(true);
+    }
     if (key.tab && thread.comments.length > 1) {
       const next = (selectedComment + (key.shift ? thread.comments.length - 1 : 1)) % thread.comments.length;
       setSelectedComment(next);
@@ -190,6 +218,14 @@ export function ThreadView(props: {
             />
           )}
         </>
+      ) : resolving ? (
+        <Confirm yes={thread.isResolved ? 'unresolve' : 'resolve'}>
+          {thread.isResolved ? 'Unresolve' : 'Resolve'} the thread on {safe(where)}?
+        </Confirm>
+      ) : busy ? (
+        <Text wrap="truncate">
+          <Spinner /> <Text dimColor>{thread.isResolved ? 'unresolving' : 'resolving'} on GitHub…</Text>
+        </Text>
       ) : reactionMenu ? (
         <>
           <Text wrap="truncate">React to @{safe(thread.comments[selectedComment]?.author ?? 'unknown')} · press 1-8 to toggle</Text>
@@ -201,7 +237,8 @@ export function ThreadView(props: {
         <Text dimColor wrap="truncate">
           j/k: scroll · Tab: comment · {props.threads.length > 1 ? '[/]: thread · ' : ''}
           {props.onReact ? '+: react · ' : ''}
-          {props.onReply ? 'y: reply · ' : ''}e/Esc: close
+          {props.onReply ? 'y: reply · ' : ''}
+          {props.onResolve ? `Z: ${thread.isResolved ? 'unresolve' : 'resolve'} · ` : ''}e/Esc: close
         </Text>
       )}
       {error ? <Text color="red">{safe(error)}</Text> : null}

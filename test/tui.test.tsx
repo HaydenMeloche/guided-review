@@ -948,6 +948,51 @@ describe('ChapterScreen', () => {
 });
 
 describe('ThreadView', () => {
+  it('resolves the thread on Z after asking, and refuses when GitHub says you can’t', async () => {
+    const calls: string[] = [];
+    function ResolveHarness(props: { canResolve?: boolean }) {
+      const [threads, setThreads] = useState<ExistingThread[]>([
+        { id: 'T1', path: 'src/a.ts', line: 4, isResolved: false, isOutdated: false, viewerCanResolve: props.canResolve, comments: [{ id: '1', author: 'me', body: 'Rename this?', createdAt: '' }] },
+      ]);
+      return (
+        <ThreadView
+          threads={threads}
+          width={70}
+          height={13}
+          mentions={[]}
+          onClose={() => {}}
+          onResolve={async (thread, resolved) => {
+            calls.push(`${thread.id}:${resolved}`);
+            setThreads((ts) => ts.map((t) => ({ ...t, isResolved: resolved })));
+          }}
+        />
+      );
+    }
+    const ui = render(<ResolveHarness />);
+    await waitFor(() => expect(ui.lastFrame()).toContain('Z: resolve'));
+    await tick();
+    ui.stdin.write('Z');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Resolve the thread on src/a.ts:4?'));
+    // Anything but y or enter cancels.
+    ui.stdin.write('n');
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('Resolve the thread'));
+    ui.stdin.write('Z');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Resolve the thread on src/a.ts:4?'));
+    ui.stdin.write('y');
+    await waitFor(() => expect(ui.lastFrame()).toContain('resolved'));
+    expect(calls).toEqual(['T1:true']);
+    expect(ui.lastFrame()).toContain('Z: unresolve');
+    ui.unmount();
+
+    const refused = render(<ResolveHarness canResolve={false} />);
+    await waitFor(() => expect(refused.lastFrame()).toContain('Z: resolve'));
+    await tick();
+    refused.stdin.write('Z');
+    await waitFor(() => expect(refused.lastFrame()).toContain('You can’t change whether this thread is resolved.'));
+    expect(calls).toEqual(['T1:true']);
+    refused.unmount();
+  });
+
   it('reacts to the selected comment and shows updated counts', async () => {
     let reacted = '';
     function ReactionsHarness() {

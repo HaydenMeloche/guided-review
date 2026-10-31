@@ -100,6 +100,7 @@ export function ChapterScreen(props: {
   saveDraft: (d: Draft) => void;
   deleteDraft: (d: Draft) => void;
   replyToThread?: (thread: ExistingThread, body: string) => Promise<void>;
+  resolveThread?: (thread: ExistingThread, resolved: boolean) => Promise<void>;
   reactToComment?: (comment: ThreadComment, content: ReactionContent, remove: boolean) => Promise<void>;
   moveHunk: (h: Hunk, chapterId: string) => void;
   toggleOrder: () => void;
@@ -851,6 +852,7 @@ export function ChapterScreen(props: {
       startReply={overlay.kind === 'reply'}
       onReply={props.replyToThread}
       onReact={props.reactToComment}
+      onResolve={props.resolveThread}
       onNotice={(text) => setFlash(text, 'info')}
       onClose={() => close()}
     />
