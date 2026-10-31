@@ -839,6 +839,19 @@
             messages stand in for the description. It works without <code>gh</code>.
           </p>
           <p>If the tour includes changes that aren&#39;t yours, your copy of the default branch is out of date: run <code>git fetch</code> and try again.</p>
+          <p>
+            For a stacked branch, <code>gr preview --base &lt;branch&gt;</code> compares with the branch it stacks on instead. To tour any other diff, use <code>gr diff</code>, which reads its
+            argument as <code>git diff</code> does:
+          </p>
+          <ul>
+            <li><code>gr diff</code>: your uncommitted changes.</li>
+            <li><code>gr diff HEAD~3</code>: the working tree against a commit, such as the last three commits a coding agent made.</li>
+            <li>
+              <code>gr diff v0.3.0..v0.4.0</code>: two commits, such as a release. gr reads the second from its own checkout under <code>~/.guided-review/worktrees</code>, so your working tree is left
+              alone; <code>gr cleanup</code> removes it. <code>a...b</code> compares <code>b</code> with its merge base with <code>a</code>.
+            </li>
+          </ul>
+          <p>As with a preview, there is nothing to post to, so drafts stay on your machine.</p>
           <h2 id="commands-and-options"><a class="anchor" href="#commands-and-options" aria-hidden="true">#</a>Commands and options</h2>
           <pre><code class="language-sh">gr                            # choose from PRs awaiting your review
 gr review 1234               # PR number in the current repository
@@ -847,6 +860,8 @@ gr review owner/repo#1234
 gr review                    # current branch&#39;s open PR
 gr feedback                  # work through the review on your own PR
 gr preview                   # tour the current branch before opening a PR
+gr preview --base parent     # against the branch it stacks on
+gr diff HEAD~3               # the working tree against a commit; gr diff a..b for two commits
 gr demo                      # try a tour of a sample change: offline, no PR, gh, or model
 gr open 1234                 # open a tour in a new tmux or Terminal window
 gr open --preview            # open gr preview in a new tmux or Terminal window
@@ -883,6 +898,10 @@ gr doctor                    # check git, gh, ripgrep, your model and the rest, 
                 <tr>
                   <td><code>--preview</code></td>
                   <td>With <code>open</code>, open <code>gr preview</code> instead of a PR.</td>
+                </tr>
+                <tr>
+                  <td><code>--base &lt;ref&gt;</code></td>
+                  <td>With <code>preview</code>, compare with this branch or commit instead of the default branch.</td>
                 </tr>
                 <tr>
                   <td><code>--days &lt;n&gt;</code></td>

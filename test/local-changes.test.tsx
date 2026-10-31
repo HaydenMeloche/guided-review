@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'ink-testing-library';
-import { localChanges } from '../src/preview.js';
+import { localChanges, parseDiffTarget } from '../src/preview.js';
 import { PickerScreen } from '../src/tui/PickerScreen.js';
 import type { Store } from '../src/store/db.js';
 import { waitFor } from './helpers/waitFor.js';
@@ -102,5 +102,14 @@ describe('local changes on the PR list', () => {
     await new Promise((r) => setTimeout(r, 10));
     expect(ui.lastFrame()).toContain('feature/discount');
     ui.unmount();
+  });
+});
+
+describe('parseDiffTarget', () => {
+  it('reads a revision, two commits, and a merge-base range as git diff does', () => {
+    expect(parseDiffTarget('HEAD~3')).toEqual({ base: 'HEAD~3', mergeBase: false });
+    expect(parseDiffTarget('v0.3.0..v0.4.0')).toEqual({ base: 'v0.3.0', head: 'v0.4.0', mergeBase: false });
+    expect(parseDiffTarget('main...feature')).toEqual({ base: 'main', head: 'feature' });
+    expect(parseDiffTarget('..feature')).toEqual({ base: 'HEAD', head: 'feature', mergeBase: false });
   });
 });

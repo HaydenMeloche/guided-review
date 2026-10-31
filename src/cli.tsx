@@ -5,7 +5,7 @@ import type { AppOptions } from './tui/App.js';
 import { currentBranchPR, currentRepo, parsePRArg } from './github/gh.js';
 import { localRepoRoot } from './git/worktree.js';
 import { autoCleanup, cleanup } from './cleanup.js';
-import { localPreview } from './preview.js';
+import { localPreview, parseDiffTarget } from './preview.js';
 import {
   agentRouting,
   loadChapterOrder,
@@ -67,6 +67,8 @@ ${[
   usage('review <number|URL>', 'Start or resume a guided tour of a PR'),
   usage('feedback [number|URL]', 'Work through the review feedback on your PR (default: this branch)'),
   usage('preview', 'Tour your current branch before opening the PR'),
+  usage('preview --base <ref>', 'Tour it against another branch, such as the one it stacks on'),
+  usage('diff [rev | a..b]', 'Tour the working tree against a commit, or two commits (a...b: from their merge base)'),
   usage('demo', 'Try a tour of a sample change: offline, no PR or model needed'),
   usage('open [number|URL]', 'Open the tour of a PR (default: this branch) in a new terminal window'),
   usage('open --preview', 'Open the preview of your current branch in a new terminal window'),
@@ -84,6 +86,7 @@ ${[
     --no-agent       Review without a model: static analysis only
     --fresh          Rebuild the tour even if one is cached or shared on the PR for this head
     --preview        With open: open \`${NAME} preview\` instead of a PR's tour
+    --base <ref>     With preview: compare with this branch or commit instead of the default branch
     --force          With install-*: replace an existing file that has different content
     --comment        With build: post the tour to the PR, where \`${NAME} review\` picks it up
     --out <file>     With build: write the tour JSON to a file (- for stdout)
@@ -107,6 +110,7 @@ ${[
       edit: { type: 'boolean', default: false },
       force: { type: 'boolean', default: false },
       preview: { type: 'boolean', default: false },
+      base: { type: 'string' },
       comment: { type: 'boolean', default: false },
       out: { type: 'string' },
       days: { type: 'number' },
@@ -320,7 +324,8 @@ async function main() {
 
   const prArg = /^(#?\d+|https?:\/\/|[\w.-]+\/[\w.-]+#\d+)/;
   const demo = cmd === 'demo';
-  if (cmd && cmd !== 'review' && cmd !== 'feedback' && cmd !== 'preview' && !demo && !prArg.test(cmd)) cli.showHelp(1);
+  if (cmd && cmd !== 'review' && cmd !== 'feedback' && cmd !== 'preview' && cmd !== 'diff' && !demo && !prArg.test(cmd)) cli.showHelp(1);
+  if (cli.flags.base !== undefined && cmd !== 'preview') fail(`--base goes with ${NAME} preview. For two commits, use ${NAME} diff <a>..<b>.`);
 
   // Everything below starts the full-screen tour. Check for a terminal before
   // spending any gh or network calls on it.
@@ -338,7 +343,7 @@ async function main() {
   // rather than after them.
   // The demo needs no model, so it starts without setup.
   if (cli.flags.agent && !demo && !fs.existsSync(userConfigPath())) {
-    if (cmd !== 'preview') {
+    if (cmd !== 'preview' && cmd !== 'diff') {
       const { detectGitHub } = await import('./detect.js');
       const gh = await detectGitHub();
       if (!gh.installed) fail(`the GitHub CLI (gh) is not installed. Install it from https://cli.github.com and run \`gh auth login\`, or run \`${NAME} config\` to use a personal access token.`);
@@ -354,7 +359,7 @@ async function main() {
   tui.catch(() => undefined); // awaited below; a failure surfaces there
   const localRepoP = localRepoRoot(cwd);
   const takesArg = cmd === 'review' || cmd === 'feedback';
-  const needsRepo = takesArg ? !!arg : !!cmd && cmd !== 'preview' && !demo;
+  const needsRepo = takesArg ? !!arg : !!cmd && cmd !== 'preview' && cmd !== 'diff' && !demo;
   const cwdRepoP = needsRepo && /^#?\d+$/.test((takesArg ? arg : cmd).trim()) ? currentRepo(cwd) : Promise.resolve(undefined);
 
   // config.json, read once for the model and every setting below. A file that can't be read gets
@@ -429,9 +434,16 @@ async function main() {
     const target = arg ? parsePRArg(arg, await cwdRepoP) : await currentBranchPR(cwd);
     if (!target) fail(`no PR given and the current branch has no open PR. Usage: ${NAME} feedback <number|URL>`);
     opts = { ...base, target, mode: 'author' };
-  } else if (cmd === 'preview') {
-    if (!base.localRepo) fail(`${NAME} preview must run inside a git repository.`);
-    opts = { ...base, preview: await localPreview(cwd).catch((e: Error) => fail(e.message)) };
+  } else if (cmd === 'preview' || cmd === 'diff') {
+    if (!base.localRepo) fail(`${NAME} ${cmd} must run inside a git repository.`);
+    if (cmd === 'preview' && arg) fail(`${NAME} preview tours the current branch and takes no argument. To compare with another branch: ${NAME} preview --base <ref>.`);
+    if (cli.flags.base === '') fail('--base needs a branch or commit.');
+    // gr diff with nothing given: the working tree against HEAD, as git diff shows it.
+    const previewTarget = cmd === 'diff' ? parseDiffTarget(arg ?? 'HEAD') : cli.flags.base ? { base: cli.flags.base } : undefined;
+    const preview = await localPreview(cwd, undefined, previewTarget).catch((e: Error) => fail(e.message));
+    const { baseRef, headRef } = preview.pr;
+    if (!preview.diff.trim()) fail(`nothing to tour: ${previewTarget?.head ? `no changes between ${baseRef} and ${headRef}` : `the working tree has no changes against ${baseRef}`}.`);
+    opts = { ...base, previewTarget, preview };
   } else if (demo) {
     // Not the repository gr runs in: the demo's own, under GR_HOME.
     const { demoPreview } = await import('./demo.js');

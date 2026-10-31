@@ -8,7 +8,7 @@ import type { Chapter, ChapterOrder, Draft, ExistingThread, Hunk, PRInfo, Reacti
 import { Store } from '../store/db.js';
 import { fetchHeadSha, fetchMergeStatus, fetchPR, fetchThreads, getMentionUsers, replyToThread, setCommentReaction, viewerLogin } from '../github/gh.js';
 import { ensureWorktree } from '../git/worktree.js';
-import { localChanges, localPreview, type LocalPreview } from '../preview.js';
+import { localChanges, localPreview, type LocalPreview, type LocalTarget } from '../preview.js';
 import { runPipeline } from '../pipeline.js';
 import type { AgentRole, AgentRouting } from '../agent/types.js';
 import type { ViewSetting } from '../config.js';
@@ -71,6 +71,7 @@ export interface AppOptions {
   preview?: LocalPreview; // gr preview: a tour of a local branch
   palette?: Palette; // the saved theme, loaded before the first frame; the terminal's colors when unset
   saveTheme?: (name: string) => void; // records a theme chosen in the picker; unset when there is no config file
+  previewTarget?: LocalTarget; // gr preview --base and gr diff: what `preview` compares, to read it again
   demo?: boolean; // gr demo: starts over each run, its preview carries written-out narration, and its submit screen posts nothing
 }
 
@@ -209,9 +210,10 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   // where to read it again. Each load reads it again, as the working tree changes under it;
   // gr preview's first load uses what the CLI read.
   const [local, setLocal] = useState<LocalPreview | undefined>(opts.preview);
-  // gr preview and gr demo keep the repository name they started with when they read it again.
-  const localSource = useRef<{ cwd: string; first?: LocalPreview; repo?: string } | undefined>(
-    opts.preview ? { cwd: opts.preview.worktree, first: opts.preview, repo: opts.preview.pr.repo } : undefined,
+  // gr preview, gr diff and gr demo keep the repository name and the comparison they started with
+  // when they read it again.
+  const localSource = useRef<{ cwd: string; first?: LocalPreview; repo?: string; target?: LocalTarget } | undefined>(
+    opts.preview ? { cwd: opts.preview.worktree, first: opts.preview, repo: opts.preview.pr.repo, target: opts.previewTarget } : undefined,
   );
   // What l on the PR list would tour, for the list to offer while there is some.
   const readLocalChanges = useMemo(() => (opts.localRepo ? () => localChanges(opts.localRepo!) : undefined), [opts.localRepo]);
@@ -398,7 +400,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
           src.first = undefined;
           if (!p) {
             onProgress('Reading your local changes');
-            p = await localPreview(src.cwd, src.repo);
+            p = await localPreview(src.cwd, src.repo, src.target);
             onProgress('Reading your local changes', true);
           }
           if (gen !== loadGen.current) return;
@@ -675,7 +677,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   };
 
   // E: the file at a line in $EDITOR, in the checkout the tour reads. In a preview that is the
-  // reader's own, so an edit offers to rebuild the tour; in a PR it is gr's detached copy.
+  // reader's own, so an edit offers to rebuild the tour; in a PR, or two commits of gr diff, it is
+  // gr's detached copy.
   const editFile = async (file: string, line: number): Promise<string | undefined> => {
     const full = path.resolve(worktree, file);
     if (path.relative(worktree, full).startsWith('..')) return `${file} is outside the checkout.`;
@@ -693,6 +696,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     if (failed) return `Could not open the editor: ${failed}`;
     if (fs.existsSync(full) && fs.readFileSync(full, 'utf8') === before) return undefined;
     if (!local) return `Saved in gr's copy of the PR head (${worktree}), not in a branch of yours.`;
+    if (local.copy) return `Saved in gr's copy of ${local.pr.headRef} (${worktree}), not in your working tree.`;
     setLocalEdited(true);
     setBanner(`▲ You edited ${file} · R rebuilds the tour on your working tree (drafts are kept)`);
     return undefined;
@@ -1319,8 +1323,8 @@ function PreviewSubmit(props: { onBack: () => void }) {
   useInput(() => props.onBack());
   return (
     <Box flexDirection="column" paddingX={1}>
-      <Text bold>Author preview</Text>
-      <Text>This tour is a preview of your branch: there is no PR to post to yet. Flagged gaps and drafts stay local.</Text>
+      <Text bold>Local changes</Text>
+      <Text>This tour is of local changes, so there is no PR to post a review to. Flagged gaps and drafts stay on your machine.</Text>
       <Text dimColor>any key to go back</Text>
     </Box>
   );

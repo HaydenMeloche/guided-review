@@ -103,6 +103,19 @@ export async function ensureWorktree(pr: PRInfo, opts: { localRepo?: string } = 
   return target;
 }
 
+// A detached checkout of one commit of the repository at `root`, for touring a range of commits
+// without touching the user's working tree. Named as a PR worktree numbered 0, so gr cleanup
+// removes it like the others.
+export async function commitWorktree(root: string, repo: string, sha: string): Promise<string> {
+  const dir = path.join(grHome(), 'worktrees', repoSlug(repo));
+  const target = path.join(dir, `pr-0-${sha.slice(0, 8)}`);
+  if (fs.existsSync(path.join(target, '.git'))) return target;
+  fs.mkdirSync(dir, { recursive: true });
+  await git(root, ['worktree', 'prune']).catch(() => undefined);
+  await git(root, ['worktree', 'add', '--detach', target, sha], { maxBuffer: 256 * 1024 * 1024 });
+  return target;
+}
+
 export async function cleanupWorktrees(home = grHome()): Promise<{ removed: string[]; skipped: { path: string; reason: string }[] }> {
   const root = path.join(home, 'worktrees');
   const removed: string[] = [];

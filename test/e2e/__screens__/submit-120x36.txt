@@ -12,9 +12,9 @@
  ‹dim›   5    5 │ ‹/›    ‹c73›return‹/› ‹c145›{‹/› id‹c145›:‹/› Date‹c73›.‹/›‹c217›now‹/›()‹c73›.‹/›‹c217›toString‹/›(‹c217›36‹/›)‹c145›,‹/› items‹c145›,‹/› price‹c145›,‹/› status‹c145›:‹/› ‹c222›'open'‹/› ‹c73›as‹/› ‹c73›const‹/› ‹c145›};‹/›
 ‹cyan›▶‹/›‹dim›   6    6 │ ‹/›  ‹c145›}‹/›
            ‹blue,bg:c235› question ‹/›‹blue› ‹/›‹yellow,bg:c235›╭──────────────────────────────────────────────────────────────────────────╮‹/›
-                      ‹yellow,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b›Author preview‹/›‹bg:c235›                                                           ‹/›‹yellow,bg:c235›│‹/›
-                      ‹yellow,bg:c235›│‹/›‹bg:c235› This tour is a preview of your branch: there is no PR to post to yet.    ‹/›‹yellow,bg:c235›│‹/›
-                      ‹yellow,bg:c235›│‹/›‹bg:c235› Flagged gaps and drafts stay local.                                      ‹/›‹yellow,bg:c235›│‹/›
+                      ‹yellow,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b›Local changes‹/›‹bg:c235›                                                            ‹/›‹yellow,bg:c235›│‹/›
+                      ‹yellow,bg:c235›│‹/›‹bg:c235› This tour is of local changes, so there is no PR to post a review to.    ‹/›‹yellow,bg:c235›│‹/›
+                      ‹yellow,bg:c235›│‹/›‹bg:c235› Flagged gaps and drafts stay on your machine.                            ‹/›‹yellow,bg:c235›│‹/›
                       ‹yellow,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,dim›any key to go back‹/›‹bg:c235›                                                       ‹/›‹yellow,bg:c235›│‹/›
                       ‹yellow,bg:c235›│‹/›‹bg:c235›                                                                          ‹/›‹yellow,bg:c235›│‹/›
                       ‹yellow,bg:c235›│‹/›‹bg:c235›                                                                          ‹/›‹yellow,bg:c235›│‹/›

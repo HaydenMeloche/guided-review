@@ -112,7 +112,7 @@ describe.each(SIZES)('screens at %ix%i', (cols, rows) => {
     await snap(gr, 'chapter-draft', cols, rows);
 
     gr.press('s');
-    await gr.waitFor('Author preview');
+    await gr.waitFor('Local changes');
     await snap(gr, 'submit', cols, rows);
   });
 

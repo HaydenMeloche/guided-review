@@ -6,9 +6,9 @@
 ‹bright-black›▎ ‹/›‹red›○ No linked test · 2 possible untested behaviors · U: details‹/›
 
  ‹dim› ‹/›‹yellow,bg:c235›╭──────────────────────────────────────────────────────────────────────────╮‹/›
- ‹dim› ‹/›‹yellow,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b›Author preview‹/›‹bg:c235›                                                           ‹/›‹yellow,bg:c235›│‹/›
- ‹dim› ‹/›‹yellow,bg:c235›│‹/›‹bg:c235› This tour is a preview of your branch: there is no PR to post to yet.    ‹/›‹yellow,bg:c235›│‹/›‹c152,bg:c28›tr‹/›
- ‹dim› ‹/›‹yellow,bg:c235›│‹/›‹bg:c235› Flagged gaps and drafts stay local.                                      ‹/›‹yellow,bg:c235›│‹/›
+ ‹dim› ‹/›‹yellow,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b›Local changes‹/›‹bg:c235›                                                            ‹/›‹yellow,bg:c235›│‹/›
+ ‹dim› ‹/›‹yellow,bg:c235›│‹/›‹bg:c235› This tour is of local changes, so there is no PR to post a review to.    ‹/›‹yellow,bg:c235›│‹/›‹c152,bg:c28›tr‹/›
+ ‹dim› ‹/›‹yellow,bg:c235›│‹/›‹bg:c235› Flagged gaps and drafts stay on your machine.                            ‹/›‹yellow,bg:c235›│‹/›
  ‹dim› ‹/›‹yellow,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,dim›any key to go back‹/›‹bg:c235›                                                       ‹/›‹yellow,bg:c235›│‹/›
  ‹dim› ‹/›‹yellow,bg:c235›│‹/›‹bg:c235›                                                                          ‹/›‹yellow,bg:c235›│‹/›‹c222›op‹/›
  ‹dim› ‹/›‹yellow,bg:c235›│‹/›‹bg:c235›                                                                          ‹/›‹yellow,bg:c235›│‹/›
