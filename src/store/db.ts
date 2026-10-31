@@ -340,6 +340,14 @@ export class Store {
     });
   }
 
+  // Everything kept for one PR: its tours, sessions, drafts, queued replies and reading state.
+  // gr demo starts over this way on each run.
+  forgetPR(repo: string, pr: number): void {
+    this.tx(() => {
+      for (const table of ['tours', 'agent_sessions', 'drafts', 'thread_replies', ...PR_STATE_TABLES]) this.stmt(`DELETE FROM ${table} WHERE repo = ? AND pr = ?`).run(repo, pr);
+    });
+  }
+
   // Restarting a tour: every hunk unread again, and no saved place to resume from.
   clearReadStates(repo: string, pr: number): void {
     this.tx(() => {

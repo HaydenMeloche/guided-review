@@ -96,6 +96,11 @@ pnpm add -g .
             The tour is built from static analysis of the diff and the checkout. A model adds the briefing&#39;s summary, each chapter&#39;s explanation, and answers to your questions. Without one,
             everything else still works, and nothing leaves your machine.
           </p>
+          <p>
+            To try it before setting anything up, run <code>gr demo</code>. It tours a small made-up change (discount codes in a shop, with a moved function, a generated file, and an import-only
+            change) from a repository it writes to <code>~/.guided-review/demo</code>, with no PR, no <code>gh</code>, and no model: its briefing and explanations were written ahead of time. Read,
+            comment, and open the submit screen as in any review; nothing can be posted. Each run starts over, with nothing read and no drafts.
+          </p>
           <h2 id="use-from-claude-code-or-codex"><a class="anchor" href="#use-from-claude-code-or-codex" aria-hidden="true">#</a>Use from Claude Code or Codex</h2>
           <p>
             <code>gr install-claude-command</code> adds a <code>/guided-review</code> command to Claude Code, and <code>gr install-codex-skill</code> adds a skill to Codex. Both preview your local

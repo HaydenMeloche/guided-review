@@ -18,7 +18,8 @@ A model is optional. Without one, the tour is built from static analysis alone a
 
 ```sh
 npm install -g @haydenmeloche/guided-review
-gr   # the first run walks you through setup, then lists PRs awaiting your review
+gr        # the first run walks you through setup, then lists PRs awaiting your review
+gr demo   # or try a tour of a sample change first: offline, no PR, gh, or model needed
 ```
 
 You need Node 22.13 or newer, `git`, and the [GitHub CLI](https://cli.github.com/) signed in with `gh auth login`.

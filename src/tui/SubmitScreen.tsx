@@ -44,6 +44,7 @@ export function SubmitScreen(props: {
   onBack: () => void;
   onQuit?: () => void; // Q
   loadMentionUsers?: () => Promise<string[]>; // collaborators for @mentions in the summary
+  noPost?: string; // why this review can't be posted (gr demo): shown under the title, and P says it instead of posting
 }) {
   const { tour, states, width } = props;
   const pending = useMemo(() => props.drafts.filter((d) => !d.posted), [props.drafts]);
@@ -113,6 +114,7 @@ export function SubmitScreen(props: {
       if (input === '?' || input === 'h') return setMode('help');
       if (input === 'w') return setMode('summary');
       if (input === 'P') {
+        if (props.noPost) return setResult(props.noPost);
         if (event === 'REQUEST_CHANGES' && !pending.length && !summary.trim()) return setResult('Requesting changes needs at least one comment or a summary.');
         return setMode('confirm');
       }
@@ -143,6 +145,7 @@ export function SubmitScreen(props: {
   return (
     <Box flexDirection="column" width={width} height={props.height} paddingX={1}>
       <TitleBar repo={tour.repo} title={`#${tour.pr} ${tour.title}`} where="submit review" width={width - 2} />
+      {props.noPost ? <Text color="yellow">{truncate(props.noPost, width - 4)}</Text> : null}
       <Box marginTop={1} flexDirection="column">
         <Text>
           Suggested: <Text bold>{EVENT_TEXT[verdict.event]}</Text>
@@ -232,7 +235,7 @@ export function SubmitScreen(props: {
         </Box>
       ) : null}
       <Box flexGrow={1} />
-      {result ? <Text color="red">{safe(result)}</Text> : null}
+      {result ? <Text color={result === props.noPost ? 'yellow' : 'red'}>{safe(result)}</Text> : null}
       {mode === 'confirm' ? (
         <Confirm yes="post">
           Post a "{EVENT_TEXT[event]}" review with {plural(pending.length, 'comment')} to {safe(tour.repo)}#{tour.pr}?

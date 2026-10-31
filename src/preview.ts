@@ -13,14 +13,15 @@ export interface LocalPreview {
 
 // The branch checked out at `cwd` as a PR numbered 0: its commits since the merge base with the
 // default branch, and a diff of the working tree against that base. Throws when `cwd` is not in
-// a git repository or there is no base to compare with.
-export async function localPreview(cwd: string): Promise<LocalPreview> {
+// a git repository or there is no base to compare with. `repo` names the repository instead of
+// asking its remotes or gh.
+export async function localPreview(cwd: string, repo?: string): Promise<LocalPreview> {
   const root = await localRepoRoot(cwd);
   if (!root) throw new Error('not inside a git repository.');
   const trim = (s: string) => s.trim();
   // Independent lookups run together; only the merge base waits for the default branch.
   // Preview works without gh: an unknown repo becomes local/<dir> below.
-  const repoP = currentRepo(root).catch(() => undefined);
+  const repoP = repo ? Promise.resolve(repo) : currentRepo(root).catch(() => undefined);
   const headP = git(root, ['rev-parse', 'HEAD']).then(trim);
   const branchP = git(root, ['rev-parse', '--abbrev-ref', 'HEAD']).then(trim);
   const base = await defaultBaseRef(root, () => repoP);
@@ -37,12 +38,11 @@ export async function localPreview(cwd: string): Promise<LocalPreview> {
       const [sha, message] = c.split('\0');
       return { sha, message: message ?? '' };
     });
-  const repo = currentRepoName ?? `local/${path.basename(root)}`;
   return {
     worktree: root,
     diff,
     pr: {
-      repo,
+      repo: currentRepoName ?? `local/${path.basename(root)}`,
       number: 0,
       title: `${branch} (preview)`,
       body: commits.map((c) => c.message).join('\n\n'),

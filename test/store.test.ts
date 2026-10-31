@@ -53,6 +53,22 @@ describe('Store', () => {
     expect(store.getReadStates('o/r', 2)).toEqual({ abc: 'read' });
   });
 
+  it('forgets everything kept for one PR, and only that PR', () => {
+    store.saveTour(tour([], [], { headSha: 'h1' }));
+    store.setReadState('o/r', 1, 'abc', 'read');
+    store.setReadState('o/r', 2, 'abc', 'read');
+    store.setPosition('o/r', 1, { chapterId: 'c1', hunkId: 'h', order: 'flow' });
+    store.setMove('o/r', 1, 'abc', 'c2');
+    store.saveDraft({ id: 'd1', repo: 'o/r', pr: 1, headSha: 'h1', anchor: { type: 'chapter', chapterId: 'c1' }, label: 'nit', body: 'x', posted: false, createdAt: '2026-01-01T00:00:00Z' });
+    store.forgetPR('o/r', 1);
+    expect(store.loadTour('o/r', 1, 'h1')).toBeUndefined();
+    expect(store.getReadStates('o/r', 1)).toEqual({});
+    expect(store.getPosition('o/r', 1)).toBeUndefined();
+    expect(store.getMoves('o/r', 1)).toEqual({});
+    expect(store.listDrafts('o/r', 1)).toEqual([]);
+    expect(store.getReadStates('o/r', 2)).toEqual({ abc: 'read' });
+  });
+
   it('numbers the copies of a change in a tour saved before copies were numbered', () => {
     const [a, b] = [hunk('h1', 'f.ts', []), hunk('h2', 'f.ts', [])].map((h) => ({ ...h, contentHash: 'same' }));
     store.saveTour(tour([a, b], [], { headSha: 'h1' }));

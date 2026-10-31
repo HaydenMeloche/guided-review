@@ -21,7 +21,7 @@ import { listFiles, diffBetween, fetchCommit, hasCommit, mergeBaseOf, prDiff } f
 import { primeBaseCache, readBlobs } from './git/blobs.js';
 import { fetchDiff, fetchReviews, fetchThreads, getMentionUsers, viewerLogin } from './github/gh.js';
 import { fetchSharedTour, restoreSharedTour } from './github/sharedTour.js';
-import { analyzeBriefing, analyzeChapter, AgentUnavailableError, type ChapterResult } from './agent/agent.js';
+import { analyzeBriefing, analyzeChapter, AgentUnavailableError, type BriefingResult, type ChapterResult } from './agent/agent.js';
 import { routingIdentity, type AgentRole, type AgentRouting } from './agent/types.js';
 import { chapterBatches, isTruncated, lockPairOf, MINOR_SUMMARY_ID, minorHunkIds } from './agent/prompts.js';
 import { computeReReview } from './review/rereview.js';
@@ -47,6 +47,14 @@ export interface PipelineOptions {
   // emission is a new top-level object, and unchanged chapters and hunks keep their identity.
   onTour: (tour: Tour) => void;
   signal?: AbortSignal;
+  // Written-out model results for the static tour, applied as a model's would be: gr demo's
+  // briefing and narration, without a model.
+  narrate?: (tour: Tour) => CannedNarration;
+}
+
+export interface CannedNarration {
+  briefing: BriefingResult;
+  chapters: { id: string; result: ChapterResult }[];
 }
 
 // Files that steer the review itself. They are read from the merge base, never from the PR head,
@@ -515,6 +523,15 @@ export async function runPipeline(opts: PipelineOptions): Promise<Tour> {
     await attachReReview(built, opts, live.viewer);
     signal?.throwIfAborted();
     tour = built;
+    opts.onTour(tour);
+  }
+
+  if (opts.narrate && tour.mode !== 'agent') {
+    const canned = opts.narrate(tour);
+    tour = applyBriefing(tour, { value: canned.briefing });
+    for (const c of canned.chapters) tour = applyChapterResult(tour, c.id, c.result);
+    const narrated = new Set(canned.chapters.map((c) => c.id));
+    tour = { ...tour, chapters: tour.chapters.map((c) => (narrated.has(c.id) ? { ...c, narrated: true } : c)) };
     opts.onTour(tour);
   }
 

@@ -67,6 +67,7 @@ ${[
   usage('review <number|URL>', 'Start or resume a guided tour of a PR'),
   usage('feedback [number|URL]', 'Work through the review feedback on your PR (default: this branch)'),
   usage('preview', 'Tour your current branch before opening the PR'),
+  usage('demo', 'Try a tour of a sample change: offline, no PR or model needed'),
   usage('open [number|URL]', 'Open the tour of a PR (default: this branch) in a new terminal window'),
   usage('open --preview', 'Open the preview of your current branch in a new terminal window'),
   usage('build [number|URL]', 'Build a tour without the TUI (for CI); share it with --comment or --out'),
@@ -273,7 +274,8 @@ async function main() {
   }
 
   const prArg = /^(#?\d+|https?:\/\/|[\w.-]+\/[\w.-]+#\d+)/;
-  if (cmd && cmd !== 'review' && cmd !== 'feedback' && cmd !== 'preview' && !prArg.test(cmd)) cli.showHelp(1);
+  const demo = cmd === 'demo';
+  if (cmd && cmd !== 'review' && cmd !== 'feedback' && cmd !== 'preview' && !demo && !prArg.test(cmd)) cli.showHelp(1);
 
   // Everything below starts the full-screen tour. Check for a terminal before
   // spending any gh or network calls on it.
@@ -289,7 +291,8 @@ async function main() {
   // First run: introduce gr and set it up, then carry on with the command that was run. A command
   // that reads GitHub checks gh first, so a signed-out gh is said before five screens of setup
   // rather than after them.
-  if (cli.flags.agent && !fs.existsSync(userConfigPath())) {
+  // The demo needs no model, so it starts without setup.
+  if (cli.flags.agent && !demo && !fs.existsSync(userConfigPath())) {
     if (cmd !== 'preview') {
       const { detectGitHub } = await import('./detect.js');
       const gh = await detectGitHub();
@@ -306,7 +309,7 @@ async function main() {
   tui.catch(() => undefined); // awaited below; a failure surfaces there
   const localRepoP = localRepoRoot(cwd);
   const takesArg = cmd === 'review' || cmd === 'feedback';
-  const needsRepo = takesArg ? !!arg : !!cmd && cmd !== 'preview';
+  const needsRepo = takesArg ? !!arg : !!cmd && cmd !== 'preview' && !demo;
   const cwdRepoP = needsRepo && /^#?\d+$/.test((takesArg ? arg : cmd).trim()) ? currentRepo(cwd) : Promise.resolve(undefined);
 
   // config.json, read once for the model and every setting below. A file that can't be read gets
@@ -318,7 +321,7 @@ async function main() {
     if (!(error instanceof UserConfigError)) throw error;
     fail(`${error.message}.\n\n  ${cli.flags.agent ? CHOOSE_PROVIDER_HINT : EDIT_CONFIG_HINT}`);
   }
-  const { agent, noAgent } = agentOptions(config);
+  const { agent, noAgent } = demo ? { agent: undefined, noAgent: true } : agentOptions(config);
   let chapterOrder: AppOptions['chapterOrder'];
   let hideWhitespace: boolean;
   let splitDiff: boolean;
@@ -384,6 +387,10 @@ async function main() {
   } else if (cmd === 'preview') {
     if (!base.localRepo) fail(`${NAME} preview must run inside a git repository.`);
     opts = { ...base, preview: await localPreview(cwd).catch((e: Error) => fail(e.message)) };
+  } else if (demo) {
+    // Not the repository gr runs in: the demo's own, under GR_HOME.
+    const { demoPreview } = await import('./demo.js');
+    opts = { ...base, localRepo: undefined, demo: true, preview: await demoPreview().catch((e: Error) => fail(`could not set up the demo: ${e.message}`)) };
   } else if (cmd) {
     opts = { ...base, target: parsePRArg(cmd, await cwdRepoP) };
   }

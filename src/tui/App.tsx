@@ -42,6 +42,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { ErrorBlock } from './ErrorBlock.js';
 import { openInEditor } from '../util/editor.js';
+import { demoNarration } from '../demo.js';
 
 export interface Target {
   repo: string;
@@ -70,6 +71,7 @@ export interface AppOptions {
   preview?: LocalPreview; // gr preview: a tour of a local branch
   palette?: Palette; // the saved theme, loaded before the first frame; the terminal's colors when unset
   saveTheme?: (name: string) => void; // records a theme chosen in the picker; unset when there is no config file
+  demo?: boolean; // gr demo: starts over each run, its preview carries written-out narration, and its submit screen posts nothing
 }
 
 // The theme picker as the screens see it: L opens it over the picker, briefing, or chapter.
@@ -192,7 +194,14 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const { theme } = opts;
   const { exit, suspendTerminal } = useApp();
   const { columns, rows } = useWindowSize();
-  const store = useMemo(() => new Store(), []);
+  const store = useMemo(() => {
+    const s = new Store();
+    // gr demo starts over each run: nothing read, no drafts.
+    if (opts.demo && opts.preview) s.forgetPR(opts.preview.pr.repo, opts.preview.pr.number);
+    return s;
+    // Once, as the app starts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [phase, setPhase] = useState<Phase>(opts.target || opts.preview ? 'load' : 'pick');
   const [submitFrom, setSubmitFrom] = useState<'briefing' | 'chapter'>('chapter');
   const [target, setTarget] = useState<Target | undefined>(opts.target ?? (opts.preview ? { repo: opts.preview.pr.repo, number: opts.preview.pr.number } : undefined));
@@ -200,7 +209,10 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   // where to read it again. Each load reads it again, as the working tree changes under it;
   // gr preview's first load uses what the CLI read.
   const [local, setLocal] = useState<LocalPreview | undefined>(opts.preview);
-  const localSource = useRef<{ cwd: string; first?: LocalPreview } | undefined>(opts.preview ? { cwd: opts.preview.worktree, first: opts.preview } : undefined);
+  // gr preview and gr demo keep the repository name they started with when they read it again.
+  const localSource = useRef<{ cwd: string; first?: LocalPreview; repo?: string } | undefined>(
+    opts.preview ? { cwd: opts.preview.worktree, first: opts.preview, repo: opts.preview.pr.repo } : undefined,
+  );
   // What l on the PR list would tour, for the list to offer while there is some.
   const readLocalChanges = useMemo(() => (opts.localRepo ? () => localChanges(opts.localRepo!) : undefined), [opts.localRepo]);
   const [worktree, setWorktree] = useState<string>('');
@@ -386,7 +398,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
           src.first = undefined;
           if (!p) {
             onProgress('Reading your local changes');
-            p = await localPreview(src.cwd);
+            p = await localPreview(src.cwd, src.repo);
             onProgress('Reading your local changes', true);
           }
           if (gen !== loadGen.current) return;
@@ -436,6 +448,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
           noAgent: opts.noAgent,
           fresh,
           diffOverride: diff,
+          narrate: opts.demo ? demoNarration : undefined,
           signal,
           onProgress,
           onTour: (tr) => {
@@ -940,8 +953,10 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     if (phase === 'load' || !tour) {
       return <TourIntro width={width} height={height} lines={introLines} onBack={back} onQuit={requestQuit} />;
     }
+    // A narrated tour opened with the model off (--no-agent on a saved tour, or the demo's written
+    // narration) still has no model to ask.
     const agent =
-      (tour.mode === 'agent' || writingBriefing) && worktree
+      (tour.mode === 'agent' || writingBriefing) && worktree && !opts.noAgent
         ? {
             cwd: worktree,
             ...opts.agent,
@@ -956,9 +971,11 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     // Why AI features are off, said in their place.
     const aiOff = agent
       ? undefined
-      : opts.noAgent
-        ? 'AI is off for this review (no model in gr config, or --no-agent), so questions are off.'
-        : 'The model is unavailable for this tour, so questions are off. The briefing says why.';
+      : opts.demo
+        ? 'The demo runs without a model, so questions are off. Run gr config to choose one for your own reviews.'
+        : opts.noAgent
+          ? 'AI is off for this review (no model in gr config, or --no-agent), so questions are off.'
+          : 'The model is unavailable for this tour, so questions are off. The briefing says why.';
 
     if (phase === 'author') {
       // Author mode reads its tour statically, so its model use goes by the config, not the tour.
@@ -1171,7 +1188,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       );
     }
     if (phase === 'submit') {
-      if (local) {
+      if (local && !opts.demo) {
         return (
           <ReviewPopup background={submitBackground()} width={width} height={height} maxWidth={76} maxHeight={9} tone="decision">
             {() => <PreviewSubmit onBack={() => setPhase(submitFrom)} />}
@@ -1210,6 +1227,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
               onBack={() => setPhase(submitFrom)}
               onQuit={requestQuit}
               loadMentionUsers={local ? undefined : () => getMentionUsers(tour.repo)}
+              noPost={opts.demo ? 'This is the demo: nothing is posted. p shows what a draft would post as.' : undefined}
             />
           )}
         </ReviewPopup>
