@@ -740,6 +740,28 @@ export async function currentBranchPR(cwd: string): Promise<{ repo: string; numb
   }
 }
 
+// A repo's open PRs, most recently updated first, for shell completion of PR numbers.
+export async function listOpenPRs(repo: string, signal?: AbortSignal): Promise<{ number: number; title: string }[]> {
+  const [owner, name] = repo.split('/');
+  const data = await graphql<{ repository: { pullRequests: { nodes: { number: number; title: string }[] } } | null }>(
+    `
+      query ($owner: String!, $name: String!) {
+        repository(owner: $owner, name: $name) {
+          pullRequests(states: OPEN, first: 50, orderBy: { field: UPDATED_AT, direction: DESC }) {
+            nodes {
+              number
+              title
+            }
+          }
+        }
+      }
+    `,
+    { owner, name },
+    signal,
+  );
+  return data.repository?.pullRequests.nodes ?? [];
+}
+
 export async function postReview(repo: string, number: number, payload: ReviewPayload): Promise<{ id: number; url: string }> {
   const path = `repos/${repo}/pulls/${number}/reviews`;
   const auth = githubAuth();

@@ -891,6 +891,7 @@ gr build 1234 --comment      # build a tour without the TUI and post it to the P
 gr config                    # set up or change the model, GitHub access, and theme
 gr cleanup                   # remove managed worktrees and prune old tours
 gr doctor                    # check git, gh, ripgrep, your model and the rest, with fixes
+gr completion zsh            # print a shell completion script (zsh, bash, or fish)
 </code></pre>
           <div class="table-wrap">
             <table>
@@ -947,6 +948,17 @@ gr doctor                    # check git, gh, ripgrep, your model and the rest, 
             <code>GR_DEBUG_MODEL</code> logs model calls (see <a href="configuration.html#debugging-model-calls">Debugging model calls</a>). <code>gr</code> checks npm for updates once a day and
             offers them before a tour; <code>GR_NO_UPDATE_CHECK=1</code> turns that off. For terminal support and tmux settings, see <a href="terminals.html">Terminals</a>.
           </p>
+          <h3 id="shell-completion"><a class="anchor" href="#shell-completion" aria-hidden="true">#</a>Shell completion</h3>
+          <p>
+            <code>gr completion</code> prints a script that completes gr&#39;s commands and their options, branches and tags for <code>gr diff</code> (on either side of <code>..</code>) and
+            <code>--base</code>, and the repository&#39;s open PRs, by number and title, for <code>review</code>, <code>feedback</code>, <code>open</code>, and <code>build</code>. It completes
+            <code>guided-review</code> too. Load it from your shell&#39;s startup file:
+          </p>
+          <pre><code class="language-sh">eval "$(gr completion zsh)"     # ~/.zshrc, after compinit
+eval "$(gr completion bash)"    # ~/.bashrc
+gr completion fish | source     # ~/.config/fish/config.fish
+</code></pre>
+          <p>PR numbers come from GitHub as you press Tab, so they take a moment; outside a repository, or offline, there are none.</p>
           <h3 id="use-from-claude-code-or-codex"><a class="anchor" href="#use-from-claude-code-or-codex" aria-hidden="true">#</a>Use from Claude Code or Codex</h3>
           <ul>
             <li>

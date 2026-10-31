@@ -81,6 +81,7 @@ ${[
   usage('config --repo', "Edit this repo's .guided-review.json (file kinds, test globs, checklists)"),
   usage('install-claude-command', 'Add /guided-review to Claude Code'),
   usage('install-codex-skill', 'Add Guided Review as a Codex skill'),
+  usage('completion <zsh|bash|fish>', 'Print a script that completes commands, flags, branches and PR numbers'),
 ].join('\n')}
 
   Options
@@ -119,8 +120,9 @@ ${[
   },
 );
 
-// Runs in the background while the command works. Never for build: it runs in CI.
-const updateCheck = cli.input[0] === 'build' ? undefined : startUpdateCheck({ installed: PKG.version });
+// Runs in the background while the command works. Never for build, which runs in CI, nor for
+// completion, which the shell runs.
+const updateCheck = ['build', 'completion', '__complete'].includes(cli.input[0]) ? undefined : startUpdateCheck({ installed: PKG.version });
 
 async function printUpdateNotice(graceMs = 0): Promise<void> {
   const notice = await updateCheck?.finish(graceMs);
@@ -188,6 +190,21 @@ async function setMarks(glyphs: GlyphSetting, icons: IconSetting): Promise<void>
 async function main() {
   const [cmd, arg] = cli.input;
   const cwd = process.cwd();
+  if (cmd === 'completion') {
+    const { completionScript, SHELLS } = await import('./shellCompletion.js');
+    const shell = SHELLS.find((s) => s === arg) ?? fail(`completion takes a shell: ${NAME} completion ${SHELLS.join('|')}.`);
+    process.stdout.write(completionScript(shell, NAME === 'gr' ? ['gr', 'guided-review'] : ['guided-review', 'gr']));
+    return;
+  }
+  // The completion scripts' PR numbers: this repo's open PRs, "number<tab>title" a line. Quiet,
+  // and quick to give up, as a shell waits on it.
+  if (cmd === '__complete' && arg === 'prs') {
+    const [{ listOpenPRs }, { completionText }] = await Promise.all([import('./github/gh.js'), import('./shellCompletion.js')]);
+    const repo = await currentRepo(cwd).catch(() => undefined);
+    const prs = repo ? await listOpenPRs(repo, AbortSignal.timeout(4000)).catch(() => []) : [];
+    process.stdout.write(prs.map((p) => `${p.number}\t${completionText(p.title)}\n`).join(''));
+    return;
+  }
   // `setup` is the old name for `config`.
   if (cmd === 'config' || cmd === 'setup') {
     if (cli.flags.repo) {
