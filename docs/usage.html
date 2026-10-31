@@ -61,7 +61,10 @@
           <ul>
             <li><code>Esc</code> closes the innermost open thing (a selection, a filter, a popup), or goes up one level. It never quits.</li>
             <li><code>q</code> goes up one level. On the PR list, and on the briefing of <code>gr preview</code>, it quits.</li>
-            <li><code>Q</code> quits from anywhere, asking first if you have unposted drafts or queued replies. They stay saved either way.</li>
+            <li>
+              <code>Q</code> quits from anywhere, asking first if you have unposted drafts or queued replies. They stay saved either way, and a line left in your terminal says where the review stands
+              and how to resume it, such as <code>acme/api#812 · 4/9 hunks read · 2 drafts saved, not posted · resume with gr review acme/api#812</code>.
+            </li>
           </ul>
           <p>
             <code>?</code> (or <code>h</code>) lists the current screen&#39;s keys; <code>j</code>/<code>k</code> scroll it. On the briefing and in a chapter, <code>Tab</code> turns to a page

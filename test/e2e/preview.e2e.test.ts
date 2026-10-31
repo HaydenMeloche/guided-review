@@ -141,3 +141,13 @@ describe('gr preview with no AI model configured', () => {
     expect(screen).not.toContain('Agent disabled');
   });
 });
+
+describe('quitting', () => {
+  it('leaves a line saying where the review stands', async () => {
+    const gr = preview();
+    await gr.waitFor('Chapters · Guided order');
+    gr.press('Q');
+    expect(await gr.exited).toBe(0);
+    expect(gr.screen()).toContain('feature/discount (preview) · 0/1 hunks read');
+  });
+});

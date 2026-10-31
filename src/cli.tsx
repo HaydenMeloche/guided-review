@@ -467,8 +467,11 @@ async function main() {
   await cleanupP;
   await setMarks(glyphs, icons);
   opts = { ...opts, palette: await paletteP };
-  const app = render(<App {...opts} />, { ...SCREEN_RENDER, exitOnCtrlC: true });
+  let summary: string | undefined;
+  const app = render(<App {...opts} onQuit={(line) => (summary = line)} />, { ...SCREEN_RENDER, exitOnCtrlC: true });
   await app.waitUntilExit();
+  // Where the review stands, left in the scrollback once the screen is gone.
+  if (summary) process.stdout.write(`${summary}\n`);
   // Backstop: stray timers, sockets, or child processes must not keep gr alive
   // after the tour has closed.
   process.exit(0);

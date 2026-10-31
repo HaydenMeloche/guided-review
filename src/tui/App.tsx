@@ -28,7 +28,7 @@ import { runPipeline } from '../pipeline.js';
 import type { AgentRole, AgentRouting } from '../agent/types.js';
 import type { ViewSetting } from '../config.js';
 import { fileOrderChapters } from '../analysis/flows.js';
-import { applyMoves, firstHunk, hunkPosition, ORDER_SEQUENCE, pageOf, positionAfterOrderChange, sortChapters, stateOf, type States } from './nav.js';
+import { applyMoves, firstHunk, hunkPosition, ORDER_SEQUENCE, pageOf, positionAfterOrderChange, progress, sortChapters, stateOf, type States } from './nav.js';
 import { hunkKeys } from '../review/hunkState.js';
 import { ChapterScreen, type Services } from './ChapterScreen.js';
 import { BriefingScreen } from './BriefingScreen.js';
@@ -88,7 +88,8 @@ export interface AppOptions {
   palette?: Palette; // the saved theme, loaded before the first frame; the terminal's colors when unset
   saveTheme?: (name: string) => void; // records a theme chosen in the picker; unset when there is no config file
   previewTarget?: LocalTarget; // gr preview --base and gr diff: what `preview` compares, to read it again
-  demo?: boolean; // gr demo: starts over each run, its preview carries written-out narration, and its submit screen posts nothing
+  demo?: boolean;
+  onQuit?: (summary: string | undefined) => void; // Q: the line to print once the screen is gone // gr demo: starts over each run, its preview carries written-out narration, and its submit screen posts nothing
 }
 
 // The theme picker as the screens see it: L opens it over the picker, briefing, or chapter.
@@ -103,6 +104,22 @@ export type Phase = 'pick' | 'load' | 'own' | 'briefing' | 'chapter' | 'submit' 
 // The PR whose unposted drafts and queued replies Q asks about: the one open now. None at the PR
 // list (q there has left the PR, though the last target stays), and none for a local tour, which
 // has nowhere to post them.
+// The line left in the scrollback on Q: where the review stands and how to pick it up again.
+// Undefined when no tour is open (the PR list), and for the demo, which starts over anyway.
+export function quitSummary(o: { tour: Tour; mode: Mode; states: States; drafts: number; replies: number; local?: LocalPreview; demo?: boolean; name?: string }): string | undefined {
+  if (o.demo) return undefined;
+  const gr = o.name ?? 'gr';
+  const where = o.local ? o.tour.title : `${o.tour.repo}#${o.tour.pr}`;
+  const p = progress(o.tour, o.states);
+  const parts = [where];
+  if (o.mode === 'review') parts.push(`${p.read + p.skipped}/${p.total} hunks read`);
+  if (o.drafts) parts.push(`${plural(o.drafts, 'draft')} saved, not posted`);
+  if (o.replies) parts.push(`${plural(o.replies, 'reply', 'replies')} queued, not sent`);
+  // A preview is read again from the working tree, so it has no command to resume by.
+  if (!o.local) parts.push(`resume with ${gr} ${o.mode === 'author' ? 'feedback' : 'review'} ${o.tour.repo}#${o.tour.pr}`);
+  return parts.join(' · ');
+}
+
 export function quitAsksAbout(phase: Phase, tour: Pick<Tour, 'repo' | 'pr'> | undefined, target: Target | undefined, local: boolean): { repo: string; pr: number } | undefined {
   if (phase === 'pick' || local) return undefined;
   if (tour) return { repo: tour.repo, pr: tour.pr };
@@ -849,6 +866,18 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const quit = () => {
     loadAbort.current?.abort();
     predownloadAbort.current?.abort();
+    if (tour && phase !== 'pick' && phase !== 'load')
+      opts.onQuit?.(
+        quitSummary({
+          tour,
+          mode,
+          states,
+          drafts: store.listDrafts(tour.repo, tour.pr).filter((d) => !d.posted).length,
+          replies: store.listReplies(tour.repo, tour.pr).length,
+          local,
+          demo: opts.demo,
+        }),
+      );
     exit();
   };
   // Q: quit, once asked again when drafts or replies have not been posted. They are saved, so
