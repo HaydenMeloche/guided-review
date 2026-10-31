@@ -21,6 +21,7 @@ export function mergePopup(props: {
   number: number;
   tour?: Tour; // gives the model drafting the merge message the PR's text
   agent?: AgentContext;
+  approve?: { headSha: string }; // approve the PR at this commit before merging
   onCancel: () => void;
   onDone: (notice: string) => void;
   onQuit?: () => void;
@@ -28,7 +29,18 @@ export function mergePopup(props: {
   return (
     <ReviewPopup background={props.background} width={props.width} height={props.height} maxWidth={100} maxHeight={32} tone="decision">
       {(w, h) => (
-        <MergeScreen repo={props.repo} number={props.number} tour={props.tour} agent={props.agent} width={w} height={h} onCancel={props.onCancel} onDone={props.onDone} onQuit={props.onQuit} />
+        <MergeScreen
+          repo={props.repo}
+          number={props.number}
+          tour={props.tour}
+          agent={props.agent}
+          approve={props.approve}
+          width={w}
+          height={h}
+          onCancel={props.onCancel}
+          onDone={props.onDone}
+          onQuit={props.onQuit}
+        />
       )}
     </ReviewPopup>
   );

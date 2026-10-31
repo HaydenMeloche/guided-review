@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultMergeMessage, defaultMethod, mergeReadiness } from '../src/review/merge.js';
+import { defaultMergeMessage, defaultMethod, mergeReadiness, readinessWithApproval } from '../src/review/merge.js';
 import { summarizeChecks, type MergeStatus } from '../src/github/gh.js';
 
 const status = (extra: Partial<MergeStatus> = {}): MergeStatus => ({
@@ -66,6 +66,29 @@ describe('mergeReadiness', () => {
     expect(mergeReadiness(status({ mergeStateStatus: 'BEHIND' })).blockers).toEqual(['behind main: update the branch']);
     expect(mergeReadiness(status({ viewerCanMerge: false })).canMerge).toBe(false);
     expect(mergeReadiness(status({ state: 'MERGED' })).level).toBe('merged');
+  });
+});
+
+describe('readinessWithApproval', () => {
+  it('lifts the review a merge waits on, and the branch protection that held it', () => {
+    const waiting = status({ reviewDecision: 'REVIEW_REQUIRED', mergeStateStatus: 'BLOCKED' });
+    expect(mergeReadiness(waiting).canMerge).toBe(false);
+    expect(readinessWithApproval(waiting, 'head')).toMatchObject({ level: 'ready', canMerge: true });
+  });
+
+  it('keeps every other blocker', () => {
+    const r = readinessWithApproval(status({ reviewDecision: 'REVIEW_REQUIRED', checks: { ...status().checks, requiredFailed: ['test'] } }), 'head');
+    expect(r).toMatchObject({ level: 'blocked', canMerge: false, blockers: ['required check failing: test'] });
+    expect(readinessWithApproval(status({ reviewDecision: 'CHANGES_REQUESTED' }), 'head').blockers).toEqual(['changes requested']);
+  });
+
+  it('blocks an approval of commits pushed since the tour', () => {
+    expect(readinessWithApproval(status({ headSha: 'newer' }), 'head')).toMatchObject({
+      level: 'blocked',
+      canMerge: false,
+      canAutoMerge: false,
+      blockers: ['new commits since your tour: read them before approving'],
+    });
   });
 });
 

@@ -272,7 +272,7 @@ query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
       title body url
-      author { login }
+      author { login __typename }
       baseRefName headRefName baseRefOid headRefOid
       commits(first: 100) { nodes { commit { oid message } } }
       closingIssuesReferences(first: 10) { nodes { title body url number } }
@@ -286,7 +286,7 @@ interface PRQueryResult {
       title: string;
       body: string;
       url: string;
-      author: { login: string } | null;
+      author: { login: string; __typename?: string } | null;
       baseRefName: string;
       headRefName: string;
       baseRefOid: string;
@@ -378,6 +378,7 @@ export async function fetchPR(repo: string, number: number, signal?: AbortSignal
     body: pr.body ?? '',
     url: pr.url,
     author: pr.author?.login ?? 'ghost',
+    ...(pr.author?.__typename === 'Bot' ? { authorBot: true } : {}),
     baseRef: pr.baseRefName,
     headRef: pr.headRefName,
     baseSha: pr.baseRefOid,

@@ -179,6 +179,7 @@ export async function buildStaticTour(pr: PRInfo, diff: string, worktree: string
     title: pr.title,
     url: pr.url,
     author: pr.author,
+    ...(pr.authorBot ? { authorBot: true } : {}),
     baseSha: mergeBase,
     headSha: pr.headSha,
     createdAt: new Date().toISOString(),

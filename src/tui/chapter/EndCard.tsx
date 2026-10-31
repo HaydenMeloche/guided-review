@@ -5,7 +5,8 @@ import { G } from '../glyphs.js';
 import { plural } from '../plural.js';
 
 // The end of the tour, as good as its start: what you read, your drafts, the verdict they
-// suggest, and s to submit. Q quits; any other key keeps reading.
+// suggest, and s to submit. On a bot's PR read through with nothing to say, Enter approves and
+// merges it, through the merge dialog. Q quits; any other key keeps reading.
 export function EndCard(props: {
   read: number;
   skipped: number;
@@ -16,12 +17,14 @@ export function EndCard(props: {
   reasons: string[];
   optional: boolean;
   onSubmit: () => void;
+  onApproveMerge?: () => void;
   onOptional: () => void;
   onClose: () => void;
   onQuit: () => void;
 }) {
-  useInput((input) => {
+  useInput((input, key) => {
     if (input === 's') return props.onSubmit();
+    if (key.return && props.onApproveMerge) return props.onApproveMerge();
     if (input === 'Q') return props.onQuit();
     if (input === ']' && props.optional) return props.onOptional();
     props.onClose();
@@ -47,7 +50,14 @@ export function EndCard(props: {
       ))}
       {props.optional ? <Text dimColor>Import-only changes are optional; ] opens them.</Text> : null}
       <Text> </Text>
-      <Hints keys={[['s', 'review drafts and submit'], ...((props.optional ? [[']', 'optional chapter']] : []) as Hint[]), ['esc', 'keep reading']]} />
+      <Hints
+        keys={[
+          ...((props.onApproveMerge ? [['enter', 'approve and merge']] : []) as Hint[]),
+          ['s', props.onApproveMerge ? 'submit' : 'review drafts and submit'],
+          ...((props.optional ? [[']', 'optional chapter']] : []) as Hint[]),
+          ['esc', 'keep reading'],
+        ]}
+      />
     </Box>
   );
 }

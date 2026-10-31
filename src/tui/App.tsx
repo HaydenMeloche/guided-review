@@ -21,6 +21,7 @@ import {
   type ViewedState,
 } from '../github/gh.js';
 import { hunksViewedOnGitHub, viewedChanges } from '../review/viewed.js';
+import { isBotAuthor, isShortTour } from '../review/botPR.js';
 import { commitChapters, readCommitHunks } from '../review/commits.js';
 import { ensureWorktree } from '../git/worktree.js';
 import { localChanges, localPreview, type LocalPreview, type LocalTarget } from '../preview.js';
@@ -307,6 +308,9 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const [merged, setMerged] = useState<ReadonlySet<string>>(new Set());
   const [readiness, setReadiness] = useState<Readiness>();
   const [merging, setMerging] = useState<Target>();
+  const [approving, setApproving] = useState(false); // the merge dialog approves first (a bot's PR, from the end card)
+  // A bot's dependency bump opens on its chapter: the briefing has nothing to add to it.
+  const skipBriefing = useRef(false);
   const [checking, setChecking] = useState<Target>(); // the checks popup, over the picker or the briefing
   const [askingReviewers, setAskingReviewers] = useState<Target>(); // the reviewers popup, over the picker
   const [pickerReload, setPickerReload] = useState(0);
@@ -503,6 +507,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
             if (!shown) {
               shown = true;
               setDeltaOnly(!!tr.rereview?.newHunkIds.length);
+              skipBriefing.current = !src && isShortTour(tr);
               setPhase('briefing');
               // Files viewed on GitHub are read here too; from now on, reading here ticks them there.
               if (!src && opts.syncViewed !== false)
@@ -540,6 +545,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         }
         if (!shown) {
           setDeltaOnly(!!final.rereview?.newHunkIds.length);
+          skipBriefing.current = !src && isShortTour(final);
           setPhase('briefing');
         }
       } catch (e) {
@@ -690,6 +696,14 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     const c = chapters[ci];
     if (tour && c) store.setPosition(tour.repo, tour.pr, { chapterId: c.id, hunkId: hi >= 0 ? c.hunkIds[hi] : undefined, order });
   };
+
+  // The short tour's first frame: on to the chapter, where it would have resumed.
+  useEffect(() => {
+    if (phase !== 'briefing' || !skipBriefing.current || !chapters.length) return;
+    skipBriefing.current = false;
+    resume();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, chapters]);
 
   const resume = (ci?: number) => {
     if (!tour) return;
@@ -1025,10 +1039,15 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         number: t.number,
         tour: withTour,
         agent: mergeAgent(withTour ? worktree || undefined : undefined),
-        onCancel: () => setMerging(undefined),
+        approve: approving && withTour ? { headSha: withTour.headSha } : undefined,
+        onCancel: () => {
+          setMerging(undefined);
+          setApproving(false);
+        },
         onQuit: requestQuit,
         onDone: (notice) => {
           setMerging(undefined);
+          setApproving(false);
           setMerged((m) => new Set(m).add(keyFor(t)));
           showMerged(notice);
         },
@@ -1319,6 +1338,14 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
           setPhase('submit');
         }}
         openBriefing={() => setPhase('briefing')}
+        approveAndMerge={
+          !local && target && isBotAuthor(tour) && !merged.has(keyFor(target))
+            ? () => {
+                setApproving(true);
+                setMerging(target);
+              }
+            : undefined
+        }
         rebase={target && (newHead || localEdited) ? () => void load(target, localEdited, 'review') : undefined}
         editFile={worktree ? editFile : undefined}
         onTheme={theme.show}
@@ -1403,6 +1430,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         </ReviewPopup>
       );
     }
+    if (merging) return mergePopup(chapterScreen(false), merging, tour);
     return withThemePicker(chapterScreen);
   }
 }

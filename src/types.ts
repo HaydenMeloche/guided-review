@@ -297,6 +297,7 @@ export interface PRInfo {
   body: string;
   url: string;
   author: string;
+  authorBot?: boolean; // the author is an app, such as Dependabot or Renovate
   baseRef: string;
   headRef: string;
   baseSha: string;
@@ -312,6 +313,7 @@ export interface Tour {
   title: string;
   url: string;
   author: string;
+  authorBot?: boolean; // the author is an app, such as Dependabot or Renovate
   baseSha: string;
   headSha: string;
   createdAt: string;

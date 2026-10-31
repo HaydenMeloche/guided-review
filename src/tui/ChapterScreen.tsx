@@ -119,6 +119,7 @@ export function ChapterScreen(props: {
   toggleTestPane?: () => void;
   toggleDelta: () => void;
   openSubmit: () => void;
+  approveAndMerge?: () => void; // a bot's PR: the end card offers to approve and merge it
   openBriefing: () => void;
   editFile?: (file: string, line: number) => Promise<string | undefined>; // E: resolves to a message to show
   rebase?: () => void;
@@ -714,6 +715,8 @@ export function ChapterScreen(props: {
       const verdict = suggestVerdict(tour, props.drafts, states, labels);
       const pending = props.drafts.filter((d) => !d.posted).length;
       const optional = chapters.some((c) => c.optional);
+      // Everything read, nothing to post and nothing against approving: one step from merged.
+      const approveMerge = props.approveAndMerge && !pending && !p.unread && !p.deferred && verdict.event === 'APPROVE' ? props.approveAndMerge : undefined;
       return {
         tone: 'decision' as const,
         width: Math.min(72, width - 4),
@@ -732,6 +735,13 @@ export function ChapterScreen(props: {
               close();
               props.openSubmit();
             }}
+            onApproveMerge={
+              approveMerge &&
+              (() => {
+                close();
+                approveMerge();
+              })
+            }
             onOptional={() => {
               close();
               const oi = chapters.findIndex((c) => c.optional);

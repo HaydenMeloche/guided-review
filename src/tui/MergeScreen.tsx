@@ -11,12 +11,13 @@ import {
   fetchPR,
   markReadyForReview,
   mergePR,
+  postReview,
   updateBranch,
   type BranchUpdateMethod,
   type MergeMethod,
   type MergeStatus,
 } from '../github/gh.js';
-import { defaultMergeMessage, defaultMethod, mergeReadiness, METHOD_LABEL, type Readiness } from '../review/merge.js';
+import { defaultMergeMessage, defaultMethod, mergeReadiness, METHOD_LABEL, readinessWithApproval, type Readiness } from '../review/merge.js';
 import { draftMergeMessage } from '../agent/feedback.js';
 import type { AgentContext } from '../agent/types.js';
 import { TextInput } from './TextInput.js';
@@ -63,18 +64,23 @@ const DRAFTING = 'Drafting the commit message…';
 // GitHub is about to refuse.
 export const SETTLE = { tries: 10, delayMs: 1000 };
 
-type Mode = 'loading' | 'review' | 'title' | 'body' | 'confirm' | 'merging' | 'unsetting' | 'ready-confirm' | 'readying' | 'update-confirm' | 'updating' | 'done' | 'error';
+type Mode = 'loading' | 'review' | 'title' | 'body' | 'confirm' | 'approving' | 'merging' | 'unsetting' | 'ready-confirm' | 'readying' | 'update-confirm' | 'updating' | 'done' | 'error';
 
 // Merge a PR from gr: readiness first, then the method and its commit message. With a model,
 // squash and merge-commit messages are drafted from the PR; rebase takes no message. Nothing
 // is sent before the confirmation, and the merge names the head it was shown, so a push in the
 // meantime makes GitHub refuse it. A PR that waits only on checks, reviews or branch protection
 // can have auto-merge turned on instead, with the same method and message.
+//
+// With `approve`, the one confirmation also approves the PR first, at the commit the reader
+// toured. The dialog then reads the PR again and merges only if GitHub now allows it (or turns on
+// auto-merge, if that is what it can do); otherwise it says what still blocks it.
 export function MergeScreen(props: {
   repo: string;
   number: number;
   tour?: Tour; // the tour, when one is open: its summary helps the message
   agent?: AgentContext;
+  approve?: { headSha: string }; // approve the PR, at the commit toured, before merging
   width: number;
   height: number;
   onDone: (notice: string) => void;
@@ -94,6 +100,8 @@ export function MergeScreen(props: {
   const [delBranch, setDelBranch] = useState(false);
   const [help, setHelp] = useState(false);
   const [error, setError] = useState('');
+  const [approved, setApproved] = useState(false); // the approval is posted: from here on, a plain merge
+  const approving = !!props.approve && !approved;
   const abort = useRef<AbortController | undefined>(undefined);
   useEffect(() => () => abort.current?.abort(), []);
 
@@ -169,7 +177,7 @@ export function MergeScreen(props: {
     }
   };
 
-  const readiness = status && mergeReadiness(status);
+  const readiness = status && (approving ? readinessWithApproval(status, props.approve!.headSha) : mergeReadiness(status));
   const auto = !!readiness?.canAutoMerge;
   const canMerge = !!readiness?.canMerge || auto; // the method and message apply either way
   const takesMessage = method !== 'rebase';
@@ -243,15 +251,40 @@ export function MergeScreen(props: {
     if (!drafted[next] && next !== 'rebase' && props.agent) void draft(next);
   };
 
-  const merge = async () => {
-    if (!status) return;
+  // Approves at the commit toured, then reads the PR again until GitHub counts the approval, and
+  // merges by what that reading allows.
+  const approveThenMerge = async () => {
+    if (!status || !props.approve) return;
+    setMode('approving');
+    try {
+      await postReview(status.repo, status.number, { commit_id: props.approve.headSha, body: '', event: 'APPROVE', comments: [] });
+    } catch (e) {
+      setError(`Could not approve: ${(e as Error).message}`);
+      setMode('review');
+      return;
+    }
+    setApproved(true);
+    let s = status;
+    for (let i = 1; i <= SETTLE.tries; i++) {
+      s = await fetchMergeStatus(status.repo, status.number).catch(() => s);
+      if (s.reviewDecision !== 'REVIEW_REQUIRED' && s.mergeStateStatus !== 'UNKNOWN') break;
+      await new Promise((r) => setTimeout(r, SETTLE.delayMs));
+    }
+    setStatus(s);
+    const r = mergeReadiness(s);
+    if (r.canMerge || r.canAutoMerge) return void merge(s, r.canAutoMerge, 'Approved and ');
+    setNotice('Approved. It can’t merge yet; what blocks it is listed above.');
+    setMode('review');
+  };
+
+  const merge = async (status: MergeStatus, auto: boolean, done = '') => {
     setMode('merging');
     const message = takesMessage ? { title: title.trim(), message: body } : {};
     if (auto) {
       try {
         if (!status.id) throw new Error('GitHub gave no id for the PR');
         await enableAutoMerge(status.id, { method, headSha: status.headSha, ...message });
-        props.onDone(`Auto-merge on for ${status.repo}#${status.number}: GitHub will ${METHOD_LABEL[method].toLowerCase()} once its requirements are met`);
+        props.onDone(`${done ? 'Approved, and auto-merge' : 'Auto-merge'} on for ${status.repo}#${status.number}: GitHub will ${METHOD_LABEL[method].toLowerCase()} once its requirements are met`);
       } catch (e) {
         setError(`Could not turn on auto-merge: ${(e as Error).message}`);
         setMode('review');
@@ -267,7 +300,7 @@ export function MergeScreen(props: {
           (e: unknown) => ` · could not delete ${status.headRef}: ${(e as Error).message}`,
         );
       }
-      props.onDone(`Merged ${status.repo}#${status.number} (${METHOD_LABEL[method].toLowerCase()}) as ${r.sha.slice(0, 8)}${branch}`);
+      props.onDone(`${done}${done ? 'merged' : 'Merged'} ${status.repo}#${status.number} (${METHOD_LABEL[method].toLowerCase()}) as ${r.sha.slice(0, 8)}${branch}`);
     } catch (e) {
       setError(`Merge failed: ${(e as Error).message}`);
       setMode('review');
@@ -292,7 +325,7 @@ export function MergeScreen(props: {
   useInput(
     (input, key) => {
       if (mode === 'confirm') {
-        if (input === 'y' || key.return) return void merge();
+        if (input === 'y' || key.return) return void (approving ? approveThenMerge() : status && merge(status, auto));
         return setMode('review');
       }
       if (mode === 'ready-confirm') {
@@ -334,13 +367,13 @@ export function MergeScreen(props: {
         return setMode('confirm');
       }
     },
-    { isActive: !help && mode !== 'title' && mode !== 'body' && mode !== 'merging' && mode !== 'unsetting' && mode !== 'readying' },
+    { isActive: !help && mode !== 'title' && mode !== 'body' && mode !== 'merging' && mode !== 'approving' && mode !== 'unsetting' && mode !== 'readying' },
   );
   useInput((_i, key) => key.escape && setMode('review'), { isActive: mode === 'title' || mode === 'body' });
 
   const head = (
     <Text bold wrap="truncate">
-      Merge · <Text dimColor>{safe(props.repo)}</Text> #{props.number} {status ? truncate(safe(status.title), width - 24) : ''}
+      {approving ? 'Approve and merge' : 'Merge'} · <Text dimColor>{safe(props.repo)}</Text> #{props.number} {status ? truncate(safe(status.title), width - 24) : ''}
     </Text>
   );
   if (help) return <Help title="merge" sections={helpOf(MERGE_KEYS)} width={width} height={props.height} onClose={() => setHelp(false)} />;
@@ -400,6 +433,10 @@ export function MergeScreen(props: {
               </Text>
             ) : null}
           </>
+        ) : approving && canMerge ? (
+          <Text color="cyan" wrap="truncate">
+            P approves it first, at {props.approve!.headSha.slice(0, 8)}, the commit you toured; then {auto ? 'turns on auto-merge' : 'merges'}.
+          </Text>
         ) : auto ? (
           <Text color="cyan" wrap="truncate">
             P turns on auto-merge: GitHub merges it once nothing above blocks it.
@@ -531,6 +568,15 @@ export function MergeScreen(props: {
       ) : mode === 'readying' ? (
         <Text color="yellow">
           <Spinner color="yellow" /> Marking it ready for review…
+        </Text>
+      ) : mode === 'confirm' && approving ? (
+        <Confirm yes={auto ? 'approve and turn on auto-merge' : 'approve and merge'}>
+          Approve {safe(props.repo)}#{props.number} on GitHub, then {auto ? 'auto-merge it' : METHOD_LABEL[method].toLowerCase()} into {safe(status.baseRef)}
+          {auto ? ' once it can' : delBranch && status.headRepo ? `, then delete ${safe(status.headRef)}` : ''}?
+        </Confirm>
+      ) : mode === 'approving' ? (
+        <Text color="yellow">
+          <Spinner color="yellow" /> Approving…
         </Text>
       ) : mode === 'confirm' && auto ? (
         <Confirm yes="turn on auto-merge">

@@ -855,6 +855,14 @@
             </table>
           </div>
           <p>The merge names the head commit you saw, so GitHub refuses it if someone pushed in the meantime.</p>
+          <h3 id="bot-prs"><a class="anchor" href="#bot-prs" aria-hidden="true">#</a>Bot PRs</h3>
+          <p>
+            A PR from a bot, such as a Dependabot or Renovate dependency bump, whose tour is only special chapters (dependencies, CI, config, and the like) opens on its chapter rather than the
+            briefing; <code>b</code> still shows the briefing. When you reach the end of a bot&#39;s PR with everything read, no drafts, and an approving verdict, the end card offers
+            <code>Enter</code> to approve and merge. It opens the merge dialog with the approval added: one confirmation approves the PR at the commit you toured, then merges it, or turns on
+            auto-merge, by the same rules as above. If commits arrived after your tour, it offers nothing until you read them; if GitHub still won&#39;t merge after the approval, the dialog says what
+            blocks it.
+          </p>
           <h2 id="preview-your-own-branch"><a class="anchor" href="#preview-your-own-branch" aria-hidden="true">#</a>Preview your own branch</h2>
           <p>
             <code>gr preview</code> (or <code>l</code> on the PR list) tours your branch before you open a PR, uncommitted changes included, against its merge base with the default branch. Commit

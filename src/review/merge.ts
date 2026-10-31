@@ -65,6 +65,18 @@ export function mergeReadiness(s: MergeStatus): Readiness {
   };
 }
 
+// The readiness once the viewer approves what they toured: a missing approving review no longer
+// blocks it, nor the branch protection that was waiting on that review. Commits pushed since the
+// tour block it, as the approval would cover code not read. A rule that wants more than one
+// approval shows only after approving, when the dialog reads the PR again.
+export function readinessWithApproval(s: MergeStatus, touredSha: string): Readiness {
+  const waiting = s.reviewDecision === 'REVIEW_REQUIRED';
+  const r = mergeReadiness(waiting ? { ...s, reviewDecision: 'APPROVED', mergeStateStatus: s.mergeStateStatus === 'BLOCKED' ? 'CLEAN' : s.mergeStateStatus } : s);
+  if (s.headSha === touredSha || r.level === 'merged' || r.level === 'closed') return r;
+  const blockers = ['new commits since your tour: read them before approving', ...r.blockers];
+  return { ...r, level: 'blocked', summary: `Not ready: ${blockers.join(' · ')}`, blockers, canMerge: false, canAutoMerge: false };
+}
+
 export const METHOD_LABEL: Record<MergeMethod, string> = { squash: 'Squash and merge', merge: 'Create a merge commit', rebase: 'Rebase and merge' };
 
 // Squash is the usual choice when the repository allows it.
