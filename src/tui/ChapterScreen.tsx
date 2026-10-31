@@ -112,6 +112,7 @@ export function ChapterScreen(props: {
   toggleDelta: () => void;
   openSubmit: () => void;
   openBriefing: () => void;
+  editFile?: (file: string, line: number) => Promise<string | undefined>; // E: resolves to a message to show
   rebase?: () => void;
   onTheme?: () => void; // L: the color theme picker
   services?: Services;
@@ -454,6 +455,13 @@ export function ChapterScreen(props: {
     order: () => props.toggleOrder(),
     delta: () => props.toggleDelta(),
     rebase: () => props.rebase?.(),
+    editor: () => {
+      if (!props.editFile) return setFlash('The editor opens once the checkout is ready.');
+      // A removed line opens at the new line after it, or before it at the end of the hunk.
+      const lines = hunk!.lines;
+      const line = lines.slice(cursor).find((l) => l.newLine !== undefined)?.newLine ?? lines.slice(0, cursor).findLast((l) => l.newLine !== undefined)?.newLine ?? 1;
+      void props.editFile(hunk!.file, line).then((msg) => msg && setFlash(msg));
+    },
     submit: () => props.openSubmit(),
     help: () => show('help'),
     checklist: () => {

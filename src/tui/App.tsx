@@ -41,6 +41,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { ErrorBlock } from './ErrorBlock.js';
+import { openInEditor } from '../util/editor.js';
 
 export interface Target {
   repo: string;
@@ -189,7 +190,7 @@ export function App(opts: AppOptions) {
 
 function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const { theme } = opts;
-  const { exit } = useApp();
+  const { exit, suspendTerminal } = useApp();
   const { columns, rows } = useWindowSize();
   const store = useMemo(() => new Store(), []);
   const [phase, setPhase] = useState<Phase>(opts.target || opts.preview ? 'load' : 'pick');
@@ -236,6 +237,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   // The last review posted, shown on that PR's briefing too: the PR list is not the only way back.
   const [postedNotice, setPostedNotice] = useState<{ key: string; text: string }>();
   const [newHead, setNewHead] = useState<string | undefined>();
+  // gr preview: the reader edited the checkout with E, so the tour is behind the working tree.
+  const [localEdited, setLocalEdited] = useState(false);
   const [editing, setEditing] = useState<Draft | undefined>();
   const [editState, setEditState] = useState<ComposerState>();
   // Recent locations for this PR's session feed @ completion and its recent: filter. A ref:
@@ -370,6 +373,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       setError('');
       setBanner(undefined);
       setNewHead(undefined);
+      setLocalEdited(false);
       setReadiness(undefined);
       threadDiffs.current = new Map();
       try {
@@ -544,7 +548,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   // The window title names the PR and where you are in it.
   const subject = local ? `preview ${local.pr.repo}` : target ? `${target.repo}#${target.number}` : undefined;
   const title = ['gr', phase === 'pick' ? undefined : subject, titleSpot(phase, !!tour, pos.ci, chapters.length)].filter(Boolean).join(' · ');
-  useTerminalStatus(title, tabProgress(phase, narration));
+  const rewriteTerminalStatus = useTerminalStatus(title, tabProgress(phase, narration));
 
   // Switch between the new or changed hunks and the whole tour, keeping the current hunk when it is in both.
   const toggleDelta = () => {
@@ -657,6 +661,30 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     );
   };
 
+  // E: the file at a line in $EDITOR, in the checkout the tour reads. In a preview that is the
+  // reader's own, so an edit offers to rebuild the tour; in a PR it is gr's detached copy.
+  const editFile = async (file: string, line: number): Promise<string | undefined> => {
+    const full = path.resolve(worktree, file);
+    if (path.relative(worktree, full).startsWith('..')) return `${file} is outside the checkout.`;
+    if (!fs.existsSync(full)) return local ? `${file} is not in your working tree.` : `${file} is not in the PR head: the PR deletes it.`;
+    const before = fs.readFileSync(full, 'utf8');
+    let failed: string | undefined;
+    await suspendTerminal(() => {
+      try {
+        openInEditor(full, line);
+      } catch (e) {
+        failed = (e as Error).message;
+      }
+    });
+    rewriteTerminalStatus();
+    if (failed) return `Could not open the editor: ${failed}`;
+    if (fs.existsSync(full) && fs.readFileSync(full, 'utf8') === before) return undefined;
+    if (!local) return `Saved in gr's copy of the PR head (${worktree}), not in a branch of yours.`;
+    setLocalEdited(true);
+    setBanner(`▲ You edited ${file} · R rebuilds the tour on your working tree (drafts are kept)`);
+    return undefined;
+  };
+
   const toggleView = (key: ViewSetting, value: boolean, set: (v: boolean) => void) => {
     set(!value);
     try {
@@ -753,6 +781,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         setSteps([]);
         setBanner(undefined);
         setNewHead(undefined);
+        setLocalEdited(false);
         setAnalyzing(undefined);
         setNarration(undefined);
         setPhase('pick');
@@ -1103,7 +1132,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
           setPhase('submit');
         }}
         openBriefing={() => setPhase('briefing')}
-        rebase={newHead && target ? () => void load(target, false, 'review') : undefined}
+        rebase={target && (newHead || localEdited) ? () => void load(target, localEdited, 'review') : undefined}
+        editFile={worktree ? editFile : undefined}
         onTheme={theme.show}
         quit={requestQuit}
       />

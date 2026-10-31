@@ -72,6 +72,7 @@ export type Action =
   | 'order'
   | 'delta'
   | 'rebase'
+  | 'editor'
   | 'checklist'
   | 'submit'
   | 'help'
@@ -289,6 +290,12 @@ export const KEYS: KeyRow[] = [
     group: 'Settings',
     help: 'Rebuild the tour on a newer PR head after the author pushes',
     bind: [{ mode: 'code', on: ['R'], do: 'rebase', when: (c) => c.rebase, palette: 'Rebuild on the new head' }],
+  },
+  {
+    keys: 'E',
+    group: 'Settings',
+    help: 'Open the file at the cursor line in $EDITOR',
+    bind: [{ mode: 'code', on: ['E'], do: 'editor', when: hunk, palette: 'Open the file at this line in your editor' }],
   },
   {
     keys: 'L',

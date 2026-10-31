@@ -5,7 +5,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { checkBashCommand, hardenBashCommand, readOnlyGuard, readOnlyHook, tokenize } from '../src/agent/guard.js';
 import { runRepoTool } from '../src/agent/repoTools.js';
-import { editorCommand } from '../src/util/editor.js';
+import { editorCommand, lineArgs } from '../src/util/editor.js';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gr-guard-'));
 const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'gr-outside-'));
@@ -241,5 +241,14 @@ describe('editorCommand', () => {
     expect(editorCommand('code --wait')).toEqual(['code', '--wait']);
     expect(editorCommand(`"/Applications/My Editor/bin/ed" -w`)).toEqual(['/Applications/My Editor/bin/ed', '-w']);
     expect(editorCommand('  ')).toEqual(['vi']);
+  });
+});
+
+describe('lineArgs', () => {
+  it('opens at a line the way each editor takes it', () => {
+    expect(lineArgs('nvim', '/r/a.ts', 48)).toEqual(['+48', '/r/a.ts']);
+    expect(lineArgs('/usr/local/bin/code', '/r/a.ts', 48)).toEqual(['--goto', '/r/a.ts:48']);
+    expect(lineArgs('subl', '/r/a.ts', 48)).toEqual(['/r/a.ts:48']);
+    expect(lineArgs('hx', '/r/a.ts', 48)).toEqual(['/r/a.ts:48']);
   });
 });

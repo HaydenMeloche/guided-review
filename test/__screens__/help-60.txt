@@ -34,6 +34,7 @@
  ‹b,dim›           ‹/›‹cyan›m             ‹/›Move the hunk to another chapter
  ‹b,dim›           ‹/›‹cyan›i             ‹/›Team checklist for this chapter
  ‹b,dim›           ‹/›‹cyan›R             ‹/›Rebuild the tour on a newer PR h…
+ ‹b,dim›           ‹/›‹cyan›E             ‹/›Open the file at the cursor line…
  ‹b,dim›           ‹/›‹cyan›L             ‹/›Color theme (previews as you mov…
  ‹b,dim›           ‹/›‹cyan›\             ‹/›Show or hide the chapter list be…
 
@@ -45,7 +46,6 @@
  ‹b,dim›           ‹/›‹cyan›q             ‹/›go up a level
  ‹b,dim›           ‹/›‹cyan›Q             ‹/›quit
  ‹b,dim›           ‹/›‹cyan›?             ‹/›these keys
-
 
 
 

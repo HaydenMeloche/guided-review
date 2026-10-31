@@ -64,6 +64,7 @@ function Harness(props: {
   onReply?: (body: string) => Promise<void>;
   onDelete?: (d: Draft) => void;
   onTheme?: () => void;
+  editFile?: (file: string, line: number) => Promise<string | undefined>;
   agent?: { cwd: string };
 }) {
   const { tour } = props;
@@ -105,6 +106,7 @@ function Harness(props: {
       toggleDelta={() => {}}
       openSubmit={() => {}}
       openBriefing={() => props.onBriefing?.()}
+      editFile={props.editFile}
       onTheme={props.onTheme}
       quit={() => {}}
     />
@@ -118,6 +120,18 @@ describe('ChapterScreen', () => {
     await tick();
     ui.stdin.write('L');
     await waitFor(() => expect(onTheme).toHaveBeenCalledTimes(1));
+    ui.unmount();
+  });
+
+  it('opens the file at the cursor line on E, and shows what the editor reports', async () => {
+    const tour = fixtureTour();
+    const hunk = tour.hunks[tour.chapters[0].hunkIds[0]];
+    const editFile = vi.fn(async () => 'Saved in gr’s copy of the PR head.');
+    const ui = render(<Harness tour={tour} onDraft={() => {}} onState={() => {}} editFile={editFile} />);
+    await tick();
+    ui.stdin.write('E');
+    await waitFor(() => expect(editFile).toHaveBeenCalledWith(hunk.file, hunk.lines.find((l) => l.newLine !== undefined)!.newLine));
+    await waitFor(() => expect(ui.lastFrame()).toContain('Saved in gr’s copy of the PR head.'));
     ui.unmount();
   });
 
