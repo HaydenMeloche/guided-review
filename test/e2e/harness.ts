@@ -282,6 +282,7 @@ export interface Session {
   screenWithAttrs: () => string; // the screen with its colors and styles marked up (see markRow)
   title: () => string; // the last window title gr set (OSC 0)
   press: (...keys: string[]) => void;
+  signal: (name: NodeJS.Signals) => void; // as a shell sends one, e.g. SIGCONT for fg
   type: (text: string) => void;
   waitFor: (match: string | RegExp, timeoutMs?: number) => Promise<string>;
   idle: () => Promise<string>; // waits for the output to go quiet, then returns the screen
@@ -295,11 +296,18 @@ export const KEY = { enter: '\r', escape: '\u001b', tab: '\t' } as const;
 
 // Runs gr in a pseudo-terminal and mirrors its output into a headless xterm,
 // so tests read the screen the way a user would see it.
-export function startGr(box: Sandbox, args: string[], opts: { cwd: string; cols?: number; rows?: number; env?: NodeJS.ProcessEnv }): Session {
+// With `shell`, gr runs as a job of an interactive shell, as it does in a real terminal, so job
+// control (Ctrl+Z, fg) works; `exited` is then the shell's exit. With `parent` too, gr runs as the
+// child of another process that waits for it, as under `pnpm dev`.
+export function startGr(box: Sandbox, args: string[], opts: { cwd: string; cols?: number; rows?: number; env?: NodeJS.ProcessEnv; shell?: boolean; parent?: boolean }): Session {
   const cols = opts.cols ?? 120;
   const rows = opts.rows ?? 36;
   const term = new xterm.Terminal({ cols, rows, allowProposedApi: true });
-  const proc = pty.spawn(process.execPath, [GR, ...args], { cols, rows, cwd: opts.cwd, env: { ...box.env, ...opts.env } });
+  const env = { ...box.env, ...opts.env, ...(opts.shell ? { PS1: '$ ', ENV: '' } : {}) };
+  const proc = opts.shell ? pty.spawn('/bin/sh', ['-i'], { cols, rows, cwd: opts.cwd, env }) : pty.spawn(process.execPath, [GR, ...args], { cols, rows, cwd: opts.cwd, env });
+  const parent = ['-e', `require('child_process').spawn(process.argv[1], process.argv.slice(2), { stdio: 'inherit' }).on('exit', (c) => process.exit(c ?? 1))`, process.execPath];
+  const command = [process.execPath, ...(opts.parent ? parent : []), GR, ...args];
+  if (opts.shell) proc.write(`${command.map((a) => `'${a.replace(/'/g, `'\\''`)}'`).join(' ')}\r`);
   let lastData = Date.now();
   let title = '';
   term.onTitleChange((t) => (title = t));
@@ -364,6 +372,7 @@ export function startGr(box: Sandbox, args: string[], opts: { cwd: string; cols?
       for (const k of keys) proc.write(k);
     },
     type: (text) => proc.write(text),
+    signal: (name) => process.kill(proc.pid, name),
     waitFor,
     idle: settle,
     exited,

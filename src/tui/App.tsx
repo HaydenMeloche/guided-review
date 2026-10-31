@@ -863,6 +863,55 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     }
   };
 
+  // Ctrl+Z: give the terminal back to the shell and stop, as a terminal program does; fg resumes
+  // with the screen redrawn. Raw mode turns Ctrl+Z into a key, so gr stops itself. Without job
+  // control (no shell to take the terminal), the system ignores the stop: gr then comes straight
+  // back and says so. Windows has none, so there it does nothing.
+  const suspendToShell = async () => {
+    let stopped = true;
+    await suspendTerminal(
+      () =>
+        new Promise<void>((resolve) => {
+          // The loop stays alive meanwhile: a stop that never comes must not let gr exit.
+          const keepAlive = setInterval(() => undefined, 1000);
+          const done = () => {
+            clearInterval(keepAlive);
+            clearTimeout(ignored);
+            process.removeListener('SIGCONT', done);
+            resolve();
+          };
+          // A stopped process runs no timers: this firing on time means the stop was ignored, and
+          // firing late, that gr was stopped and is resuming (before SIGCONT is handled).
+          const start = Date.now();
+          const ignored = setTimeout(() => {
+            stopped = Date.now() - start > 600;
+            done();
+          }, 300);
+          process.once('SIGCONT', done);
+          // The whole process group, as the terminal's own Ctrl+Z would: under a parent that
+          // waits for gr (pnpm, npx, tsx), the shell's job is the parent, which must stop too.
+          process.kill(0, 'SIGTSTP');
+        }),
+    );
+    // The window may have been resized while stopped.
+    process.stdout.emit('resize');
+    rewriteTerminalStatus();
+    if (stopped) return;
+    // Said wherever the reader is: the chapter's header, the briefing, or the PR list.
+    const note = 'Ctrl+Z suspends gr only under a shell with job control; this terminal has none.';
+    setBanner(note);
+    if (tour) setPostedNotice({ key: `${tour.repo}#${tour.pr}`, text: note });
+    setPickerNotice(note);
+  };
+  useInkInput(
+    (input, key) => {
+      if (key.ctrl && input === 'z') void suspendToShell();
+    },
+    // From the first screen on, as the screens' own handlers start: one taking the terminal's
+    // input during the load (straight after gr review's question) leaves Ink without it.
+    { isActive: process.platform !== 'win32' && phase !== 'load' },
+  );
+
   const quit = () => {
     loadAbort.current?.abort();
     predownloadAbort.current?.abort();

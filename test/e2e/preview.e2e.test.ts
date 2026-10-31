@@ -151,3 +151,33 @@ describe('quitting', () => {
     expect(gr.screen()).toContain('feature/discount (preview) · 0/1 hunks read');
   });
 });
+
+describe('Ctrl+Z', () => {
+  it.each([
+    ['', false],
+    [' as the child of another process, as under pnpm', true],
+  ])('stops gr under a shell%s, and fg brings it back redrawn', async (_, parent) => {
+    const gr = startGr(box, ['preview', '--no-agent'], { cwd: repo, shell: true, parent });
+    sessions.push(gr);
+    await gr.waitFor('Chapters · Guided order');
+    gr.press('\x1a');
+    // The shell has the terminal again, and says the job stopped.
+    await gr.waitFor(/Stopped|Suspended/);
+    expect(gr.screen()).not.toContain('Chapters · Guided order');
+    gr.type('fg\r');
+    await gr.waitFor('Chapters · Guided order');
+    // And it takes keys again.
+    gr.press('n');
+    await gr.waitFor(/hunk 1\/1/);
+  });
+
+  it('comes straight back and says so where nothing can stop it', async () => {
+    // Run with no shell around it, the system ignores the stop.
+    const gr = preview();
+    await gr.waitFor('Chapters · Guided order');
+    gr.press('\x1a');
+    await gr.waitFor('Ctrl+Z suspends gr only under a shell with job control');
+    gr.press('n');
+    await gr.waitFor(/hunk 1\/1/);
+  });
+});

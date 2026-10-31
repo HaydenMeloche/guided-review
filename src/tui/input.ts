@@ -7,7 +7,8 @@ import { useInput as inkUseInput } from 'ink';
 export const KeysLive = createContext(true);
 
 // Ink's useInput, quiet while KeysLive is off. Screens import it from here rather than from Ink.
+// Ctrl+Z never reaches them: App suspends gr with it, and a screen would read it as z.
 export function useInput(handler: Parameters<typeof inkUseInput>[0], options?: { isActive?: boolean }): void {
   const live = useContext(KeysLive);
-  inkUseInput(handler, { isActive: live && options?.isActive !== false });
+  inkUseInput((input, key) => (key.ctrl && input === 'z' ? undefined : handler(input, key)), { isActive: live && options?.isActive !== false });
 }
