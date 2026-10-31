@@ -1,4 +1,4 @@
-import type { DiffLine, Draft, ExistingThread, Hunk } from '../../types.js';
+import type { Chapter, DiffLine, Draft, ExistingThread, Hunk, Tour } from '../../types.js';
 import type { Fold } from '../../diff/lines.js';
 import { safe } from './text.js';
 import { plural } from '../plural.js';
@@ -109,5 +109,27 @@ export function cursorNotes(
       .flatMap(([line, s]) => draftsAt(drafts, hunk!, line, s).filter((d) => !d.posted))
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
       .at(-1),
+  };
+}
+
+// What is said about a chapter, for its row on the briefing: the current review threads on its
+// hunks' lines, open and resolved, and the reader's unposted drafts on it. Outdated threads are
+// about code since changed, so they are left out.
+export function chapterNotes(tour: Pick<Tour, 'hunks' | 'existingThreads'>, chapter: Chapter, drafts: Draft[]): { open: number; resolved: number; drafts: number } {
+  const ids = new Set(chapter.hunkIds);
+  const found = new Map<string, ExistingThread>();
+  for (const id of chapter.hunkIds) {
+    const h = tour.hunks[id];
+    if (!h) continue;
+    for (const l of h.lines) {
+      if (l.expanded) continue;
+      for (const t of threadAt(tour.existingThreads, h.file, l.kind === 'del' ? l.oldLine : l.newLine, l.kind === 'del' ? 'LEFT' : 'RIGHT')) found.set(t.id, t);
+    }
+  }
+  const threads = [...found.values()].filter((t) => !t.isOutdated);
+  return {
+    open: threads.filter((t) => !t.isResolved).length,
+    resolved: threads.filter((t) => t.isResolved).length,
+    drafts: drafts.filter((d) => !d.posted && (d.anchor.type === 'line' || d.anchor.type === 'range' ? ids.has(d.anchor.hunkId) : d.anchor.chapterId === chapter.id)).length,
   };
 }

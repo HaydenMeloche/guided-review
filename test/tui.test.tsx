@@ -1135,6 +1135,50 @@ describe('chapter order', () => {
 });
 
 describe('BriefingScreen and SubmitScreen', () => {
+  it('shows the open threads and your drafts on each chapter row', async () => {
+    const tour = fixtureTour();
+    const first = tour.chapters[0];
+    const h = tour.hunks[first.hunkIds[0]];
+    const line = h.lines.find((l) => l.kind === 'add')!.newLine!;
+    tour.existingThreads = [
+      { id: 'T1', path: h.file, line, isResolved: false, isOutdated: false, comments: [{ author: 'dev', body: 'Why?', createdAt: '' }] },
+      { id: 'T2', path: h.file, line, isResolved: true, isOutdated: false, comments: [{ author: 'dev', body: 'Done', createdAt: '' }] },
+    ];
+    const draft = {
+      id: 'd1',
+      repo: tour.repo,
+      pr: tour.pr,
+      headSha: tour.headSha,
+      anchor: { type: 'chapter' as const, chapterId: first.id },
+      label: 'nit' as const,
+      body: 'x',
+      posted: false,
+      createdAt: '',
+    };
+    const ui = render(
+      <BriefingScreen
+        tour={tour}
+        chapters={tour.chapters}
+        drafts={[draft]}
+        order="flow"
+        cycleOrder={() => {}}
+        states={{}}
+        width={140}
+        height={45}
+        onStart={() => {}}
+        onSubmit={() => {}}
+        onQuit={() => {}}
+      />,
+    );
+    await waitFor(() => expect(ui.lastFrame()).toContain('Chapters'));
+    const row = ui
+      .lastFrame()!
+      .split('\n')
+      .find((l) => /^\s*1 · /.test(l))!;
+    expect(row).toContain('1 open · ✎ 1');
+    ui.unmount();
+  });
+
   it('summarizes other reviewers and opens their full reviews', async () => {
     const tour = fixtureTour();
     tour.viewer = 'me';

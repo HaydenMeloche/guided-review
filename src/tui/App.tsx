@@ -1155,6 +1155,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         tour={tour}
         chapters={chapters}
         allChapters={allChapters}
+        drafts={drafts}
         order={order}
         cycleOrder={() => void cycleOrder()}
         deltaOnly={deltaOnly}

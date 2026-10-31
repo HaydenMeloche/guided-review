@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useInput } from './input.js';
 import { Box, Text, useSelected, useTheme } from './themed.js';
 import { ROLES } from './theme.js';
-import type { Chapter, ChapterOrder, ExistingThread, Flag, Tour } from '../types.js';
-import { chapterState, meter, ORDER_LABEL, pad, progress, riskMark, stateMark, type States } from './nav.js';
+import type { Chapter, ChapterOrder, Draft, ExistingThread, Flag, Tour } from '../types.js';
+import { chapterState, meter, ORDER_LABEL, pad, progress, stateMark, type States } from './nav.js';
+import { chapterNotes } from './chapter/lineNotes.js';
 import { DiagramView } from './DiagramView.js';
 import { renderGraph } from '../diagram/text.js';
 import { MdLineView, renderMarkdown } from './markdown.js';
@@ -95,6 +96,7 @@ export function BriefingScreen(props: {
   deltaOnly?: boolean;
   toggleDelta?: () => void;
   states: States;
+  drafts?: Draft[]; // your drafts, counted on each chapter's row
   analyzing?: string; // chapters still being narrated, shown at the header's right end
   writingBriefing?: boolean; // the model's briefing is still being written over this static tour
   agent?: AgentCtx;
@@ -356,10 +358,13 @@ export function BriefingScreen(props: {
           const st = stateMark(chapterState(tour, c, states));
           const p = progress(tour, states, c.hunkIds);
           const m = meter(p.read + p.skipped, p.total, 4);
-          const risk = Math.max(0, ...c.hunkIds.map((id) => tour.hunks[id]?.risk ?? 0));
-          const rk = risk >= 2 ? riskMark(risk) : undefined;
           const count = c.optional ? 'optional' : !delta ? `${p.read + p.skipped}/${p.total}` : unchanged ? 'unchanged' : `${c.hunkIds.length} of ${fullCount(c.id)} changed`;
-          const tail = `  ${c.optional || unchanged ? '' : `${m.filled}${m.rest} `}${count.padStart(5)} ${rk ? rk.mark : ' '}`;
+          // Where the discussion is: open threads (or resolved ones, when none is open) and your drafts.
+          const said = chapterNotes(tour, c, props.drafts ?? []);
+          const threadNote = said.open ? `${said.open} open` : said.resolved ? `${said.resolved} resolved` : '';
+          const draftNote = said.drafts ? `${G.draft} ${said.drafts}` : '';
+          const notes = [threadNote, draftNote].filter(Boolean).join(' · ');
+          const tail = `  ${c.optional || unchanged ? '' : `${m.filled}${m.rest} `}${count.padStart(5)}${notes ? `  ${notes}` : ''}`;
           const selected = !unchanged && ci === sel;
           const quiet = unchanged || (c.collapsed && !selected);
           const n = String(chStart + k + 1).padStart(numW);
@@ -375,8 +380,9 @@ export function BriefingScreen(props: {
                   <Text dimColor>{m.rest}</Text>
                 </>
               )}
-              <Text dimColor>{` ${count.padStart(5)} `}</Text>
-              {rk ? <Text color={rk.color}>{rk.mark}</Text> : ' '}
+              <Text dimColor>{` ${count.padStart(5)}`}</Text>
+              {threadNote ? <Text color={said.open ? 'yellow' : undefined} dimColor={!said.open}>{`  ${threadNote}`}</Text> : null}
+              {draftNote ? <Text dimColor>{`${threadNote ? ' · ' : '  '}${draftNote}`}</Text> : null}
             </Text>
           );
         })}
@@ -384,7 +390,7 @@ export function BriefingScreen(props: {
         {/* Where the marks first appear, what they mean; ? then Tab has them all. */}
         {legendRow ? (
           <Text dimColor wrap="truncate">
-            {`  ${G.read} read  ${G.skipped} skipped  ${G.deferred} deferred  ${G.unread} unread  ${G.risk} risky  · ? then tab for every mark`}
+            {`  ${G.read} read  ${G.skipped} skipped  ${G.deferred} deferred  ${G.unread} unread  · ? then tab for every mark`}
           </Text>
         ) : null}
       </Box>

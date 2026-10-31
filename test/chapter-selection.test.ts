@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Chapter, DiffLine, ExistingThread, Hunk } from '../src/types.js';
-import { cursorNotes } from '../src/tui/chapter/lineNotes.js';
+import type { Chapter, DiffLine, Draft, ExistingThread, Hunk } from '../src/types.js';
+import { chapterNotes, cursorNotes } from '../src/tui/chapter/lineNotes.js';
 import { linkedTests } from '../src/tui/chapter/linkedTests.js';
 import { anchorLines, crossesContext, describeAnchor, lineAnchor, linkLines, newDraft, selectedCode, selRange, testLineAnchor } from '../src/tui/chapter/selection.js';
 import { diffLines, hunk } from './fixtures/tour.js';
@@ -172,5 +172,26 @@ describe('linkLines', () => {
     expect(linkLines(h, [1, 2])).toEqual({ side: 'old', start: 11, end: 12 });
     // Removed lines inside a range with new ones are left out of it.
     expect(linkLines(h, [1, 4])).toEqual({ side: 'new', start: 11, end: 12 });
+  });
+});
+
+describe('chapterNotes', () => {
+  it('counts the current threads on a chapter’s lines, resolved apart, and your unposted drafts', () => {
+    const h = hunk('h1', 'src/a.ts', diffLines([' a', '-b', '+c'], 10));
+    const t = (id: string, extra: Partial<ExistingThread>): ExistingThread => ({ id, path: 'src/a.ts', isResolved: false, isOutdated: false, comments: [], ...extra });
+    const chapter = { id: 'c1', hunkIds: ['h1'] } as Chapter;
+    const tour = {
+      hunks: { h1: h },
+      existingThreads: [
+        t('open', { line: 11 }),
+        t('resolved', { line: 10, isResolved: true }),
+        // Outdated, though placed on a line of the hunk: about code since changed.
+        t('outdated', { originalLine: 11, isOutdated: true, placed: { line: 11, side: 'RIGHT' } }),
+        t('elsewhere', { line: 99 }),
+      ],
+    };
+    const draft = (anchor: Draft['anchor'], posted = false) => ({ id: Math.random().toString(), anchor, posted }) as Draft;
+    const drafts = [draft({ type: 'line', hunkId: 'h1', file: 'src/a.ts', line: 11, side: 'RIGHT' }), draft({ type: 'chapter', chapterId: 'c2' }), draft({ type: 'chapter', chapterId: 'c1' }, true)];
+    expect(chapterNotes(tour, chapter, drafts)).toEqual({ open: 1, resolved: 1, drafts: 1 });
   });
 });
