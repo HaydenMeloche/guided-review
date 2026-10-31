@@ -3,7 +3,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../src/util/exec.js', () => ({ run: vi.fn() }));
 
 import { run } from '../src/util/exec.js';
-import { AUTHORED_LIMIT, fetchMergeStatus, listAuthoredPRs, listReviewedPRs, PartialSendError, PendingReviewError, postThreadReplies, resetGhCaches, UncertainSendError } from '../src/github/gh.js';
+import {
+  AUTHORED_LIMIT,
+  fetchMergeStatus,
+  fetchViewedFiles,
+  listAuthoredPRs,
+  listReviewedPRs,
+  setFileViewed,
+  PartialSendError,
+  PendingReviewError,
+  postThreadReplies,
+  resetGhCaches,
+  UncertainSendError,
+} from '../src/github/gh.js';
 
 const runMock = vi.mocked(run);
 
@@ -472,5 +484,47 @@ describe('listReviewedPRs', () => {
     const r = await listReviewedPRs();
     expect(r.prs[0]).toMatchObject({ newCommits: 1, newCommitsAtLeast: true });
     expect(r.truncated).toBe(true);
+  });
+});
+
+describe('Viewed checkboxes', () => {
+  it('reads every page of the files and the PR id', async () => {
+    const afters: (string | undefined)[] = [];
+    fakeGh({
+      graphql: (_a, vars) => {
+        afters.push(vars.after);
+        const first = !vars.after;
+        return {
+          repository: {
+            pullRequest: {
+              id: 'PR_1',
+              files: {
+                pageInfo: { hasNextPage: first, endCursor: first ? 'c1' : null },
+                nodes: first ? [{ path: 'a.ts', viewerViewedState: 'VIEWED' }] : [{ path: 'b.ts', viewerViewedState: 'DISMISSED' }],
+              },
+            },
+          },
+        };
+      },
+    });
+    const r = await fetchViewedFiles('o/r', 4);
+    expect(r.prId).toBe('PR_1');
+    expect([...r.viewed]).toEqual([
+      ['a.ts', 'VIEWED'],
+      ['b.ts', 'DISMISSED'],
+    ]);
+    expect(afters).toEqual([undefined, 'c1']);
+  });
+
+  it('marks and unmarks a file', async () => {
+    const sent: string[] = [];
+    runMock.mockImplementation(async (_cmd, args) => {
+      const q = args.find((x) => x.startsWith('query='))!;
+      sent.push(`${/(markFileAsViewed|unmarkFileAsViewed)/.exec(q)![1]} ${args.find((x) => x.startsWith('path='))}`);
+      return JSON.stringify({ data: {} });
+    });
+    await setFileViewed('PR_1', 'src/a.ts', true);
+    await setFileViewed('PR_1', 'src/a.ts', false);
+    expect(sent).toEqual(['markFileAsViewed path=src/a.ts', 'unmarkFileAsViewed path=src/a.ts']);
   });
 });

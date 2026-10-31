@@ -117,6 +117,7 @@ export type UserConfig = Omit<AgentRouting, 'provider'> & {
   sidebar?: boolean;
   shortExplanation?: boolean;
   commentLabels?: boolean; // false: comments carry no label (blocking, question, suggestion, nit)
+  syncViewed?: boolean; // false: read state stays off GitHub's Viewed checkboxes
   theme?: string;
   glyphs?: GlyphSetting;
   icons?: IconSetting;
@@ -268,6 +269,18 @@ export function loadCommentLabels(raw = readUserConfigFile()): boolean {
   return (raw && parseCommentLabels(raw, userConfigPath())) ?? true;
 }
 
+// "syncViewed": false keeps gr's read state off GitHub's Viewed checkboxes, for a reader who uses
+// the two as separate passes. On when unset. Readable without a model provider.
+function parseSyncViewed(raw: Record<string, unknown>, where: string): boolean | undefined {
+  if (raw.syncViewed === undefined) return undefined;
+  if (typeof raw.syncViewed !== 'boolean') throw new UserConfigError(`${where}: "syncViewed" must be true or false`);
+  return raw.syncViewed;
+}
+
+export function loadSyncViewed(raw = readUserConfigFile()): boolean {
+  return (raw && parseSyncViewed(raw, userConfigPath())) ?? true;
+}
+
 // A view setting, readable without a model provider: hideWhitespace is on when unset, splitDiff off.
 export function loadViewSetting(key: ViewSetting, raw = readUserConfigFile()): boolean {
   return (raw && parseViewSetting(raw, key, userConfigPath())) ?? VIEW_DEFAULTS[key];
@@ -413,6 +426,8 @@ export function loadUserConfig(raw = readUserConfigFile()): UserConfig {
   }
   const commentLabels = parseCommentLabels(raw, file);
   if (commentLabels !== undefined) out.commentLabels = commentLabels;
+  const syncViewed = parseSyncViewed(raw, file);
+  if (syncViewed !== undefined) out.syncViewed = syncViewed;
   const theme = parseTheme(raw, file);
   if (theme) out.theme = theme;
   const glyphs = parseChoice(raw, 'glyphs', GLYPH_SETTINGS, file);

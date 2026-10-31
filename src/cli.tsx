@@ -17,6 +17,7 @@ import {
   loadUserConfig,
   loadViewSetting,
   loadCommentLabels,
+  loadSyncViewed,
   readUserConfigFile,
   saveThemeSetting,
   saveViewSetting,
@@ -378,6 +379,7 @@ async function main() {
   let sidebar: boolean;
   let shortExplanation: boolean;
   let commentLabels: boolean;
+  let syncViewed: boolean;
   let themeName: string | undefined;
   let glyphs: GlyphSetting;
   let icons: IconSetting;
@@ -389,6 +391,7 @@ async function main() {
     sidebar = loadViewSetting('sidebar', config);
     shortExplanation = loadViewSetting('shortExplanation', config);
     commentLabels = loadCommentLabels(config);
+    syncViewed = loadSyncViewed(config);
     themeName = loadThemeSetting(config);
     glyphs = loadGlyphSetting(config);
     icons = loadIconSetting(config);
@@ -416,6 +419,7 @@ async function main() {
     sidebar,
     shortExplanation,
     commentLabels,
+    syncViewed,
     tipsSeen,
     saveTipSeen: config ? saveTipSeen : undefined,
     saveViewSetting,

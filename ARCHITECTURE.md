@@ -108,7 +108,7 @@ Reviewer state is deliberately separate from the tour:
 
 | State | Key and behavior |
 | --- | --- |
-| Read, skipped, or deferred hunk | Repository, PR, and hunk content hash (each part of a fused hunk, which is only as far along as its least reviewed part); `unread` is represented by no row. |
+| Read, skipped, or deferred hunk | Repository, PR, and hunk content hash (each part of a fused hunk, which is only as far along as its least reviewed part); `unread` is represented by no row. On a PR it is mirrored to GitHub's Viewed checkboxes a file at a time ([`viewed.ts`](src/review/viewed.ts)): files viewed there open as read, and a file read through here is ticked there, unless `syncViewed` is false. |
 | Draft comment | Stable draft ID with a line, range, chapter, or diagram-node anchor; remains local until review submission. |
 | Navigation position and order | Repository and PR, with chapter and optional hunk ID. |
 | Moved hunk | Content hash to destination chapter ID. |

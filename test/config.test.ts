@@ -12,6 +12,7 @@ import {
   loadViewSetting,
   loadGlyphSetting,
   loadCommentLabels,
+  loadSyncViewed,
   loadTipsSeen,
   saveTipSeen,
   parseRepoConfig,
@@ -218,6 +219,16 @@ describe('user config', () => {
     expect(loadUserConfig().commentLabels).toBe(false);
     fs.writeFileSync(file, '{"commentLabels":"no"}\n');
     expect(() => loadCommentLabels()).toThrow(/"commentLabels" must be true or false/);
+  });
+
+  it('reads whether read state goes to GitHub’s Viewed checkboxes: on by default', () => {
+    const file = configFile();
+    expect(loadSyncViewed()).toBe(true);
+    fs.writeFileSync(file, '{"provider":"openai","syncViewed":false}\n');
+    expect(loadSyncViewed()).toBe(false);
+    expect(loadUserConfig().syncViewed).toBe(false);
+    fs.writeFileSync(file, '{"syncViewed":0}\n');
+    expect(() => loadSyncViewed()).toThrow(/"syncViewed" must be true or false/);
   });
 
   it('reads the glyph set without a provider: unicode by default, or ascii', () => {

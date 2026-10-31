@@ -1497,3 +1497,45 @@ export async function listReviewedPRs(signal?: AbortSignal): Promise<{ prs: Revi
   });
   return { prs, truncated: more };
 }
+
+// ---------- the Viewed checkboxes on the Files tab ----------
+
+// VIEWED, UNVIEWED, or DISMISSED: viewed, then changed by a later push.
+export type ViewedState = 'VIEWED' | 'UNVIEWED' | 'DISMISSED';
+
+const VIEWED_QUERY = `
+query($owner: String!, $name: String!, $number: Int!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      id
+      files(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { path viewerViewedState } }
+    }
+  }
+}`;
+
+// GitHub lists at most 3,000 files of a PR.
+const VIEWED_PAGES = 30;
+
+// The viewer's Viewed state of each file of a PR, and the PR's node id to change them with.
+export async function fetchViewedFiles(repo: string, number: number, signal?: AbortSignal): Promise<{ prId: string; viewed: Map<string, ViewedState> }> {
+  const { owner, name } = splitRepo(repo);
+  type Page = { repository: { pullRequest: { id: string; files: { pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: { path: string; viewerViewedState: ViewedState }[] } } } };
+  const viewed = new Map<string, ViewedState>();
+  let prId = '';
+  let after = '';
+  for (let page = 0; page < VIEWED_PAGES; page++) {
+    const data = await graphql<Page>(VIEWED_QUERY, { owner, name, number, ...(after ? { after } : {}) }, signal);
+    const pr = data.repository.pullRequest;
+    prId = pr.id;
+    for (const f of pr.files.nodes) viewed.set(f.path, f.viewerViewedState);
+    if (!pr.files.pageInfo.hasNextPage || !pr.files.pageInfo.endCursor) break;
+    after = pr.files.pageInfo.endCursor;
+  }
+  return { prId, viewed };
+}
+
+// Ticks or clears a file's Viewed checkbox for the viewer. Only the viewer sees it.
+export async function setFileViewed(prId: string, path: string, viewed: boolean): Promise<void> {
+  const action = viewed ? 'markFileAsViewed' : 'unmarkFileAsViewed';
+  await graphql(`mutation($id: ID!, $path: String!) { ${action}(input: { pullRequestId: $id, path: $path }) { clientMutationId } }`, { id: prId, path });
+}

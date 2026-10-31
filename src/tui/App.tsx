@@ -6,7 +6,21 @@ import { terminalPalette, themeList, type Palette, type ThemeInfo } from './them
 import { ThemePicker } from './ThemePicker.js';
 import type { Chapter, ChapterOrder, Draft, ExistingThread, Hunk, PRInfo, ReactionContent, ReadState, ThreadComment, Tour } from '../types.js';
 import { Store } from '../store/db.js';
-import { fetchHeadSha, fetchMergeStatus, fetchPR, fetchThreads, getMentionUsers, replyToThread, setCommentReaction, setThreadResolved, viewerLogin } from '../github/gh.js';
+import {
+  fetchHeadSha,
+  fetchMergeStatus,
+  fetchPR,
+  fetchThreads,
+  fetchViewedFiles,
+  getMentionUsers,
+  replyToThread,
+  setCommentReaction,
+  setFileViewed,
+  setThreadResolved,
+  viewerLogin,
+  type ViewedState,
+} from '../github/gh.js';
+import { hunksViewedOnGitHub, viewedChanges } from '../review/viewed.js';
 import { ensureWorktree } from '../git/worktree.js';
 import { localChanges, localPreview, type LocalPreview, type LocalTarget } from '../preview.js';
 import { runPipeline } from '../pipeline.js';
@@ -63,6 +77,7 @@ export interface AppOptions {
   sidebar?: boolean; // the user's saved \ setting; on when unset
   shortExplanation?: boolean; // the explanation cut to its first lines; off when unset
   commentLabels?: boolean; // comments carry a label (blocking, question, suggestion, nit); on when unset
+  syncViewed?: boolean; // read state mirrored to GitHub's Viewed checkboxes; on when unset
   tipsSeen?: string[]; // first-run tips already shown
   saveTipSeen?: (tip: string) => void; // records one; unset with no config file, where tips can't be remembered and so don't show
   saveViewSetting?: (key: ViewSetting, value: boolean) => void; // records a w or S toggle for next time
@@ -251,6 +266,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   // The last review posted, shown on that PR's briefing too: the PR list is not the only way back.
   const [postedNotice, setPostedNotice] = useState<{ key: string; text: string }>();
   const [newHead, setNewHead] = useState<string | undefined>();
+  // The PR's Viewed checkboxes as last read or written, to mirror read state to; unset when not syncing.
+  const viewedSync = useRef<{ prId: string; viewed: Map<string, ViewedState> } | undefined>(undefined);
   // gr preview: the reader edited the checkout with E, so the tour is behind the working tree.
   const [localEdited, setLocalEdited] = useState(false);
   const [editing, setEditing] = useState<Draft | undefined>();
@@ -389,6 +406,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       setNewHead(undefined);
       setLocalEdited(false);
       setReadiness(undefined);
+      viewedSync.current = undefined;
       threadDiffs.current = new Map();
       try {
         let info: PRInfo;
@@ -464,6 +482,20 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
               shown = true;
               setDeltaOnly(!!tr.rereview?.newHunkIds.length);
               setPhase('briefing');
+              // Files viewed on GitHub are read here too; from now on, reading here ticks them there.
+              if (!src && opts.syncViewed !== false)
+                fetchViewedFiles(info.repo, info.number, signal).then(
+                  ({ prId, viewed }) => {
+                    if (gen !== loadGen.current) return;
+                    viewedSync.current = { prId, viewed };
+                    const read = hunksViewedOnGitHub(tr, store.getReadStates(info.repo, info.number), viewed);
+                    if (!read.length) return;
+                    const keys = read.flatMap(hunkKeys);
+                    store.setReadStates(info.repo, info.number, keys, 'read');
+                    setStates((prev) => ({ ...prev, ...Object.fromEntries(keys.map((k) => [k, 'read' as const])) }));
+                  },
+                  () => undefined, // offline, or an old GitHub Enterprise: reading works the same without it
+                );
             }
           },
         });
@@ -635,6 +667,15 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     const keys = hs.flatMap(hunkKeys);
     store.setReadStates(tour.repo, tour.pr, keys, s);
     setStates((prev) => ({ ...prev, ...Object.fromEntries(keys.map((k) => [k, s])) }));
+    // A file now read through, or no longer, ticks or clears its Viewed checkbox. A failed write
+    // leaves GitHub as it was, so it is tried again on the next change to that file.
+    const sync = viewedSync.current;
+    if (!sync) return;
+    for (const c of viewedChanges(tour, store.getReadStates(tour.repo, tour.pr), sync.viewed, hs)) {
+      const before = sync.viewed.get(c.path);
+      sync.viewed.set(c.path, c.viewed ? 'VIEWED' : 'UNVIEWED');
+      setFileViewed(sync.prId, c.path, c.viewed).catch(() => (before ? sync.viewed.set(c.path, before) : sync.viewed.delete(c.path)));
+    }
   };
 
   const saveDraft = (d: Draft) => {
