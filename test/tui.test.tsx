@@ -74,6 +74,7 @@ function Harness(props: {
   onBriefing?: () => void;
   onReply?: (body: string) => Promise<void>;
   onDelete?: (d: Draft) => void;
+  onTheme?: () => void;
   editFile?: (file: string, line: number) => Promise<string | undefined>;
   agent?: { cwd: string };
 }) {
@@ -117,12 +118,29 @@ function Harness(props: {
       openSubmit={() => {}}
       openBriefing={() => props.onBriefing?.()}
       editFile={props.editFile}
+      onTheme={props.onTheme}
       quit={() => {}}
     />
   );
 }
 
 describe('ChapterScreen', () => {
+  it('opens the color theme picker from the palette, not a key', async () => {
+    const onTheme = vi.fn();
+    const ui = render(<Harness tour={fixtureTour()} onDraft={() => {}} onState={() => {}} onTheme={onTheme} />);
+    await tick();
+    ui.stdin.write('L');
+    await tick();
+    expect(onTheme).not.toHaveBeenCalled();
+    ui.stdin.write(':');
+    await tick();
+    ui.stdin.write('color theme');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Color theme'));
+    ui.stdin.write('\r');
+    await waitFor(() => expect(onTheme).toHaveBeenCalledTimes(1));
+    ui.unmount();
+  });
+
   it('opens the file at the cursor line on E, and shows what the editor reports', async () => {
     const tour = fixtureTour();
     const hunk = tour.hunks[tour.chapters[0].hunkIds[0]];
@@ -1419,6 +1437,34 @@ describe('BriefingScreen and SubmitScreen', () => {
     ui.stdin.write('a');
     await waitFor(() => expect(ui.lastFrame()).toContain('Ask about the whole PR'));
     expect(ui.lastFrame()).toContain('Chapters');
+    ui.unmount();
+  });
+
+  it('opens the color theme picker from the palette', async () => {
+    const tour = fixtureTour();
+    const onTheme = vi.fn();
+    const ui = render(
+      <BriefingScreen
+        tour={tour}
+        chapters={tour.chapters}
+        order="flow"
+        cycleOrder={() => {}}
+        states={{}}
+        width={140}
+        height={45}
+        onStart={() => {}}
+        onSubmit={() => {}}
+        onQuit={() => {}}
+        onTheme={onTheme}
+      />,
+    );
+    await tick();
+    ui.stdin.write(':');
+    await tick();
+    ui.stdin.write('color theme');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Color theme'));
+    ui.stdin.write('\r');
+    await waitFor(() => expect(onTheme).toHaveBeenCalledTimes(1));
     ui.unmount();
   });
 

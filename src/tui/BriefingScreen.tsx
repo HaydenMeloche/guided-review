@@ -88,6 +88,7 @@ export function BriefingScreen(props: {
   onMerge?: () => void; // M: merge the PR
   onFeedback?: () => void; // t: the feedback on your own PR (author mode)
   onChecks?: () => void; // c: the PR's checks and their logs
+  onTheme?: () => void; // the color theme picker, from the palette (L is the PR list's)
   onRestart?: () => void; // restart the tour: every hunk unread again, from the start
   onBack?: () => void; // esc, q: back to the PR list; unset (a preview), q quits
   onQuit: () => void;
@@ -494,6 +495,7 @@ export function BriefingScreen(props: {
       { label: 'Submit the review', key: 's', run: () => props.onSubmit() },
       ...(props.onMerge ? [{ label: 'Merge the PR', key: 'M', run: () => props.onMerge?.() }] : []),
       ...(props.onChecks ? [{ label: 'Checks and their logs', key: 'c', run: () => props.onChecks?.() }] : []),
+      ...(props.onTheme ? [{ label: 'Color theme', run: () => props.onTheme?.() }] : []),
       ...(props.onRestart && reviewed ? [{ label: 'Restart the tour: mark every hunk unread', run: () => setOverlay('restart') }] : []),
       ...chapters.map((c, i) => ({ label: `Go to chapter ${i + 1}: ${c.title}`, detail: plural(c.hunkIds.length, 'hunk'), run: () => props.onStart(i) })),
     ];

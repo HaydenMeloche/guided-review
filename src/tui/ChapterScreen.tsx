@@ -122,7 +122,8 @@ export function ChapterScreen(props: {
   openSubmit: () => void;
   approveAndMerge?: () => void; // a bot's PR: the end card offers to approve and merge it
   openBriefing: () => void;
-  editFile?: (file: string, line: number) => Promise<string | undefined>; // E: resolves to a message to show
+  editFile?: (file: string, line: number) => Promise<string | undefined>;
+  onTheme?: () => void; // the color theme picker, from the palette (L is the PR list's) // E: resolves to a message to show
   rebase?: () => void;
   services?: Services;
   references?: ReferenceServices; // recent locations, repo index; tests may leave it out
@@ -636,7 +637,8 @@ export function ChapterScreen(props: {
       const page = pageOf(c, hi);
       toFile.push({ label: `Go to ${f.path}`, detail: `chapter ${ci + 1} · ${page < 0 ? 'summary' : `hunk ${hunkPosition(c, page).n}`}`, run: () => props.setPos(ci, page) });
     }
-    return [...commands, ...toChapter, ...toFile];
+    const theme: PaletteItem[] = props.onTheme ? [{ label: 'Color theme', run: () => props.onTheme?.() }] : [];
+    return [...commands, ...theme, ...toChapter, ...toFile];
   };
 
   // A search hit: its line under the cursor, on its hunk's page. A hunk read as a summary (a
