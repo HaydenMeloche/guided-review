@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { installCodexSkill } from '../src/codexSkill.js';
+import { codexSkill, installCodexSkill, refreshInstalled } from '../src/codexSkill.js';
 
 const homes: string[] = [];
 function temporaryHome(): string {
@@ -39,5 +39,37 @@ describe('Codex skill installation', () => {
 
     expect(() => installCodexSkill({ codexHome: home })).toThrow('already exists with different content');
     expect(fs.readFileSync(target, 'utf8')).toBe('custom instructions\n');
+  });
+});
+
+describe('refreshing the installed skill after an update', () => {
+  function shipped(contents: string) {
+    const home = temporaryHome();
+    const source = path.join(home, 'SKILL.source.md');
+    fs.writeFileSync(source, contents);
+    return { home, source, file: codexSkill({ codexHome: home, source }) };
+  }
+
+  it('brings the copy gr installed up to the new version', () => {
+    const { home, source, file } = shipped('version one\n');
+    installCodexSkill({ codexHome: home, source });
+    fs.writeFileSync(source, 'version two\n');
+    expect(refreshInstalled([file])).toEqual(['the Codex skill']);
+    expect(fs.readFileSync(file.target, 'utf8')).toBe('version two\n');
+    // Recorded again, so the next version replaces it too.
+    fs.writeFileSync(source, 'version three\n');
+    expect(refreshInstalled([file])).toEqual(['the Codex skill']);
+    expect(refreshInstalled([file])).toEqual([]);
+  });
+
+  it('leaves an edited copy, and a missing one, alone', () => {
+    const { home, source, file } = shipped('version one\n');
+    expect(refreshInstalled([file])).toEqual([]);
+    expect(fs.existsSync(file.target)).toBe(false);
+    installCodexSkill({ codexHome: home, source });
+    fs.writeFileSync(file.target, 'my own instructions\n');
+    fs.writeFileSync(source, 'version two\n');
+    expect(refreshInstalled([file])).toEqual([]);
+    expect(fs.readFileSync(file.target, 'utf8')).toBe('my own instructions\n');
   });
 });

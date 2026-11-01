@@ -7,16 +7,18 @@ import { KeyBar } from './KeyBar.js';
 import { line, MdLineView, renderMarkdown, type MdLine } from './markdown.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
 import { loadThemeSetting } from '../config.js';
-import { commandLine, fetchReleaseNotes, installCommand, RELEASES_URL, runInstall, type Install, type ReleaseNotes, type UpdateOffer, type UpdateResult } from '../updateCheck.js';
+import { commandLine, fetchReleaseNotes, RELEASES_URL, runInstall, type Install, type Installer, type ReleaseNotes, type UpdateOffer, type UpdateResult } from '../updateCheck.js';
 import { plural } from './plural.js';
-import { SCREEN_RENDER } from './renderOptions.js';
+import { holdTerminalInput, SCREEN_RENDER } from './renderOptions.js';
 
-// The update offered before a tour, full screen in the user's theme: what's new since the
-// installed version, then the install with its output as it runs. A failed install can be
-// retried or left, carrying on with the installed version.
+// An update, full screen in the user's theme: what's new since the installed version, then the
+// install with its output as it goes, until the next gr is known to be the new version. A failed
+// install can be retried or left, carrying on with the installed version.
 
 export interface UpdateScreenProps {
-  offer: Pick<UpdateOffer, 'installed' | 'latest' | 'packageManager'>;
+  offer: Pick<UpdateOffer, 'installed' | 'latest' | 'deprecated'> & { installer: Pick<Installer, 'name' | 'command' | 'current'> };
+  // After the install: restart gr on the new version (from the PR list), or end (gr update).
+  then: 'restart' | 'exit';
   initial: Palette;
   // Undefined when GitHub couldn't be reached.
   notes: Promise<ReleaseNotes[] | undefined>;
@@ -24,18 +26,26 @@ export interface UpdateScreenProps {
   onDone: (result: UpdateResult) => void;
 }
 
-type Phase = { kind: 'offer' } | { kind: 'installing'; since: number } | { kind: 'done' } | { kind: 'failed'; why: string };
+type Phase =
+  | { kind: 'offer' }
+  | { kind: 'installing'; since: number }
+  | { kind: 'checking' }
+  | { kind: 'done' }
+  // Installed, but the gr on PATH is another copy, still on the old version (or not found).
+  | { kind: 'elsewhere'; version?: string; where?: string }
+  | { kind: 'failed'; why: string };
 
 const SPIN = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 const MAX_OUTPUT = 500;
-// How long the success screen shows before gr restarts.
-export const DONE_MS = 1200;
 // Piped, npm prints nothing until it finishes; at the http level it logs each package it fetches.
-const PROGRESS_ARGS: Partial<Record<UpdateOffer['packageManager'], string[]>> = { npm: ['--loglevel=http'] };
+const PROGRESS_ARGS: Partial<Record<string, string[]>> = { npm: ['--loglevel=http'] };
+const EACCES_HELP = 'https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally';
 
 // One line of installer output as plain text: colour codes go whole, before the sanitizer
 // would strip only their ESC and leave "[32m" behind.
 const clean = (l: string) => safe(stripVTControlCharacters(l)).trimEnd();
+// The http-level lines are progress; the summary after them is what's worth keeping.
+const summaryOf = (output: string[]) => output.filter((l) => !/^npm http /.test(l));
 
 function useSpinner(on: boolean): string {
   const [frame, setFrame] = useState(0);
@@ -62,13 +72,15 @@ export function notesLines(notes: ReleaseNotes[] | undefined, width: number): Md
 
 export function UpdateScreen(props: UpdateScreenProps) {
   const { columns, rows } = useWindowSize();
-  const { installed, latest, packageManager: pm } = props.offer;
+  const { installed, latest, installer } = props.offer;
+  const pm = installer.name;
+  const command = commandLine(installer.command);
+  const restart = props.then === 'restart';
   const [phase, setPhase] = useState<Phase>({ kind: 'offer' });
   const [notes, setNotes] = useState<ReleaseNotes[] | undefined | 'loading'>('loading');
   const [scroll, setScroll] = useState(0);
   const [output, setOutput] = useState<string[]>([]);
   const install = useRef<AbortController>(undefined);
-  const restart = useRef<NodeJS.Timeout>(undefined);
 
   useEffect(() => {
     let live = true;
@@ -76,7 +88,6 @@ export function UpdateScreen(props: UpdateScreenProps) {
     return () => {
       live = false;
       install.current?.abort();
-      clearTimeout(restart.current);
     };
   }, [props.notes]);
 
@@ -87,10 +98,10 @@ export function UpdateScreen(props: UpdateScreenProps) {
     setOutput([]);
     let partial = '';
     let all: string[] = [];
-    const [command, args] = installCommand(pm);
+    const [cmd, args] = installer.command;
     void props
       .install(
-        command,
+        cmd,
         [...args, ...(PROGRESS_ARGS[pm] ?? [])],
         (chunk) => {
           const parts = (partial + chunk.replace(/\r\n?/g, '\n')).split('\n');
@@ -102,20 +113,19 @@ export function UpdateScreen(props: UpdateScreenProps) {
         },
         ac.signal,
       )
-      .then((r) => {
+      .then(async (r) => {
         if (ac.signal.aborted) return;
         if (clean(partial)) {
           all = [...all, clean(partial)].slice(-MAX_OUTPUT);
           setOutput(all);
         }
-        if (!r.error && r.status === 0) {
-          setPhase({ kind: 'done' });
-          // The http-level lines are progress; the summary after them is what's worth keeping.
-          const summary = all.filter((l) => !/^npm http /.test(l));
-          restart.current = setTimeout(() => props.onDone({ kind: 'updated', output: summary }), DONE_MS);
-          return;
-        }
-        setPhase({ kind: 'failed', why: r.error ? r.error.message : `${command} exited with code ${r.status}` });
+        if (r.error || r.status !== 0) return setPhase({ kind: 'failed', why: r.error ? r.error.message : `${pm} exited with code ${r.status}` });
+        // A package manager can succeed and still leave the old gr first on PATH: one from another
+        // Node version, or another package manager. Only the next gr's own version says it worked.
+        setPhase({ kind: 'checking' });
+        const now = await installer.current();
+        if (ac.signal.aborted) return;
+        setPhase(now.version === latest ? { kind: 'done' } : { kind: 'elsewhere', ...now });
       });
   };
 
@@ -135,12 +145,22 @@ export function UpdateScreen(props: UpdateScreenProps) {
   const maxScroll = Math.max(0, lines.length - inner);
   const top = phase.kind === 'offer' ? Math.min(scroll, maxScroll) : 0;
   // Also redraws the elapsed time while installing, so a quiet installer doesn't look stuck.
-  const spin = useSpinner(phase.kind === 'installing' || notes === 'loading');
+  const spin = useSpinner(phase.kind === 'installing' || phase.kind === 'checking' || (phase.kind === 'offer' && notes === 'loading'));
 
   useInput((input, key) => {
     // Stopping a global install halfway can leave gr missing, so it always runs to the end.
-    if (phase.kind === 'installing' || phase.kind === 'done') return;
+    if (phase.kind === 'installing' || phase.kind === 'checking') return;
+    if (phase.kind === 'done') {
+      const updated = { kind: 'updated', output: summaryOf(output) } as const;
+      if (key.ctrl && input === 'c') return props.onDone({ ...updated, quit: true });
+      if (key.return || key.escape || input === 'q') return props.onDone(updated);
+      return;
+    }
     if (key.ctrl && input === 'c') return props.onDone({ kind: 'quit' });
+    if (phase.kind === 'elsewhere') {
+      if (key.return || key.escape || input === 'q') return props.onDone({ kind: 'failed', why: elsewhereWhy(phase) });
+      return;
+    }
     if (phase.kind === 'failed') {
       if (input === 'r') return start();
       if (key.return || key.escape || input === 'q') return props.onDone({ kind: 'failed', why: phase.why });
@@ -148,7 +168,8 @@ export function UpdateScreen(props: UpdateScreenProps) {
     }
     if (key.return || input === 'y') return start();
     if (input === 'n' || input === 'q' || key.escape) return props.onDone({ kind: 'later' });
-    if (input === 's') return props.onDone({ kind: 'skip' });
+    // A deprecated version can't be skipped: the maintainer asked everyone on it to update.
+    if (input === 's' && !props.offer.deprecated) return props.onDone({ kind: 'skip' });
     const page = Math.max(1, inner - 2);
     if (key.downArrow || input === 'j') setScroll(Math.min(top + 1, maxScroll));
     if (key.upArrow || input === 'k') setScroll(Math.max(top - 1, 0));
@@ -156,9 +177,10 @@ export function UpdateScreen(props: UpdateScreenProps) {
     if (key.pageUp) setScroll(Math.max(top - page, 0));
   });
 
+  const back = restart ? `continue with ${installed}` : 'close';
   let status;
-  let about;
-  let boxTitle;
+  let about: string[];
+  let boxTitle = `${pm} output`;
   let keys: [string, string][];
   if (phase.kind === 'offer') {
     status = (
@@ -170,40 +192,53 @@ export function UpdateScreen(props: UpdateScreenProps) {
         </Text>
       </Text>
     );
-    about = `Runs ${commandLine(pm)}, then restarts gr.`;
+    about = [restart ? `Runs ${command}, then restarts gr.` : `Runs ${command}.`];
     boxTitle = "What's new";
-    keys = [['enter', 'update now'], ['n', 'not now'], ['s', 'skip this version'], ...(maxScroll ? ([['↑↓', 'scroll']] as [string, string][]) : [])];
-  } else if (phase.kind === 'installing') {
+    keys = [
+      ['enter', 'update now'],
+      ['n', 'not now'],
+      ...(props.offer.deprecated ? [] : ([['s', 'skip this version']] as [string, string][])),
+      ...(maxScroll ? ([['↑↓', 'scroll']] as [string, string][]) : []),
+    ];
+  } else if (phase.kind === 'installing' || phase.kind === 'checking') {
     status = (
       <Text color="cyan" wrap="truncate">
         {' '}
-        {spin} Installing {latest} with {pm}… <Text dimColor>{Math.floor((Date.now() - phase.since) / 1000)}s</Text>
+        {spin} {phase.kind === 'installing' ? `Installing ${latest} with ${pm}…` : `Checking that gr is now ${latest}…`}{' '}
+        {phase.kind === 'installing' ? <Text dimColor>{Math.floor((Date.now() - phase.since) / 1000)}s</Text> : null}
       </Text>
     );
-    about = `${commandLine(pm)} · gr restarts when it's done`;
-    boxTitle = `${pm} output`;
+    about = [command];
     keys = [];
   } else if (phase.kind === 'done') {
     status = (
       <Text color="green" wrap="truncate">
         {' '}
-        ✓ Updated to {latest}. Restarting gr…
+        ✓ Updated to {latest}
       </Text>
     );
-    about = commandLine(pm);
-    boxTitle = `${pm} output`;
-    keys = [];
+    about = [restart ? `Enter restarts gr on ${latest}.` : `The next gr you run is ${latest}.`];
+    keys = [['enter', restart ? 'restart gr' : 'done']];
+  } else if (phase.kind === 'elsewhere') {
+    status = (
+      <Text color="yellow" wrap="truncate">
+        {' '}
+        ! {pm} installed {latest}, but {phase.version ? `the gr on your PATH is still ${safe(phase.version)}` : 'no gr on your PATH could be checked'}
+      </Text>
+    );
+    about = [...(phase.where ? [`Your PATH runs ${safe(phase.where)}.`] : []), 'Update that copy with the tool that installed it, or remove it so the new one is found.'];
+    keys = [['enter', back]];
   } else {
+    const eacces = output.some((l) => /\bEACCES\b/.test(l));
     status = (
       <Text color="red" wrap="truncate">
         {' '}
         ✗ Couldn't install {latest}: {safe(phase.why)}
       </Text>
     );
-    about = `Try again, or run ${commandLine(pm)} yourself later.`;
-    boxTitle = `${pm} output`;
+    about = eacces ? [`${pm} can't write to its global folder. Run it with sudo, or give ${pm} a folder you own:`, EACCES_HELP] : [`Try again, or run ${command} yourself later.`];
     keys = [
-      ['enter', `continue with ${installed}`],
+      ['enter', back],
       ['r', 'try again'],
     ];
   }
@@ -219,20 +254,28 @@ export function UpdateScreen(props: UpdateScreenProps) {
           </Text>
           <Text> </Text>
           {status}
-          <Text dimColor wrap="truncate">
-            {' '}
-            {about}
-          </Text>
+          {phase.kind === 'offer' && props.offer.deprecated ? (
+            <Text color="red" wrap="wrap">
+              {' '}
+              {installed} is deprecated: {safe(props.offer.deprecated)}
+            </Text>
+          ) : null}
+          {about.map((a) => (
+            <Text key={a} dimColor wrap="truncate">
+              {' '}
+              {a}
+            </Text>
+          ))}
           <Text> </Text>
           <Text wrap="truncate">
             <Text bold> {boxTitle}</Text>
             <Text dimColor>{phase.kind === 'offer' && below > 0 ? ` · ${plural(below, 'more line')}` : ''}</Text>
           </Text>
-          <Box flexDirection="column" width={width} height={boxHeight} borderStyle="round" borderColor="gray" paddingX={1}>
+          <Box flexDirection="column" width={width} height={boxHeight - (about.length - 1)} borderStyle="round" borderColor="gray" paddingX={1}>
             {phase.kind === 'offer' && notes === 'loading' ? (
               <Text color="cyan"> {spin} Loading the release notes…</Text>
             ) : (
-              lines.slice(top, top + inner).map((l, i) => <MdLineView key={top + i} line={l} />)
+              lines.slice(top, top + inner - (about.length - 1)).map((l, i) => <MdLineView key={top + i} line={l} />)
             )}
           </Box>
           <Box flexGrow={1} />
@@ -243,22 +286,29 @@ export function UpdateScreen(props: UpdateScreenProps) {
   );
 }
 
+function elsewhereWhy(phase: Extract<Phase, { kind: 'elsewhere' }>): string {
+  if (!phase.version) return 'installed, but no gr on your PATH could be checked';
+  return `installed, but the gr on your PATH${phase.where ? ` (${phase.where})` : ''} is still ${phase.version}`;
+}
+
 // Runs the update screen on the alternate screen and resolves with what the user chose. The
 // release notes load in the background; installing waits on nothing but the user.
-export async function runUpdateScreen(offer: UpdateOffer): Promise<UpdateResult> {
+export async function runUpdateScreen(offer: UpdateOffer, then: 'restart' | 'exit'): Promise<UpdateResult> {
   const ac = new AbortController();
-  const notes = fetchReleaseNotes(offer.installed, offer.latest, fetch, AbortSignal.any([ac.signal, AbortSignal.timeout(5000)]));
+  const notes = offer.notes ? offer.notes() : fetchReleaseNotes(offer.installed, offer.latest, fetch, AbortSignal.any([ac.signal, AbortSignal.timeout(5000)]));
   let initial = terminalPalette;
   try {
     const theme = loadThemeSetting();
     if (theme) initial = await loadPalette(theme);
   } catch {
-    // a config gr can't read is reported once the tour starts; the update screen uses the terminal's colors
+    // a config gr can't read is reported once gr carries on; the update screen uses the terminal's colors
   }
   let result: UpdateResult = { kind: 'later' };
+  holdTerminalInput();
   const app = render(
     <UpdateScreen
       offer={offer}
+      then={then}
       initial={initial}
       notes={notes}
       install={runInstall}

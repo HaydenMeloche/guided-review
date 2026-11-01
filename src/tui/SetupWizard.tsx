@@ -34,7 +34,7 @@ import {
   type SetupResult,
 } from '../setup.js';
 import { agentRouting } from '../config.js';
-import { SCREEN_RENDER } from './renderOptions.js';
+import { holdTerminalInput, SCREEN_RENDER } from './renderOptions.js';
 
 // gr's setup, full screen: a welcome card, the color theme (so every later screen is already
 // in it), the model provider with what detection found marked, its details when something is
@@ -1062,6 +1062,7 @@ export async function runSetupWizard(opts: { firstRun: boolean; current?: UserCo
   const known = opts.current?.theme && themes.some((t) => t.id === opts.current!.theme) ? opts.current.theme : TERMINAL_THEME;
   const initial = await loadPalette(known).catch(() => terminalPalette);
   let result: SetupResult = { kind: 'cancelled' };
+  holdTerminalInput();
   const app = render(
     <SetupWizard
       {...opts}

@@ -84,6 +84,19 @@ pnpm build
 pnpm add -g .
 </code></pre>
           <p>If pnpm&#39;s global binary directory is not on your <code>PATH</code>, run <code>pnpm setup</code> once and restart your shell.</p>
+          <h2 id="updating"><a class="anchor" href="#updating" aria-hidden="true">#</a>Updating</h2>
+          <p>
+            <code>gr</code> checks npm for a newer version once a day, without slowing anything down. The first time <code>gr</code> starts after a release, it offers the update with the release notes
+            since your version: install it, put it off, or skip that version. Put off, it waits on the PR list, where <code>U</code> installs it, and <code>gr</code> mentions it once a day as it
+            exits. Run <code>gr update</code> to update at any time. Either way, <code>gr</code> runs the package manager that installed it (npm, pnpm, Yarn, Bun, or Volta), checks that the
+            <code>gr</code> on your <code>PATH</code> is the new version, and restarts it. If another copy of <code>gr</code> comes first on your <code>PATH</code>, such as one from another Node
+            version, it says where that copy is.
+          </p>
+          <p>
+            A version with a serious problem, such as a security fix or a GitHub change that breaks it, is marked deprecated on npm. If yours is, <code>gr</code> says why and offers the update each
+            time it starts, and the version can&#39;t be skipped.
+          </p>
+          <p>After an update, <code>gr</code> also updates the <code>/guided-review</code> command and the Codex skill if you installed them and have not edited them.</p>
           <h2 id="configure-a-model"><a class="anchor" href="#configure-a-model" aria-hidden="true">#</a>Configure a model</h2>
           <p>
             The first run walks you through setup: a color theme, a model provider, comment labels, and GitHub access. It finds what your machine already has, such as a Codex login or an

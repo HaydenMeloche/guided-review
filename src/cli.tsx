@@ -27,12 +27,12 @@ import {
   type IconSetting,
 } from './config.js';
 import { editRepoConfig, setup } from './setup.js';
-import { installClaudeCommand, installCodexSkill, type SkillInstallResult } from './codexSkill.js';
+import { installClaudeCommand, installCodexSkill, refreshInstalled, type SkillInstallResult } from './codexSkill.js';
 import { planOpen, runOpen, targetArg } from './open.js';
 import { KEEP_TOURS_PER_PR, TOUR_MAX_AGE_DAYS } from './store/retention.js';
 import { AGENT_ROLES, configForRole, validateRouting } from './agent/types.js';
-import { packageInfo, promptForUpdate, startUpdateCheck } from './updateCheck.js';
-import { SCREEN_RENDER } from './tui/renderOptions.js';
+import { packagedRun, packageInfo, promptForUpdate, RELEASES_URL, startUpdateCheck, updateNow } from './updateCheck.js';
+import { holdTerminalInput, SCREEN_RENDER } from './tui/renderOptions.js';
 
 // node:sqlite prints an ExperimentalWarning on load; drop just that one so it
 // does not land on top of the TUI. The store, and the TUI that imports it, are
@@ -76,6 +76,7 @@ ${[
   usage('build [number|URL]', 'Build a tour without the TUI (for CI); share it with --comment or --out'),
   usage('doctor', 'Check what gr needs (git, gh, ripgrep, your model, …) and how to fix what is missing'),
   usage('cleanup [--days n]', 'Remove local PR worktrees (skip worktrees with changes) and old tours'),
+  usage('update', 'Install the newest version of gr'),
   usage('config', 'Choose a model provider (or none), models, API key, and GitHub access'),
   usage('config --edit', 'Open ~/.guided-review/config.json in your editor'),
   usage('config --repo', "Edit this repo's .guided-review.json (file kinds, test globs, checklists)"),
@@ -121,8 +122,25 @@ ${[
 );
 
 // Runs in the background while the command works. Never for build, which runs in CI, nor for
-// completion, which the shell runs.
-const updateCheck = ['build', 'completion', '__complete'].includes(cli.input[0]) ? undefined : startUpdateCheck({ installed: PKG.version });
+// completion, which the shell runs, nor for update, which asks npm itself.
+const updateCheck = ['build', 'completion', '__complete', 'update'].includes(cli.input[0]) ? undefined : startUpdateCheck({ installed: PKG.version });
+// gr update: asks npm now and installs a newer version with the update screen, whatever the daily check says.
+async function update(): Promise<void> {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) fail(`${NAME} update shows its progress full screen; run it in a terminal.`);
+  const found = await updateNow({ installed: PKG.version });
+  if (found.kind === 'source') fail(`this ${NAME} runs from a source checkout (${path.dirname(path.dirname(process.argv[1] ?? ''))}). Update it with git pull and pnpm build.`);
+  if (found.kind === 'offline') fail('could not reach npm to look for a newer version. Check your connection and try again.');
+  if (found.kind === 'current') return void process.stdout.write(`Guided Review ${found.installed} is the newest version.\n`);
+  if (found.kind === 'manual') {
+    if (!found.latest) return void process.stdout.write(`Guided Review ${found.installed} is the newest version.\n`);
+    return void process.stdout.write(
+      `Guided Review ${found.latest} is out (you have ${found.installed}), but this ${NAME} isn't a global install ${NAME} can update.\nUpdate it the way you installed it, or install it globally: npm install -g @haydenmeloche/guided-review\nRelease notes: ${RELEASES_URL}\n`,
+    );
+  }
+  await readTerminal(!!process.env.NO_COLOR);
+  const code = await promptForUpdate(found.offer, undefined);
+  if (code) process.exit(code);
+}
 
 async function printUpdateNotice(graceMs = 0): Promise<void> {
   const notice = await updateCheck?.finish(graceMs);
@@ -205,6 +223,9 @@ async function main() {
     process.stdout.write(prs.map((p) => `${p.number}\t${completionText(p.title)}\n`).join(''));
     return;
   }
+  // After an update, the command and skill gr installed follow the new version, unless edited.
+  if (cmd !== 'build' && packagedRun()) for (const what of refreshInstalled()) process.stderr.write(`Updated ${what} to match Guided Review ${PKG.version}.\n`);
+  if (cmd === 'update') return update();
   // `setup` is the old name for `config`.
   if (cmd === 'config' || cmd === 'setup') {
     if (cli.flags.repo) {
@@ -351,9 +372,10 @@ async function main() {
   // How the terminal shows color, and NO_COLOR, read once before any screen.
   const noColor = !!process.env.NO_COLOR;
   await readTerminal(noColor);
-  const offer = updateCheck?.offer();
-  if (offer) {
-    const code = await promptForUpdate(offer);
+  // Each release is offered full screen once, as gr starts; a deprecated version's, every time.
+  const launch = updateCheck?.launchOffer();
+  if (launch) {
+    const code = await promptForUpdate(launch, process.argv.slice(2));
     if (code !== undefined) process.exit(code);
   }
   // First run: introduce gr and set it up, then carry on with the command that was run. A command
@@ -484,11 +506,32 @@ async function main() {
   await cleanupP;
   await setMarks(glyphs, icons);
   opts = { ...opts, palette: await paletteP };
+  // Set by the gr that installed this version, checked it, and started it again.
+  const updated = process.env.GR_UPDATED;
+  delete process.env.GR_UPDATED;
+  if (updated) opts = { ...opts, notice: `Updated to Guided Review ${updated}.` };
   let summary: string | undefined;
-  const app = render(<App {...opts} onQuit={(line) => (summary = line)} />, { ...SCREEN_RENDER, exitOnCtrlC: true });
-  await app.waitUntilExit();
+  // U on the PR list closes the app for the update screen. When the update doesn't happen
+  // (not now, skipped, or failed), the PR list opens again.
+  for (;;) {
+    let wantsUpdate = false;
+    const offer = updateCheck?.available();
+    holdTerminalInput();
+    const app = render(
+      <App {...opts} onQuit={(line) => (summary = line)} update={offer && { version: offer.latest, deprecated: offer.deprecated }} onUpdate={offer ? () => (wantsUpdate = true) : undefined} />,
+      { ...SCREEN_RENDER, exitOnCtrlC: true },
+    );
+    await app.waitUntilExit();
+    if (!wantsUpdate || !offer) break;
+    // Back on the PR list, wherever it was started from: the args that pick a PR are left out.
+    const args = process.argv.slice(2).filter((a) => !cli.input.includes(a));
+    const code = await promptForUpdate(offer, args);
+    if (code !== undefined) process.exit(code);
+    opts = { ...opts, target: undefined, preview: undefined, mode: undefined, notice: undefined };
+  }
   // Where the review stands, left in the scrollback once the screen is gone.
   if (summary) process.stdout.write(`${summary}\n`);
+  await printUpdateNotice();
   // Backstop: stray timers, sockets, or child processes must not keep gr alive
   // after the tour has closed.
   process.exit(0);
@@ -505,9 +548,8 @@ async function askYes(question: string): Promise<boolean> {
   }
 }
 
-// Only the short commands get here: build and the tour exit from main (the tour
-// offers updates before it starts). Give a check still in flight a moment so
-// quick commands can refresh the cache too.
+// The short commands get here; build and the tour exit from main. Give a check
+// still in flight a moment so quick commands can refresh the cache too.
 main()
   .then(() => printUpdateNotice(300))
   .catch((e) => fail(e instanceof Error ? e.message : String(e), e));

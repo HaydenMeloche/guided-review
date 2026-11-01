@@ -223,6 +223,8 @@ interface PickerProps {
   merged?: ReadonlySet<string>; // PRs merged this session (keyFor), left off the list: GitHub's search lags
   onQuit: () => void;
   onTheme?: () => void; // L: the color theme picker
+  update?: { version: string; deprecated?: string }; // a newer version of gr, offered in the status line
+  onUpdate?: () => void; // U: install it
   active?: boolean; // false while a popup over the list takes the keys
   downloads: Record<string, DownloadJob>;
   onDownload: (targets: Target[]) => void; // queues tours; progress arrives through `downloads`
@@ -586,6 +588,10 @@ export function PickerScreen(props: PickerProps) {
       }
       if (input === 'r') return load();
       if (input === 'L' && props.onTheme) return props.onTheme();
+      if (input === 'U') {
+        if (props.update && props.onUpdate) return props.onUpdate();
+        return setHint('No newer version of gr to install.');
+      }
       if (input === 'l') {
         if (!props.onLocal) return setHint('l tours local changes: run gr inside a git repository.');
         // Before the first read says, l opens the tour anyway: the tour itself says what it found.
@@ -729,6 +735,26 @@ export function PickerScreen(props: PickerProps) {
         </Text>
       ) : prs && refreshing ? (
         <Busy text="refreshing" />
+      ) : props.update && props.onUpdate ? (
+        // A badge, so it is seen at a glance: inverse shows in every theme, and with NO_COLOR.
+        <Text wrap="truncate">
+          <Text color={props.update.deprecated ? 'red' : 'green'} inverse bold>
+            {` ↑ ${safe(props.update.version)} `}
+          </Text>
+          {props.update.deprecated ? (
+            <Text bold color="red">
+              {' '}
+              This version of Guided Review is deprecated: {safe(props.update.deprecated)}
+            </Text>
+          ) : (
+            <Text bold> A new version of Guided Review is out</Text>
+          )}
+          <Text> · press </Text>
+          <Text color="cyan" bold>
+            U
+          </Text>
+          <Text> to update</Text>
+        </Text>
       ) : (
         <Text> </Text>
       )}

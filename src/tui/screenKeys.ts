@@ -31,6 +31,7 @@ export const PICKER_KEYS: KeyDef<PickerKeyCtx>[] = [
   { keys: ['d'], group: 'Download', help: 'Download the selected tours (or the highlighted one)' },
   { keys: ['r'], group: 'App', help: 'Refresh the list', bar: { shown: 'r', label: 'refresh' } },
   { keys: ['L'], group: 'App', help: 'Color theme', bar: { shown: 'L', label: 'theme', when: (c) => c.theme } },
+  { keys: ['U'], group: 'App', help: 'Update gr, when a newer version is out' },
   { keys: ['?'] },
   { keys: ['h'], alias: true },
   { keys: ['q'] },

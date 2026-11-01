@@ -142,6 +142,13 @@
                   <td>Choose a <a href="configuration.html#color-themes">color theme</a>.</td>
                 </tr>
                 <tr>
+                  <td><code>U</code></td>
+                  <td>
+                    <a href="install.html#updating">Update <code>gr</code></a
+                    >, when the status line says a newer version is out.
+                  </td>
+                </tr>
+                <tr>
                   <td><code>?</code> / <code>q</code></td>
                   <td>List the keys, or quit.</td>
                 </tr>
@@ -900,6 +907,7 @@ gr config                    # set up or change the model, GitHub access, and th
 gr cleanup                   # remove managed worktrees and prune old tours
 gr doctor                    # check git, gh, ripgrep, your model and the rest, with fixes
 gr completion zsh            # print a shell completion script (zsh, bash, or fish)
+gr update                    # install the newest version of gr
 </code></pre>
           <div class="table-wrap">
             <table>
@@ -953,8 +961,8 @@ gr completion zsh            # print a shell completion script (zsh, bash, or fi
           </p>
           <p>
             Models and keys live in the config file, not in options; see <a href="configuration.html">Configuration</a>. <code>GR_DEBUG=1</code> prints stack traces, and
-            <code>GR_DEBUG_MODEL</code> logs model calls (see <a href="configuration.html#debugging-model-calls">Debugging model calls</a>). <code>gr</code> checks npm for updates once a day and
-            offers them before a tour; <code>GR_NO_UPDATE_CHECK=1</code> turns that off. For terminal support and tmux settings, see <a href="terminals.html">Terminals</a>.
+            <code>GR_DEBUG_MODEL</code> logs model calls (see <a href="configuration.html#debugging-model-calls">Debugging model calls</a>). <code>gr</code> checks npm for updates once a day; see
+            <a href="install.html#updating">Updating</a>. For terminal support and tmux settings, see <a href="terminals.html">Terminals</a>.
           </p>
           <h3 id="shell-completion"><a class="anchor" href="#shell-completion" aria-hidden="true">#</a>Shell completion</h3>
           <p>

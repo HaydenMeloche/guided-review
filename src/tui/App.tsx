@@ -91,6 +91,9 @@ export interface AppOptions {
   previewTarget?: LocalTarget; // gr preview --base and gr diff: what `preview` compares, to read it again
   demo?: boolean;
   onQuit?: (summary: string | undefined) => void; // Q: the line to print once the screen is gone // gr demo: starts over each run, its preview carries written-out narration, and its submit screen posts nothing
+  update?: { version: string; deprecated?: string }; // a newer version gr can install, offered on the PR list
+  onUpdate?: () => void; // U on the PR list: gr closes to install the update
+  notice?: string; // shown on the PR list as it opens, such as the version just updated to
 }
 
 // The theme picker as the screens see it: L opens it over the picker, briefing, or chapter.
@@ -285,7 +288,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const [byCommit, setByCommit] = useState<{ head: string; chapters: Chapter[] }>();
   const [pos, setPosState] = useState({ ci: 0, hi: 0 });
   const [banner, setBanner] = useState<string | undefined>();
-  const [pickerNotice, setPickerNotice] = useState<string | undefined>();
+  const [pickerNotice, setPickerNotice] = useState<string | undefined>(opts.notice);
   // The last review posted, shown on that PR's briefing too: the PR list is not the only way back.
   const [postedNotice, setPostedNotice] = useState<{ key: string; text: string }>();
   const [newHead, setNewHead] = useState<string | undefined>();
@@ -1088,6 +1091,15 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
           downloads={downloads}
           onDownload={startDownloads}
           onTheme={theme.show}
+          update={opts.update}
+          onUpdate={
+            opts.onUpdate
+              ? () => {
+                  opts.onUpdate!();
+                  quit();
+                }
+              : undefined
+          }
           onQuit={requestQuit}
         />
       );
