@@ -27,7 +27,7 @@
  ‹b,dim›           ‹/›‹cyan›B             ‹/›Blast radius: uses of what this hunk changes in files the PR leaves alone
  ‹b,dim›           ‹/›‹cyan›D             ‹/›Re-review: switch between only new and changed hunks and the full review
 
- ‹b,dim›Settings   ‹/›‹cyan›S             ‹/›Split view (old beside new) or inline
+ ‹b,dim›Settings   ‹/›‹cyan›S             ‹/›Toggle between split (old beside new) and inline view
  ‹b,dim›           ‹/›‹cyan›w             ‹/›Hide or show whitespace-only changes
  ‹b,dim›           ‹/›‹cyan›I             ‹/›Fold or show the imports of a hunk that changes code too
  ‹b,dim›           ‹/›‹cyan›r             ‹/›Raw unified diff for the hunk

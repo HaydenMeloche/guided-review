@@ -285,8 +285,8 @@ export const KEYS: KeyRow[] = [
   {
     keys: 'S',
     group: 'Settings',
-    help: 'Split view (old beside new) or inline',
-    bind: [{ mode: 'code', on: ['S'], do: 'split', palette: 'Split view: old beside new, or inline' }],
+    help: 'Toggle between split (old beside new) and inline view',
+    bind: [{ mode: 'code', on: ['S'], do: 'split', palette: 'Toggle between split and inline view' }],
   },
   { keys: 'w', group: 'Settings', help: 'Hide or show whitespace-only changes', bind: [{ mode: 'code', on: ['w'], do: 'whitespace', palette: 'Hide or show whitespace-only changes' }] },
   {

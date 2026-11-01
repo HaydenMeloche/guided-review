@@ -26,7 +26,7 @@
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›B             ‹/›‹bg:c235›Blast radius: uses of what this hunk changes in files the PR leaves alone             ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›D             ‹/›‹bg:c235›Re-review: switch between only new and changed hunks and the full review              ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›│‹/›‹bg:c235›                                                                                                                ‹/›‹bright-black,bg:c235›│‹/›
-   ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›Settings   ‹/›‹cyan,bg:c235›S             ‹/›‹bg:c235›Split view (old beside new) or inline                                                 ‹/›‹bright-black,bg:c235›│‹/›
+   ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›Settings   ‹/›‹cyan,bg:c235›S             ‹/›‹bg:c235›Toggle between split (old beside new) and inline view                                 ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›w             ‹/›‹bg:c235›Hide or show whitespace-only changes                                                  ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›I             ‹/›‹bg:c235›Fold or show the imports of a hunk that changes code too                              ‹/›‹bright-black,bg:c235›│‹/›
    ‹bright-black,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,b,dim›           ‹/›‹cyan,bg:c235›r             ‹/›‹bg:c235›Raw unified diff for the hunk                                                         ‹/›‹bright-black,bg:c235›│‹/›
