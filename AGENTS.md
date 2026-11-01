@@ -19,6 +19,8 @@ The app and tests need Node 22.13 or newer and ripgrep (`rg`) on the PATH.
 
 If a change alters how PRs split into tours, it shows up as a diff of the `.tour.txt` files in `test/fixtures/prs/`. Only accept that diff with `pnpm test -u` when the new shape is intended.
 
+A change to chapter design (flows, test pairing, symbol extraction, chapter order, or the narration prompts) must also be backtested against real PRs, since a heuristic tuned on one PR regresses others. Make it in its own commit, so it can be reverted alone, and run `pnpm backtest -- --out <dir>` before and after: it rebuilds the static tour of every PR saved in `.gr-dev/` and writes each tour's shape, so `diff -r` of the two directories shows every tour the change touched. Say in the commit which tours changed and why each is an improvement. A prompt-only change is not visible there; rebuild one affected PR with the model (`pnpm dev build <PR> --fresh --out <file>`) and read the result.
+
 If a change alters how a screen looks, it shows up as a diff of the golden screens in `test/e2e/__screens__/`: each screen at 80×24, 120×36, and 200×50, with its colors and styles marked up. Only accept that diff with `pnpm test:e2e -u` when the new look is intended.
 
 ## Running the app
