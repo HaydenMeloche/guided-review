@@ -512,10 +512,11 @@ function javaCalls(n: Node): string[] {
 
 function walkJava(n: Node, ctx: Ctx, owner?: string) {
   for (const c of kids(n)) {
-    if (['class_declaration', 'interface_declaration', 'enum_declaration', 'record_declaration'].includes(c.type)) {
+    if (['class_declaration', 'interface_declaration', 'annotation_type_declaration', 'enum_declaration', 'record_declaration'].includes(c.type)) {
       const name = c.childForFieldName('name')?.text;
       if (!name) continue;
-      const kind: DeclKind = c.type === 'interface_declaration' ? 'interface' : c.type === 'enum_declaration' ? 'enum' : 'class';
+      // An annotation (`@interface`) is a type like an interface: code that applies it refers to it by name.
+      const kind: DeclKind = c.type === 'interface_declaration' || c.type === 'annotation_type_declaration' ? 'interface' : c.type === 'enum_declaration' ? 'enum' : 'class';
       addDecl(ctx, { name, owner, kind, startLine: line(c), endLine: endLine(c), exported: !/\bprivate\b/.test(firstOfType(c, 'modifiers')?.text ?? ''), calls: [] });
       walkJava(c.childForFieldName('body') ?? c, ctx, name);
     } else if (c.type === 'method_declaration' || c.type === 'constructor_declaration') {
@@ -526,7 +527,7 @@ function walkJava(n: Node, ctx: Ctx, owner?: string) {
       if (name === 'main' && /\bstatic\b/.test(modifiers)) entry(ctx, { line: line(c), reason: 'CLI entry (main)', handler: name });
       const mapping = /@(Get|Post|Put|Patch|Delete|Request)Mapping(?:\s*\(\s*(?:value\s*=\s*|path\s*=\s*)?"([^"]*)")?/.exec(modifiers);
       if (mapping) entry(ctx, { line: line(c), reason: `route ${mapping[1] === 'Request' ? '' : mapping[1].toUpperCase() + ' '}${mapping[2] ?? ''}`.trim(), handler: name });
-    } else if (['program', 'class_body', 'interface_body', 'enum_body', 'record_body'].includes(c.type)) {
+    } else if (['program', 'class_body', 'interface_body', 'annotation_type_body', 'enum_body', 'record_body'].includes(c.type)) {
       walkJava(c, ctx, owner);
     }
   }

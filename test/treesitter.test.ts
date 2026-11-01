@@ -203,6 +203,37 @@ describe('tree-sitter: C, C++, Java, Ruby, and Rust', () => {
     ).toBe(true);
   });
 
+  it('declares a Java annotation and links it to the Kotlin code that reads it, before its first use', () => {
+    const files = {
+      'src/main/kotlin/com/acme/Provider.kt': [
+        'package com.acme',
+        'class Provider {',
+        '  fun register(loaders: List<Any>) {',
+        '    for (l in loaders) {',
+        '      val field = l.javaClass.declaredFields.find { it.isAnnotationPresent(Dispatch::class.java) }',
+        '      if (field != null) scheduled(l) else plain(l)',
+        '    }',
+        '  }',
+        '  private fun scheduled(l: Any) {}',
+        '  private fun plain(l: Any) {}',
+        '}',
+        '',
+      ].join('\n'),
+      'src/main/java/com/acme/Dispatch.java':
+        'package com.acme;\n\nimport java.lang.annotation.*;\n\n@Target(ElementType.FIELD)\n@Retention(RetentionPolicy.RUNTIME)\npublic @interface Dispatch {\n}\n',
+    };
+    const { files: classified, hunks, index } = analyze(files);
+    const annotation = index.decls.find((d) => d.file === 'src/main/java/com/acme/Dispatch.java');
+    expect(annotation).toEqual(expect.objectContaining({ name: 'Dispatch', kind: 'interface' }));
+    expect(index.edges).toEqual(
+      expect.arrayContaining([expect.objectContaining({ from: 'src/main/kotlin/com/acme/Provider.kt#Provider.register', to: 'src/main/java/com/acme/Dispatch.java#Dispatch' })]),
+    );
+    const { chapters } = buildChapters(classified, hunks, index);
+    const flow = chapters.find((c) => c.kind === 'flow')!;
+    expect(flow.hunkIds.map((id) => fileOf(classified, hunks, id))).toEqual(['src/main/java/com/acme/Dispatch.java', 'src/main/kotlin/com/acme/Provider.kt']);
+    expect(chapters.some((c) => c.kind === 'supporting')).toBe(false);
+  });
+
   it('finds Ruby methods and Rust functions', () => {
     const ruby = parseWithTreeSitter('app/api.rb', 'class Api\n  def create(x)\n    save(x)\n  end\n  def save(x)\n    x\n  end\nend\n', 'head')!;
     expect(ruby.decls.find((d) => d.name === 'create')).toEqual(expect.objectContaining({ qualified: 'app/api.rb#Api.create', calls: ['save'] }));

@@ -2,6 +2,7 @@ import { createRequire } from 'node:module';
 import type TS from 'typescript';
 import type { DiffFile, Hunk } from '../types.js';
 import { familyOf, languageOf } from '../util/language.js';
+import { escapeRe } from '../util/regex.js';
 import { GO_ROUTE, PY_DECORATOR_ROUTE } from './patterns.js';
 import { parseWithTreeSitter, supportsTreeSitter } from './treesitter.js';
 
@@ -370,6 +371,7 @@ export function buildSymbolIndex(files: DiffFile[], hunks: Record<string, Hunk>,
   const typeDecls = new Set<string>();
   let lowConfidence = false;
   const changed = new Map<string, Decl>(); // qualified -> decl touched by a hunk
+  const visible: { q: string; text: string }[] = []; // a hunk's head-side lines, by the changed decl they sit in
   const entrySymbols = new Set<string>();
   const addEntry = (e: EntryCandidate) => {
     entries.push(e);
@@ -446,6 +448,13 @@ export function buildSymbolIndex(files: DiffFile[], hunks: Record<string, Hunk>,
 
     if (f.kind !== 'logic') continue;
     const fileHunkIds = f.hunkIds.filter((id) => hunks[id]);
+    for (const id of fileHunkIds) {
+      for (const l of hunks[id].lines) {
+        if (l.kind === 'del' || l.newLine === undefined) continue;
+        const d = innermost(head.decls, l.newLine);
+        if (d && changed.has(d.qualified)) visible.push({ q: d.qualified, text: l.text });
+      }
+    }
     const firstHunkOfDecl = new Map<string, string>();
     for (const id of fileHunkIds) for (const q of hunkDecls[id] ?? []) if (!firstHunkOfDecl.has(q)) firstHunkOfDecl.set(q, id);
     const hunkForDecl = (q: string) => firstHunkOfDecl.get(q);
@@ -480,11 +489,29 @@ export function buildSymbolIndex(files: DiffFile[], hunks: Record<string, Hunk>,
     list.push(d);
     byName.set(d.name, list);
   }
+  // A type is used wherever its name appears. The TypeScript parser records type annotations as
+  // references; for every other language, a changed declaration whose visible lines name a changed
+  // type refers to it the same way, so a new type, interface, enum or annotation reads with the
+  // code that uses it instead of as an orphan.
+  const typeNames = [...new Set([...typeDecls].map((q) => changed.get(q)?.name).filter((n): n is string => !!n))];
+  const typeRefs = new Map<string, Set<string>>();
+  if (typeNames.length) {
+    const re = new RegExp(`(?<![\\w$])(?:${typeNames.map(escapeRe).join('|')})(?![\\w$])`, 'g');
+    for (const { q, text } of visible) {
+      for (const name of text.match(re) ?? []) {
+        if (name === changed.get(q)?.name) continue;
+        let set = typeRefs.get(q);
+        if (!set) typeRefs.set(q, (set = new Set()));
+        set.add(name);
+      }
+    }
+  }
+
   // `changed` holds one decl per qualified name, so each target list has no duplicates.
   const edges: CallEdge[] = [];
   const seen = new Set<string>();
   for (const d of changed.values()) {
-    for (const c of d.calls) {
+    for (const c of new Set([...d.calls, ...(typeRefs.get(d.qualified) ?? [])])) {
       const targets = byName.get(c);
       // Multiple changed declarations with the same name are ambiguous. Do not
       // turn one call into several convincing but potentially false flow edges.
