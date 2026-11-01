@@ -220,7 +220,7 @@ describe('with a token', () => {
   });
 
   it('passes the token to git as a header for the GitHub host only', () => {
-    const env = gitAuthEnv()!;
+    const env = gitAuthEnv();
     expect(env.GIT_CONFIG_KEY_0).toBe('http.https://github.com/.extraheader');
     expect(Buffer.from(env.GIT_CONFIG_VALUE_0.replace('AUTHORIZATION: basic ', ''), 'base64').toString()).toBe('x-access-token:ghp_test');
   });
@@ -274,7 +274,7 @@ describe('on GitHub Enterprise Server', () => {
     const pr = await fetchPR('o/r', 7);
     expect(call(1).url).toBe('https://ghe.example.com/api/v3/repos/o/r/issues/3');
     expect(pr.linkedIssues.map((i) => i.url)).toEqual(['https://ghe.example.com/o/r/issues/3', 'https://ghe.example.com/other/repo/issues/4']);
-    expect(gitAuthEnv()!.GIT_CONFIG_KEY_0).toBe('http.https://ghe.example.com/.extraheader');
+    expect(gitAuthEnv().GIT_CONFIG_KEY_0).toBe('http.https://ghe.example.com/.extraheader');
   });
 });
 
@@ -299,6 +299,19 @@ describe('without a token', () => {
     runMock.mockResolvedValueOnce('diff');
     expect(await fetchDiff('o/r', 7)).toBe('diff');
     expect(runMock.mock.calls[0][0]).toBe('gh');
-    expect(gitAuthEnv()).toBeUndefined();
+  });
+
+  it('has git ask gh for credentials and never prompt', () => {
+    writeConfig(undefined);
+    const env = gitAuthEnv();
+    expect(env).toMatchObject({
+      GIT_TERMINAL_PROMPT: '0',
+      GIT_CONFIG_COUNT: '2',
+      GIT_CONFIG_KEY_0: 'credential.https://github.com.helper',
+      GIT_CONFIG_VALUE_0: '',
+      GIT_CONFIG_KEY_1: 'credential.https://github.com.helper',
+      GIT_CONFIG_VALUE_1: '!gh auth git-credential',
+    });
+    expect(env.GIT_SSH_COMMAND).toBeDefined();
   });
 });

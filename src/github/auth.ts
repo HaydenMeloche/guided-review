@@ -70,12 +70,28 @@ export function resetGitHubAuth(): void {
   cached = undefined;
 }
 
-// With a token, git clones and fetches over HTTPS from the GitHub host send it as a header. It
-// goes through GIT_CONFIG_* so it is neither on the command line nor saved in the clone's config.
-export function gitAuthEnv(): Record<string, string> | undefined {
-  const auth = githubAuth();
-  if (!auth) return undefined;
+// The environment for every git call gr makes: clones and fetches, and the blobs a blobless
+// clone fetches lazily (on worktree add, diff or show). With a token, git sends it as a header to
+// the GitHub host; otherwise git asks gh for credentials, so a private repo clones as the same
+// account gr reads it with (replacing the user's own helpers for that host, which may hold another
+// account or nothing). Either goes through GIT_CONFIG_* so it is neither on the command line nor
+// saved in the clone's config. git never prompts: under the full-screen UI a password or
+// passphrase prompt is invisible and hangs the load, so it fails instead. An unreadable token is
+// reported by the GitHub calls that need it; git still runs, without credentials.
+export function gitAuthEnv(): Record<string, string> {
+  const noPrompt = { GIT_TERMINAL_PROMPT: '0', GIT_SSH_COMMAND: process.env.GIT_SSH_COMMAND ?? 'ssh -o BatchMode=yes' };
+  let auth: TokenAuth | undefined;
+  try {
+    auth = githubAuth();
+  } catch {
+    return noPrompt;
+  }
+  if (!auth) {
+    const key = `credential.https://${githubWebHost()}.helper`;
+    return { ...noPrompt, GIT_CONFIG_COUNT: '2', GIT_CONFIG_KEY_0: key, GIT_CONFIG_VALUE_0: '', GIT_CONFIG_KEY_1: key, GIT_CONFIG_VALUE_1: '!gh auth git-credential' };
+  }
   return {
+    ...noPrompt,
     GIT_CONFIG_COUNT: '1',
     GIT_CONFIG_KEY_0: `http.https://${webHost(auth.apiUrl)}/.extraheader`,
     GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${auth.token}`).toString('base64')}`,
