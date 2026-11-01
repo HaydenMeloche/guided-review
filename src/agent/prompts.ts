@@ -15,6 +15,15 @@ Rules:
 - Never edit files.`;
 
 const MAX_HUNK_LINES = 120;
+// A hunk larger than that is read whole up to this many lines when the rendering takes no more
+// than half a chapter's budget: the biggest new class in a PR is the one not to skim.
+const LEAD_HUNK_LINES = 600;
+
+// How many of a hunk's lines its narration prompt shows.
+export function hunkLimit(h: Hunk): number {
+  if (h.lines.length <= MAX_HUNK_LINES) return MAX_HUNK_LINES;
+  return renderHunk(h, LEAD_HUNK_LINES).length <= CHAPTER_BUDGET / 2 ? LEAD_HUNK_LINES : MAX_HUNK_LINES;
+}
 
 // Rendering is the bulk of prompt building; hunks are immutable once emitted (a change makes a
 // new object), so a rendering can be cached per hunk object.
@@ -35,7 +44,11 @@ function renderHunkUncached(h: Hunk, maxLines: number): string {
     const sign = l.kind === 'add' ? '+' : l.kind === 'del' ? '-' : ' ';
     return `${sign}${l.text}`;
   });
-  if (h.lines.length > maxLines) body.push(`… (${h.lines.length - maxLines} more lines)`);
+  if (h.lines.length > maxLines) {
+    const next = h.lines[maxLines];
+    const at = next.newLine ?? next.oldLine;
+    body.push(`… (${h.lines.length - maxLines} more lines not shown; read ${h.file}${at ? ` from line ${at}` : ''} before narrating this hunk)`);
+  }
   const meta = [
     h.symbols.length ? `symbols: ${h.symbols.join(', ')}` : '',
     h.riskReasons.length ? `static risk: ${h.riskReasons.join('; ')}` : '',
@@ -183,7 +196,7 @@ function renderedBatches(tour: Tour, ids: string[]): string[][] {
   for (const id of ids) {
     const h = tour.hunks[id];
     if (!h) continue;
-    const n = renderHunk(h).length;
+    const n = renderHunk(h, hunkLimit(h)).length;
     if (size + n > CHAPTER_BUDGET && batches[batches.length - 1].length) {
       batches.push([]);
       size = 0;
@@ -195,7 +208,7 @@ function renderedBatches(tour: Tour, ids: string[]): string[][] {
 }
 
 export function isTruncated(h: Hunk): boolean {
-  return h.lines.length > MAX_HUNK_LINES;
+  return h.lines.length > hunkLimit(h);
 }
 
 // Minor hunks are summarized together per chapter instead of narrated one by one: output
@@ -396,7 +409,7 @@ export function chapterPrompt(tour: Tour, chapter: Chapter): string {
   const minorRendered: string[] = [];
   for (const h of hunks) {
     const isMinor = minor.has(h.id);
-    const r = renderHunk(h, isMinor ? MINOR_RENDER_LINES : MAX_HUNK_LINES);
+    const r = renderHunk(h, isMinor ? MINOR_RENDER_LINES : hunkLimit(h));
     const out = isMinor ? minorRendered : rendered;
     if (budget - r.length < 0) {
       out.push(`### hunk ${h.id} — ${h.file} ${h.header} (omitted for size; narrate from the file if needed)`);
