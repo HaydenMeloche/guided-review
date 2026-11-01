@@ -241,7 +241,7 @@ describe('ChapterScreen', () => {
     ui.unmount();
   });
 
-  it('keeps both panes visible when the selected test has longer code', async () => {
+  it('keeps the source pane its width when the selected test has longer code', async () => {
     const tour = fixtureTour();
     const hunk = tour.hunks[tour.chapters[0].hunkIds[0]];
     hunk.tests = [
@@ -260,15 +260,13 @@ describe('ChapterScreen', () => {
     ui.stdin.write('t');
     await waitFor(() => expect(ui.lastFrame()).toContain('t/esc'));
     ui.stdin.write('n');
-    await waitFor(() => expect(boundary()).toBeLessThan(shortBoundary));
-    expect(ui.lastFrame()).toContain('long.test.ts');
+    await waitFor(() => expect(ui.lastFrame()).toContain('long.test.ts'));
     expect(ui.lastFrame()).toContain('invoice.total');
-    expect(ui.lastFrame()).toContain('import { Router }');
+    expect(ui.lastFrame()).toContain("import { createInvoice } from '../services/invoice.js';");
+    expect(boundary()).toBe(shortBoundary);
     ui.stdin.write('t');
-    // The layout should not change: wait for the key bar to leave test focus, then check it.
     await waitFor(() => expect(ui.lastFrame()).not.toContain('t/esc'));
-    expect(boundary()).toBeLessThan(shortBoundary);
-    expect(ui.lastFrame()).toContain('import { Router }');
+    expect(boundary()).toBe(shortBoundary);
     ui.unmount();
   });
 
@@ -329,18 +327,19 @@ describe('ChapterScreen', () => {
     ui.stdin.write('t');
     await tick();
     ui.stdin.write('n');
-    await waitFor(() => expect(ui.lastFrame()).toContain(second));
-    expect(ui.lastFrame()).not.toContain(assertion);
+    // The test pane takes what the source leaves, so long test lines wrap: match their start.
+    await waitFor(() => expect(ui.lastFrame()).toContain('it("rejects an invoice",'));
+    expect(ui.lastFrame()).not.toContain('expect(createInvoice())');
     ui.stdin.write('p');
     await waitFor(() => expect(ui.lastFrame()).toContain('expect(createInvoice())'));
-    expect(ui.lastFrame()).not.toContain(second);
+    expect(ui.lastFrame()).not.toContain('it("rejects an invoice",');
     ui.stdin.write('j');
     await waitFor(() => expect(ui.lastFrame()).toMatch(/▶\s*2\s*│\s*\+/));
     ui.stdin.write('c');
-    await waitFor(() => expect(ui.lastFrame()).toContain(`Comment on ${testFile}:2`));
+    await waitFor(() => expect(ui.lastFrame()).toContain('Comment on test/new-invoice'));
     const commentRows = ui.lastFrame()!.split('\n');
     const selectedRow = commentRows.findIndex((row) => row.includes('▶') && row.includes('expect(createInvoice())'));
-    const editorRow = commentRows.findIndex((row) => row.includes(`Comment on ${testFile}:2`));
+    const editorRow = commentRows.findIndex((row) => row.includes('Comment on test/new-invoice'));
     expect(selectedRow).toBeGreaterThan(-1);
     expect(editorRow).toBeGreaterThan(selectedRow);
     expect(editorRow - selectedRow).toBeLessThanOrEqual(2);
@@ -352,9 +351,9 @@ describe('ChapterScreen', () => {
     expect(drafts[0].anchor).toEqual({ type: 'line', hunkId: 'test-hunk', file: testFile, line: 2, side: 'RIGHT' });
     expect(buildReviewPayload(tour, drafts, 'COMMENT', '').payload.comments[0]).toMatchObject({ path: testFile, line: 2, side: 'RIGHT' });
     ui.stdin.write('a');
-    await waitFor(() => expect(ui.lastFrame()).toContain(`Ask about ${testFile}:2`));
+    await waitFor(() => expect(ui.lastFrame()).toContain('Ask about'));
     const askRows = ui.lastFrame()!.split('\n');
-    const askLine = askRows.findIndex((row) => row.includes(`Ask about ${testFile}:2`));
+    const askLine = askRows.findIndex((row) => row.includes('Ask about'));
     expect(askLine).toBeGreaterThan(askRows.findIndex((row) => row.includes('▶') && row.includes('expect(createInvoice())')));
     ui.stdin.write('\u001b');
     await tick();
@@ -2155,7 +2154,7 @@ describe('split view, test pane toggle and expanded context', () => {
     const t = fixtureTour();
     const ci = t.chapters.findIndex((c) => c.hunkIds.some((id) => t.hunks[id].tests.some((x) => x.source !== 'naming')));
     const hi = t.chapters[ci].hunkIds.findIndex((id) => t.hunks[id].tests.some((x) => x.source !== 'naming'));
-    const ui = render(screen(t, { ci, hi }));
+    const ui = render(screen(t, { ci, hi, width: 200 }));
     await waitFor(() => expect(ui.lastFrame()).toMatch(/Tests\s/));
     expect(ui.lastFrame()).not.toContain('· t ');
     ui.stdin.write('T');

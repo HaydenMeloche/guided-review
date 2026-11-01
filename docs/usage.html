@@ -240,8 +240,9 @@
           </p>
           <p>
             A <strong>chapter</strong> shows an explanation, the code hunk, risk and test status, review threads, and linked tests. From 110 columns the tests sit beside the code, and from 140 the
-            chapter list sits on the left. Generated, vendored, and mechanical changes start collapsed. Import-only changes form an optional chapter that <code>n</code>/<code>p</code> skip. Outdated
-            review threads are followed to where their lines are now.
+            chapter list sits on the left. The code keeps the width of its longest line and the tests take what is left; when that would leave the tests too narrow, they wait behind a tab that
+            <code>t</code> opens. Generated, vendored, and mechanical changes start collapsed. Import-only changes form an optional chapter that <code>n</code>/<code>p</code> skip. Outdated review
+            threads are followed to where their lines are now.
           </p>
           <figure class="shot">
             <a href="images/ask.webp"><img src="images/ask.webp" alt="A question about a changed line, answered inline below the code with file and line references" loading="lazy" /></a>

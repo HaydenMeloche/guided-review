@@ -14,21 +14,16 @@ function codeWidth(lines: string[], chrome: number): number {
   return Math.max(MIN_PANE_WIDTH, chrome + lines.reduce((longest, line) => Math.max(longest, line.replace(/\t/g, '  ').length), 0));
 }
 
-// Give each pane its longest line's width when possible. Otherwise share the
-// available columns in proportion to those widths; code wraps within each pane.
-// The focused pane is expanded to its longest line, squeezing the other down to the minimum.
-// A split source pane needs room for each line twice, old beside new. `noteWidth`: the widest
-// note under the source's lines, which wants room too.
-export function codePaneWidths(available: number, sourceLines: string[], testLines: string[], focus: 'source' | 'test' = 'source', split = false, noteWidth = 0): { source: number; test: number } {
+// The source pane always gets its longest line's width, so its code never wraps beside the tests;
+// the test pane takes what is left, at least MIN_PANE_WIDTH. When that leaves the tests too
+// little room, `stack` says to put them behind a tab (t opens them) instead of squeezing the
+// code. With room for both, each pane gets its longest line's width. A split source pane needs
+// room for each line twice, old beside new. `noteWidth`: the widest note under the source's
+// lines, which wants room too.
+export function codePaneWidths(available: number, sourceLines: string[], testLines: string[], split = false, noteWidth = 0): { source: number; test: number; stack: boolean } {
   const sourceNeed = Math.max(noteWidth + 1, split ? 2 * codeWidth(sourceLines, SPLIT_GUTTER + 1) + 2 : codeWidth(sourceLines, GUTTER));
   const testNeed = codeWidth(testLines, GUTTER + 2); // test border and padding, plus the same gutter
-  if (sourceNeed + testNeed <= available) return { source: sourceNeed, test: testNeed };
-  const minimum = Math.min(MIN_PANE_WIDTH, Math.floor(available / 2));
-  const clamp = (n: number) => Math.max(minimum, Math.min(available - minimum, n));
-  if (focus === 'test') {
-    const test = clamp(Math.max(testNeed, Math.round((available * testNeed) / (sourceNeed + testNeed))));
-    return { source: available - test, test };
-  }
-  const source = clamp(Math.round((available * sourceNeed) / (sourceNeed + testNeed)));
-  return { source, test: available - source };
+  if (sourceNeed + testNeed <= available) return { source: sourceNeed, test: testNeed, stack: false };
+  if (available - sourceNeed >= MIN_PANE_WIDTH) return { source: sourceNeed, test: available - sourceNeed, stack: false };
+  return { source: available, test: available, stack: true };
 }

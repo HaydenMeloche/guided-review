@@ -30,8 +30,12 @@ describe('chapterLayout widths', () => {
     ['130, @ list open', { width: 130, listOpen: true }, { sideBySide: false, srcWidth: 130 }],
     ['130, no linked tests', { width: 130, linkedTests: false }, { sideBySide: false, srcWidth: 130 }],
     ['180', { width: 180 }, { wide: true, listWidth: 36, mainWidth: 143, sideBySide: true }],
-    ['180, split of long lines sits beside the tests', { width: 180, split: true, hunkLines: code(5, 60) }, { sideBySide: true, testsStacked: false, srcWidth: 102, testWidth: 40, splitView: true }],
-    ['180, split but raw', { width: 180, split: true, raw: true, hunkLines: code(5, 60) }, { sideBySide: true, splitView: false }],
+    [
+      '180, split of lines that fit sits beside the tests',
+      { width: 180, split: true, hunkLines: code(5, 40) },
+      { sideBySide: true, testsStacked: false, srcWidth: 102, testWidth: 40, splitView: true },
+    ],
+    ['180, split but raw', { width: 180, split: true, raw: true, hunkLines: code(5, 40) }, { sideBySide: true, splitView: false }],
     ['140 has the chapter list', { width: 140 }, { wide: true, listWidth: 36, mainWidth: 103, sideBySide: false }],
     ['140 with the list hidden', { width: 140, sidebar: false }, { wide: false, mainWidth: 140, sideBySide: true }],
     ['200, split of short lines', { width: 200, split: true }, { wide: true, mainWidth: 163, sideBySide: false, testsStacked: true, splitView: true }],
@@ -39,10 +43,21 @@ describe('chapterLayout widths', () => {
     expect(layout(input)).toMatchObject(want);
   });
 
-  it('beside the code, the panes share the main width less the gutter', () => {
-    const p = layout({ width: 150, hunkLines: code(5, 200) });
+  it('beside the code, the source keeps its longest line and the tests take the rest', () => {
+    const p = layout({ width: 150, hunkLines: code(5, 50), testLines: code(8, 60) });
     expect(p.sideBySide).toBe(true);
+    expect(p.srcWidth).toBe(65);
     expect(p.srcWidth + p.testWidth).toBe(p.mainWidth - 1);
+  });
+
+  it('stacks the tests rather than wrap source code that would not fit beside them', () => {
+    const p = layout({ width: 150, hunkLines: code(5, 200) });
+    expect(p).toMatchObject({ sideBySide: false, testsStacked: true, srcWidth: p.mainWidth });
+  });
+
+  it('keeps the source width when the tests have focus', () => {
+    const p = layout({ width: 150, hunkLines: code(5, 50), testLines: code(8, 90), testFocus: true });
+    expect(p.srcWidth).toBe(65);
   });
 });
 

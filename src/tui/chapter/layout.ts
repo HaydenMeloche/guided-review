@@ -42,13 +42,13 @@ export function chapterLayout(i: LayoutInput) {
     mainWidth - 1,
     i.hunkLines?.map((l) => l.text) ?? [],
     i.testLines.map((l) => l.text),
-    i.testFocus ? 'test' : 'source',
     i.split,
     i.noteWidth,
   );
   const showTests = i.linkedTests && !i.hideTests;
-  // A split diff too narrow to read beside the tests stacks them instead: t still opens them.
-  const testsStacked = roomForTests && showTests && i.split && panes.source < MIN_SPLIT_WIDTH;
+  // Code that would wrap beside the tests, or a split diff too narrow to read beside them, stacks
+  // them instead: t still opens them.
+  const testsStacked = roomForTests && showTests && (panes.stack || (i.split && panes.source < MIN_SPLIT_WIDTH));
   // While the comment's @ list is open the pane holding it takes the full width, so the list
   // and its code preview sit side by side; the other pane comes back when the list closes.
   const sideBySide = roomForTests && showTests && !testsStacked && !i.listOpen;

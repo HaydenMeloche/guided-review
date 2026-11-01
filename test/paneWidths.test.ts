@@ -3,7 +3,7 @@ import { codePaneWidths } from '../src/tui/paneWidths.js';
 
 describe('code pane widths', () => {
   it('fits both panes to their longest line when there is room', () => {
-    expect(codePaneWidths(150, ['short', 'x'.repeat(70)], ['x'.repeat(20)])).toEqual({ source: 85, test: 40 });
+    expect(codePaneWidths(150, ['short', 'x'.repeat(70)], ['x'.repeat(20)])).toEqual({ source: 85, test: 40, stack: false });
   });
 
   it('uses the actual longest line, including expanded tabs', () => {
@@ -12,17 +12,21 @@ describe('code pane widths', () => {
     expect(codePaneWidths(200, lines, ['test']).source).toBe(117);
   });
 
-  it('keeps both panes visible when their longest lines cannot fit', () => {
-    expect(codePaneWidths(100, ['x'.repeat(80)], ['x'.repeat(45)])).toEqual({ source: 60, test: 40 });
+  it('gives the source its longest line and the tests what is left', () => {
+    expect(codePaneWidths(140, ['x'.repeat(80)], ['x'.repeat(60)])).toEqual({ source: 95, test: 45, stack: false });
   });
 
-  it('widens the source pane for a note under its lines, as room allows', () => {
-    expect(codePaneWidths(150, ['anyOrNull(),'], ['x'.repeat(20)], 'source', false, 70)).toEqual({ source: 71, test: 40 });
-    expect(codePaneWidths(100, ['anyOrNull(),'], ['x'.repeat(45)], 'source', false, 70).source).toBeGreaterThan(40);
+  it('stacks the tests rather than wrap the source', () => {
+    expect(codePaneWidths(100, ['x'.repeat(80)], ['x'.repeat(45)])).toEqual({ source: 100, test: 100, stack: true });
   });
 
-  it('expands the focused test pane to its longest line', () => {
-    expect(codePaneWidths(100, ['x'.repeat(80)], ['x'.repeat(45)], 'test')).toEqual({ source: 40, test: 60 });
-    expect(codePaneWidths(100, ['x'.repeat(80)], ['x'.repeat(90)], 'test')).toEqual({ source: 40, test: 60 });
+  it('widens the source pane for a note under its lines', () => {
+    expect(codePaneWidths(150, ['anyOrNull(),'], ['x'.repeat(20)], false, 70)).toEqual({ source: 71, test: 40, stack: false });
+    expect(codePaneWidths(120, ['anyOrNull(),'], ['x'.repeat(45)], false, 70)).toEqual({ source: 71, test: 49, stack: false });
+  });
+
+  it('counts a split diff twice', () => {
+    expect(codePaneWidths(140, ['x'.repeat(40)], ['x'], true).stack).toBe(true);
+    expect(codePaneWidths(200, ['x'.repeat(40)], ['x'], true)).toEqual({ source: 102, test: 40, stack: false });
   });
 });
