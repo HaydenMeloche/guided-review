@@ -601,10 +601,16 @@ export function ChapterScreen(props: {
     return <EmptyChapter deltaOnly={props.deltaOnly} width={width} />;
   }
 
-  // Linked tests that are not beside the code (a narrow terminal, T, or a split diff) get a tab
-  // saying they are there and how to open them.
+  // Linked tests that are not beside the code (a narrow terminal, T, long code, or a split diff)
+  // get a tab saying they are there and how to open them. It sits right above the code, on the
+  // blank row under the explanation, or on the title row when there is no explanation.
   const testDrawer =
-    hunk && hasLinkedTests && !sideBySide && !testFocus && !collapsedView ? `◂ ${hunk.covers ? 'code it covers' : `${relevantTests.length} test${relevantTests.length === 1 ? '' : 's'}`}` : undefined;
+    hunk && hasLinkedTests && !sideBySide && !testFocus && !collapsedView
+      ? hunk.covers
+        ? 'code it covers'
+        : `${relevantTests.length} linked test${relevantTests.length === 1 ? '' : 's'}`
+      : undefined;
+  const drawerAboveCode = plan.explainLines.length > 0;
   // The composer sits under the commented line, growing while its AI line is open. Its state is
   // ours, so it survives moving between the inline slot and the popup.
   const slots = overlaySlots(plan, {
@@ -965,8 +971,25 @@ export function ChapterScreen(props: {
         {wide ? <Box width={1} /> : null}
         <Box flexDirection="column" width={mainWidth}>
           <>
-            <ChapterTitle chapter={chapter} hunk={hunk} hi={hi} isNew={!!hunk && delta.has(hunk.id)} unchanged={unchangedHunks} width={mainWidth} states={states} drawer={testDrawer} />
-            <Explanation lines={plan.explainLines} inferred={!!hunk?.narrationInferred} collapsed={collapsedView} updated={updated} focused={focusNow === 'explain'} width={mainWidth} />
+            <ChapterTitle
+              chapter={chapter}
+              hunk={hunk}
+              hi={hi}
+              isNew={!!hunk && delta.has(hunk.id)}
+              unchanged={unchangedHunks}
+              width={mainWidth}
+              states={states}
+              drawer={drawerAboveCode ? undefined : testDrawer}
+            />
+            <Explanation
+              lines={plan.explainLines}
+              inferred={!!hunk?.narrationInferred}
+              collapsed={collapsedView}
+              updated={updated}
+              focused={focusNow === 'explain'}
+              width={mainWidth}
+              drawer={testDrawer}
+            />
             {collapsedView ? (
               <>
                 <CollapsedSummary

@@ -116,6 +116,16 @@ export const ChapterList = React.memo(function ChapterList(props: {
   );
 });
 
+// The tab for linked tests that are not on screen: what is there, then t as a keycap, in the key
+// bar's style.
+function TestDrawer(props: { label: string }) {
+  return (
+    <Box flexShrink={0} marginLeft={1}>
+      <Hints keys={[['t', props.label]]} />
+    </Box>
+  );
+}
+
 // One row: the chapter, and where the hunk is in it and in the code.
 // `drawer`: a hint at the right end for linked tests that are not on screen.
 export const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: Chapter; hunk?: Hunk; hi: number; isNew: boolean; unchanged?: number; width: number; states: States; drawer?: string }) {
@@ -157,14 +167,7 @@ export const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: C
           {chapter.entryPoint ? <Text dimColor> · entry {safe(chapter.entryPoint)}</Text> : null}
         </Text>
       </Box>
-      {props.drawer ? (
-        <Box flexShrink={0}>
-          <Text color="cyan">
-            {` ${props.drawer} · `}
-            <Text bold>t</Text>
-          </Text>
-        </Box>
-      ) : null}
+      {props.drawer ? <TestDrawer label={props.drawer} /> : null}
     </Box>
   );
 });
@@ -291,11 +294,12 @@ export const ChapterStrip = React.memo(function ChapterStrip(props: { tour: Tour
 // An in-flow block with a left rule, not a box: it is always in the same place, so a frame and a
 // title would only cost rows. The rule is quiet, magenta for narration that is the model's
 // inference, and green for a moment when the explanation has just arrived.
-export function Explanation(props: { lines: MdLine[]; inferred: boolean; collapsed: boolean; updated?: boolean; focused?: boolean; width: number }) {
+// `drawer`: the tab for linked tests not on screen, right-aligned on the blank row under it.
+export function Explanation(props: { lines: MdLine[]; inferred: boolean; collapsed: boolean; updated?: boolean; focused?: boolean; width: number; drawer?: string }) {
   if (!props.lines.length) return null;
   const rule = props.focused ? 'cyan' : props.updated ? 'green' : props.inferred ? 'magenta' : 'gray';
   return (
-    <Box flexDirection="column" flexShrink={0} width={props.width} marginBottom={1}>
+    <Box flexDirection="column" flexShrink={0} width={props.width}>
       {props.lines.map((l, i) => (
         <Box key={i}>
           <Text color={rule}>{'▎ '}</Text>
@@ -305,6 +309,9 @@ export function Explanation(props: { lines: MdLine[]; inferred: boolean; collaps
           {i === 0 && props.updated ? <Text color="green"> updated</Text> : null}
         </Box>
       ))}
+      <Box height={1} justifyContent="flex-end">
+        {props.drawer ? <TestDrawer label={props.drawer} /> : null}
+      </Box>
     </Box>
   );
 }

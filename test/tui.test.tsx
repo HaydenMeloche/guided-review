@@ -18,6 +18,7 @@ import { CommentLabels } from '../src/tui/CommentEditor.js';
 import { SubmitScreen } from '../src/tui/SubmitScreen.js';
 import { BriefingScreen, stripFileRefs } from '../src/tui/BriefingScreen.js';
 import { leadThenDim } from '../src/tui/chapter/guide.js';
+import { ChapterTitle } from '../src/tui/chapter/parts.js';
 import { ORDER_SEQUENCE, positionAfterOrderChange, progress, sortChapters, type States } from '../src/tui/nav.js';
 import { waitFor } from './helpers/waitFor.js';
 import { hunkKeys } from '../src/review/hunkState.js';
@@ -2158,7 +2159,7 @@ describe('split view, test pane toggle and expanded context', () => {
     await waitFor(() => expect(ui.lastFrame()).toMatch(/Tests\s/));
     expect(ui.lastFrame()).not.toContain('· t ');
     ui.stdin.write('T');
-    await waitFor(() => expect(ui.lastFrame()).toMatch(/◂ \d+ tests? · t/));
+    await waitFor(() => expect(ui.lastFrame()).toMatch(/t \d+ linked tests?/));
     expect(ui.lastFrame()).not.toMatch(/│ Tests/);
     ui.stdin.write('t');
     await waitFor(() => expect(ui.lastFrame()).toContain('back to code'));
@@ -2199,22 +2200,29 @@ describe('split view, test pane toggle and expanded context', () => {
     fs.rmSync(root, { recursive: true, force: true });
   });
 
-  it('shows a tests tab at the top right when the terminal is too narrow for them beside the code', async () => {
+  it('shows a tests tab right above the code when the terminal is too narrow for them beside it', async () => {
     const t = fixtureTour();
     const ci = t.chapters.findIndex((c) => c.hunkIds.some((id) => t.hunks[id].tests.some((x) => x.source !== 'naming')));
     const hi = t.chapters[ci].hunkIds.findIndex((id) => t.hunks[id].tests.some((x) => x.source !== 'naming'));
     const ui = render(screen(t, { ci, hi, width: 100 }));
-    await waitFor(() => expect(ui.lastFrame()).toMatch(/◂ \d+ tests? · t\s*$/m));
-    // On the title row, right-aligned with the hunk counter.
-    expect(
-      ui
-        .lastFrame()!
-        .split('\n')
-        .find((r) => r.includes('◂')),
-    ).toContain('· hunk');
+    await waitFor(() => expect(ui.lastFrame()).toMatch(/t \d+ linked tests?\s*$/m));
+    // Right-aligned on the blank row under the explanation, so the code's first line follows it.
+    const rows = ui.lastFrame()!.split('\n');
+    const tab = rows.findIndex((r) => /linked tests?/.test(r));
+    expect(rows[tab]).not.toContain('· hunk');
+    expect(rows[tab]).toMatch(/^\s+t \d+ linked/);
+    expect(rows[tab + 1]).toMatch(/▶\s*1\s/);
     ui.stdin.write('t');
     await waitFor(() => expect(ui.lastFrame()).toContain('back to code'));
-    expect(ui.lastFrame()).not.toContain('◂');
+    expect(ui.lastFrame()).not.toMatch(/linked tests?/);
+    ui.unmount();
+  });
+
+  it('keeps the tests tab on the title row when there is no explanation', () => {
+    const h = hunkFromDiff('src/a.ts', '-go();', '+stop();');
+    const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
+    const ui = render(<ChapterTitle chapter={t.chapters[0]} hunk={h} hi={0} isNew={false} width={100} states={{}} drawer="1 linked test" />);
+    expect(ui.lastFrame()).toMatch(/· hunk 1\/1 .*t 1 linked test\s*$/);
     ui.unmount();
   });
 
