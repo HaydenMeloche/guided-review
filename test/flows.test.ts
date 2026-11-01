@@ -43,6 +43,25 @@ describe('buildChapters', () => {
     expect(tests.hunkIds).toEqual([id]);
   });
 
+  it('keeps a fixture nothing links to beside the test that names it', () => {
+    const extra = buildFixture();
+    const testId = hunkOf(extra.hunks, 'test/invoice.test.ts');
+    // A new fixture module the test imports; no code symbol links to it.
+    const fixture = 'h_fixture';
+    extra.hunks[fixture] = { ...extra.hunks[testId], id: fixture, file: 'test/fixtures/invoiceFixture.ts', tests: [] };
+    extra.files.push({ path: 'test/fixtures/invoiceFixture.ts', status: 'added', binary: false, kind: 'test', kindReason: 'test file', additions: 1, deletions: 0, hunkIds: [fixture] });
+    const place = (importLine: string) => {
+      const hunks = { ...extra.hunks, [testId]: { ...extra.hunks[testId], lines: [{ kind: 'add' as const, text: importLine, newLine: 1 }, ...extra.hunks[testId].lines] } };
+      return buildChapters(extra.files, hunks, buildSymbolIndex(extra.files, hunks, ctx)).chapters;
+    };
+    const named = place("import { sample } from './fixtures/invoiceFixture.js';");
+    expect(named[0].hunkIds.slice(-2)).toEqual([testId, fixture]);
+    expect(named.some((c) => c.kind === 'tests')).toBe(false);
+    // Not named by any test in a flow: it is a test-only change.
+    const unnamed = place("import { other } from './fixtures/other.js';");
+    expect(unnamed.find((c) => c.kind === 'tests')?.hunkIds).toEqual([fixture]);
+  });
+
   it('pairs tests and sinks low-priority kinds in order', () => {
     expect(chapters.some((c) => c.kind === 'tests')).toBe(false);
     const kinds = chapters.map((c) => c.kind);

@@ -531,22 +531,41 @@ export function buildChapters(files: DiffFile[], hunks: Record<string, Hunk>, in
   // removed cases would otherwise never be seen. Tests of supporting code, and tests whose code did
   // not change, get a chapter of their own.
   const flowById = new Map(flows.map((c) => [c.id, c]));
-  const testOnly: string[] = [];
+  const leftover: { order: number; ids: string[] }[] = [];
   let pairedLeft = false;
-  for (const f of sorted) {
-    if (f.kind !== 'test') continue;
+  const inFlow: { ids: string[]; chapter: Chapter }[] = []; // test files that joined a flow
+  const unpaired: { order: number; f: DiffFile; ids: string[] }[] = []; // test files nothing links to
+  sorted.forEach((f, order) => {
+    if (f.kind !== 'test') return;
     const ids = f.hunkIds.filter((id) => hunks[id] && !special.has(id));
-    if (!ids.length) continue;
+    if (!ids.length) return;
     const { paired, chapterId } = pairedChapter(f, logicFiles, hunks, owner);
     const flow = chapterId ? flowById.get(chapterId) : undefined;
     if (flow) {
       flow.hunkIds.push(...ids);
       flow.risk = maxRisk(flow.hunkIds, hunks);
-    } else {
-      testOnly.push(...ids);
-      if (paired) pairedLeft = true;
+      inFlow.push({ ids, chapter: flow });
+    } else if (paired) {
+      leftover.push({ order, ids });
+      pairedLeft = true;
+    } else unpaired.push({ order, f, ids });
+  });
+  // A test file no code links to, named in the diff of a test that joined a flow, is that test's
+  // fixture or helper: it reads right after the test, not among the leftover tests. One that
+  // several flows' tests name stays a leftover rather than joining one of them.
+  for (const { order, f, ids } of unpaired) {
+    const name = path.posix.basename(f.path).replace(/\.[^.]+$/, '');
+    const re = new RegExp(`(?<![\\w$])${escapeRe(name)}(?![\\w$])`);
+    const named = new Set(inFlow.filter((t) => t.ids.some((id) => hunks[id].lines.some((l) => l.kind !== 'del' && re.test(l.text)))).map((t) => t.chapter));
+    const chapter = named.size === 1 && name.length > 3 ? [...named][0] : undefined;
+    if (!chapter) {
+      leftover.push({ order, ids });
+      continue;
     }
+    chapter.hunkIds.push(...ids);
+    chapter.risk = maxRisk(chapter.hunkIds, hunks);
   }
+  const testOnly = leftover.sort((a, b) => a.order - b.order).flatMap((t) => t.ids);
   if (testOnly.length) {
     const ch = newChapter(nextId(), 'tests', pairedLeft ? 'Test changes' : 'Test-only changes', testOnly, hunks);
     ch.summary = pairedLeft
