@@ -1,0 +1,64 @@
+// A plain-text picture of a tour's structure: files, hunks, fusing, moves, chapters and flags, with
+// no ids, hashes or model output. The tour corpus snapshots it, and scripts/backtest-chapters.ts
+// compares it across code changes.
+import type { DiffLine, Hunk, Tour } from '../../src/types.js';
+
+const count = (h: Hunk, kind: DiffLine['kind']) => h.lines.filter((l) => l.kind === kind).length;
+
+// Moved blocks in a hunk, as "N lines moved/reindented/copied to/from file:line", one per
+// contiguous block.
+function moves(h: Hunk): string[] {
+  const out: string[] = [];
+  h.lines.forEach((l, i) => {
+    const prev = h.lines[i - 1];
+    if (!l.moved) return;
+    const m = l.moved;
+    if (prev?.moved && prev.kind === l.kind && prev.moved.file === m.file && prev.moved.line + 1 === m.line && prev.moved.kind === m.kind && prev.moved.indent === m.indent) {
+      out[out.length - 1] = out[out.length - 1].replace(/^(\d+)/, (n) => String(+n + 1));
+      return;
+    }
+    const also = m.also.map((a) => `; also ${a.side === 'add' ? 'added' : 'removed'} at ${a.file}:${a.line}`).join('');
+    out.push(`1 lines ${m.kind} ${l.kind === 'del' ? 'to' : 'from'} ${m.file}:${m.line}${m.indent ? `, indent ${m.indent}` : ''}${also}`);
+  });
+  return out;
+}
+
+function hunkLine(h: Hunk): string {
+  const tags = [
+    `+${count(h, 'add')} -${count(h, 'del')}`,
+    `risk ${h.risk}`,
+    h.coverage,
+    h.parts ? `fused ${h.parts.length}` : '',
+    h.lines.some((l) => l.expanded) ? `${h.lines.filter((l) => l.expanded).length} gap lines` : '',
+    h.importOnly ? 'imports only' : '',
+  ].filter(Boolean);
+  return `${h.file}  ${h.header.replace(/ @@.*/, ' @@')}  ${tags.join(' · ')}`;
+}
+
+// A plain-text picture of the tour's structure: no ids, hashes or model output.
+export function summarize(tour: Tour, description: string): string {
+  const out: string[] = description.split('\n').map((l) => `# ${l}`);
+  const github = tour.files.length && Object.values(tour.hunks).reduce((n, h) => n + (h.parts?.length ?? 1), 0);
+  out.push(`${tour.files.length} files, ${Object.keys(tour.hunks).length} hunks (${github} GitHub hunks)`, '');
+  out.push('files:');
+  for (const f of tour.files) out.push(`  ${f.path}  ${f.status} · ${f.kind}${f.oldPath ? ` · from ${f.oldPath}` : ''}`);
+  tour.chapters.forEach((c, i) => {
+    const marks = [c.kind, c.collapsed ? 'collapsed' : '', c.optional ? 'optional' : '', c.lowConfidence ? 'low confidence' : ''].filter(Boolean).join(' · ');
+    out.push('', `${i + 1}. ${c.title}  [${marks}]${c.entryPoint ? `  entry ${c.entryPoint}` : ''}`);
+    for (const id of c.hunkIds) {
+      const h = tour.hunks[id];
+      out.push(`   ${hunkLine(h)}`);
+      for (const m of moves(h)) out.push(`     ↕ ${m}`);
+      for (const t of h.tests) out.push(`     test ${t.testFile} › ${t.testName} (${t.source})`);
+      if (h.covers) out.push(`     covers ${h.covers.file}:${h.covers.startLine}`);
+      if (c.orphanReasons[id]) out.push(`     orphan: ${c.orphanReasons[id]}`);
+    }
+    for (const id of c.linkedHunkIds) out.push(`   linked ${hunkLine(tour.hunks[id])}`);
+    const filesOf = (ids: string[]) => [...new Set(ids.map((id) => tour.hunks[id]?.file))].join(', ');
+    if (c.folded?.length) out.push(`   summary page: ${filesOf(c.folded)}`);
+    for (const p of c.lockPairs ?? []) out.push(`   lockfile ${p.lockfile} read on the pages of ${filesOf(p.hunkIds)}`);
+    for (const item of c.checklist ?? []) out.push(`   checklist ${item.item}`);
+  });
+  if (tour.notes.length) out.push('', 'notes:', ...tour.notes.map((n) => `  ${n}`));
+  return out.join('\n') + '\n';
+}
