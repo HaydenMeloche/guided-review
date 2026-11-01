@@ -398,6 +398,33 @@ function callersSection(tour: Tour, chapter: Chapter): string {
   return `\n\n## Uses in unchanged files (matched by name, so some may be another symbol)\n\nWhere a hunk changes a signature, table or event that one of these uses, read the use if needed and say in that hunk's narration which of them the change could break (file:line), or that they still fit. Raise risk when one breaks.\n\n${lines.join('\n')}`;
 }
 
+const ELSEWHERE_FILES = 20;
+const ELSEWHERE_CASES = 12;
+
+// Changed test files read in other chapters, with their case names. Each chapter is narrated on
+// its own, so without this a chapter calls a branch untested when its test sits a chapter away.
+function testsElsewhereSection(tour: Tour, chapter: Chapter): string {
+  const own = new Set(chapter.hunkIds);
+  const chapterOf = new Map<string, Chapter>();
+  for (const c of tour.chapters) for (const id of c.hunkIds) chapterOf.set(id, c);
+  const lines: string[] = [];
+  for (const f of tour.files) {
+    if (f.kind !== 'test' || f.status === 'deleted') continue;
+    const ids = f.hunkIds.filter((id) => tour.hunks[id] && !own.has(id));
+    if (!ids.length) continue;
+    const symbols = ids.flatMap((id) => tour.hunks[id].symbols);
+    // Case names (Class.case) over the class itself, when the hunks declare any.
+    const cases = symbols.filter((s) => s.includes('.'));
+    const names = [...new Set((cases.length ? cases : symbols).map((s) => s.split('.').pop()!))];
+    const where = chapterOf.get(ids[0]);
+    const list = names.length ? `: ${names.slice(0, ELSEWHERE_CASES).join(', ')}${names.length > ELSEWHERE_CASES ? ', …' : ''}` : '';
+    lines.push(`- ${f.path}${where ? ` (chapter "${where.title}")` : ''}${list}`);
+    if (lines.length >= ELSEWHERE_FILES) break;
+  }
+  if (!lines.length) return '';
+  return `\n\n## Changed tests in other chapters\n\nThese test files also changed in this PR and are read in other chapters. Before calling a branch untested, check whether one of them exercises it (read the file when a case name suggests so) and cite the case.\n\n${lines.join('\n')}`;
+}
+
 export function chapterPrompt(tour: Tour, chapter: Chapter): string {
   if (isLockfileBatch(chapter)) return lockfilePrompt(tour, chapter);
   const pair = lockPairOf(chapter);
@@ -426,6 +453,7 @@ export function chapterPrompt(tour: Tour, chapter: Chapter): string {
       ? '\nThese hunks are not reached from any entry point. For each, also give orphanReason: a one-line reason it is in the PR (e.g. "config default", "dead code removal").'
       : '';
   const callers = callersSection(tour, chapter);
+  const elsewhere = testsElsewhereSection(tour, chapter);
   const checklist = chapter.checklist?.length
     ? `\n\nTeam checklist for this chapter. Pre-check each item against the code (read files if needed): pass, fail, or unknown when you cannot tell; give a one-line reason citing file:line.\n${chapter.checklist.map((c) => `- ${c.id}: ${c.item}`).join('\n')}`
     : '';
@@ -443,12 +471,12 @@ Chapter ${chapter.id} (${chapter.kind}): "${chapter.title}"${chapter.entryPoint 
 Briefing summary: ${chapter.summary || '(none)'}
 The hunks below are in the call order static analysis found.${supporting}${specialContext}
 
-${rendered.join('\n\n')}${minorSection}${callers}${checklist}
+${rendered.join('\n\n')}${minorSection}${callers}${elsewhere}${checklist}
 
 Return:
 - hunkOrder: all hunk ids, in the order a request or job would run through them (handler, then service, then data layer). Put a type or schema change right before its first use. Keep the given order if it is already right.
 ${hunksAsk}
-- untestedBranches: new branches or behaviors with no linked test case, each as "file:line — what is untested".
+- untestedBranches: new branches or behaviors no test case in the PR exercises, neither a linked test nor a changed test in another chapter, each as "file:line — what is untested".
 - diagram: include one when the flow crosses 3+ functions, components or services (call; most flow chapters do), when it changes behavior of an existing path (before-after, nodes grouped "before"/"after"), changes enum/status transitions (state), or touches schema (entity). 3-10 nodes (a single rename or field swap needs no diagram); changed=true on changed nodes; hunkId on nodes that map to a hunk. Shared state (URL params, a store, a cache) is one node with an edge for each read and write; edges point the way control or data flows, labelled with what the source does in 1-3 words ("reads", "renders", "prefetches"). Each node is named for the component it is (a function, hook, module or route, 2-4 words such as "PaymentEventsTable" or "URL date params"), never a sentence or an action (a prefetch is an edge to the query it fills); what it does belongs on the edges, and edge labels are never code expressions. A change to conditions or values inside one component needs no diagram. Draw each relationship once, from the caller, with no "returns" edge. Use state only for status or enum transitions, not for data flow. Omit otherwise.${chapter.checklist?.length ? '\n- checklist: one entry per checklist id above.' : ''}`;
 }
 

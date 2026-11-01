@@ -34,6 +34,26 @@ describe('hunk rendering in chapter prompts', () => {
     expect(isTruncated(wide)).toBe(true);
   });
 
+  it('lists the changed tests read in other chapters, with their case names', () => {
+    const code = added('h_code', 'src/main/Registry.kt', 10);
+    const test = added('h_test', 'src/test/ProviderTest.kt', 10, { symbols: ['ProviderTest', 'ProviderTest.findLoaders', 'ProviderTest.findMappedLoaders'] });
+    const files = filesFor([code, test], { 'src/test/ProviderTest.kt': 'test' });
+    const t = tour(
+      [code, test],
+      [
+        { hunkIds: ['h_code'], title: 'Registry' },
+        { hunkIds: ['h_test'], title: 'Provider', kind: 'tests' },
+      ],
+      { files },
+    );
+    const registry = chapterPrompt(t, t.chapters[0]);
+    expect(registry).toContain('## Changed tests in other chapters');
+    expect(registry).toContain('- src/test/ProviderTest.kt (chapter "Provider"): findLoaders, findMappedLoaders');
+    expect(registry).toContain('neither a linked test nor a changed test in another chapter');
+    // The chapter that holds the test file does not list it.
+    expect(chapterPrompt(t, t.chapters[1])).not.toContain('## Changed tests in other chapters');
+  });
+
   it('sizes batches with the same limits the prompt renders with', () => {
     const hunks = [added('h_a', 'src/a.ts', 500), added('h_b', 'src/b.ts', 500), added('h_c', 'src/c.ts', 500)];
     const t = tour(hunks, [{ hunkIds: hunks.map((h) => h.id) }], { files: filesFor(hunks) });
