@@ -8,7 +8,7 @@ import type { Chapter, DiffFile, DiffLine, Hunk } from '../src/types.js';
 describe('buildChapters', () => {
   const { files, hunks } = buildFixture();
   const index = buildSymbolIndex(files, hunks, ctx);
-  const { chapters, overview, notes, flags } = buildChapters(files, hunks, index);
+  const { chapters, overview, notes } = buildChapters(files, hunks, index);
   const h = (f: string) => hunkOf(hunks, f);
 
   it('orders the main flow by call order with types before first use', () => {
@@ -22,7 +22,6 @@ describe('buildChapters', () => {
     expect(flow.diagram?.kind).toBe('call');
     expect(flow.diagram?.nodes.length).toBeGreaterThanOrEqual(4);
     expect(notes).toEqual([]);
-    expect(flags).toEqual([]);
   });
 
   it('puts orphans in supporting changes with a reason', () => {
@@ -88,7 +87,6 @@ describe('buildChapters', () => {
     const idx = buildSymbolIndex(f3, h3, ctx);
     idx.entries = [];
     const res = buildChapters(f3, h3, idx);
-    expect(res.flags[0].kind).toBe('no-entry-point');
     expect(res.notes[0]).toMatch(/No entry point/);
     expect(res.chapters[0].title).toMatch(/file order/);
   });

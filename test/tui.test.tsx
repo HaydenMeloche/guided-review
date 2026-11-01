@@ -58,7 +58,6 @@ function fixtureTour(): Tour {
     headSha: 'b'.repeat(40),
     createdAt: '2026-10-09T00:00:00Z',
     intent: 'Adds POST /invoices.',
-    flags: built.flags,
     notes: built.notes,
     overview: built.overview,
     files,
@@ -1503,7 +1502,7 @@ describe('BriefingScreen and SubmitScreen', () => {
     ui.unmount();
   });
 
-  it('renders the briefing with chapters and flags', async () => {
+  it('renders the briefing with its chapters', async () => {
     const tour = fixtureTour();
     let started: number | undefined = -1;
     const ui = render(

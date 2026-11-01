@@ -34,7 +34,3 @@ files:
 
 3. Config, infra and docs  [config]
    packages/ui/package.json  @@ -2,6 +2,6 @@  +1 -1 · risk 0 · n/a
-
-flags:
-  generated-out-of-sync: Cargo.toml changed but no lockfile changed; if dependencies changed, the lockfile is stale
-  info: lockfile changed without Gemfile: dependency versions moved within existing ranges

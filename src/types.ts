@@ -144,14 +144,6 @@ export interface Chapter {
   narrated?: boolean; // the narration step for this chapter finished; an incomplete tour resumes from the others
 }
 
-export type FlagKind = 'scope-creep' | 'missing-tests' | 'unchanged-callers' | 'generated-out-of-sync' | 'large-pr' | 'no-entry-point' | 'model-unavailable' | 'missing-change' | 'info';
-
-export interface Flag {
-  kind: FlagKind;
-  message: string;
-  hunkIds?: string[];
-}
-
 export interface CallerRef {
   file: string;
   line: number;
@@ -322,7 +314,6 @@ export interface Tour {
   mode: 'agent' | 'plain';
   intent: string; // 2-3 sentence goal
   description?: string; // the PR body as the author wrote it
-  flags: Flag[];
   notes: string[];
   overview?: Graph;
   chapters: Chapter[];

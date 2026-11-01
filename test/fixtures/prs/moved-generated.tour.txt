@@ -19,9 +19,5 @@ files:
 3. Generated code  [generated · collapsed]
    src/schema/types.ts  @@ -3,17 +3,23 @@  +11 -5 · risk 0 · n/a · fused 2 · 3 gap lines
 
-flags:
-  no-entry-point: No entry point found; logic is shown in file order.
-  missing-tests: 1 risky hunk(s) have no linked test
-
 notes:
   No entry point found: chapters use file order by kind.

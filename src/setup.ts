@@ -117,7 +117,7 @@ export const PROVIDER_CHOICES: { value: ProviderChoice; name: string; about: str
   { value: 'bedrock', name: 'Claude on Amazon Bedrock', about: 'Uses your AWS credentials.' },
   { value: 'vertex', name: 'Claude on Google Vertex AI', about: 'Uses your Google Cloud credentials.' },
   { value: 'claude-code', name: 'Claude Code', about: 'Uses your Claude Code login (Claude plan).', unavailable: 'temporarily disabled because of performance issues' },
-  { value: NO_PROVIDER, name: 'No AI model', about: 'Static analysis only: chapters, flags, tests, and diagrams still work. AI briefings, narration, Q&A, and suggestions are off.' },
+  { value: NO_PROVIDER, name: 'No AI model', about: 'Static analysis only: chapters, tests, and diagrams still work. AI briefings, narration, Q&A, and suggestions are off.' },
 ];
 
 export type KeySource = 'none' | 'env' | 'store';

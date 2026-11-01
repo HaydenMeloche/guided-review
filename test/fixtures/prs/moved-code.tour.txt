@@ -25,6 +25,3 @@ files:
    src/http.ts  @@ -34,6 +27,12 @@  +6 -0 · risk 0 · untested
      ↕ 6 lines moved from src/http.ts:11
      orphan: helper not called by changed code
-
-flags:
-  missing-tests: 2 risky hunk(s) have no linked test

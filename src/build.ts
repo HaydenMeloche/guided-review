@@ -43,8 +43,7 @@ export async function buildTour(opts: BuildOptions): Promise<Tour> {
     store.close();
   }
   if (!tour.complete) {
-    // A failed briefing leaves its reason in a model-unavailable flag, not in the notes.
-    const reasons = [...tour.flags.filter((f) => f.kind === 'model-unavailable').map((f) => f.message), ...tour.notes];
+    const reasons = tour.notes;
     throw new Error(`the tour did not finish, so it was not shared:\n${reasons.map((n) => `  ${n}`).join('\n')}`);
   }
   if (opts.out) {

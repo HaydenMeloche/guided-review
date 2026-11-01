@@ -4,7 +4,7 @@ import { escapeRe } from '../util/regex.js';
 import { SCHEMA_PATH, sqlTableRefs } from './patterns.js';
 import { SPECIAL_CHAPTERS, specialKindOf, type SpecialKind } from './special.js';
 import { testStem } from './testPaths.js';
-import type { Chapter, ChapterKind, DiffFile, FileKind, Flag, Graph, GraphEdge, GraphNode, Hunk, LockPair } from '../types.js';
+import type { Chapter, ChapterKind, DiffFile, FileKind, Graph, GraphEdge, GraphNode, Hunk, LockPair } from '../types.js';
 import { isPackageHunk } from './dependencies.js';
 import { pairLockfiles } from './lockfile.js';
 import type { CallEdge, Decl, SymbolIndex } from './symbols.js';
@@ -297,9 +297,8 @@ function movedFrom(ids: string[], hunks: Record<string, Hunk>): Map<string, stri
   return moves;
 }
 
-export function buildChapters(files: DiffFile[], hunks: Record<string, Hunk>, index: SymbolIndex): { chapters: Chapter[]; overview: Graph; notes: string[]; flags: Flag[] } {
+export function buildChapters(files: DiffFile[], hunks: Record<string, Hunk>, index: SymbolIndex): { chapters: Chapter[]; overview: Graph; notes: string[] } {
   const notes: string[] = [];
-  const flags: Flag[] = [];
   const chapters: Chapter[] = [];
   let n = 0;
   const nextId = () => `c${++n}`;
@@ -501,7 +500,6 @@ export function buildChapters(files: DiffFile[], hunks: Record<string, Hunk>, in
 
   if (logicHunks.length && !flows.length) {
     notes.push('No entry point found: chapters use file order by kind.');
-    flags.push({ kind: 'no-entry-point', message: 'No entry point found; logic is shown in file order.' });
     const ch = newChapter(nextId(), 'flow', 'Hand-written logic (file order)', logicHunks, hunks);
     ch.untestedBranches = untestedBranches(logicHunks, hunks);
     ch.lowConfidence = true;
@@ -607,7 +605,7 @@ export function buildChapters(files: DiffFile[], hunks: Record<string, Hunk>, in
     chapters.push(ch);
   }
 
-  return { chapters, overview: overviewGraph(flows, files, hunks, index), notes, flags };
+  return { chapters, overview: overviewGraph(flows, files, hunks, index), notes };
 }
 
 // The dependencies chapter's lockfiles paired with the manifests they lock (pairLockfiles), by

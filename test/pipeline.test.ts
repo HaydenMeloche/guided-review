@@ -153,7 +153,7 @@ describe('runPipeline', () => {
 
     expect(chapter).not.toHaveBeenCalled();
     expect(tour.mode).toBe('plain');
-    expect(tour.flags[0]).toMatchObject({ kind: 'model-unavailable' });
+    expect(tour.notes[0]).toMatch(/^Model unavailable/);
     expect(tour.complete).toBe(false);
   });
 
@@ -295,12 +295,12 @@ describe('runPipeline with a tour shared on the PR', () => {
     expect(briefing).toHaveBeenCalled();
   });
 
-  it('builds a complete plain tour without a model-unavailable flag when AI is off', async () => {
+  it('builds a complete plain tour without a model-unavailable note when AI is off', async () => {
     vi.mocked(fetchDiff).mockResolvedValue(writeModules(1));
     const tour = await runPipeline(options(fakeStore(), { fresh: true, noAgent: true }));
     expect(tour.mode).toBe('plain');
     expect(tour.complete).toBe(true);
-    expect(tour.flags.some((f) => f.kind === 'model-unavailable')).toBe(false);
+    expect(tour.notes.some((n) => n.startsWith('Model unavailable'))).toBe(false);
   });
 
   it('does not look for a shared tour with --fresh or in preview', async () => {

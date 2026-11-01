@@ -90,7 +90,6 @@ export function tour(hunks: Hunk[], chapters: Partial<Chapter>[] = [], extra: Pa
     createdAt: '2026-01-01T00:00:00Z',
     mode: 'plain',
     intent: '',
-    flags: [],
     notes: [],
     chapters: chapters.map((c, i) => chapter(`c${i}`, [], { title: `Chapter ${i}`, ...c })),
     files: [],

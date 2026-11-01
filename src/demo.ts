@@ -232,18 +232,6 @@ export function demoNarration(tour: Tour): CannedNarration {
     briefing: {
       intent:
         'Lets customers enter a discount code at checkout. POST /orders passes the code to `createOrder`, and `quote` looks it up and takes the discount off the subtotal before tax. Alongside it, `formatReceipt` moves to its own module, zod is added, and the generated request type gains the field.',
-      missingChanges: [
-        {
-          message: 'zod is added to package.json, but nothing imports it: the request body’s discountCode reaches pricing unvalidated.',
-          hunkIds: [hunkIn('package.json')].filter((x) => x !== undefined),
-        },
-      ],
-      scopeCreep: [
-        {
-          message: 'formatReceipt moves from orders.ts to receipt.ts, which discounts don’t need. It moved unchanged, so it reads quickly.',
-          hunkIds: [hunkIn('src/receipt.ts')].filter((x) => x !== undefined),
-        },
-      ],
       // In reading order: the entry point first, then what it calls, then the move.
       chapters: [
         ...named('src/routes.ts', 'Taking a code at POST /orders', 'The handler reads discountCode from the request body and passes it on as it came.'),

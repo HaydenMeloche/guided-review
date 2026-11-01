@@ -253,23 +253,6 @@ const briefingSchema = {
   type: 'object',
   properties: {
     intent: { type: 'string', description: '2-3 sentences: what the PR does and why' },
-    missingChanges: {
-      type: 'array',
-      description: 'things the PR probably should have changed but did not (docs, CHANGELOG, migration, feature flag, translations, config)',
-      items: {
-        type: 'object',
-        properties: { message: { type: 'string' }, hunkIds: { type: 'array', items: { type: 'string' } } },
-        required: ['message'],
-      },
-    },
-    scopeCreep: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: { message: { type: 'string' }, hunkIds: { type: 'array', items: { type: 'string' } } },
-        required: ['message'],
-      },
-    },
     chapters: {
       type: 'array',
       description: 'one entry per flow/supporting chapter id given, in the recommended reading order',
@@ -324,8 +307,6 @@ const chapterSchema = {
 
 export interface BriefingResult {
   intent: string;
-  scopeCreep?: { message: string; hunkIds?: string[] }[];
-  missingChanges?: { message: string; hunkIds?: string[] }[];
   chapters: { id: string; title: string; summary: string }[];
   overview?: Graph;
 }

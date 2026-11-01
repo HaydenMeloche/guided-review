@@ -161,8 +161,8 @@
           </ul>
           <h2 id="security"><a class="anchor" href="#security" aria-hidden="true">#</a>Security</h2>
           <p>
-            Rules are read from the PR&#39;s merge base, not from the PR itself, so a PR cannot reclassify its own files. If a PR changes <code>.guided-review.json</code> or
-            <code>.gitattributes</code>, the briefing flags the change.
+            Rules are read from the PR&#39;s merge base, not from the PR itself, so a PR cannot reclassify its own files. A PR that changes <code>.guided-review.json</code> or
+            <code>.gitattributes</code> is still read with the merge base&#39;s rules; review that change itself with care.
           </p>
         </main>
       </div>

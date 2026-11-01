@@ -26,10 +26,5 @@ files:
 5. CI and workflows  [ci]
    .github/workflows/ci.yml  @@ -11,3 +11,11 @@  +8 -0 · risk 0 · n/a
 
-flags:
-  generated-out-of-sync: package.json changed but no lockfile changed; if dependencies changed, the lockfile is stale
-  no-entry-point: No entry point found; logic is shown in file order.
-  missing-tests: 1 risky hunk(s) have no linked test
-
 notes:
   No entry point found: chapters use file order by kind.

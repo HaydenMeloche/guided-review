@@ -10,8 +10,5 @@ files:
      test test/kinds.test.ts › kinds.test.ts (naming)
    test/kinds.test.ts  @@ -74,18 +74,22 @@  +5 -1 · risk 0 · n/a · fused 2 · 1 gap lines
 
-flags:
-  no-entry-point: No entry point found; logic is shown in file order.
-
 notes:
   No entry point found: chapters use file order by kind.

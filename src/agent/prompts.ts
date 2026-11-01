@@ -134,16 +134,11 @@ ${files.join('\n')}
 ## Static analysis: candidate chapters (flows traced from entry points, in call order; ±N = changed lines)
 ${chapters.join('\n') || '(none found)'}
 
-## Flags already raised
-${tour.flags.map((f) => `- ${f.kind}: ${f.message}`).join('\n') || '(none)'}
-
 ## Excerpts of hand-written changes
 ${excerpts.join('\n\n')}
 
 Return:
 - intent: the goal of the PR in at most two sentences, from the description, issues and commits, checked against the diff. Plain prose with no file:line references: the chapters show where the code is.
-- scopeCreep: changes that do not serve the stated goal (cite hunk ids). Empty if none.
-- missingChanges: what the PR did not change but probably should (docs, CHANGELOG, a migration for a model change, a feature flag, translations), only with evidence from this repo that it uses that practice; skip anything already in "Flags already raised". Empty if none.
 - chapters: for each chapter id above, a short title naming the flow (e.g. "Create invoice: route → service → DB") and a one-sentence summary. List them in the reading order you recommend.
 - overview: a small graph (3-12 nodes) of what changed and what it touches, read top to bottom as the path a request or user takes: start at the entry point (the route, handler, command or UI action that triggers the change) and follow it through each component to where it ends. One node per major component; nodes are things (a component, route, hook, query, store or API), never actions: a prefetch is an edge to the query it fills, not a node. hunkId on nodes that map to one hunk. Shared state that several parts read or write (URL params, a store, a cache, a table) is a single node with an edge for each read and each write, even when that makes a loop; that round trip is often the point of the change. Every edge points the way control or data flows (caller → callee, writer → state → reader), and every node is connected to the path; leave out test fixtures, mocks, loading placeholders and pure type changes unless they are the point of the PR. changed=true only on changed parts; add an unchanged node (an API, a caller) when it explains why the change exists. Edge labels are 1-3 words saying what the source does to the target ("calls", "renders", "reads", "writes"); if the source does not do it, the edge is drawn the wrong way round (a route prefetches a query, not the reverse). Draw each relationship once, from the caller: results coming back are implied, so add no "returns" edge. A UI control is rendered by a component; draw that edge too, so the control sits under it rather than floating at the top. kind: call for a flow through components, state only for status or enum transitions, entity for schema, deps for import structure.`;
 }
@@ -468,15 +463,12 @@ ${tour.description?.trim() || '(none)'}
 Chapters, in reading order:
 ${chapters || '(none)'}
 
-Flags:
-${tour.flags.map((f) => `- ${f.kind}: ${f.message}`).join('\n') || '(none)'}
-
 Files:
 ${files.join('\n')}
 
 Write a summary of this PR for a reviewer about to read it, in Markdown, 150-250 words:
 1. One paragraph: what the PR does and why, checked against the diff rather than taken from the description. Say where the description and the code disagree.
 2. "How it's built": one bullet per chapter in reading order, naming the files that matter (paths, no line numbers).
-3. "Worth attention": 2-4 bullets on what deserves care, from the flags, the risk and what you read; none if nothing stands out.
+3. "Worth attention": 2-4 bullets on what deserves care, from the risk, what the description promises but the diff lacks (a migration, docs, a changeset, translations, where this repo keeps such things), changes outside the stated goal, and what you read; none if nothing stands out.
 Read files in the worktree only where the chapter summaries leave a question open. Say plainly when something is your inference.`;
 }

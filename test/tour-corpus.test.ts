@@ -88,7 +88,6 @@ export function summarize(tour: Tour, description: string): string {
     for (const p of c.lockPairs ?? []) out.push(`   lockfile ${p.lockfile} read on the pages of ${filesOf(p.hunkIds)}`);
     for (const item of c.checklist ?? []) out.push(`   checklist ${item.item}`);
   });
-  if (tour.flags.length) out.push('', 'flags:', ...tour.flags.map((f) => `  ${f.kind}: ${f.message}`));
   if (tour.notes.length) out.push('', 'notes:', ...tour.notes.map((n) => `  ${n}`));
   return out.join('\n') + '\n';
 }

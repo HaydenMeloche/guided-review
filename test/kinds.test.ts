@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseUnifiedDiff } from '../src/diff/parse.js';
 import { classifyFiles } from '../src/analysis/kinds.js';
-import { checkGeneratedSync } from '../src/analysis/generatedSync.js';
 import type { Hunk, RepoConfig } from '../src/types.js';
 
 function file(path: string, body: string, header = 'index 1..2 100644') {
@@ -133,36 +132,5 @@ describe('classifyFiles', () => {
     expect(files[0].kind).toBe('generated');
     expect(files[0].summary).toBe('+1 added (zod), -1 removed (left-pad), major: react 18.2.0→19.0.0, 1 minor/patch bump');
     expect(files[1].summary).toBe('vendored: version 1.2.0 → 1.3.0');
-  });
-});
-
-describe('checkGeneratedSync', () => {
-  it('flags schema changes without regenerated output and the reverse', () => {
-    const { files, map } = classify([file('schema.graphql', logicBody), file('api/user.proto', logicBody), file('api/user.pb.go', logicBody), file('src/__generated__/x.ts', logicBody)].join('\n'));
-    const flags = checkGeneratedSync(files, map);
-    // graphql schema changed and src/__generated__ changed => in sync; proto + pb.go => in sync
-    expect(flags.filter((f) => f.kind === 'generated-out-of-sync')).toEqual([]);
-
-    const only = classify([file('schema.graphql', logicBody), file('api/user.pb.go', logicBody)].join('\n'));
-    const msgs = checkGeneratedSync(only.files, only.map).map((f) => f.message);
-    expect(msgs.some((m) => m.startsWith('GraphQL schema changed'))).toBe(true);
-    expect(msgs.some((m) => m.startsWith('generated code changed without its source: api/user.pb.go'))).toBe(true);
-  });
-
-  it('flags dependency edits without a lockfile, ignoring script-only edits', () => {
-    const dep = classify(file('package.json', '@@ -5,3 +5,4 @@\n   "dependencies": {\n+    "zod": "^3.23.0",\n     "react": "^19.0.0"\n   }\n'));
-    expect(checkGeneratedSync(dep.files, dep.map)[0].message).toMatch(/package\.json changed but no lockfile/);
-    const script = classify(file('package.json', '@@ -2,3 +2,3 @@\n   "scripts": {\n-    "test": "jest"\n+    "test": "vitest"\n   }\n'));
-    expect(checkGeneratedSync(script.files, script.map)).toEqual([]);
-  });
-
-  it('pairs manifests with lockfiles by directory, as the dependencies chapter does', () => {
-    const dep = (dir: string) => file(`${dir}go.mod`, '@@ -3,3 +3,3 @@\n require (\n-\tgithub.com/x/y v1.2.0\n+\tgithub.com/x/y v1.3.0\n )\n');
-    const sum = (dir: string) => file(`${dir}go.sum`, '@@ -1,1 +1,1 @@\n-github.com/x/y v1.2.0 h1:a=\n+github.com/x/y v1.3.0 h1:b=\n');
-    const paired = classify([dep('svc/'), sum('svc/')].join('\n'));
-    expect(checkGeneratedSync(paired.files, paired.map)).toEqual([]);
-    // A go.sum locks only its own module, so another directory's does not count.
-    const apart = classify([dep('svc/'), sum('')].join('\n'));
-    expect(checkGeneratedSync(apart.files, apart.map).map((f) => f.message)).toEqual(['svc/go.mod changed but no lockfile beside or above it did; if dependencies changed, the lockfile is stale']);
   });
 });

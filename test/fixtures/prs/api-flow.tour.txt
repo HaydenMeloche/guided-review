@@ -30,7 +30,3 @@ files:
 
 4. Config, infra and docs  [config]
    config/app.yaml  @@ -2,3 +2,5 @@  +2 -0 · risk 0 · n/a
-
-flags:
-  info: lockfile changed without package.json: dependency versions moved within existing ranges
-  missing-tests: 2 risky hunk(s) have no linked test
