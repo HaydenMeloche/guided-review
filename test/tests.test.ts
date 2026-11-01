@@ -228,6 +228,27 @@ new file mode 100644
     expect(h2.coverage).toBe('partial');
   });
 
+  it('ranks the changed test file named for the code above other changed tests that mention it', () => {
+    // Both test files are new and both call total() in many cases; only invoice.test.ts is named
+    // for invoice.ts. With more matches than fit, its cases fill the list first.
+    const cases = (n: number) => Array.from({ length: n }, (_, i) => `it('case ${i}', () => { expect(total([])).toBe(0); });`).join('\n') + '\n';
+    const added = (p: string, text: string) => {
+      const lines = text.replace(/\n$/, '').split('\n');
+      return [`diff --git a/${p} b/${p}`, 'new file mode 100644', '--- /dev/null', `+++ b/${p}`, `@@ -0,0 +1,${lines.length} @@`, ...lines.map((l) => `+${l}`)].join('\n') + '\n';
+    };
+    const heads = { 'src/billing/invoice.ts': '', 'src/billing/api.test.ts': cases(8), 'src/billing/invoice.test.ts': cases(8) };
+    const { list } = setup(
+      SRC_DIFF + added('src/billing/api.test.ts', heads['src/billing/api.test.ts']) + added('src/billing/invoice.test.ts', heads['src/billing/invoice.test.ts']),
+      heads,
+      [],
+      '/nonexistent',
+      [['total']],
+    );
+    expect(list[0].tests.length).toBe(6);
+    expect(new Set(list[0].tests.map((t) => t.testFile))).toEqual(new Set(['src/billing/invoice.test.ts']));
+    expect(list[0].tests[0].confidence).toBe(0.75);
+  });
+
   it('marks untested when nothing links', () => {
     const { list } = setup(SRC_DIFF, { 'src/billing/invoice.ts': '' });
     expect(list.every((h) => h.coverage === 'untested' && h.tests.length === 0)).toBe(true);

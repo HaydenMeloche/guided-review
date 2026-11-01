@@ -587,7 +587,9 @@ export function pairTests(files: DiffFile[], hunks: Record<string, Hunk>, ctx: P
             startLine: tc.startLine,
             lines: tc.lines,
             source: 'name-match',
-            confidence: namingSet.has(tf) || changedTestSet.has(tf) ? 0.65 : 0.55,
+            // The file named for this one, changed in the same PR, is the test of this change; other
+            // changed tests mention its symbols in passing, and matter only when it has none.
+            confidence: namingSet.has(tf) && changedTestSet.has(tf) ? 0.75 : namingSet.has(tf) || changedTestSet.has(tf) ? 0.65 : 0.55,
           });
         }
       }
