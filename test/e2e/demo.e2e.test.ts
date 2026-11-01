@@ -28,12 +28,14 @@ describe('gr demo', () => {
     expect(fs.existsSync(path.join(box.env.GR_HOME!, 'config.json'))).toBe(false);
     expect(fs.existsSync(path.join(box.env.GR_HOME!, 'demo', 'src', 'pricing.ts'))).toBe(true);
     expect(screen).toContain('Add discount codes to quotes and orders (demo)');
-    // The written-out briefing: its intent, chapter titles in its order, and what to watch for.
-    expect(screen).toContain('Lets customers enter a discount code at checkout.');
+    // The written-out briefing: chapter titles in its order; i reads its intent (no model to write more).
     expect(screen).toMatch(/1 · Taking a code at POST \/orders[\s\S]*2 · Pricing an order with a discount[\s\S]*3 · formatReceipt moves to receipt\.ts/);
     expect(screen).toContain('Generated code');
     expect(screen).toContain('Import-only changes');
-    expect(screen).toContain('possibly missing change');
+    gr.press('i');
+    expect(await gr.waitFor('— summary')).toContain('Lets customers enter a discount code at checkout.');
+    gr.press(KEY.escape);
+    await gr.waitFor('Chapters · ');
     gr.press('n');
     expect(await gr.waitFor('hunk 1/')).toContain('Nothing here checks that it is a');
     // Questions need a model, and the demo has none.

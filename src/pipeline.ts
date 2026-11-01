@@ -11,7 +11,7 @@ import { attachChangedTestDiffs, COVERAGE_FILES, pairTests } from './analysis/te
 import { safeReader } from './analysis/safeRead.js';
 import { applyRisk } from './analysis/risk.js';
 import { buildChapters, splitByDirectory } from './analysis/flows.js';
-import { findBlastRadius } from './analysis/blast.js';
+import { blastFlag, findBlastRadius } from './analysis/blast.js';
 import { defaultRepoConfig, parseRepoConfig } from './config.js';
 import { clearImportNoise, markImportOnly, separateImportChapter } from './analysis/imports.js';
 import { initTreeSitter } from './analysis/treesitter.js';
@@ -169,6 +169,8 @@ export async function buildStaticTour(pr: PRInfo, diff: string, worktree: string
     files.map((f) => f.path),
     signal,
   ).catch(() => []);
+  const unchangedCallers = blastFlag(blastRadius);
+  if (unchangedCallers) flags.push(unchangedCallers);
   onProgress('Finding blast radius', true);
   signal?.throwIfAborted();
 

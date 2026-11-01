@@ -129,7 +129,6 @@ type Props = {
   onMerge?: () => void;
   onCopyUrl?: () => Promise<string>; // Y: the PR's link on the clipboard
   onRefresh: () => void;
-  onTheme?: () => void;
   onBack?: () => void;
   onQuit: () => void;
 };
@@ -423,7 +422,6 @@ function ThreadScreen(props: Props & { group: FeedbackChapter; item: FeedbackIte
       if (input === 'M' && props.onMerge) return props.onMerge();
       if (input === 'Y' && props.onCopyUrl) return void props.onCopyUrl().then((m) => setFlash(m, /^Copied|^Asked/.test(m) ? 'info' : undefined));
       if (input === 'R') return props.onRefresh();
-      if (input === 'L' && props.onTheme) return props.onTheme();
       if (input === 'b' || input === 'q') return props.onBriefing();
       if (key.escape && mode.kind === 'browse') return props.onBriefing();
       if (input === 'Q') return props.onQuit();

@@ -3,7 +3,7 @@ import { createInterface } from 'node:readline';
 import { escapeRe } from '../util/regex.js';
 import { isImportLine } from './imports.js';
 import { MIGRATION_PATH, sqlTableRefs } from './patterns.js';
-import type { BlastItem, CallerRef, Hunk } from '../types.js';
+import type { BlastItem, CallerRef, Flag, Hunk } from '../types.js';
 import type { Decl, SymbolIndex } from './symbols.js';
 
 const MAX_CALLERS = 20;
@@ -89,6 +89,7 @@ export function isDefinition(text: string, name: string): boolean {
 interface Target {
   symbol: string;
   hunkId: string;
+  change?: BlastItem['change'];
   key: string; // the bucket a grep line must fall in
   accept: (ref: CallerRef) => boolean;
   callers: CallerRef[];
@@ -139,9 +140,10 @@ export async function findBlastRadius(root: string, hunks: Record<string, Hunk>,
   const symbols: Target[] = candidates
     .slice(0, MAX_SYMBOLS)
     .filter(({ d }) => d.name !== 'constructor' && d.name.length >= 3)
-    .map(({ d, hunkId }) => ({
+    .map(({ d, hunkId, sig }) => ({
       symbol: d.qualified.split('#')[1] ?? d.name,
       hunkId,
+      ...(sig ? { change: 'signature' as const } : {}),
       key: d.name,
       // An import line names the symbol but is not a use; the use elsewhere in the file is listed instead.
       accept: (r) => !changed.has(r.file) && r.file !== d.file && !isDefinition(r.text, d.name) && !isImportLine(r.text),
@@ -163,6 +165,7 @@ export async function findBlastRadius(root: string, hunks: Record<string, Hunk>,
   const tables: Target[] = tableNames.map((table) => ({
     symbol: `table ${table}`,
     hunkId: tableIds.get(table)!,
+    change: 'table',
     key: table.toLowerCase(), // -i: the matcher reports names lowercased
     accept: (r) => !changed.has(r.file) && !MIGRATION_PATH.test(r.file),
     callers: [],
@@ -171,6 +174,7 @@ export async function findBlastRadius(root: string, hunks: Record<string, Hunk>,
   const events: Target[] = eventNames.map((event) => ({
     symbol: `event ${event}`,
     hunkId: eventIds.get(event)!,
+    change: 'event',
     key: event,
     accept: (r) => !changed.has(r.file) && /\.(on|once|subscribe|addEventListener|addListener)\(|@OnEvent/.test(r.text),
     callers: [],
@@ -188,5 +192,15 @@ export async function findBlastRadius(root: string, hunks: Record<string, Hunk>,
     ),
   ]);
 
-  return [...symbols, ...tables, ...events].filter((t) => t.callers.length).map(({ symbol, hunkId, callers }) => ({ symbol, hunkId, callers }));
+  return [...symbols, ...tables, ...events].filter((t) => t.callers.length).map(({ symbol, hunkId, change, callers }) => ({ symbol, hunkId, ...(change ? { change } : {}), callers }));
+}
+
+// The change a reviewer should see before reading: a signature, table or event that unchanged
+// code depends on. A change inside a body stays on its hunk, where B lists the callers.
+export function blastFlag(items: BlastItem[]): Flag | undefined {
+  const flagged = items.filter((b) => b.change).sort((a, b) => b.callers.length - a.callers.length);
+  if (!flagged.length) return undefined;
+  const what = (b: BlastItem) => (b.change === 'signature' ? `${b.symbol} changed its signature` : `${b.symbol} changed`);
+  const message = flagged.map((b) => `${what(b)}: ${b.callers.length}${b.callers.length >= MAX_CALLERS ? '+' : ''} ${b.callers.length === 1 ? 'use' : 'uses'} in unchanged files`).join('; ');
+  return { kind: 'unchanged-callers', message, hunkIds: [...new Set(flagged.map((b) => b.hunkId))] };
 }

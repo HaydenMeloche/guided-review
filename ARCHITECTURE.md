@@ -75,7 +75,7 @@ Otherwise, [`buildStaticTour`](src/pipeline.ts) runs this sequence:
 
 The static flow graph is a reading aid. Calls are extracted syntactically, but changed call targets are matched by name; imports, receiver types, and scope are not fully resolved. Ambiguous targets are skipped. Test case name matches and filename matches yield `partial` coverage, while execution coverage is the evidence for `tested`. Missing-change and risk flags are prompts for inspection, not determinations that a PR is defective.
 
-The resulting `Tour` starts in `plain` mode with a fallback intent drawn from the PR title, description, and linked issue titles. It already includes an overview graph, chapter diagrams where available, flags, test links, and blast-radius references, so a tour without a model (`--no-agent`, or `"provider": "none"` in the config) is a complete review path.
+The resulting `Tour` starts in `plain` mode with a fallback intent drawn from the PR title, description, and linked issue titles. It already includes an overview graph, chapter diagrams where available, flags, test links, and blast-radius references (uses of changed exports, tables and events in unchanged files; a changed signature, table or event also raises an `unchanged-callers` flag), so a tour without a model (`--no-agent`, or `"provider": "none"` in the config) is a complete review path.
 
 ## Model enrichment
 

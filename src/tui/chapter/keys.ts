@@ -25,7 +25,6 @@ export interface KeyCtx {
   rereview: boolean;
   deltaOnly: boolean; // a re-review shows only new and changed hunks
   rebase: boolean;
-  theme: boolean;
 }
 
 export type Action =
@@ -78,7 +77,6 @@ export type Action =
   | 'checklist'
   | 'submit'
   | 'help'
-  | 'theme'
   | 'summaryDown'
   | 'summaryUp'
   | 'expand'
@@ -86,6 +84,7 @@ export type Action =
   | 'palette'
   | 'search'
   | 'history'
+  | 'callers'
   | 'sidebar'
   | 'explanation';
 
@@ -272,6 +271,12 @@ export const KEYS: KeyRow[] = [
     bind: [{ mode: 'code', on: ['H'], do: 'history', when: hunk, palette: 'History of these lines' }],
   },
   {
+    keys: 'B',
+    group: 'Read',
+    help: 'Blast radius: uses of what this hunk changes in files the PR leaves alone',
+    bind: [{ mode: 'code', on: ['B'], do: 'callers', when: hunk, palette: 'Callers outside the PR (blast radius)' }],
+  },
+  {
     keys: 'D',
     group: 'Read',
     help: 'Re-review: switch between only new and changed hunks and the full review',
@@ -306,12 +311,6 @@ export const KEYS: KeyRow[] = [
     group: 'Settings',
     help: 'Open the file at the cursor line in $EDITOR',
     bind: [{ mode: 'code', on: ['E'], do: 'editor', when: hunk, palette: 'Open the file at this line in your editor' }],
-  },
-  {
-    keys: 'L',
-    group: 'Settings',
-    help: 'Color theme (previews as you move through the list)',
-    bind: [{ mode: 'code', on: ['L'], do: 'theme', when: (c) => c.theme, palette: 'Color theme' }],
   },
   {
     keys: '\\',

@@ -56,13 +56,14 @@ export function ChecklistPanel(props: { items: ChecklistItem[]; confirms: Record
 
 // Full-screen scrollable text, e.g. the PR description.
 // `lines`: text already laid out (the explanation), in place of `markdown`.
-export function Reader(props: { title: string; markdown?: string; lines?: MdLine[]; width: number; height: number; onClose: () => void }) {
+// `closeKey`: the key that opened it closes it too (r by default).
+export function Reader(props: { title: string; markdown?: string; lines?: MdLine[]; width: number; height: number; closeKey?: string; onClose: () => void }) {
   const lines = props.lines ?? renderMarkdown(props.markdown ?? '', props.width - 4);
   const room = Math.max(3, props.height - 4);
   const [top, setTop] = useState(0);
   const maxTop = Math.max(0, lines.length - room);
   useInput((input, key) => {
-    if (key.escape || input === 'q' || input === 'r') return props.onClose();
+    if (key.escape || input === 'q' || input === (props.closeKey ?? 'r')) return props.onClose();
     if (input === 'j' || key.downArrow) setTop((t) => Math.min(maxTop, t + 1));
     if (input === 'k' || key.upArrow) setTop((t) => Math.max(0, t - 1));
     if (input === ' ' || key.pageDown) setTop((t) => Math.min(maxTop, t + room));

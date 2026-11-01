@@ -373,6 +373,23 @@ Return:
 - untestedBranches: empty.`;
 }
 
+const CALLERS_PER_SYMBOL = 5;
+
+// Code in files the PR leaves alone that uses what the chapter's hunks change, found by name.
+// The diff can't show these lines, so a changed signature reaching them is worth naming.
+function callersSection(tour: Tour, chapter: Chapter): string {
+  const ids = new Set(chapter.hunkIds);
+  const items = tour.blastRadius.filter((b) => ids.has(b.hunkId));
+  if (!items.length) return '';
+  const what = { signature: 'signature changed', table: 'table changed', event: 'event changed' } as const;
+  const lines = items.map((b) => {
+    const shown = b.callers.slice(0, CALLERS_PER_SYMBOL).map((c) => `  - ${c.file}:${c.line}: ${c.text}`);
+    const more = b.callers.length > shown.length ? [`  - … ${b.callers.length - shown.length} more`] : [];
+    return [`- ${b.symbol} (hunk ${b.hunkId}${b.change ? `, ${what[b.change]}` : ''}):`, ...shown, ...more].join('\n');
+  });
+  return `\n\n## Uses in unchanged files (matched by name, so some may be another symbol)\n\nWhere a hunk changes a signature, table or event that one of these uses, read the use if needed and say in that hunk's narration which of them the change could break (file:line), or that they still fit. Raise risk when one breaks.\n\n${lines.join('\n')}`;
+}
+
 export function chapterPrompt(tour: Tour, chapter: Chapter): string {
   if (isLockfileBatch(chapter)) return lockfilePrompt(tour, chapter);
   const pair = lockPairOf(chapter);
@@ -400,6 +417,7 @@ export function chapterPrompt(tour: Tour, chapter: Chapter): string {
     chapter.kind === 'supporting'
       ? '\nThese hunks are not reached from any entry point. For each, also give orphanReason: a one-line reason it is in the PR (e.g. "config default", "dead code removal").'
       : '';
+  const callers = callersSection(tour, chapter);
   const checklist = chapter.checklist?.length
     ? `\n\nTeam checklist for this chapter. Pre-check each item against the code (read files if needed): pass, fail, or unknown when you cannot tell; give a one-line reason citing file:line.\n${chapter.checklist.map((c) => `- ${c.id}: ${c.item}`).join('\n')}`
     : '';
@@ -417,11 +435,48 @@ Chapter ${chapter.id} (${chapter.kind}): "${chapter.title}"${chapter.entryPoint 
 Briefing summary: ${chapter.summary || '(none)'}
 The hunks below are in the call order static analysis found.${supporting}${specialContext}
 
-${rendered.join('\n\n')}${minorSection}${checklist}
+${rendered.join('\n\n')}${minorSection}${callers}${checklist}
 
 Return:
 - hunkOrder: all hunk ids, in the order a request or job would run through them (handler, then service, then data layer). Put a type or schema change right before its first use. Keep the given order if it is already right.
 ${hunksAsk}
 - untestedBranches: new branches or behaviors with no linked test case, each as "file:line — what is untested".
 - diagram: include one when the flow crosses 3+ functions, components or services (call; most flow chapters do), when it changes behavior of an existing path (before-after, nodes grouped "before"/"after"), changes enum/status transitions (state), or touches schema (entity). 3-10 nodes (a single rename or field swap needs no diagram); changed=true on changed nodes; hunkId on nodes that map to a hunk. Shared state (URL params, a store, a cache) is one node with an edge for each read and write; edges point the way control or data flows, labelled with what the source does in 1-3 words ("reads", "renders", "prefetches"). Each node is named for the component it is (a function, hook, module or route, 2-4 words such as "PaymentEventsTable" or "URL date params"), never a sentence or an action (a prefetch is an edge to the query it fills); what it does belongs on the edges, and edge labels are never code expressions. A change to conditions or values inside one component needs no diagram. Draw each relationship once, from the caller, with no "returns" edge. Use state only for status or enum transitions, not for data flow. Omit otherwise.${chapter.checklist?.length ? '\n- checklist: one entry per checklist id above.' : ''}`;
+}
+
+const SUMMARY_FILES = 60;
+
+// The on-demand summary (i on the briefing): the briefing's two sentences grown into a page,
+// from what the tour already knows. The description is the author's claim; the diff is the truth.
+export function summaryPrompt(tour: Tour): string {
+  const chapters = tour.chapters
+    .map((c) => {
+      const files = [...new Set(c.hunkIds.map((id) => tour.hunks[id]?.file).filter(Boolean))];
+      return `- ${c.title} (${c.kind}${c.risk ? `, risk ${c.risk}` : ''}): ${c.summary || '(no summary)'}\n  files: ${files.slice(0, 6).join(', ')}${files.length > 6 ? `, +${files.length - 6}` : ''}`;
+    })
+    .join('\n');
+  const files = tour.files.slice(0, SUMMARY_FILES).map((f) => `- [${f.kind}] ${f.path} +${f.additions}/-${f.deletions}`);
+  if (tour.files.length > SUMMARY_FILES) files.push(`- … ${tour.files.length - SUMMARY_FILES} more files`);
+  return `PR #${tour.pr} — ${tour.title}
+Author: @${tour.author}
+
+Briefing intent: ${tour.intent || '(unknown)'}
+
+Author's description:
+${tour.description?.trim() || '(none)'}
+
+Chapters, in reading order:
+${chapters || '(none)'}
+
+Flags:
+${tour.flags.map((f) => `- ${f.kind}: ${f.message}`).join('\n') || '(none)'}
+
+Files:
+${files.join('\n')}
+
+Write a summary of this PR for a reviewer about to read it, in Markdown, 150-250 words:
+1. One paragraph: what the PR does and why, checked against the diff rather than taken from the description. Say where the description and the code disagree.
+2. "How it's built": one bullet per chapter in reading order, naming the files that matter (paths, no line numbers).
+3. "Worth attention": 2-4 bullets on what deserves care, from the flags, the risk and what you read; none if nothing stands out.
+Read files in the worktree only where the chapter summaries leave a question open. Say plainly when something is your inference.`;
 }

@@ -21,7 +21,6 @@ const off: KeyCtx = {
   rereview: false,
   deltaOnly: false,
   rebase: false,
-  theme: false,
 };
 const all: KeyCtx = Object.fromEntries(Object.keys(off).map((k) => [k, true])) as unknown as KeyCtx;
 const noKey = {} as Key;

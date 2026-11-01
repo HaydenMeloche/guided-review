@@ -58,7 +58,7 @@ describe('key bars', () => {
   });
 
   it('builds the briefing and send bars', () => {
-    expect(pairs(briefingBar({ queuedCount: 0, comment: false, merge: false, reviewers: false, copy: false, theme: false }))).toEqual([
+    expect(pairs(briefingBar({ queuedCount: 0, comment: false, merge: false, reviewers: false, copy: false }))).toEqual([
       ['n', 'start'],
       ['enter', 'open'],
       ['j/k', 'select'],
@@ -66,7 +66,7 @@ describe('key bars', () => {
       ['t', 'full tour'],
       ['R', 'refresh'],
     ]);
-    expect(pairs(briefingBar({ queuedCount: 0, comment: false, merge: false, reviewers: true, copy: false, theme: false }))).toContainEqual(['A', 'reviewers']);
+    expect(pairs(briefingBar({ queuedCount: 0, comment: false, merge: false, reviewers: true, copy: false }))).toContainEqual(['A', 'reviewers']);
     expect(pairs(sendBar({ candidates: false })).map(([k]) => k)).toEqual(['P', 'esc', 'j/k', 'e', 'z', 'x']);
     expect(pairs(sendBar({ candidates: true })).at(-1)).toEqual(['r', 're-request']);
     expect(barOf([], {})).toEqual([]);

@@ -1,4 +1,5 @@
-import type { Chapter, DiffFile, Hunk, Tour } from '../../types.js';
+import type { BlastItem, Chapter, DiffFile, Hunk, Tour } from '../../types.js';
+import { G } from '../glyphs.js';
 import { line, renderMarkdown, restyle, type MdLine } from '../markdown.js';
 import { isSpecialKind } from '../../analysis/special.js';
 import { summaryHunkIds, truncate, wrap } from '../nav.js';
@@ -53,8 +54,20 @@ export function noTestHint(hunk: Hunk, nameGuess?: string): string | undefined {
   return `No linked test case found for this code.${nameGuess ? ` Nearest test file by name: ${nameGuess}` : ''}`;
 }
 
-// The explanation above the code, `width` wide: narration, notes on the chapter or hunk, and
-// possible test gaps (U expands them). A filename-only test guess becomes a one-line hint.
+// The hunk's blast radius as one line: how many places in files the PR leaves alone use what it
+// changes, and what changed that they may not expect. B lists them.
+export function callersLine(items: BlastItem[]): { text: string; warn: boolean } | undefined {
+  const places = new Set(items.flatMap((b) => b.callers.map((c) => `${c.file}:${c.line}`)));
+  if (!places.size) return undefined;
+  const changes = [...new Set(items.map((b) => b.change).filter(Boolean))];
+  const what = changes.map((c) => (c === 'signature' ? 'Signature changed' : c === 'table' ? 'Table changed' : 'Event changed')).join(', ');
+  const uses = `${plural(places.size, 'use')} in unchanged files`;
+  return { text: `${what ? `${G.flag} ${what}: ${uses}` : uses} · B: list`, warn: !!what };
+}
+
+// The explanation above the code, `width` wide: narration, notes on the chapter or hunk, the
+// hunk's callers outside the PR, and possible test gaps (U expands them). A filename-only test
+// guess becomes a one-line hint.
 export function explanation(
   o: {
     tour: Tour;
@@ -89,13 +102,15 @@ export function explanation(
   const nameGuess = hunk?.tests.find((t) => t.source === 'naming');
   const hint = hunk && !o.linkedTests ? noTestHint(hunk, nameGuess?.testFile) : undefined;
   const untestedBranches = hi <= 0 ? chapter.untestedBranches : [];
+  const callers = hunk ? callersLine(tour.blastRadius.filter((b) => b.hunkId === hunk.id)) : undefined;
   const testGapSummary = [hint ? 'No linked test' : '', untestedBranches.length ? `${plural(untestedBranches.length, 'possible untested behavior')}` : ''].filter(Boolean).join(' · ');
   return [
     // Narration waits on the briefing, so a tour still being briefed is not plain.
     ...guideLines(narration, !!hunk?.narrationInferred, chapterNotes, width, o.writingBriefing ? 'agent' : tour.mode, !!hunk),
+    ...(callers ? [[], line(truncate(callers.text, width), callers.warn ? { color: 'yellow' } : { dim: true })] : []),
     ...(testGapSummary
       ? [
-          [],
+          ...(callers ? [] : [[]]),
           line(truncate(`○ ${testGapSummary} · U: ${o.showUntested ? 'hide' : 'details'}`, width), { color: 'red' }),
           ...(o.showUntested
             ? [

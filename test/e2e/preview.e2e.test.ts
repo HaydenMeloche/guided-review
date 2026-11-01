@@ -30,7 +30,6 @@ describe('gr preview --no-agent', () => {
     expect(screen).toContain('plain mode');
     expect(screen).toContain('Apply a discount to invoice totals');
     expect(screen).toMatch(/0\/1 hunks done/);
-    expect(screen).toContain('total: 1 unchanged caller — src/invoice.test.ts:2');
     // Preview only asks gh for the repo name; it never touches a PR.
     expect(box.ghCalls()).toEqual(['repo view --json nameWithOwner']);
   });
@@ -50,6 +49,12 @@ describe('gr preview --no-agent', () => {
     expect(chapter).toContain('src/invoice.ts:1');
     expect(chapter).toContain('return sum - sum * discount;');
     expect(chapter).toContain('0/1 hunks');
+    expect(chapter).toContain('Signature changed: 1 use in unchanged files · B: list');
+    gr.press('B');
+    const callers = await gr.waitFor('Uses of total (signature changed)');
+    expect(callers).toMatch(/total\s+src\/invoice\.test\.ts:2/);
+    gr.press(KEY.escape);
+    await gr.waitFor('B: list');
     gr.press('n');
     const end = await gr.waitFor('End of the tour');
     expect(end).toContain('1/1 hunks');

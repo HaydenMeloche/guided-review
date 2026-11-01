@@ -46,10 +46,10 @@ export interface ReviewBriefingKeyCtx {
   start: string; // what n does: start, or resume and where
   agent: boolean;
   readDescription: boolean; // r is not already hinted under a cut-off description
+  summary: boolean; // i is not already hinted on the description's heading
   diagram: boolean; // d is not already hinted beside the overview
   feedback: boolean; // your own PR
   checks: boolean;
-  theme: boolean;
 }
 
 export const REVIEW_BRIEFING_KEYS: KeyDef<ReviewBriefingKeyCtx>[] = [
@@ -61,13 +61,13 @@ export const REVIEW_BRIEFING_KEYS: KeyDef<ReviewBriefingKeyCtx>[] = [
   { keys: ['D'], group: 'Read', help: 'Re-review: only new and changed hunks, or the full review' },
   { keys: ['a'], group: 'Ask', help: 'Ask the model about the whole PR', bar: { shown: 'a', label: 'ask about the PR', when: (c) => c.agent } },
   { keys: ['r'], group: 'View', help: 'Read the full PR description', bar: { shown: 'r', label: 'read description', when: (c) => c.readDescription } },
+  { keys: ['i'], group: 'View', help: 'Generate an AI description of the PR (written when you open it, then kept)', bar: { shown: 'i', label: 'AI description', when: (c) => c.summary } },
   { keys: ['V'], group: 'View', help: 'Read the submitted reviews' },
   { keys: ['d'], group: 'View', help: 'Explore the overview diagram', bar: { shown: 'd', label: 'overview diagram', when: (c) => c.diagram } },
   { keys: ['s'], group: 'PR', help: 'Submit screen', bar: { shown: 's', label: 'submit' } },
   { keys: ['M'], group: 'PR', help: 'Merge the PR' },
   { keys: ['c'], group: 'PR', help: 'Checks and their logs', bar: { shown: 'c', label: 'checks', when: (c) => c.checks } },
   { keys: ['t'], group: 'PR', help: 'Your PR: switch to its feedback', bar: { shown: 't', label: 'your feedback', when: (c) => c.feedback } },
-  { keys: ['L'], group: 'App', help: 'Color theme', bar: { shown: 'L', label: 'theme', when: (c) => c.theme } },
   { keys: [':'], group: 'App', help: 'Command palette: the briefing’s commands, and a chapter to open' },
   { keys: ['?'] },
   { keys: ['h'], alias: true },

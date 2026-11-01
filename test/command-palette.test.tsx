@@ -43,7 +43,6 @@ describe('the command palette', () => {
       rereview: false,
       deltaOnly: false,
       rebase: false,
-      theme: true,
     } satisfies KeyCtx;
     const labels = paletteCommands('code', ctx).map((c) => `${c.key} ${c.label}`);
     expect(labels).toContain('S Split view: old beside new, or inline');

@@ -71,12 +71,6 @@ describe.each(SIZES)('screens at %ix%i', (cols, rows) => {
     await gr.waitFor('Chapters');
     await snap(gr, 'briefing', cols, rows);
 
-    gr.press('L');
-    await gr.waitFor('Terminal colors');
-    await snap(gr, 'theme-picker', cols, rows);
-    gr.press(KEY.escape);
-    await gone(gr, 'Terminal colors');
-
     gr.press('n');
     await chapterReady(gr);
     await snap(gr, 'chapter', cols, rows);
@@ -148,5 +142,10 @@ describe.each(SIZES)('screens at %ix%i', (cols, rows) => {
     await gr.waitFor('failed:');
     await gr.waitFor(/Review requests \(0\)/);
     await snap(gr, 'picker-error', cols, rows);
+    gr.press('L');
+    await gr.waitFor('Terminal colors');
+    await snap(gr, 'theme-picker', cols, rows);
+    gr.press(KEY.escape);
+    await gone(gr, 'Terminal colors');
   });
 });

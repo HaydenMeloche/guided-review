@@ -33,6 +33,7 @@ import { barEnd, barKeys, PALETTE_HINT, chapterHelp, keyAction, paletteCommands,
 import { CommandPalette, type PaletteItem } from './CommandPalette.js';
 import { SearchPanel, type LastSearch } from './chapter/SearchPanel.js';
 import { HistoryPanel } from './chapter/HistoryPanel.js';
+import { CallersPanel } from './chapter/CallersPanel.js';
 import { baseRange, lineHistory } from '../review/history.js';
 import type { SearchHit } from './chapter/search.js';
 import { explanation } from './chapter/guide.js';
@@ -123,7 +124,6 @@ export function ChapterScreen(props: {
   openBriefing: () => void;
   editFile?: (file: string, line: number) => Promise<string | undefined>; // E: resolves to a message to show
   rebase?: () => void;
-  onTheme?: () => void; // L: the color theme picker
   services?: Services;
   references?: ReferenceServices; // recent locations, repo index; tests may leave it out
   quit: () => void;
@@ -159,6 +159,7 @@ export function ChapterScreen(props: {
   const setComposerState: SetComposer = (f) => setOverlay((o) => (o.kind === 'comment' ? { ...o, composer: f(o.composer) } : o));
   const mentions = useMentions(tour, overlay.kind === 'comment' || overlay.kind === 'reply' || overlay.kind === 'thread', svc?.loadMentionUsers);
   const linked = useMemo(() => linkedTests(hunk, testIdx), [hunk, testIdx]);
+  const hunkCallers = useMemo(() => (hunk ? tour.blastRadius.filter((b) => b.hunkId === hunk.id) : []), [tour.blastRadius, hunk]);
   const { tests: relevantTests, selected: selectedTest, file: testFile, lines: testCodeLines } = linked;
 
   const hasLinkedTests = linked.any;
@@ -337,7 +338,6 @@ export function ChapterScreen(props: {
     rereview: !!tour.rereview,
     deltaOnly: props.deltaOnly,
     rebase: !!props.rebase,
-    theme: !!props.onTheme,
   };
   const lastTestLine = Math.max(0, testCodeLines.length - 1);
   const stepTest = (by: number) => {
@@ -460,6 +460,7 @@ export function ChapterScreen(props: {
       if (!baseRange(hunk!, sel)) return setFlash('These lines are new in the PR: there is no history before it.');
       show('history');
     },
+    callers: () => (hunkCallers.length ? show('callers') : setFlash('Nothing outside this PR uses what this hunk changes, as far as a search by name finds.')),
     sidebar: () => (width >= WIDE ? toggleSidebar() : setFlash(`The chapter list needs ${WIDE} columns; this terminal has ${width}.`)),
     explanation: () => toggleExplanation(),
     commentFlow: () => openComposer(draft({ type: 'chapter', chapterId: chapter.id })),
@@ -501,7 +502,6 @@ export function ChapterScreen(props: {
       if (svc) show('checklist');
       else setFlash('The checklist opens once the checkout is ready.');
     },
-    theme: () => props.onTheme?.(),
   };
   // Y and O: the selected lines as a permalink pinned to the commit they are in (the head for new
   // lines, the base for removed ones), and on the PR's Files tab. A string says why there is none.
@@ -791,6 +791,13 @@ export function ChapterScreen(props: {
         ),
       };
     }
+    if (overlay.kind === 'callers' && hunkCallers.length)
+      return {
+        tone: 'reading' as const,
+        width: Math.min(140, width - 4),
+        height: height - 4,
+        node: (w: number, h: number) => <CallersPanel items={hunkCallers} root={svc?.root} width={w} height={h} onClose={close} />,
+      };
     if (overlay.kind === 'search')
       return {
         tone: 'input' as const,

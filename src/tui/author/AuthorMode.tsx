@@ -86,7 +86,6 @@ export function AuthorMode(props: {
   onFullTour: () => void;
   copy?: (text: string) => Promise<'tool' | 'terminal'>; // tests stub the clipboard
   onMerged: (notice: string) => void;
-  onTheme?: () => void;
   onBack?: () => void;
   onQuit: () => void;
 }) {
@@ -344,7 +343,6 @@ export function AuthorMode(props: {
           onMerge={onMerge}
           onCopyUrl={copyUrl}
           onRefresh={refresh}
-          onTheme={props.onTheme}
           onBack={props.onBack}
           onQuit={props.onQuit}
         />
@@ -390,7 +388,6 @@ export function AuthorMode(props: {
         onToggleHidden={() => setShowHidden((h) => !h)}
         onFullTour={props.onFullTour}
         onRefresh={refresh}
-        onTheme={props.onTheme}
         onBack={props.onBack}
         onQuit={props.onQuit}
       />

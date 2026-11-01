@@ -165,15 +165,16 @@
           </p>
           <h2 id="read-the-tour"><a class="anchor" href="#read-the-tour" aria-hidden="true">#</a>Read the tour</h2>
           <p>
-            The <strong>briefing</strong> opens first. It shows whether the PR can merge, a summary, the author&#39;s description, recent reviewer feedback, the chapters with your progress, their size
-            (<code>+55 −5</code> lines), and where the discussion is (<code>2 open</code> review threads in yellow, or how many were resolved, leaving out outdated ones, and <code>✎ 1</code> for your
-            drafts), flagged gaps under <strong>Watch for</strong>, and an overview diagram. Chapter narration may continue in the background (<code>narrating 3/7</code>).
+            The <strong>briefing</strong> opens first. It shows whether the PR can merge, then the chapters with your progress, their size (<code>+55 −5</code> lines), and where the discussion is
+            (<code>2 open</code> review threads in yellow, or how many were resolved, leaving out outdated ones, and <code>✎ 1</code> for your drafts), then the author&#39;s description, recent
+            reviewer feedback, and an overview diagram. <code>i</code>, on the description&#39;s heading, asks the model for an AI description of the PR, written the first time you open it and kept
+            for the run. Chapter narration may continue in the background (<code>narrating 3/7</code>).
           </p>
           <figure class="shot">
             <a href="images/briefing.webp"
               ><img
                 src="images/briefing.webp"
-                alt="The briefing screen: whether the PR can merge, a summary of the PR, chapters in reading order with progress and size, flagged gaps, the author's description, blast radius, and an overview diagram"
+                alt="The briefing screen: whether the PR can merge, a summary of the PR, chapters in reading order with progress and size, the author's description, and an overview diagram"
                 loading="lazy"
             /></a>
           </figure>
@@ -203,8 +204,8 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>r</code> / <code>d</code> / <code>V</code></td>
-                  <td>Read the full description, the overview diagram, or all submitted reviews.</td>
+                  <td><code>r</code> / <code>i</code> / <code>d</code> / <code>V</code></td>
+                  <td>Read the full description, generate an AI description of the PR (written when you first open it, then kept), explore the overview diagram, or read all submitted reviews.</td>
                 </tr>
                 <tr>
                   <td><code>a</code></td>
@@ -227,8 +228,8 @@
                   <td>Open <a href="#draft-and-submit-comments">submit</a>.</td>
                 </tr>
                 <tr>
-                  <td><code>:</code> / <code>L</code> / <code>?</code> / <code>q</code></td>
-                  <td>Command palette, theme, keys, or back to the PR list.</td>
+                  <td><code>:</code> / <code>?</code> / <code>q</code></td>
+                  <td>Command palette, keys, or back to the PR list.</td>
                 </tr>
               </tbody>
             </table>
@@ -401,6 +402,13 @@
                   </td>
                 </tr>
                 <tr>
+                  <td><code>B</code></td>
+                  <td>
+                    Blast radius: the places in files the PR leaves alone that use what this hunk changes, found by name, with the source around each. The explanation counts them, in yellow when a
+                    signature, table, or event changed.
+                  </td>
+                </tr>
+                <tr>
                   <td><code>D</code></td>
                   <td>On a re-review, switch between changes only and the full review.</td>
                 </tr>
@@ -448,10 +456,6 @@
                   <td>Command palette: every action, chapter, and file.</td>
                 </tr>
                 <tr>
-                  <td><code>L</code></td>
-                  <td>Choose a color theme.</td>
-                </tr>
-                <tr>
                   <td><code>?</code> / <code>h</code></td>
                   <td>List the keys and marks.</td>
                 </tr>
@@ -467,6 +471,11 @@
           <p>
             Tests are linked by coverage data, names, and file conventions. Only coverage marks a hunk tested; a name match marks it partial. New or changed test cases show their diff in the Tests
             pane. Possible test gaps show as a line in the explanation; <code>U</code> expands them.
+          </p>
+          <p>
+            The blast radius is the code a diff can&#39;t show: uses, in files the PR doesn&#39;t touch, of the exported functions, tables, and events it changes. They are found by name, so some may
+            be another symbol of the same name. When a signature, table, or event changed, the hunk&#39;s explanation says so in yellow, and the agent&#39;s narration says which of those uses the
+            change could break. <code>B</code> lists them with their source.
           </p>
           <p>
             Risk scores flag changes to authentication, payments, migrations, public APIs, concurrency, and similar areas. The briefing may also flag likely missing migrations, changesets, docs, or
@@ -755,8 +764,8 @@
                   <td>Show or hide resolved threads.</td>
                 </tr>
                 <tr>
-                  <td><code>s</code> / <code>M</code> / <code>Y</code> / <code>L</code></td>
-                  <td>Send, merge, copy the link, or change the theme.</td>
+                  <td><code>s</code> / <code>M</code> / <code>Y</code></td>
+                  <td>Send, merge, or copy the link.</td>
                 </tr>
                 <tr>
                   <td><code>R</code></td>

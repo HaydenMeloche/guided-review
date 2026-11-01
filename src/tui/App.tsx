@@ -1211,7 +1211,6 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
             void load(target, opts.fresh, 'review');
           }}
           onMerged={showMerged}
-          onTheme={theme.show}
           onBack={back}
           onQuit={requestQuit}
         />
@@ -1277,7 +1276,6 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         width={width}
         height={height}
         active={active}
-        onTheme={theme.show}
         onRestart={() => {
           store.clearReadStates(tour.repo, tour.pr);
           setStates({});
@@ -1360,7 +1358,6 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         }
         rebase={target && (newHead || localEdited) ? () => void load(target, localEdited, 'review') : undefined}
         editFile={worktree ? editFile : undefined}
-        onTheme={theme.show}
         quit={requestQuit}
       />
     );

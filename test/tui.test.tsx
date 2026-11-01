@@ -25,7 +25,14 @@ import { filesFor, hunkFromDiff, tour as makeTour } from './fixtures/tour.js';
 import { writeClipboard } from '../src/util/clipboard.js';
 
 // Never reach GitHub from a test: confirming the submit screen posts through this.
-vi.mock('../src/agent/agent.js', async (orig) => ({ ...(await orig<typeof import('../src/agent/agent.js')>()), ask: vi.fn(async () => ({ value: 'An answer.' })) }));
+vi.mock('../src/agent/agent.js', async (orig) => ({
+  ...(await orig<typeof import('../src/agent/agent.js')>()),
+  ask: vi.fn(async () => ({ value: 'An answer.' })),
+  summarize: vi.fn(async (o: { onText: (t: string) => void }) => {
+    o.onText('Adds POST /invoices and');
+    return { value: 'Adds POST /invoices and a sales report.' };
+  }),
+}));
 // Never touch the real clipboard or browser: Y copies and O opens through these.
 vi.mock('../src/util/clipboard.js', async (orig) => ({ ...(await orig<typeof import('../src/util/clipboard.js')>()), writeClipboard: vi.fn(async () => 'tool' as const) }));
 vi.mock('../src/util/openExternal.js', () => ({ openExternal: vi.fn(async () => Promise.reject(new Error('no browser'))) }));
@@ -67,7 +74,6 @@ function Harness(props: {
   onBriefing?: () => void;
   onReply?: (body: string) => Promise<void>;
   onDelete?: (d: Draft) => void;
-  onTheme?: () => void;
   editFile?: (file: string, line: number) => Promise<string | undefined>;
   agent?: { cwd: string };
 }) {
@@ -111,22 +117,12 @@ function Harness(props: {
       openSubmit={() => {}}
       openBriefing={() => props.onBriefing?.()}
       editFile={props.editFile}
-      onTheme={props.onTheme}
       quit={() => {}}
     />
   );
 }
 
 describe('ChapterScreen', () => {
-  it('opens the color theme picker on L', async () => {
-    const onTheme = vi.fn();
-    const ui = render(<Harness tour={fixtureTour()} onDraft={() => {}} onState={() => {}} onTheme={onTheme} />);
-    await tick();
-    ui.stdin.write('L');
-    await waitFor(() => expect(onTheme).toHaveBeenCalledTimes(1));
-    ui.unmount();
-  });
-
   it('opens the file at the cursor line on E, and shows what the editor reports', async () => {
     const tour = fixtureTour();
     const hunk = tour.hunks[tour.chapters[0].hunkIds[0]];
@@ -1363,9 +1359,9 @@ describe('BriefingScreen and SubmitScreen', () => {
     expect(frame).toContain(`1 of ${changed.hunkIds.length} changed`);
     expect(frame).toContain(unchanged.title);
     expect(frame).toContain('unchanged');
-    // The re-review note sits just above the chapter list, not under the description.
+    // The re-review note sits just above the chapter list; the summary is behind i.
     expect(frame.indexOf('Changes only:')).toBeLessThan(frame.indexOf('Chapters'));
-    expect(frame.indexOf('Changes only:')).toBeGreaterThan(frame.indexOf('Adds POST /invoices.'));
+    expect(frame).not.toContain('Adds POST /invoices.');
     ui.stdin.write('D');
     await waitFor(() => expect(ui.lastFrame()).toContain('Full review:'));
     expect(toggles).toEqual([false]);
@@ -1426,6 +1422,41 @@ describe('BriefingScreen and SubmitScreen', () => {
     ui.unmount();
   });
 
+  it('writes the AI description when i opens it, and keeps it', async () => {
+    const tour = fixtureTour();
+    tour.description = 'Adds invoices.';
+    const { summarize } = await import('../src/agent/agent.js');
+    const calls = vi.mocked(summarize).mock.calls.length;
+    const ui = render(
+      <BriefingScreen
+        tour={tour}
+        chapters={tour.chapters}
+        agent={{ cwd: '/tmp' }}
+        order="flow"
+        cycleOrder={() => {}}
+        states={{}}
+        width={140}
+        height={45}
+        onStart={() => {}}
+        onSubmit={() => {}}
+        onQuit={() => {}}
+      />,
+    );
+    await tick();
+    expect(vi.mocked(summarize).mock.calls.length).toBe(calls); // not until opened
+    expect(ui.lastFrame()).toContain('From the author · i generate AI description');
+    ui.stdin.write('i');
+    await waitFor(() => expect(ui.lastFrame()).toContain('Adds POST /invoices and a sales report.'));
+    expect(ui.lastFrame()).toContain('— AI description');
+    expect(vi.mocked(summarize).mock.calls.length).toBe(calls + 1);
+    ui.stdin.write('\u001b');
+    await waitFor(() => expect(ui.lastFrame()).toContain('i read AI description'));
+    ui.stdin.write('i');
+    await waitFor(() => expect(ui.lastFrame()).toContain('a sales report.'));
+    expect(vi.mocked(summarize).mock.calls.length).toBe(calls + 1); // kept, not written again
+    ui.unmount();
+  });
+
   it('renders the briefing with chapters and flags', async () => {
     const tour = fixtureTour();
     let started: number | undefined = -1;
@@ -1443,8 +1474,14 @@ describe('BriefingScreen and SubmitScreen', () => {
         onQuit={() => {}}
       />,
     );
+    await waitFor(() => expect(ui.lastFrame()).toContain('Chapters'));
+    // The summary is off the briefing: i reads it (the briefing's intent, with no model).
+    expect(ui.lastFrame()).not.toContain('Adds POST /invoices.');
+    ui.stdin.write('i');
     await waitFor(() => expect(ui.lastFrame()).toContain('Adds POST /invoices.'));
-    expect(ui.lastFrame()).toContain('Chapters');
+    expect(ui.lastFrame()).toContain('— summary');
+    ui.stdin.write('i');
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('— summary'));
     ui.stdin.write('n');
     await waitFor(() => expect(started).toBeUndefined());
     ui.unmount();
@@ -1890,8 +1927,8 @@ describe('feedback round: guide, tests, inline comments, description', () => {
     await waitFor(() => expect(ui.lastFrame()).toContain('From the author'));
     expect(ui.lastFrame()).toContain('Adds invoices.');
     expect(ui.lastFrame()).not.toContain('template');
-    // Three lines on the briefing, and r for the rest.
-    expect(ui.lastFrame()).toMatch(/more lines · r read all/);
+    // The note under the cut-off description, and r for the rest.
+    expect(ui.lastFrame()).toMatch(/… \d+ more lines · r read all/);
     ui.stdin.write('r');
     await waitFor(() => expect(ui.lastFrame()).toContain('from the author'));
     expect(ui.lastFrame()).toContain('See the doc (example.com).');

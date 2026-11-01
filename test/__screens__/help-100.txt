@@ -24,6 +24,7 @@
  ‹b,dim›Read       ‹/›‹cyan›x / z / u     ‹/›Mark the hunk skipped / deferred / unread
  ‹b,dim›           ‹/›‹cyan›f             ‹/›Cycle Guided, Risk first, Small first, File, and Commit order
  ‹b,dim›           ‹/›‹cyan›H             ‹/›History of the selected lines before the PR (git log -L)
+ ‹b,dim›           ‹/›‹cyan›B             ‹/›Blast radius: uses of what this hunk changes in files the PR leaves alone
  ‹b,dim›           ‹/›‹cyan›D             ‹/›Re-review: switch between only new and changed hunks and the full review
 
  ‹b,dim›Settings   ‹/›‹cyan›S             ‹/›Split view (old beside new) or inline
@@ -36,7 +37,6 @@
  ‹b,dim›           ‹/›‹cyan›i             ‹/›Team checklist for this chapter
  ‹b,dim›           ‹/›‹cyan›R             ‹/›Rebuild the tour on a newer PR head after the author pushes
  ‹b,dim›           ‹/›‹cyan›E             ‹/›Open the file at the cursor line in $EDITOR
- ‹b,dim›           ‹/›‹cyan›L             ‹/›Color theme (previews as you move through the list)
  ‹b,dim›           ‹/›‹cyan›\             ‹/›Show or hide the chapter list beside the chapter (wide terminals)
 
  ‹b,dim›Go         ‹/›‹cyan›Y / O         ‹/›Copy a permalink to the line or range / open it on GitHub

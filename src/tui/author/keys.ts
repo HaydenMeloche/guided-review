@@ -37,7 +37,6 @@ export const THREAD_KEYS: KeyDef<ThreadKeyCtx>[] = [
   { keys: ['M'], group: 'Go', help: 'Merge the PR', bar: { shown: 'M', label: 'merge', when: (c) => c.merge } },
   { keys: ['Y'], group: 'Go', help: 'Copy the PR’s link', bar: { shown: 'Y', label: 'copy link', when: (c) => c.copy } },
   { keys: ['R'], group: 'Go', help: 'Read the feedback again' },
-  { keys: ['L'], group: 'Go', help: 'Color theme' },
   { keys: ['r'], doc: ['r'] }, // in an AI draft: ask for changes
   { keys: ['?'] },
   { keys: ['h'], alias: true },
@@ -61,7 +60,6 @@ export interface BriefingKeyCtx {
   merge: boolean;
   reviewers: boolean;
   copy: boolean;
-  theme: boolean;
 }
 
 export const BRIEFING_KEYS: KeyDef<BriefingKeyCtx>[] = [
@@ -80,7 +78,6 @@ export const BRIEFING_KEYS: KeyDef<BriefingKeyCtx>[] = [
   { keys: ['Y'], group: 'PR', help: 'Copy the PR’s link', bar: { shown: 'Y', label: 'copy link', when: (c) => c.copy } },
   { keys: ['t'], group: 'PR', help: 'The full tour of the PR', bar: { shown: 't', label: 'full tour' } },
   { keys: ['R'], group: 'App', help: 'Read the feedback again', bar: { shown: 'R', label: 'refresh' } },
-  { keys: ['L'], group: 'App', help: 'Color theme', bar: { shown: 'L', label: 'theme', when: (c) => c.theme } },
   { keys: ['?'] },
   { keys: ['h'], alias: true },
   { keys: [' '], alias: true },

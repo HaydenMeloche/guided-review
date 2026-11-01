@@ -80,7 +80,6 @@ export function FeedbackBriefing(props: {
   onToggleHidden: () => void;
   onFullTour: () => void;
   onRefresh: () => void;
-  onTheme?: () => void;
   onBack?: () => void;
   onQuit: () => void;
 }) {
@@ -119,7 +118,6 @@ export function FeedbackBriefing(props: {
       if (input === 'V' && summaries.length) return setOverlay('reviews');
       if (input === 'g' && props.comments.length) return setOverlay('comments');
       if (input === 'r' && tour.description?.trim()) return setOverlay('description');
-      if (input === 'L' && props.onTheme) return props.onTheme();
       if (input === '?' || input === 'h') return setOverlay('help');
       if (key.escape) return props.onBack?.();
       if (input === 'q') return (props.onBack ?? props.onQuit)();
@@ -438,7 +436,7 @@ export function FeedbackBriefing(props: {
       <KeyBar
         width={width - 2}
         accent
-        keys={[...briefingBar({ queuedCount: props.queued, comment: !!props.onComment, merge: !!props.onMerge, reviewers: !!props.onReviewers, copy: !!props.onCopyUrl, theme: !!props.onTheme })]}
+        keys={[...briefingBar({ queuedCount: props.queued, comment: !!props.onComment, merge: !!props.onMerge, reviewers: !!props.onReviewers, copy: !!props.onCopyUrl })]}
         end={[
           ['?', 'keys'],
           ['q', props.onBack ? 'PR list' : 'quit'],

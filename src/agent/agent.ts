@@ -1,7 +1,7 @@
 import { setMaxListeners } from 'node:events';
 import { readOnlyGuard, readOnlyHook } from './guard.js';
 import type { Chapter, DiffLine, Graph, Hunk, PRInfo, Tour } from '../types.js';
-import { briefingPrompt, chapterPrompt, SYSTEM_PROMPT } from './prompts.js';
+import { briefingPrompt, chapterPrompt, summaryPrompt, SYSTEM_PROMPT } from './prompts.js';
 import { runCompatible } from './openaiCompatible.js';
 import { runOpenAI } from './openaiResponses.js';
 import { runCodex } from './codex.js';
@@ -361,6 +361,11 @@ export function selectionContext(hunk: Hunk, lineIdx?: number, endIdx?: number, 
 
 // API providers can run without tool calling; the model then sees only what the prompt gives it.
 export const withoutTools = (config: AgentConfig) => (config.provider === 'openai-compatible' || config.provider === 'openai' || config.provider === 'anthropic') && config.toolCalling === false;
+
+// The briefing's on-demand summary (i). A one-off call on the Q&A routing, outside its session.
+export async function summarize(opts: AgentContext & { tour: Tour; onText: (text: string) => void; signal?: AbortSignal }): Promise<RunResult<string>> {
+  return runRole<string>('qa', summaryPrompt(opts.tour), opts, { onText: opts.onText, signal: opts.signal, maxTurns: 8, session: false });
+}
 
 export interface AskTurn {
   question: string;

@@ -144,7 +144,7 @@ export interface Chapter {
   narrated?: boolean; // the narration step for this chapter finished; an incomplete tour resumes from the others
 }
 
-export type FlagKind = 'scope-creep' | 'missing-tests' | 'generated-out-of-sync' | 'large-pr' | 'no-entry-point' | 'model-unavailable' | 'missing-change' | 'info';
+export type FlagKind = 'scope-creep' | 'missing-tests' | 'unchanged-callers' | 'generated-out-of-sync' | 'large-pr' | 'no-entry-point' | 'model-unavailable' | 'missing-change' | 'info';
 
 export interface Flag {
   kind: FlagKind;
@@ -161,6 +161,8 @@ export interface CallerRef {
 export interface BlastItem {
   symbol: string;
   hunkId: string;
+  // What changed that the callers may not expect; unset for a change inside a body.
+  change?: 'signature' | 'table' | 'event';
   callers: CallerRef[];
 }
 
