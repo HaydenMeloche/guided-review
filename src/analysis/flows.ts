@@ -609,7 +609,7 @@ export function buildChapters(files: DiffFile[], hunks: Record<string, Hunk>, in
         .filter((f) => foldedFiles.has(f.path))
         .map((f) => `${f.path}${f.summary ? `: ${f.summary}` : ''}`)
         .join('\n');
-    } else if (sc.collapsed) ch.summary = summaryOf(sc.kind);
+    } else ch.summary = summaryOf(sc.kind); // the briefing titles flows and supporting changes only, so this stays
     chapters.push(ch);
   }
 

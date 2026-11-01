@@ -21,8 +21,8 @@ files:
    src/tui/PickerScreen.tsx  @@ -23,6 +23,7 @@  +1 -0 · risk 0 · untested
      orphan: constant change
 
-3. Import-only changes  [imports · collapsed · optional]
-   src/tui/PickerScreen.tsx  @@ -1,4 +1,4 @@  +1 -1 · risk 0 · n/a · imports only
-
-4. Config, infra and docs  [config]
+3. Config, infra and docs  [config]
    docs/usage.md  @@ -4,7 +4,7 @@  +1 -1 · risk 0 · n/a
+
+4. Import-only changes  [imports · collapsed · optional]
+   src/tui/PickerScreen.tsx  @@ -1,4 +1,4 @@  +1 -1 · risk 0 · n/a · imports only

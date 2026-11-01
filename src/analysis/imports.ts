@@ -150,7 +150,7 @@ export function clearImportNoise(hunks: Record<string, Hunk>): void {
 const IMPORTS_CHAPTER_ID = 'imports';
 
 // Moves import-only hunks out of the reading chapters into one optional chapter,
-// placed after the hand-written chapters and before config and generated code.
+// placed after every chapter that is read and before the collapsed ones.
 export function separateImportChapter(chapters: Chapter[], hunks: Record<string, Hunk>): Chapter[] {
   const ids: string[] = [];
   const kept: Chapter[] = [];
@@ -179,7 +179,9 @@ export function separateImportChapter(chapters: Chapter[], hunks: Record<string,
     collapsed: true,
     optional: true,
   };
-  const firstLowPriority = kept.findIndex((c) => !['flow', 'supporting', 'tests'].includes(c.kind));
-  const at = firstLowPriority < 0 ? kept.length : firstLowPriority;
+  // After every chapter that is read (flows, supporting, tests, special kinds and config), at the
+  // head of the collapsed tail.
+  const firstCollapsed = kept.findIndex((c) => c.collapsed);
+  const at = firstCollapsed < 0 ? kept.length : firstCollapsed;
   return [...kept.slice(0, at), chapter, ...kept.slice(at)];
 }
