@@ -52,4 +52,7 @@ jobs:
           if [ "$RUNNER_OS" = "macOS" ]; then brew install ripgrep; else sudo apt-get update && sudo apt-get install -y ripgrep; fi
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:coverage
+      # The terminal tests check gr's screens and keys, which barely depend on the Node version: they
+      # run once per system, on the oldest Node gr supports, rather than in every job.
       - run: pnpm test:e2e
+        if: matrix.node == '22.13.0'
