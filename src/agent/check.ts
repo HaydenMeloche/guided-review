@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { run } from './agent.js';
 import { AGENT_ROLES, configForRole, formatModel, type AgentConfig, type AgentRouting } from './types.js';
+import { withTimeout } from '../util/abort.js';
 
 // A one-turn request to each distinct model a setup routes to, so a wrong key or model name
 // shows up in gr config rather than halfway through the first briefing.
@@ -36,7 +37,7 @@ export function distinctModels(routing: AgentRouting): AgentConfig[] {
 // Runs in an empty directory, so a model that reaches for its tools finds nothing to read.
 export async function checkModels(routing: AgentRouting, opts: { signal?: AbortSignal; runner?: Runner } = {}): Promise<ModelCheck[]> {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'gr-check-'));
-  const signal = opts.signal ? AbortSignal.any([opts.signal, AbortSignal.timeout(CHECK_MS)]) : AbortSignal.timeout(CHECK_MS);
+  const signal = withTimeout(opts.signal, CHECK_MS);
   try {
     return await Promise.all(
       distinctModels(routing).map(async (config) => {

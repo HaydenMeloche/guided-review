@@ -1,4 +1,5 @@
 import type { Provider } from './types.js';
+import { withTimeout } from '../util/abort.js';
 
 // The models setup offers. OpenAI and Anthropic have a fixed list of their current generation
 // (GPT-6, Claude 5.x), newest first; update it when a model ships. Cursor and compatible endpoints
@@ -97,7 +98,7 @@ export function findVariant(option: ModelOption, params: Record<string, string>)
 
 // `key` undefined: Cursor falls back to the SDK's stored login.
 export async function listModels(provider: Provider, opts: { key?: string; baseUrl?: string; signal?: AbortSignal }): Promise<ModelOption[]> {
-  const signal = opts.signal ? AbortSignal.any([opts.signal, AbortSignal.timeout(LIST_MS)]) : AbortSignal.timeout(LIST_MS);
+  const signal = withTimeout(opts.signal, LIST_MS);
   if (provider === 'openai-compatible') {
     if (!opts.baseUrl) throw new Error('no base URL');
     const body = (await getJson(`${opts.baseUrl.replace(/\/+$/, '')}/models`, opts.key ? { authorization: `Bearer ${opts.key}` } : {}, signal)) as { data?: { id: string }[] };

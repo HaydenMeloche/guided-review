@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { defaultApiKeyEnv, type Provider } from './agent/types.js';
+import { withTimeout } from './util/abort.js';
 
 // What first-run setup can find on this machine without asking: model providers that are
 // signed in or have a key, and whether gh is signed in. Every probe is local or a short
@@ -48,8 +49,7 @@ const LOCAL_SERVERS = [
 
 async function localServer(fetchFn: typeof fetch, server: (typeof LOCAL_SERVERS)[number], signal?: AbortSignal): Promise<ProviderFinding | undefined> {
   try {
-    const timeout = AbortSignal.timeout(1500);
-    const res = await fetchFn(`${server.baseUrl}/models`, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
+    const res = await fetchFn(`${server.baseUrl}/models`, { signal: withTimeout(signal, 1500) });
     if (!res.ok) return undefined;
     const body = (await res.json()) as { data?: { id?: unknown }[] };
     const models = (body.data ?? []).map((m) => m.id).filter((id): id is string => typeof id === 'string');

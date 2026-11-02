@@ -10,6 +10,7 @@ import { loadThemeSetting } from '../config.js';
 import { commandLine, fetchReleaseNotes, RELEASES_URL, runInstall, type Install, type Installer, type ReleaseNotes, type UpdateOffer, type UpdateResult } from '../updateCheck.js';
 import { plural } from './plural.js';
 import { holdTerminalInput, SCREEN_RENDER } from './renderOptions.js';
+import { withTimeout } from '../util/abort.js';
 
 // An update, full screen in the user's theme: what's new since the installed version, then the
 // install with its output as it goes, until the next gr is known to be the new version. A failed
@@ -295,7 +296,7 @@ function elsewhereWhy(phase: Extract<Phase, { kind: 'elsewhere' }>): string {
 // release notes load in the background; installing waits on nothing but the user.
 export async function runUpdateScreen(offer: UpdateOffer, then: 'restart' | 'exit'): Promise<UpdateResult> {
   const ac = new AbortController();
-  const notes = offer.notes ? offer.notes() : fetchReleaseNotes(offer.installed, offer.latest, fetch, AbortSignal.any([ac.signal, AbortSignal.timeout(5000)]));
+  const notes = offer.notes ? offer.notes() : fetchReleaseNotes(offer.installed, offer.latest, fetch, withTimeout(ac.signal, 5000));
   let initial = terminalPalette;
   try {
     const theme = loadThemeSetting();

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify, stripVTControlCharacters } from 'node:util';
 import { grHome } from './paths.js';
 import { sanitizeTerminal } from './util/sanitize.js';
+import { withTimeout } from './util/abort.js';
 
 const PACKAGE = '@haydenmeloche/guided-review';
 // The abbreviated package document: the latest version, and whether each version is deprecated.
@@ -372,7 +373,7 @@ export function startUpdateCheck(options: UpdateCheckOptions = {}): UpdateCheck 
   const controller = new AbortController();
   const checkedAt = cache?.checkedAt;
   if (checkedAt === undefined || now() - checkedAt >= CHECK_INTERVAL_MS || checkedAt > now()) {
-    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(options.timeoutMs ?? FETCH_TIMEOUT_MS)]);
+    const signal = withTimeout(controller.signal, options.timeoutMs ?? FETCH_TIMEOUT_MS);
     pending = fetchRegistry(installed, options.fetch ?? fetch, signal).then((info) => {
       if (controller.signal.aborted) return;
       // Record a failed check too, so an offline machine does not retry on every run.
