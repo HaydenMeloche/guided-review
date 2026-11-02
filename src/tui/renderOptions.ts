@@ -11,8 +11,14 @@ const kittyMode = process.env.GR_KITTY_KEYBOARD === 'enabled' || process.env.GR_
 // turns raw mode on. A terminal that answers at once would have its reply echoed onto the screen,
 // as "^[[?0u" in the top-left corner. Call this before render(): with raw mode on from the start,
 // the reply is not echoed, and Ink reads it as it would any key. Ink turns raw mode off on unmount.
+//
+// A question asked on the terminal first (readline, as gr review's "[Y/n]") leaves stdin paused,
+// and Ink's reader does not wake a paused stdin: gr would read no keys, and exit once nothing else
+// kept it running. So stdin is resumed here, for Ink to read.
 export function holdTerminalInput(): void {
-  if (process.stdin.isTTY) process.stdin.setRawMode(true);
+  if (!process.stdin.isTTY) return;
+  process.stdin.setRawMode(true);
+  if (process.stdin.isPaused()) process.stdin.resume();
 }
 
 export const SCREEN_RENDER: RenderOptions = {

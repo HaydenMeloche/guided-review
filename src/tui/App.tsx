@@ -924,9 +924,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     (input, key) => {
       if (key.ctrl && input === 'z') void suspendToShell();
     },
-    // From the first screen on, as the screens' own handlers start: one taking the terminal's
-    // input during the load (straight after gr review's question) leaves Ink without it.
-    { isActive: process.platform !== 'win32' && phase !== 'load' },
+    { isActive: process.platform !== 'win32' },
   );
 
   const quit = () => {
