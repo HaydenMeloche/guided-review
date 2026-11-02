@@ -197,15 +197,17 @@ export function CommentEditor(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layer]);
 
+  // Esc with no list open: cancel, asking first when something was typed.
+  const escape = () => {
+    const typed = st.body.trim() !== props.draft.body.trim() || st.suggestion !== props.draft.suggestion;
+    if (!typed || discardArmed) return props.onCancel();
+    setDiscardArmed(true);
+    patch({ msg: 'esc again to discard · enter to save' });
+  };
+
   useInput(
     (input, key) => {
-      if (key.escape) {
-        if (completing) return;
-        const typed = st.body.trim() !== props.draft.body.trim() || st.suggestion !== props.draft.suggestion;
-        if (!typed || discardArmed) return props.onCancel();
-        setDiscardArmed(true);
-        return patch({ msg: 'esc again to discard · enter to save' });
-      }
+      if (key.escape) return; // the field's, through onEscape
       if (key.ctrl && input === 'x') {
         if (deleteArmed) return props.onDelete ? props.onDelete() : props.onCancel();
         setDeleteArmed(true);
@@ -284,6 +286,7 @@ export function CommentEditor(props: {
       highlightTokens={highlight}
       active={mode === 'text'}
       onPicking={setPicking}
+      onEscape={escape}
       onCompleting={(open) => {
         setCompleting(open);
         // The owner sizes the inline slot by it: an open list gets room for its preview.

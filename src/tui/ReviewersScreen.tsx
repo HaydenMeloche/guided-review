@@ -30,7 +30,6 @@ export function ReviewersScreen(props: { repo: string; number: number; width: nu
   const [sel, setSel] = useState(0);
   const [adding, setAdding] = useState(false);
   const [text, setText] = useState('');
-  const [completing, setCompleting] = useState(false);
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -166,15 +165,6 @@ export function ReviewersScreen(props: { repo: string; number: number; width: nu
     },
     { isActive: !adding },
   );
-  useInput(
-    (_input, key) => {
-      if (key.escape && !completing && !busy) {
-        setError('');
-        setAdding(false);
-      }
-    },
-    { isActive: adding },
-  );
 
   const title = <Text bold>{`Reviewers of ${safe(repo)}#${number}`}</Text>;
   if (!loaded)
@@ -227,7 +217,20 @@ export function ReviewersScreen(props: { repo: string; number: number; width: nu
       {adding ? (
         <Box flexDirection="column">
           <Text>Ask to review:</Text>
-          <TextInput value={text} onChange={setText} onSubmit={ask} width={width - 4} maxRows={2} completers={completers} onCompleting={setCompleting} placeholder={`@alice @${owner}/team`} />
+          <TextInput
+            value={text}
+            onChange={setText}
+            onSubmit={ask}
+            width={width - 4}
+            maxRows={2}
+            completers={completers}
+            onEscape={() => {
+              if (busy) return;
+              setError('');
+              setAdding(false);
+            }}
+            placeholder={`@alice @${owner}/team`}
+          />
         </Box>
       ) : null}
       {busy ? (

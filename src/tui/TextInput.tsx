@@ -48,8 +48,9 @@ interface Results {
 //
 // Completion: when a completer's trigger matches the text before the cursor, a list opens
 // under the field. ↑/↓ choose, Tab or Enter insert (Enter does not submit), Esc closes only
-// the list. Ink calls every active useInput handler, so a parent with its own keys (Esc to
-// cancel, say) keeps the flag from onCompleting in state and skips them while it is true.
+// the list; with no list open, Esc calls onEscape. A parent takes Esc through onEscape rather than
+// its own handler: Ink calls every active handler, and the parent would learn the list opened
+// (onCompleting) only a render later, so an Esc pressed in between would close both.
 //
 // A completer's `instant` rows show at once, above its async rows and while those load; rows
 // with a `group` are headed by a dim group name that the selection skips.
@@ -75,6 +76,7 @@ export function TextInput(props: {
   onCursor?: (n: number) => void;
   completers?: Completer[];
   onCompleting?: (open: boolean) => void;
+  onEscape?: () => void; // Esc with no list open
   onPicking?: (picking: boolean) => void; // the list's preview has the keys, choosing lines
   highlightTokens?: TokenRule[]; // e.g. code spans that name a reference, known @mentions
   // Rows the owner gives the open list, its preview and hint lines together; more than the
@@ -85,9 +87,20 @@ export function TextInput(props: {
   const { value, onChange, active = true } = props;
   const [ownCursor, setOwnCursor] = useState(value.length);
   const c = Math.min(props.cursor ?? ownCursor, value.length);
+  // The text and cursor as the last edit left them. Keys that arrive together are handled
+  // before the next render, so each edit builds on this rather than on the rendered value,
+  // which would drop the edit before it.
+  const typed = useRef({ value, c });
+  typed.current = { value, c };
   const setCursor = (n: number) => {
+    typed.current = { ...typed.current, c: n };
     if (props.cursor === undefined) setOwnCursor(n);
     props.onCursor?.(n);
+  };
+  const edit = (v: string, n: number) => {
+    typed.current = { value: v, c: n };
+    onChange(v);
+    setCursor(n);
   };
 
   const { mentions, completers: given } = props;
@@ -176,20 +189,19 @@ export function TextInput(props: {
   }, [inLines]);
 
   const moveTo = (n: number) => {
-    const m = findCompletion(completers, value.slice(0, n));
+    const m = findCompletion(completers, typed.current.value.slice(0, n));
     quiet.current = m ? `${m.index}:${m.start}:${m.query}` : '';
     setCursor(n);
   };
 
   const insert = (s: string) => {
-    onChange(value.slice(0, c) + s + value.slice(c));
-    setCursor(c + s.length);
+    const { value, c } = typed.current;
+    edit(value.slice(0, c) + s + value.slice(c), c + s.length);
   };
 
   const pick = (item: CompletionItem) => {
     if (!match) return;
-    onChange(value.slice(0, match.start) + item.insert + value.slice(c));
-    setCursor(match.start + item.insert.length);
+    edit(value.slice(0, match.start) + item.insert + value.slice(c), match.start + item.insert.length);
     // An inserted item may still match its trigger; keep the list shut until the token ends.
     if (!item.keepOpen) setDismissed(tokenKey);
     item.onPick?.();
@@ -199,7 +211,7 @@ export function TextInput(props: {
   usePaste(
     (text) => {
       const pasted = text.replace(/\r\n?/g, '\n');
-      const after = findCompletion(completers, value.slice(0, c) + pasted);
+      const after = findCompletion(completers, typed.current.value.slice(0, typed.current.c) + pasted);
       if (after) setDismissed(`${after.index}:${after.start}`);
       insert(pasted);
     },
@@ -242,6 +254,8 @@ export function TextInput(props: {
         if (key.rightArrow) return enterLines();
         if (key.leftArrow) return;
       }
+      if (key.escape) return props.onEscape?.();
+      const { value, c } = typed.current;
       if (key.return && !key.shift) return props.onSubmit?.(value);
       // Tab inside an @ token with no list (nothing matched) does nothing, rather than change the label.
       if (key.tab) return /@\S*$/.test(value.slice(0, c)) ? undefined : props.onTab?.(key.shift);
@@ -250,24 +264,20 @@ export function TextInput(props: {
       if (key.rightArrow) return moveTo(Math.min(value.length, c + 1));
       if (key.backspace || key.delete) {
         if (c === 0) return;
-        onChange(value.slice(0, c - 1) + value.slice(c));
-        return setCursor(c - 1);
+        return edit(value.slice(0, c - 1) + value.slice(c), c - 1);
       }
       if (key.ctrl && input === 'a') return moveTo(0);
       if (key.ctrl && input === 'e') return moveTo(value.length);
-      if (key.ctrl && input === 'u') {
-        onChange(value.slice(c));
-        return setCursor(0);
-      }
+      if (key.ctrl && input === 'u') return edit(value.slice(c), 0);
       if (key.ctrl && input === 'w') {
         const before = value.slice(0, c).replace(/\S+\s*$/, '');
-        onChange(before + value.slice(c));
-        return setCursor(before.length);
+        return edit(before + value.slice(c), before.length);
       }
       if (key.ctrl || key.meta || key.escape || key.tab || key.upArrow || key.downArrow) return;
       if (input) insert(input);
     },
-    { isActive: active },
+    // Typed text arrives whole: a burst of keys is one insert.
+    { isActive: active, text: true },
   );
 
   if (!value && props.placeholder) {

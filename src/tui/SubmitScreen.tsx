@@ -69,7 +69,6 @@ export function SubmitScreen(props: {
   const [previewing, setPreviewing] = useState<Draft>();
   const mentions = useMentions(tour, mode === 'summary', props.loadMentionUsers);
   const highlight = useMemo(() => [mentionHighlight(mentions)].filter((r) => r !== undefined), [mentions]);
-  const [completing, setCompleting] = useState(false); // TextInput's list owns Esc while open
 
   const checklist = props.checklist ?? [];
   const confirmed = checklist.filter((c) => props.confirms?.[c.id]);
@@ -127,8 +126,6 @@ export function SubmitScreen(props: {
     setMode('preview');
   }
 
-  useInput((_i, key) => key.escape && setMode('list'), { isActive: mode === 'summary' && !completing });
-
   const listRoom = Math.max(3, props.height - 14 - unread.length);
 
   if (mode === 'help') return <Help title="submit" sections={helpOf(SUBMIT_KEYS)} width={width} height={props.height} onClose={() => setMode('list')} />;
@@ -177,7 +174,7 @@ export function SubmitScreen(props: {
             maxRows={4}
             mentions={mentions}
             highlightTokens={highlight}
-            onCompleting={setCompleting}
+            onEscape={() => setMode('list')}
           />
         ) : (
           <Text dimColor={!summary}>{safe(summary) || '(none — w to write one)'}</Text>

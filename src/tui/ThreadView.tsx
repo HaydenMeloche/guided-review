@@ -45,7 +45,6 @@ export function ThreadView(props: {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false); // Enter in the reply asks before posting
   const [resolving, setResolving] = useState(false); // Z asks before resolving or unresolving
-  const [completing, setCompleting] = useState(false); // the mention list owns Esc while open
   const [error, setError] = useState('');
   const thread = props.threads[selected];
   // Known @mentions in the reply read as usernames.
@@ -127,7 +126,6 @@ export function ThreadView(props: {
       return;
     }
     if (composing) {
-      if (key.escape && !busy && !completing) setComposing(false);
       if (key.pageDown) setScroll((n) => Math.min(maxScroll, n + visible));
       if (key.pageUp) setScroll((n) => Math.max(0, n - visible));
       return;
@@ -196,7 +194,7 @@ export function ThreadView(props: {
               maxRows={inputRows}
               mentions={props.mentions}
               highlightTokens={mentionRules}
-              onCompleting={setCompleting}
+              onEscape={() => setComposing(false)}
               placeholder="Write a reply…"
               active={!busy && !confirming}
             />

@@ -1,7 +1,8 @@
 import React from 'react';
 import { render } from 'ink-testing-library';
 import { describe, expect, it, vi } from 'vitest';
-import { KeysLive } from '../src/tui/input.js';
+import type { Key } from 'ink';
+import { KeysLive, keypresses } from '../src/tui/input.js';
 import { SubmitScreen } from '../src/tui/SubmitScreen.js';
 import { TourIntro } from '../src/tui/TourIntro.js';
 import { hunk, tour } from './fixtures/tour.js';
@@ -44,5 +45,30 @@ describe('keys while App asks a question', () => {
     await tick();
     expect(onBack).not.toHaveBeenCalled();
     ui.unmount();
+  });
+});
+
+// Keys that arrive together reach Ink as one input; screens see them one at a time.
+describe('keys that arrive together', () => {
+  it('quits on a Q that came in with the key before it', async () => {
+    const onQuit = vi.fn();
+    const ui = render(<TourIntro width={60} height={14} lines={() => ['acme/app#42']} onBack={() => {}} onQuit={onQuit} />);
+    await tick();
+    ui.stdin.write('xQ');
+    await tick();
+    expect(onQuit).toHaveBeenCalled();
+    ui.unmount();
+  });
+
+  it('splits a run of plain characters, with Enter, Tab and capitals as their own keys', () => {
+    const key = { ctrl: false, meta: false, escape: false, return: false, tab: false, backspace: false, delete: false, shift: false } as Key;
+    expect(keypresses('j', key)).toEqual([['j', key]]);
+    expect(keypresses('nQ\r\t', key).map(([input, k]) => [input, k.shift, k.return, k.tab])).toEqual([
+      ['n', false, false, false],
+      ['Q', true, false, false],
+      ['', false, true, false],
+      ['', false, false, true],
+    ]);
+    expect(keypresses('ab', { ...key, ctrl: true })).toHaveLength(1);
   });
 });

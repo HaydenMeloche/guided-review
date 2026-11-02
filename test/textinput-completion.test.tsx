@@ -635,3 +635,14 @@ describe('CommentEditor with a completion list', () => {
     ui.unmount();
   });
 });
+
+// Keys that arrive together are handled before the field renders again; each builds on the last.
+describe('keys that arrive together', () => {
+  it.each([false, true])('keeps every edit (controlled cursor: %s)', async (controlled) => {
+    const ui = render(<Harness controlled={controlled} />);
+    await waitFor(() => expect(ui.lastFrame()).toContain('value=[]'));
+    ui.stdin.write('ab\u007fc');
+    await waitFor(() => expect(ui.lastFrame()).toContain('value=[ac]'));
+    ui.unmount();
+  });
+});
