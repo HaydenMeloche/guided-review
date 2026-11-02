@@ -46,7 +46,9 @@ export function sandbox(): Sandbox {
     root,
     env,
     ghCalls: () => (fs.existsSync(ghLog) ? fs.readFileSync(ghLog, 'utf8').trim().split('\n').filter(Boolean) : []),
-    cleanup: () => fs.rmSync(root, { recursive: true, force: true }),
+    // A killed gr can still be saving its state as it exits, adding files while they are removed
+    // (ENOTEMPTY on a slow machine); rmSync retries for that.
+    cleanup: () => fs.rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
   };
 }
 
