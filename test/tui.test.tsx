@@ -718,7 +718,7 @@ describe('ChapterScreen', () => {
     ui.stdin.write('n');
     await waitFor(() => expect(ui.lastFrame()).toContain('The same change, 3 times in app.test.ts'));
     expect(ui.lastFrame()).toContain('+ anyOrNull(),');
-    expect(ui.lastFrame()).toContain('2 other hunks making it are still unread.');
+    expect(ui.lastFrame()).toContain('The other 2 are unread.');
     expect(ui.lastFrame()).toContain('read all 3');
     expect(states).toEqual({});
     ui.stdin.write('y');
@@ -751,12 +751,12 @@ describe('ChapterScreen', () => {
     const ui = render(<Harness tour={copiesTour()} onDraft={() => {}} onState={(s) => (states = s)} />);
     await waitFor(() => expect(ui.lastFrame()).toContain('hunk 1/4'));
     ui.stdin.write('n');
-    await waitFor(() => expect(ui.lastFrame()).toContain('still unread'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('are unread'));
     ui.stdin.write('\u001b');
-    await waitFor(() => expect(ui.lastFrame()).not.toContain('still unread'));
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('are unread'));
     expect(ui.lastFrame()).toContain('hunk 1/4');
     ui.stdin.write('n');
-    await waitFor(() => expect(ui.lastFrame()).toContain('still unread'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('are unread'));
     ui.stdin.write('\r');
     await waitFor(() => expect(ui.lastFrame()).toContain('hunk 2/4'));
     expect(states).toEqual({ chg: 'read' });

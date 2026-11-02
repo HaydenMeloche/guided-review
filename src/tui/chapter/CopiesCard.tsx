@@ -20,6 +20,13 @@ export const copiesCardHeight = (changed: number, files: number) => 8 + listed(c
 
 const base = (file: string) => file.split('/').pop() ?? file;
 
+// How many of the other copies of this change are unread: "The other 2 are unread." when all of
+// them are, "2 of the other 4 are unread." when some were read already.
+export function unreadLine(unread: number, others: number): string {
+  if (unread === others) return `The other ${unread === 1 ? 'one is' : `${unread} are`} unread.`;
+  return `${unread} of the other ${others} ${unread === 1 ? 'is' : 'are'} unread.`;
+}
+
 // n on a hunk whose change other unread hunks make too, in this file or others: y reads them all,
 // Enter just this one, and any other key stays on it. files: where the copies are, this one's first.
 export function CopiesCard(props: { files: string[]; changed: DiffLine[]; unread: number; total: number; width: number; onAll: () => void; onOne: () => void; onClose: () => void }) {
@@ -50,7 +57,7 @@ export function CopiesCard(props: { files: string[]; changed: DiffLine[]; unread
       ))}
       {more ? <Text dimColor>{`  and ${plural(more, 'more line')}`}</Text> : null}
       <Text> </Text>
-      <Text wrap="truncate">{`${plural(props.unread, 'other hunk')} making it ${props.unread === 1 ? 'is' : 'are'} still unread.`}</Text>
+      <Text wrap="truncate">{unreadLine(props.unread, props.total - 1)}</Text>
       <Text> </Text>
       <Hints
         keys={[
