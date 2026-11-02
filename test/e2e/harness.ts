@@ -33,6 +33,12 @@ export function sandbox(): Sandbox {
     TERM: 'xterm-256color',
     LANG: 'en_US.UTF-8',
     GIT_CONFIG_NOSYSTEM: '1',
+    // A fixed identity, so a commit never depends on the one git guesses from the machine:
+    // it can guess one on a laptop but not on CI, where a test that forgot one fails.
+    GIT_AUTHOR_NAME: 'Test',
+    GIT_AUTHOR_EMAIL: 'test@example.com',
+    GIT_COMMITTER_NAME: 'Test',
+    GIT_COMMITTER_EMAIL: 'test@example.com',
     GR_NO_UPDATE_CHECK: '1',
   };
   fs.mkdirSync(env.HOME!);
