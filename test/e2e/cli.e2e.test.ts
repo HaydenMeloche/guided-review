@@ -205,7 +205,9 @@ describe('gr with a terminal', () => {
     const session = startGr(box, ['review', '--no-agent'], { cwd: fixtureRepo(box) });
     await session.waitFor('[Y/n]');
     session.press(KEY.enter);
-    await session.waitFor('feature/discount (preview)');
+    // The briefing: the loading card before it shows the branch too, and takes only q.
+    await session.waitFor('Chapters · Guided order');
+    expect(session.screen()).toContain('feature/discount (preview)');
     session.press('n');
     await session.waitFor(/hunk 1\/1/);
   });
