@@ -18,7 +18,6 @@ describe('buildChapters', () => {
     // The paired test's diff follows the code it tests.
     expect(flow.hunkIds).toEqual([h('src/routes/invoices.ts'), h('src/types.ts'), h('src/services/invoice.ts'), h('src/db/invoiceRepo.ts'), h('test/invoice.test.ts')]);
     expect(flow.risk).toBe(2);
-    expect(flow.untestedBranches.some((b) => b.includes('if (total < 0)'))).toBe(true);
     expect(flow.diagram?.kind).toBe('call');
     expect(flow.diagram?.nodes.length).toBeGreaterThanOrEqual(4);
     expect(notes).toEqual([]);
@@ -206,7 +205,6 @@ describe('splitByDirectory', () => {
       hunkIds: ['a', 'b', 'c'],
       linkedHunkIds: ['c'],
       orphanReasons: { a: 'constant change', b: 'dead code removal' },
-      untestedBranches: ['packages/foo/a.ts:3 if (x)', 'packages/bar/b.ts:9 else'],
       diagram: { kind: 'call', title: 'T', nodes: [], edges: [] },
       collapsed: false,
     };
@@ -218,9 +216,8 @@ describe('splitByDirectory', () => {
       risk: 1,
       orphanReasons: { a: 'constant change' },
       linkedHunkIds: ['c'],
-      untestedBranches: ['packages/foo/a.ts:3 if (x)'],
     });
-    expect(bar).toMatchObject({ id: 'c2-2', hunkIds: ['b'], risk: 3, linkedHunkIds: [], untestedBranches: ['packages/bar/b.ts:9 else'] });
+    expect(bar).toMatchObject({ id: 'c2-2', hunkIds: ['b'], risk: 3, linkedHunkIds: [] });
     expect(foo.diagram).toBeUndefined();
   });
 });

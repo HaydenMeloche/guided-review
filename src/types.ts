@@ -134,7 +134,6 @@ export interface Chapter {
   hunkIds: string[]; // reading order
   linkedHunkIds: string[]; // shared code owned by an earlier chapter, linked from here
   orphanReasons: Record<string, string>; // supporting chapter: hunkId -> one-line reason
-  untestedBranches: string[];
   collapsed: boolean; // low-priority kinds start collapsed to one-line summaries
   folded?: string[]; // hunks read as one summary on the chapter's opening page (lockfiles with no changed manifest, in the dependencies chapter); the rest follow it
   lockPairs?: LockPair[]; // dependencies chapter: lockfiles read on the pages of the manifests they lock

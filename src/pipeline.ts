@@ -231,7 +231,7 @@ const CHECKLIST_STATUSES: ChecklistStatus[] = ['pass', 'fail', 'unknown'];
 // the hunks the result narrated are new objects; everything else keeps its identity.
 // `minorIds` share the result's summary entry; `sharedRiskIds` also take its risk (a lockfile
 // pair's manifest hunks, whose one narration is that entry).
-export function applyChapterResult(tour: Tour, chapterId: string, r: ChapterResult, opts: { minorIds?: string[]; sharedRiskIds?: string[]; untestedBranches?: string[] } = {}): Tour {
+export function applyChapterResult(tour: Tour, chapterId: string, r: ChapterResult, opts: { minorIds?: string[]; sharedRiskIds?: string[] } = {}): Tour {
   const idx = tour.chapters.findIndex((c) => c.id === chapterId);
   if (idx < 0) return tour;
   const old = tour.chapters[idx];
@@ -270,8 +270,6 @@ export function applyChapterResult(tour: Tour, chapterId: string, r: ChapterResu
     }
   }
   if (orphanReasons) chapter.orphanReasons = orphanReasons;
-  if (opts.untestedBranches) chapter.untestedBranches = opts.untestedBranches.map(fix);
-  else if (r.untestedBranches?.length) chapter.untestedBranches = r.untestedBranches.map(fix);
   if (r.checklist?.length && old.checklist) {
     const results = new Map(r.checklist.map((c) => [c.id, c]));
     // Checklist status is the model's pre-check only (see ChecklistItem.status); the reviewer's
@@ -317,7 +315,6 @@ function applyBriefing(tour: Tour, brief: Awaited<ReturnType<typeof analyzeBrief
       ...c,
       ...(b ? { title: b.title } : {}),
       summary: fixOpt(b ? b.summary : c.summary),
-      untestedBranches: c.untestedBranches.map(fix),
       orphanReasons: Object.fromEntries(Object.entries(c.orphanReasons).map(([k, v]) => [k, fix(v)])),
       ...(c.checklist ? { checklist: c.checklist.map((it) => ({ ...it, reason: fixOpt(it.reason) })) } : {}),
     };
@@ -536,8 +533,6 @@ export async function runPipeline(opts: PipelineOptions): Promise<Tour> {
               const id = start.id;
               const batches = chapterBatches(tour, start);
               const multi = batches.length > 1;
-              const staticBranches = start.untestedBranches;
-              const branches: string[][] = [];
               // Every batch runs at once (within the call limit). With several batches the
               // model's hunkOrder is dropped and only batch 0's diagram is kept, so no batch
               // depends on another.
@@ -560,9 +555,7 @@ export async function runPipeline(opts: PipelineOptions): Promise<Tour> {
                     const value = { ...r.value };
                     if (multi) delete value.hunkOrder;
                     if (i > 0) delete value.diagram;
-                    branches[i] = value.untestedBranches ?? [];
-                    const merged = branches.flat();
-                    tour = applyChapterResult(tour, id, value, { minorIds, sharedRiskIds, untestedBranches: multi ? (merged.length ? merged : staticBranches) : undefined });
+                    tour = applyChapterResult(tour, id, value, { minorIds, sharedRiskIds });
                     opts.onTour(tour);
                   }),
                 ),

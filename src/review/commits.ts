@@ -127,7 +127,6 @@ export function commitChapters(tour: Pick<Tour, 'hunks' | 'chapters'>, commits: 
     hunkIds,
     linkedHunkIds: [],
     orphanReasons: {},
-    untestedBranches: [],
     collapsed: false,
     optional: hunkIds.length > 0 && hunkIds.every((h) => tour.hunks[h]?.importOnly),
   });

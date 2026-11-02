@@ -36,25 +36,8 @@ function newChapter(id: string, kind: ChapterKind, title: string, hunkIds: strin
     hunkIds,
     linkedHunkIds: [],
     orphanReasons: {},
-    untestedBranches: [],
     collapsed: false,
   };
-}
-
-const BRANCH = /^\s*(?:\}\s*)?(?:if\b|else\b|switch\b|case\b|catch\b|elif\b|except\b|match\b)|\?\s*[^:]+:/;
-
-function untestedBranches(ids: string[], hunks: Record<string, Hunk>): string[] {
-  const out: string[] = [];
-  for (const id of ids) {
-    const h = hunks[id];
-    if (!h || h.coverage === 'tested') continue;
-    for (const l of h.lines) {
-      if (l.kind === 'add' && l.newLine && BRANCH.test(l.text)) {
-        out.push(`${h.file}:${l.newLine} ${l.text.trim().slice(0, 60)}`);
-      }
-    }
-  }
-  return out.slice(0, 20);
 }
 
 function orphanReason(h: Hunk, file: DiffFile | undefined, decls: Decl[]): string {
@@ -466,7 +449,6 @@ export function buildChapters(files: DiffFile[], hunks: Record<string, Hunk>, in
     ch.entryPoint = name ? `${e.reason} (${name})` : e.reason;
     entryHunkOf.set(id, e.hunkId);
     ch.linkedHunkIds = linked;
-    ch.untestedBranches = untestedBranches(ordered, hunks);
     ch.lowConfidence = r.naming || index.lowConfidence || undefined;
     ch.diagram =
       callDiagram(ch.title, [...ordered, ...linked], index, declByQ) ??
@@ -501,7 +483,6 @@ export function buildChapters(files: DiffFile[], hunks: Record<string, Hunk>, in
   if (logicHunks.length && !flows.length) {
     notes.push('No entry point found: chapters use file order by kind.');
     const ch = newChapter(nextId(), 'flow', 'Hand-written logic (file order)', logicHunks, hunks);
-    ch.untestedBranches = untestedBranches(logicHunks, hunks);
     ch.lowConfidence = true;
     ch.diagram = entityDiagram(ch.title, logicFiles, hunks) ?? depsDiagram(ch.title, logicFiles, hunks);
     for (const h of logicHunks) owner.set(h, ch.id);
@@ -517,7 +498,6 @@ export function buildChapters(files: DiffFile[], hunks: Record<string, Hunk>, in
       const decls = (index.hunkDecls[id] ?? []).map((q) => declByQ.get(q)).filter((d): d is Decl => !!d);
       ch.orphanReasons[id] = orphanReason(hunks[id], fileOf.get(id), decls);
     }
-    ch.untestedBranches = untestedBranches(orphans, hunks);
     ch.diagram = entityDiagram(
       ch.title,
       files.filter((f) => f.hunkIds.some((h) => orphanSet.has(h))),
@@ -734,8 +714,6 @@ export function splitByDirectory(chapters: Chapter[], hunks: Record<string, Hunk
         risk: maxRisk(ids, hunks),
         orphanReasons: Object.fromEntries(Object.entries(c.orphanReasons).filter(([id]) => own.has(id))),
         linkedHunkIds: c.linkedHunkIds.filter((id) => files.has(hunks[id]?.file ?? '')),
-        // Branches read `file:line text`.
-        untestedBranches: c.untestedBranches.filter((b) => [...files].some((f) => b.startsWith(`${f}:`))),
         // The parent's diagram spans every directory.
         diagram: undefined,
       };

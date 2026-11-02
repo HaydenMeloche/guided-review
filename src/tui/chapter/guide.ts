@@ -101,9 +101,8 @@ export function explanation(
   }
   const nameGuess = hunk?.tests.find((t) => t.source === 'naming');
   const hint = hunk && !o.linkedTests ? noTestHint(hunk, nameGuess?.testFile) : undefined;
-  const untestedBranches = hi <= 0 ? chapter.untestedBranches : [];
   const callers = hunk ? callersLine(tour.blastRadius.filter((b) => b.hunkId === hunk.id)) : undefined;
-  const testGapSummary = [hint ? 'No linked test' : '', untestedBranches.length ? `${plural(untestedBranches.length, 'possible untested behavior')}` : ''].filter(Boolean).join(' · ');
+  const testGapSummary = hint ? 'No linked test' : '';
   return [
     // Narration waits on the briefing, so a tour still being briefed is not plain.
     ...guideLines(narration, !!hunk?.narrationInferred, chapterNotes, width, o.writingBriefing ? 'agent' : tour.mode, !!hunk),
@@ -112,12 +111,7 @@ export function explanation(
       ? [
           ...(callers ? [] : [[]]),
           line(truncate(`○ ${testGapSummary} · U: ${o.showUntested ? 'hide' : 'details'}`, width), { color: 'red' }),
-          ...(o.showUntested
-            ? [
-                ...(hint ? wrap(safe(hint), width).map((t) => line(t, { dim: true })) : []),
-                ...untestedBranches.flatMap((b) => wrap(safe(`Untested: ${b}`), width).map((t) => line(t, { color: 'yellow' }))),
-              ]
-            : []),
+          ...(o.showUntested ? [...(hint ? wrap(safe(hint), width).map((t) => line(t, { dim: true })) : [])] : []),
         ]
       : []),
   ];

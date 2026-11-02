@@ -492,14 +492,16 @@ describe('ChapterScreen', () => {
 
   it('keeps test gap details collapsed until requested', async () => {
     const tour = fixtureTour();
-    tour.chapters[0].untestedBranches = ['src/routes/invoices.ts:8 — failed invoice creation'];
+    const first = tour.hunks[tour.chapters[0].hunkIds[0]];
+    first.tests = [];
+    first.coverage = 'untested';
     const ui = render(<Harness tour={tour} onDraft={() => {}} onState={() => {}} />);
-    await waitFor(() => expect(ui.lastFrame()).toContain('1 possible untested behavior'));
-    expect(ui.lastFrame()).not.toContain('failed invoice creation');
+    await waitFor(() => expect(ui.lastFrame()).toContain('No linked test · U: details'));
+    expect(ui.lastFrame()).not.toContain('No linked test case found');
     ui.stdin.write('U');
-    await waitFor(() => expect(ui.lastFrame()).toContain('failed invoice creation'));
+    await waitFor(() => expect(ui.lastFrame()).toContain('No linked test case found'));
     ui.stdin.write('U');
-    await waitFor(() => expect(ui.lastFrame()).not.toContain('failed invoice creation'));
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('No linked test case found'));
     ui.unmount();
   });
 
@@ -1602,7 +1604,6 @@ describe('optional import chapter', () => {
       hunkIds: [imp.id],
       linkedHunkIds: [],
       orphanReasons: {},
-      untestedBranches: [],
       collapsed: true,
       optional: true,
     });

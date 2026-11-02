@@ -290,7 +290,6 @@ const chapterSchema = {
         required: ['id', 'narration', 'citesCode'],
       },
     },
-    untestedBranches: { type: 'array', items: { type: 'string' } },
     checklist: {
       type: 'array',
       description: 'pre-check of each team checklist item given, by id',
@@ -314,7 +313,6 @@ export interface BriefingResult {
 export interface ChapterResult {
   hunkOrder?: string[];
   hunks: { id: string; narration: string; citesCode: boolean; risk?: number; riskReason?: string; orphanReason?: string }[];
-  untestedBranches?: string[];
   diagram?: Graph;
   checklist?: { id: string; status: 'pass' | 'fail' | 'unknown'; reason?: string }[];
 }

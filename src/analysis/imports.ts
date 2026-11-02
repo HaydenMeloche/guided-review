@@ -175,7 +175,6 @@ export function separateImportChapter(chapters: Chapter[], hunks: Record<string,
     hunkIds: [...new Set(ids)],
     linkedHunkIds: [],
     orphanReasons: {},
-    untestedBranches: [],
     collapsed: true,
     optional: true,
   };

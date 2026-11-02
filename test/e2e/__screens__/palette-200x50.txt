@@ -2,7 +2,7 @@
 ‹inv›1 ‹/›‹bright-black,inv›·‹/›‹inv› createOrder          ‹/›‹dim,inv›▱▱▱▱  0/3‹/›‹inv› ‹/›‹yellow,inv›▲‹/› ‹blue,b›createOrder‹/›‹dim› · hunk 1/3 · ‹/›‹bright-black›· ‹/›src/orders.ts:1‹dim› · entry exported API (createOrder)‹/›
 ‹dim›2‹/› ‹bright-black›·‹/› Dependencies and ru… ‹dim›▱▱▱▱  0/1‹/›   ‹bright-black›▎ ‹/›‹dim›Plain mode: no narration.‹/›
 ‹dim›3‹/› ‹bright-black›·‹/› Config, infra and d… ‹dim›▱▱▱▱  0/1‹/›   ‹bright-black›▎ ‹/›
-                                     ‹bright-black›▎ ‹/›‹red›○ No linked test · 2 possible untested behaviors · U: details‹/›
+                                     ‹bright-black›▎ ‹/›‹red›○ No linked test · U: details‹/›
 
                                       ‹dim›   1    1 │ ‹/›  ‹c73›import ‹/›‹c145›{‹/›‹c73› ‹/›quote‹c145›,‹/›‹c73› type ‹/›LineItem‹c73› ‹/›‹c145›}‹/›‹c73› from ‹/›‹c222›'./pricing'‹/›‹c145›;‹/›
                                       ‹dim›   2    2 │ ‹/›

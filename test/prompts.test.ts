@@ -49,7 +49,7 @@ describe('hunk rendering in chapter prompts', () => {
     const registry = chapterPrompt(t, t.chapters[0]);
     expect(registry).toContain('## Changed tests in other chapters');
     expect(registry).toContain('- src/test/ProviderTest.kt (chapter "Provider"): findLoaders, findMappedLoaders');
-    expect(registry).toContain('neither a linked test nor a changed test in another chapter');
+    expect(registry).toContain('Before saying that code here has no test');
     // The chapter that holds the test file does not list it.
     expect(chapterPrompt(t, t.chapters[1])).not.toContain('## Changed tests in other chapters');
   });

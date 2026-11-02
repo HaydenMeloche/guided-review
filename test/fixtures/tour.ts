@@ -72,7 +72,7 @@ export function filesFor(hunks: Hunk[], kinds: Record<string, DiffFile['kind']> 
 }
 
 export function chapter(id: string, hunkIds: string[], extra: Partial<Chapter> = {}): Chapter {
-  return { id, kind: 'flow', title: id, risk: 0, hunkIds, linkedHunkIds: [], orphanReasons: {}, untestedBranches: [], collapsed: false, ...extra };
+  return { id, kind: 'flow', title: id, risk: 0, hunkIds, linkedHunkIds: [], orphanReasons: {}, collapsed: false, ...extra };
 }
 
 // A tour over `hunks`. Chapters default to ids c0, c1, ... and titles "Chapter N".
