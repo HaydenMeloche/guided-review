@@ -59,8 +59,16 @@ async function chapterReady(gr: Session) {
   return gr.idle();
 }
 
+// A key's frame can come after the quiet gap idle() waits for (a slow machine, busy rendering), so
+// the screen is read again until it matches its golden file, for up to 5s, before it is compared.
+// A real change still fails, 5s later; with -u there is nothing to wait for.
 async function snap(gr: Session, name: string, cols: number, rows: number) {
-  await expect(stable(gr.screenWithAttrs()) + '\n').toMatchFileSnapshot(file(name, cols, rows));
+  const golden = file(name, cols, rows);
+  const updating = (expect.getState().snapshotState as unknown as { _updateSnapshot?: string })._updateSnapshot === 'all';
+  const want = !updating && fs.existsSync(golden) ? fs.readFileSync(golden, 'utf8') : undefined;
+  const now = () => stable(gr.screenWithAttrs()) + '\n';
+  for (const until = Date.now() + 5000; want !== undefined && now() !== want && Date.now() < until;) await new Promise((resolve) => setTimeout(resolve, 50));
+  await expect(now()).toMatchFileSnapshot(golden);
 }
 
 describe.each(SIZES)('screens at %ix%i', (cols, rows) => {
