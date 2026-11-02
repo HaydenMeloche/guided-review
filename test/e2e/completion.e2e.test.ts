@@ -19,6 +19,9 @@ beforeEach(() => {
   fs.mkdirSync(repo);
   const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, env: box.env });
   git('init', '-q', '-b', 'main');
+  git('config', 'user.name', 'Test');
+  git('config', 'user.email', 'test@example.com');
+  git('config', 'commit.gpgsign', 'false');
   git('commit', '-q', '--allow-empty', '-m', 'start');
   git('branch', 'feature-x');
 });
