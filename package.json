@@ -48,6 +48,7 @@
     "build": "tsc -p .",
     "dev": "GR_HOME=${GR_HOME:-$(pwd)/.gr-dev} tsx src/cli.tsx",
     "reset:db": "node -e \"const fs=require('node:fs'); const path=require('node:path'); const dir=process.env.GR_HOME ?? path.resolve('.gr-dev'); for (const suffix of ['', '-wal', '-shm']) fs.rmSync(path.join(dir,'gr.db'+suffix),{force:true}); console.log('Guided Review database reset in '+dir+'.');\"",
+    "demo:record": "scripts/demo.sh",
     "backtest": "GR_HOME=${GR_HOME:-$(pwd)/.gr-dev} node --import tsx --disable-warning=ExperimentalWarning scripts/backtest-chapters.ts",
     "typecheck": "tsc -p . --noEmit && tsc -p tsconfig.test.json",
     "test": "vitest run --project unit",

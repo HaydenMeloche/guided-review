@@ -14,7 +14,7 @@ As you review, you can ask an AI model about any line, generate diagrams of the 
 
 An AI model is optional. Without one, the tour is built from static analysis alone and nothing leaves your machine.
 
-<p align="center"><img src="docs/images/chapter.webp" alt="A Guided Review chapter: the chapter list, an explanation of the hunk, the changed code with review threads, and linked tests side by side" width="900"></p>
+<p align="center"><img src="docs/images/demo.gif" alt="A Guided Review tour: the briefing with chapters and an overview diagram, then a chapter where a question about the code gets an answer" width="900"></p>
 
 ## Installation
 
