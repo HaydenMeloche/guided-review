@@ -1,5 +1,7 @@
+import { use, useEffect } from 'react';
 import { Box, Text, useTheme } from './themed.js';
 import { SURFACES, TERMINAL_THEME } from './theme.js';
+import { AnchorContext, EmphasizedKey, InAnchor } from './tutor/anchors.js';
 
 // A key named in a hint, lightly accented so it stands out from the dim text around it. Keep
 // it out of a dimColor parent: Ink dims nested text too.
@@ -13,7 +15,14 @@ export function Key(props: { k: string }) {
 
 // A key in a bar, drawn as a keycap on the popup surface; with the terminal's colors, which
 // have no surface to draw it on, bold cyan.
-function Cap(props: { k: string; themed: boolean }) {
+function Cap(props: { k: string; themed: boolean; emphasized?: boolean }) {
+  // The key the tutor asks for, inverted so it is found at a glance.
+  if (props.emphasized)
+    return (
+      <Text color="cyan" bold inverse>
+        {props.themed ? ` ${props.k} ` : props.k}
+      </Text>
+    );
   return props.themed ? (
     <Text backgroundColor={SURFACES.popup} color="cyan" bold>
       {` ${props.k} `}
@@ -24,6 +33,9 @@ function Cap(props: { k: string; themed: boolean }) {
     </Text>
   );
 }
+
+// Whether a hint shows the key the tutor asks for: itself, or one of a pair such as n/p.
+const lit = (k: string, emph: string | undefined) => !!emph && (k === emph || k.split('/').includes(emph));
 
 const useCaps = () => useTheme().name !== TERMINAL_THEME;
 
@@ -87,9 +99,15 @@ const KEYS_ROOM = 24;
 export function KeyBar(props: { keys: Hint[]; end?: Hint[]; extraEnd?: Hint[]; status?: string; width: number; accent?: boolean }) {
   const themed = useCaps();
   const cap = themed ? 2 : 0;
+  // In the tutor, the screen's own bar (not a popup's) inverts the key it asks for, and says
+  // which column that key is in, for the tutor's arrow.
+  const own = use(InAnchor) === 'keybar';
+  const emphasized = use(EmphasizedKey);
+  const registry = use(AnchorContext);
+  const emph = own ? emphasized : undefined;
   const hint = ([k, label]: Hint, i: number) => (
     <Text key={`${k}:${i}`}>
-      <Cap k={k} themed={themed} />
+      <Cap k={k} themed={themed} emphasized={lit(k, emph)} />
       <Text>{` ${label}`}</Text>
       {GAP}
     </Text>
@@ -99,7 +117,39 @@ export function KeyBar(props: { keys: Hint[]; end?: Hint[]; extraEnd?: Hint[]; s
   const extra = props.extraEnd ?? [];
   const end = extra.length && props.width - 1 - fixed - widthOf(extra) >= KEYS_ROOM ? [...extra, ...(props.end ?? [])] : (props.end ?? []);
   const endWidth = widthOf(end) + (props.status ? props.status.length + GAP.length : 0);
-  const { shown, dropped } = fitHints(props.keys, props.width - 1 - endWidth, cap);
+  const room = props.width - 1 - endWidth;
+  let { shown, dropped } = fitHints(props.keys, room, cap);
+  // The key the tutor asks for stays on the bar: when it would be under +N more, it goes first.
+  if (emph && !shown.some((h) => h !== 'sep' && lit(h[0], emph))) {
+    const asked = props.keys.filter((h) => lit(h[0], emph));
+    if (asked.length) ({ shown, dropped } = fitHints([...asked, ...props.keys.filter((h) => !asked.includes(h))], room, cap));
+  }
+  // The emphasized key's column: one space, then the hints and separators before it.
+  let column: number | undefined;
+  if (emph) {
+    let x = 1;
+    for (const h of shown) {
+      if (h !== 'sep' && lit(h[0], emph)) {
+        column = x + (themed ? 1 : 0);
+        break;
+      }
+      x += h === 'sep' ? SEP.length : size(h, cap);
+    }
+  }
+  // Or among the hints at the right end, which end at the bar's edge.
+  if (emph && column === undefined) {
+    let x = props.width - widthOf(end);
+    for (const h of end) {
+      if (lit(h[0], emph)) {
+        column = x + (themed ? 1 : 0);
+        break;
+      }
+      x += size(h, cap);
+    }
+  }
+  useEffect(() => {
+    if (own) registry?.column('keybar', column);
+  }, [own, registry, column]);
   return (
     <Box width={props.width}>
       <Text wrap="truncate">

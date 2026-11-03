@@ -1,0 +1,50 @@
+ ‹dim› demo/shop #0 Add discount codes to quotes and orders (demo)  @you · 1071624f · guided‹/›                                                                       ‹dim›  briefing · ▱▱▱▱▱▱▱▱▱▱▱▱ 0% · 0/9 hunks ‹/›
+
+ ‹dim›Chapters‹/›‹cyan,dim› · Guided order‹/›‹dim› · 0/9 hunks done · ‹/›‹cyan,dim›f‹/› ‹dim›──────────────────────────────────────────────────────────────────────────‹/›  ‹bright-black›│‹/› ‹dim›Overview · ‹/›‹cyan,dim›d‹/›‹dim› to explore‹/› ‹dim›───────────────────────────────────────────────────‹/›
+ ‹cyan,dim,inv› 1 ‹/›‹bright-black,dim,inv›·‹/›‹dim,inv› Taking a code at POST /orders                                                                 ▱▱▱▱   0/1  ‹/›‹green,dim,inv› +1‹/›‹dim,inv› ‹/›‹red,dim,inv›−1 ‹/›   ‹bright-black›│‹/› ‹yellow,dim›╭─────────────╮‹/›‹dim›   ‹/›‹yellow,dim›╭───────────────╮‹/›‹dim›   ‹/›‹yellow,dim›╭──────────────╮‹/›
+ ‹dim› 2 ‹/›‹bright-black,dim›·‹/›‹dim› Pricing an order with a discount                                                              ▱▱▱▱   0/3  ‹/›‹green,dim›+31‹/›‹dim› ‹/›‹red,dim›−12‹/›   ‹bright-black›│‹/› ‹yellow,dim›│‹/›‹dim› ‹/›‹yellow,dim›createOrder‹/›‹dim› ‹/›‹yellow,dim›│‹/›‹dim›   ‹/›‹yellow,dim›│‹/›‹dim› ‹/›‹yellow,dim›formatReceipt‹/›‹dim› ‹/›‹yellow,dim›│‹/›‹dim›   ‹/›‹yellow,dim›│‹/›‹dim› ‹/›‹yellow,dim›POST‹/›‹dim› ‹/›‹yellow,dim›/orders‹/›‹dim› ‹/›‹yellow,dim›│‹/›
+ ‹dim› 3 ‹/›‹bright-black,dim›·‹/›‹dim› formatReceipt moves to receipt.ts                                                             ▱▱▱▱   0/1  ‹/›‹green,dim› +5‹/›‹dim› −0 ‹/›   ‹bright-black›│‹/› ‹yellow,dim›╰──────╤──────╯‹/›‹dim›   ‹/›‹yellow,dim›╰───────────────╯‹/›‹dim›   ‹/›‹yellow,dim›╰──────────────╯‹/›
+ ‹dim› 4 ‹/›‹bright-black,dim›·‹/›‹dim› Dependencies and runtimes                                                                     ▱▱▱▱   0/2  ‹/›‹green,dim› +9‹/›‹dim› ‹/›‹red,dim›−2 ‹/›   ‹bright-black›│‹/› ‹dim›       │‹/›
+ ‹dim› 5 ‹/›‹bright-black,dim›·‹/›‹dim› Config, infra and docs                                                                        ▱▱▱▱   0/1  ‹/›‹green,dim› +2‹/›‹dim› −0 ‹/›   ‹bright-black›│‹/› ‹dim›       └────────────┬───┬───┐‹/›
+ ‹dim› 6 ‹/›‹green,dim›✓‹/›‹dim› Import-only changes                                                                            optional   +1 −1 ‹/›    ‹bright-black›│‹/› ‹dim›                    │   │   │‹/›
+ ‹dim› 7 ‹/›‹bright-black,dim›·‹/›‹dim› Generated code                                                                                ▱▱▱▱   0/1   +1 −0 ‹/›   ‹bright-black›│‹/› ‹yellow,dim›╭───────────────╮‹/›‹dim›   │   │   │‹/›
+ ‹dim›  ✓ read  – skipped  ◇ deferred  · unread  · ? then tab for every mark‹/›                                                   ‹bright-black›│‹/› ‹yellow,dim›│‹/›‹dim› ‹/›‹yellow,dim›printReceipts‹/›‹dim› ‹/›‹yellow,dim›│‹/›‹dim›   │   │   │‹/›
+                                                                                                                          ‹bright-black›│‹/› ‹yellow,dim›╰───────────────╯‹/›‹dim›   │   │   │‹/›
+ ‹dim›From the author‹/› ‹dim›───────────────────────────────────────────────────────────────────────────────────────────────────────‹/›  ‹bright-black›│‹/› ‹dim›                    │   │   │‹/›
+ ‹dim›Customers can enter a discount code at checkout. ‹/›‹cyan,dim›quote‹/›‹dim› takes an optional code, takes the‹/›                                 ‹bright-black›│‹/› ‹dim›                    │   └───│────────────┐‹/›
+ ‹dim›discount off before tax, and ‹/›‹cyan,dim›createOrder‹/›‹dim› passes the code through.‹/›                                                        ‹bright-black›│‹/› ‹dim›                    │       └────────────│───────────────┐‹/›
+ ‹dim› ‹/›                                                                                                                        ‹bright-black›│‹/› ‹dim›                    ▼                    ▼               ▼‹/›
+ ‹dim›This is the Guided Review demo: a made-up shop, toured offline. Its narration was‹/›                                        ‹bright-black›│‹/› ‹dim›            ‹/›‹yellow,dim›╭───────────────╮‹/›‹dim›   ‹/›‹yellow,dim›╭────────────────╮‹/›‹dim›   ‹/›‹yellow,dim›╭───────╮‹/›
+ ‹dim›written ahead of time, so no model runs. Read it with n, comment with c, and see the‹/›                                     ‹bright-black›│‹/› ‹dim›            ‹/›‹yellow,dim›│‹/›‹dim› ‹/›‹yellow,dim›formatReceipt‹/›‹dim› ‹/›‹yellow,dim›│‹/›‹dim›   ‹/›‹yellow,dim›│‹/›‹dim› ‹/›‹yellow,dim›discountAmount‹/›‹dim› ‹/›‹yellow,dim›│‹/›‹dim›   ‹/›‹yellow,dim›│‹/›‹dim› ‹/›‹yellow,dim›quote‹/›‹dim› ‹/›‹yellow,dim›│‹/›
+ ‹dim›review you would submit with s. Nothing leaves your machine.‹/›                                                             ‹bright-black›│‹/› ‹dim›            ‹/›‹yellow,dim›╰───────────────╯‹/›‹dim›   ‹/›‹yellow,dim›╰────────────────╯‹/›‹dim›   ‹/›‹yellow,dim›╰───────╯‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+                                                                                                                          ‹bright-black›│‹/›
+‹blue,bg:c235›╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹blue,bg:c235,b›Tutor · lesson 3 of 9 · Move through the tour · 1/4‹/›‹bg:c235›                                                                                                                                                  ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› This lesson is on chapter 1. enter takes you back, or esc lets you look around first (: has the way back).                                                                                           ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹cyan,bg:c235,b›enter‹/›‹bg:c235› take me back   ‹/›‹cyan,bg:c235,b›esc‹/›‹bg:c235› explore here                                                                                                                                                                ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯‹/›
+ ‹dim› ‹/›‹cyan,dim›n‹/›‹dim› resume · chapter 1, hunk 1/1   ‹/›‹cyan,dim›enter‹/›‹dim› open   ‹/›‹cyan,dim›j/k‹/›‹dim› select   │   ‹/›‹cyan,dim›r‹/›‹dim› read description   │   ‹/›‹cyan,dim›s‹/›‹dim› submit   ‹/›                                                                     ‹cyan,dim›:‹/›‹dim› commands   ‹/›‹cyan,dim›?‹/›‹dim› keys   ‹/›‹cyan,dim›q‹/›‹dim› quit  ‹/›

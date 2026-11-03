@@ -85,13 +85,26 @@ CREATE TABLE feedback_model (
 );
 `;
 
+// The tutor (gr tutor): the lesson last started and whether it was finished or dismissed. One row,
+// apart from the demo's tour state, which forgetPR clears on every run.
+const SCHEMA_V3 = `
+CREATE TABLE tutor (
+  id INTEGER PRIMARY KEY CHECK (id = 1), json TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+`;
+
+export interface TutorRecord {
+  lesson?: string;
+  state: 'started' | 'finished' | 'dismissed';
+}
+
 interface Row {
   [key: string]: unknown;
 }
 
 // Each entry moves the database from user_version i to i + 1. Append only;
 // never edit a migration that has shipped.
-const MIGRATIONS: ((db: DatabaseSyncType) => void)[] = [(db) => db.exec(SCHEMA_V1), (db) => db.exec(SCHEMA_V2)];
+const MIGRATIONS: ((db: DatabaseSyncType) => void)[] = [(db) => db.exec(SCHEMA_V1), (db) => db.exec(SCHEMA_V2), (db) => db.exec(SCHEMA_V3)];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
 
@@ -341,7 +354,7 @@ export class Store {
   }
 
   // Everything kept for one PR: its tours, sessions, drafts, queued replies and reading state.
-  // gr demo starts over this way on each run.
+  // The tutor's demo starts over this way on each run.
   forgetPR(repo: string, pr: number): void {
     this.tx(() => {
       for (const table of ['tours', 'agent_sessions', 'drafts', 'thread_replies', ...PR_STATE_TABLES]) this.stmt(`DELETE FROM ${table} WHERE repo = ? AND pr = ?`).run(repo, pr);
@@ -380,6 +393,23 @@ export class Store {
 
   markPosted(ids: string[]): void {
     this.stmt(`UPDATE drafts SET json = json_set(json, '$.posted', json('true')) WHERE id IN (SELECT value FROM json_each(?))`).run(JSON.stringify(ids));
+  }
+
+  getTutor(): TutorRecord | undefined {
+    const row = this.stmt('SELECT json FROM tutor WHERE id = 1').get() as Row | undefined;
+    if (!row) return undefined;
+    try {
+      return JSON.parse(row.json as string) as TutorRecord;
+    } catch {
+      return undefined;
+    }
+  }
+
+  setTutor(record: TutorRecord): void {
+    this.stmt(`INSERT INTO tutor (id, json, updated_at) VALUES (1, ?, ?) ON CONFLICT(id) DO UPDATE SET json = excluded.json, updated_at = excluded.updated_at`).run(
+      JSON.stringify(record),
+      new Date().toISOString(),
+    );
   }
 
   getPosition(repo: string, pr: number): Position | undefined {

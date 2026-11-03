@@ -8,7 +8,9 @@ import { DiagramView } from './DiagramView.js';
 import { CommentEditor, CommentLabels, type SetComposer } from './CommentEditor.js';
 import { INLINE_ROWS, inlineComposerSlot } from './AiSuggestion.js';
 import { ThreadView } from './ThreadView.js';
-import { AskOverlay } from './AskOverlay.js';
+import { AskOverlay, type PreparedAsk } from './AskOverlay.js';
+import { useTutorBridge } from './tutor/bridge.js';
+import { Anchor } from './tutor/anchors.js';
 import { MIN_SPLIT_WIDTH } from './paneWidths.js';
 import type { AgentContext } from '../agent/types.js';
 import { KeyBar, type Hint } from './KeyBar.js';
@@ -94,6 +96,7 @@ export function ChapterScreen(props: {
   writingBriefing?: boolean; // the model's briefing is still being written; narration follows it
   agent?: AgentCtx;
   aiOff?: string; // why the agent is absent
+  prepared?: (file: string | undefined) => PreparedAsk; // the demo's answers to a, for a file
   width: number;
   height: number;
   active?: boolean;
@@ -221,6 +224,26 @@ export function ChapterScreen(props: {
   // Where a search sends the cursor in the hunk it opens.
   const landAt = useRef<{ hunkId: string; line: number } | undefined>(undefined);
   const moveCursor = useFoldedCursor(view, hidden, partner, land, landAt);
+  // The tutor: what this screen does, reported; and its requests to put the reader at a lesson's
+  // start, with nothing open and the cursor on the lesson's line. After the hunk's own reset above,
+  // so the line it asks for wins.
+  const tutor = useTutorBridge();
+  const tutorSeq = tutor?.request.seq ?? 0;
+  useEffect(() => {
+    if (!tutorSeq || !tutor) return;
+    setOverlay(NONE);
+    setAskCopies(undefined);
+    setTestFocus(false);
+    setPaneFocus('code');
+    setAnchor(null);
+    const { hunkId, line } = tutor.request;
+    const at = diffHunk && hunkId === diffHunk.id && line !== undefined ? diffHunk.lines.findIndex((l) => l.newLine === line) : -1;
+    if (at >= 0) view.setCursor(at);
+    // Once per request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tutorSeq]);
+  const reportScreen = tutor?.screen;
+  useEffect(() => reportScreen?.({ overlay: overlay.kind, testFocus }), [reportScreen, overlay.kind, testFocus]);
   const [lastSearch, setLastSearch] = useState<LastSearch>({ query: '', sel: 0 });
   const cursorLine = hunk?.lines[cursor];
   const { threads: cursorThreads, draft: cursorDraft } = cursorNotes(hunk, cursor, hidden, partner, tour.existingThreads, props.drafts, runs.get(cursor));
@@ -572,7 +595,10 @@ export function ChapterScreen(props: {
         if (key.escape) return focusPane('code');
       }
       const action = keyAction(keyView, keyCtx, input, key);
-      if (action) return actions[action]();
+      if (action) {
+        tutor?.event(action);
+        return actions[action]();
+      }
       const none = unboundKey(input, key);
       if (none) setFlash(none, 'quiet');
     },
@@ -630,7 +656,14 @@ export function ChapterScreen(props: {
 
   // The palette: this view's commands, then every chapter and every changed file to go to.
   const paletteItems = (): PaletteItem[] => {
-    const commands = paletteCommands(keyView, keyCtx).map((c) => ({ label: c.label, key: c.key, run: () => actions[c.action]() }));
+    const commands = paletteCommands(keyView, keyCtx).map((c) => ({
+      label: c.label,
+      key: c.key,
+      run: () => {
+        tutor?.event(c.action);
+        actions[c.action]();
+      },
+    }));
     const toChapter = chapters.map((c, i) => ({ label: `Go to chapter ${i + 1}: ${c.title}`, detail: plural(c.hunkIds.length, 'hunk'), run: () => props.setPos(i, firstHunk(chapters, i)) }));
     const toFile: PaletteItem[] = [];
     for (const f of tour.files) {
@@ -643,7 +676,7 @@ export function ChapterScreen(props: {
       toFile.push({ label: `Go to ${f.path}`, detail: `chapter ${ci + 1} · ${page < 0 ? 'summary' : `hunk ${hunkPosition(c, page).n}`}`, run: () => props.setPos(ci, page) });
     }
     const theme: PaletteItem[] = props.onTheme ? [{ label: 'Color theme', run: () => props.onTheme?.() }] : [];
-    return [...commands, ...theme, ...toChapter, ...toFile];
+    return [...commands, ...theme, ...(tutor?.palette ?? []), ...toChapter, ...toFile];
   };
 
   // A search hit: its line under the cursor, on its hunk's page. A hunk read as a summary (a
@@ -899,6 +932,7 @@ export function ChapterScreen(props: {
         }
         agent={props.agent}
         aiOff={props.aiOff}
+        prepared={props.prepared?.(askContext?.file)}
         width={w}
         height={h}
         onClose={() => close()}
@@ -938,16 +972,18 @@ export function ChapterScreen(props: {
 
   const screen = (
     <Box flexDirection="column" width={width} height={height}>
-      <Header
-        tour={tour}
-        prog={prog}
-        order={props.order}
-        deltaOnly={props.deltaOnly}
-        width={width}
-        busy={props.busy}
-        pushed={!!props.banner && !banner}
-        where={`chapter ${ci + 1}/${chapters.length}${hunk ? ` · hunk ${at?.n}/${at?.total}` : ''}`}
-      />
+      <Anchor id="header">
+        <Header
+          tour={tour}
+          prog={prog}
+          order={props.order}
+          deltaOnly={props.deltaOnly}
+          width={width}
+          busy={props.busy}
+          pushed={!!props.banner && !banner}
+          where={`chapter ${ci + 1}/${chapters.length}${hunk ? ` · hunk ${at?.n}/${at?.total}` : ''}`}
+        />
+      </Anchor>
       {banner ? (
         <Text backgroundColor="yellow" color="black">
           {pad(` ${banner} · esc hides this`, width)}
@@ -970,136 +1006,146 @@ export function ChapterScreen(props: {
         {wide ? <Box width={1} /> : null}
         <Box flexDirection="column" width={mainWidth}>
           <>
-            <ChapterTitle chapter={chapter} hunk={hunk} hi={hi} unchanged={unchangedHunks} width={mainWidth} />
-            <Explanation
-              lines={plan.explainLines}
-              inferred={!!hunk?.narrationInferred}
-              collapsed={collapsedView}
-              updated={updated}
-              focused={focusNow === 'explain'}
-              width={mainWidth}
-              hunk={collapsedView ? undefined : hunk}
-              states={states}
-              isNew={!!hunk && delta.has(hunk.id)}
-              drawer={testDrawer}
-            />
-            {collapsedView ? (
-              <>
-                <CollapsedSummary
-                  hunks={tour.hunks}
-                  files={filesByPath}
-                  ids={summaryIds}
-                  states={states}
-                  sel={summarySel}
-                  width={mainWidth}
-                  height={bodyHeight - (slots.collapsedAsk ? askHeight : 0)}
-                />
-                {slots.collapsedAsk ? askPanel : null}
-              </>
-            ) : hunk ? (
-              <Box flexDirection={sideBySide ? 'row' : 'column'}>
-                {plan.sourcePaneShown ? (
-                  <Box flexDirection="column" flexShrink={0} width={srcWidth}>
-                    <SourcePane
-                      inline={
-                        slots.sourceInline === 'thread'
-                          ? { afterIdx: cursor, node: threadAt(srcWidth - 1, plan.threadHeight), height: plan.threadHeight }
-                          : slots.sourceInline === 'comment'
-                            ? { afterIdx: sel[1], ...inlineComposer(srcWidth - 1, bodyHeight) }
-                            : slots.sourceInline === 'ask'
-                              ? { afterIdx: sel[1], node: askPanel, height: askHeight }
-                              : undefined
-                      }
-                      hunk={hunk}
-                      cursor={cursor}
-                      range={anchor !== null ? sel : null}
-                      raw={raw}
-                      split={splitView}
-                      partner={partner}
-                      hidden={hidden}
-                      runs={runs}
-                      ignoreWhitespace={ignoreWhitespace}
-                      scroll={scroll}
-                      setScroll={setScroll}
-                      threads={tour.existingThreads}
-                      copies={hunkCopies}
-                      drafts={props.drafts}
-                      root={svc?.root}
-                      headSha={tour.headSha}
-                      baseSha={tour.baseSha}
-                      width={srcWidth}
-                      height={lockShown ? plan.sourceHeight : bodyHeight}
-                    />
-                    {lockShown ? <LockfileChanges lines={lockListLines(lockShown, srcWidth - 1, plan.lockHeight)} width={srcWidth} height={plan.lockHeight} /> : null}
-                  </Box>
-                ) : null}
-                {sideBySide ? <Box width={1} /> : null}
-                {sideBySide ? (
-                  <Box
-                    flexDirection="column"
-                    width={plan.testWidth}
-                    flexShrink={0}
-                    height={bodyHeight}
-                    borderStyle="single"
-                    borderTop={false}
-                    borderBottom={false}
-                    borderRight={false}
-                    borderColor="gray"
-                    paddingLeft={1}
-                  >
-                    {slots.side === 'thread' ? (
-                      threadAt(plan.testWidth - 2, bodyHeight)
-                    ) : slots.side === 'ask' ? (
-                      askPanelAt(plan.testWidth - 2, bodyHeight)
-                    ) : (
-                      <>
-                        <Text bold dimColor={!testFocus} color={testFocus ? 'cyan' : undefined}>
-                          Tests
-                        </Text>
-                        {testPane}
-                      </>
-                    )}
-                  </Box>
-                ) : (
-                  testPane
-                )}
-              </Box>
-            ) : (
-              <Text dimColor>This chapter has no hunks.</Text>
-            )}
+            <Anchor id="explain">
+              <ChapterTitle chapter={chapter} hunk={hunk} hi={hi} unchanged={unchangedHunks} width={mainWidth} />
+              <Explanation
+                lines={plan.explainLines}
+                inferred={!!hunk?.narrationInferred}
+                collapsed={collapsedView}
+                updated={updated}
+                focused={focusNow === 'explain'}
+                width={mainWidth}
+                hunk={collapsedView ? undefined : hunk}
+                states={states}
+                isNew={!!hunk && delta.has(hunk.id)}
+                drawer={testDrawer}
+              />
+            </Anchor>
+            <Anchor id="code">
+              {collapsedView ? (
+                <>
+                  <CollapsedSummary
+                    hunks={tour.hunks}
+                    files={filesByPath}
+                    ids={summaryIds}
+                    states={states}
+                    sel={summarySel}
+                    width={mainWidth}
+                    height={bodyHeight - (slots.collapsedAsk ? askHeight : 0)}
+                  />
+                  {slots.collapsedAsk ? askPanel : null}
+                </>
+              ) : hunk ? (
+                <Box flexDirection={sideBySide ? 'row' : 'column'}>
+                  {plan.sourcePaneShown ? (
+                    <Box flexDirection="column" flexShrink={0} width={srcWidth}>
+                      <SourcePane
+                        inline={
+                          slots.sourceInline === 'thread'
+                            ? { afterIdx: cursor, node: threadAt(srcWidth - 1, plan.threadHeight), height: plan.threadHeight }
+                            : slots.sourceInline === 'comment'
+                              ? { afterIdx: sel[1], ...inlineComposer(srcWidth - 1, bodyHeight) }
+                              : slots.sourceInline === 'ask'
+                                ? { afterIdx: sel[1], node: askPanel, height: askHeight }
+                                : undefined
+                        }
+                        hunk={hunk}
+                        cursor={cursor}
+                        range={anchor !== null ? sel : null}
+                        raw={raw}
+                        split={splitView}
+                        partner={partner}
+                        hidden={hidden}
+                        runs={runs}
+                        ignoreWhitespace={ignoreWhitespace}
+                        scroll={scroll}
+                        setScroll={setScroll}
+                        threads={tour.existingThreads}
+                        copies={hunkCopies}
+                        drafts={props.drafts}
+                        root={svc?.root}
+                        headSha={tour.headSha}
+                        baseSha={tour.baseSha}
+                        width={srcWidth}
+                        height={lockShown ? plan.sourceHeight : bodyHeight}
+                      />
+                      {lockShown ? <LockfileChanges lines={lockListLines(lockShown, srcWidth - 1, plan.lockHeight)} width={srcWidth} height={plan.lockHeight} /> : null}
+                    </Box>
+                  ) : null}
+                  {sideBySide ? <Box width={1} /> : null}
+                  {sideBySide ? (
+                    <Anchor id="tests">
+                      <Box
+                        flexDirection="column"
+                        width={plan.testWidth}
+                        flexShrink={0}
+                        height={bodyHeight}
+                        borderStyle="single"
+                        borderTop={false}
+                        borderBottom={false}
+                        borderRight={false}
+                        borderColor="gray"
+                        paddingLeft={1}
+                      >
+                        {slots.side === 'thread' ? (
+                          threadAt(plan.testWidth - 2, bodyHeight)
+                        ) : slots.side === 'ask' ? (
+                          askPanelAt(plan.testWidth - 2, bodyHeight)
+                        ) : (
+                          <>
+                            <Text bold dimColor={!testFocus} color={testFocus ? 'cyan' : undefined}>
+                              Tests
+                            </Text>
+                            {testPane}
+                          </>
+                        )}
+                      </Box>
+                    </Anchor>
+                  ) : (
+                    <Anchor id="tests">{testPane}</Anchor>
+                  )}
+                </Box>
+              ) : (
+                <Text dimColor>This chapter has no hunks.</Text>
+              )}
+            </Anchor>
           </>
         </Box>
       </Box>
-      <StatusRow
-        drafts={props.drafts}
-        hunk={hunk}
-        cursor={cursor}
-        flash={flash}
-        range={anchor !== null && hunk ? rangeLabel(hunk, sel) : undefined}
-        position={hunk ? `hunk ${at?.n}/${at?.total} · line ${cursorLine?.newLine ?? cursorLine?.oldLine ?? ''}` : undefined}
-        width={width}
-      />
-      <KeyBar
-        width={width}
-        status={overlay.kind === 'none' && hunk && !testFocus ? [raw && 'raw', splitView && 'split', ignoreWhitespace && 'whitespace hidden'].filter(Boolean).join(' · ') : undefined}
-        end={overlay.kind !== 'none' ? [] : [...(panes.length > 1 ? [['tab', 'pane'] as Hint] : []), ...barEnd(keyView, keyCtx)]}
-        extraEnd={overlay.kind !== 'none' ? [] : [PALETTE_HINT]}
-        keys={
-          overlay.kind !== 'none'
-            ? []
-            : focusNow === 'list'
-              ? [
-                  ['j/k', 'choose'],
-                  ['enter', 'open chapter'],
-                ]
-              : focusNow === 'explain'
+      <Anchor id="status">
+        <StatusRow
+          drafts={props.drafts}
+          hunk={hunk}
+          cursor={cursor}
+          flash={flash}
+          range={anchor !== null && hunk ? rangeLabel(hunk, sel) : undefined}
+          position={hunk ? `hunk ${at?.n}/${at?.total} · line ${cursorLine?.newLine ?? cursorLine?.oldLine ?? ''}` : undefined}
+          width={width}
+        />
+      </Anchor>
+      <Anchor id="keybar">
+        <KeyBar
+          width={width}
+          status={overlay.kind === 'none' && hunk && !testFocus ? [raw && 'raw', splitView && 'split', ignoreWhitespace && 'whitespace hidden'].filter(Boolean).join(' · ') : undefined}
+          end={overlay.kind !== 'none' ? [] : [...(panes.length > 1 ? [['tab', 'pane'] as Hint] : []), ...barEnd(keyView, keyCtx)]}
+          extraEnd={overlay.kind !== 'none' ? [] : [PALETTE_HINT]}
+          keys={
+            overlay.kind !== 'none'
+              ? []
+              : focusNow === 'list'
                 ? [
-                    ['j/k', 'scroll'],
-                    ['enter', 'read it all'],
+                    ['j/k', 'choose'],
+                    ['enter', 'open chapter'],
                   ]
-                : barKeys(keyView, keyCtx)
-        }
-      />
+                : focusNow === 'explain'
+                  ? [
+                      ['j/k', 'scroll'],
+                      ['enter', 'read it all'],
+                    ]
+                  : barKeys(keyView, keyCtx)
+          }
+        />
+      </Anchor>
     </Box>
   );
   if (floating && props.active !== false)

@@ -46,7 +46,8 @@
 <span class="p">$ </span>gr review 1234        <span class="c"># or owner/repo#1234, or a PR URL</span>
 <span class="p">$ </span>gr preview            <span class="c"># tour your own branch before opening a PR</span>
 <span class="p">$ </span>gr feedback           <span class="c"># work through the review on your own PR</span>
-<span class="p">$ </span>gr review --no-agent  <span class="c"># static analysis only, no model calls</span></pre>
+<span class="p">$ </span>gr review --no-agent  <span class="c"># static analysis only, no model calls</span>
+<span class="p">$ </span>gr tutor              <span class="c"># learn it: lessons in a sample tour, offline</span></pre>
         </div>
       </div>
 
@@ -190,6 +191,13 @@
           <li>
             <strong>Choose a model</strong> with <code>gr config</code>.
             <p>Claude Code and Codex use your existing login, so neither needs an API key. Cursor uses a Cursor API key.</p>
+          </li>
+          <li>
+            <strong>Learn it</strong> with <code>gr tutor</code>.
+            <p>
+              A tutor walks you through a sample tour in about ten minutes, asking you to press each real key. It needs no PR and no model, and posts nothing. See
+              <a href="usage.html#learn-gr">Learn gr</a>.
+            </p>
           </li>
           <li>
             <strong>Run <code>gr</code></strong> and pick a PR. Press <code>h</code> in a review to see the keys.

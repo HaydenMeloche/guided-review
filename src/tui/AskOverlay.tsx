@@ -9,7 +9,21 @@ import { line, MdLineView, renderMarkdown, wrapSpans, type MdLine } from './mark
 import { wrap } from './nav.js';
 import { sanitizeTerminal as safe } from '../util/sanitize.js';
 import { Working } from './Spinner.js';
-import { Hints } from './KeyBar.js';
+import { Hints, Key } from './KeyBar.js';
+import { useTutorBridge } from './tutor/bridge.js';
+
+// Answers written ahead of time, for the demo: no model runs, and the same question gets the same
+// answer every time. `suggest` lists the questions it has answers for, in the order to offer them.
+export interface PreparedAsk {
+  suggest: () => string[];
+  answer: (question: string) => string;
+}
+
+// How a prepared answer streams in: a moment of thinking, then about 40 words a second, as a
+// model's would. GR_DEMO_INSTANT=1 writes it at once, for the end-to-end tests.
+const instant = () => process.env.GR_DEMO_INSTANT === '1';
+const THINK_MS = 500;
+const WORD_MS = 25;
 
 // Streamed text is applied at most this often (about 30 fps): each update re-renders Ink,
 // which costs far more than parsing the token.
@@ -27,10 +41,13 @@ export function AskOverlay(props: {
   target: string;
   agent?: AgentContext;
   aiOff?: string;
+  prepared?: PreparedAsk; // the demo's answers, in place of a model
   width: number;
   height: number;
   onClose: () => void;
 }) {
+  const bridge = useTutorBridge();
+  const canAsk = !!props.agent || !!props.prepared;
   const [q, setQ] = useState('');
   const [turns, setTurns] = useState<AskTurn[]>([]);
   const [busy, setBusy] = useState(false);
@@ -72,6 +89,7 @@ export function AskOverlay(props: {
     setQ('');
     // The new question starts after the thread so far and the blank row before it.
     setScroll(lines.length + (history.length ? 1 : 0));
+    if (props.prepared) return void streamPrepared(props.prepared.answer(question));
     if (!props.agent) return;
     setBusy(true);
     abort.current = new AbortController();
@@ -85,7 +103,43 @@ export function AskOverlay(props: {
       setAnswer((a) => `${a}\n\n[error: ${(e as Error).message}]`);
     }
     setBusy(false);
+    bridge?.event('answered');
   };
+
+  // A prepared answer, written out word by word; esc stops it as it would a model.
+  const streamPrepared = (text: string) => {
+    setBusy(true);
+    const ctrl = new AbortController();
+    abort.current = ctrl;
+    const words = text.split(/(?<= )/);
+    const finish = () => {
+      flush();
+      setAnswer(() => text);
+      setBusy(false);
+      bridge?.event('answered');
+    };
+    if (instant()) return finish();
+    let n = 0;
+    const tick = () => {
+      if (ctrl.signal.aborted) return setBusy(false);
+      n++;
+      if (n >= words.length) return finish();
+      onText(words.slice(0, n).join(''));
+      stream.current = setTimeout(tick, WORD_MS);
+    };
+    stream.current = setTimeout(tick, THINK_MS);
+  };
+  const stream = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(stream.current), []);
+  // The prepared questions not asked yet, numbered: 1 asks the first.
+  const asked = new Set(turns.map((t) => t.question));
+  const suggestions =
+    props.prepared && !busy
+      ? props.prepared
+          .suggest()
+          .filter((x) => !asked.has(x))
+          .slice(0, 3)
+      : [];
 
   const inner = props.width - 4;
   const lines: MdLine[] = [];
@@ -102,7 +156,7 @@ export function AskOverlay(props: {
     lines.push(...turnLines(t));
   });
   const inputRows = busy ? 0 : Math.min(2, Math.max(1, wrap(q, Math.max(10, inner)).length));
-  const room = Math.max(0, props.height - 4 - inputRows); // border, title, input, and footer
+  const room = Math.max(0, props.height - 4 - inputRows - (suggestions.length ? 1 : 0)); // border, title, input, and footer
   const maxScroll = Math.max(0, lines.length - room);
   const top = Math.min(scroll, maxScroll);
 
@@ -121,24 +175,41 @@ export function AskOverlay(props: {
     <Box flexDirection="column" borderStyle="round" borderColor="magenta" paddingX={1} width={props.width} height={props.height} overflow="hidden" flexShrink={0}>
       <Text>
         <Text bold>Ask</Text> <Text dimColor>about {safe(props.target)}</Text>
+        {props.prepared && !props.agent ? <Text dimColor> · prepared answers, demo</Text> : null}
         {turns.length > 1 ? <Text dimColor> · {turns.length} questions</Text> : null}
       </Text>
       {lines.slice(top, top + room).map((l, i) => (
         <MdLineView key={i} line={l} />
       ))}
-      {!props.agent ? (
+      {suggestions.length ? (
+        <Text wrap="truncate">
+          <Text dimColor>Try: </Text>
+          {suggestions.map((x, i) => (
+            <Text key={x}>
+              {i ? '   ' : ''}
+              <Key k={String(i + 1)} /> {x}
+            </Text>
+          ))}
+        </Text>
+      ) : null}
+      {!canAsk ? (
         <Text wrap="wrap">{props.aiOff ?? 'AI is unavailable for this tour, so questions are off.'}</Text>
       ) : busy ? null : (
         <TextInput
           value={q}
-          onChange={setQ}
+          onChange={(v) => {
+            // In the demo, a number typed first asks that prepared question.
+            const pick = !q && /^[1-9]$/.test(v) ? suggestions[Number(v) - 1] : undefined;
+            if (pick) return void submit(pick);
+            setQ(v);
+          }}
           onSubmit={(question) => void submit(question)}
           width={inner}
           maxRows={2}
           placeholder={turns.length ? 'ask a follow-up…' : (props.placeholder ?? 'e.g. "why is this nullable?" or "what calls this?"')}
         />
       )}
-      {busy && props.agent ? (
+      {busy && canAsk ? (
         // Until the answer starts, a spinner and the seconds so far; once it streams, the answer
         // shows the progress itself.
         turns.at(-1)?.answer ? (
@@ -152,7 +223,7 @@ export function AskOverlay(props: {
       ) : (
         <Hints
           keys={
-            !props.agent
+            !canAsk
               ? [['esc', 'close']]
               : turns.length
                 ? [

@@ -70,7 +70,7 @@ ${[
   usage('preview', 'Tour your current branch before opening the PR'),
   usage('preview --base <ref>', 'Tour it against another branch, such as the one it stacks on'),
   usage('diff [rev | a..b]', 'Tour the working tree against a commit, or two commits (a...b: from their merge base)'),
-  usage('demo', 'Try a tour of a sample change: offline, no PR or model needed'),
+  usage('tutor', 'Learn gr: lessons in a tour of a sample change, offline, no PR or model needed'),
   usage('open [number|URL]', 'Open the tour of a PR (default: this branch) in a new terminal window'),
   usage('open --preview', 'Open the preview of your current branch in a new terminal window'),
   usage('build [number|URL]', 'Build a tour without the TUI (for CI); share it with --comment or --out'),
@@ -232,18 +232,7 @@ async function main() {
       editRepoConfig((await localRepoRoot(cwd)) ?? fail('not inside a git repository.'));
       return;
     }
-    // The wizard's theme preview draws as the tour will: for this terminal, with the config's marks.
-    // A config that can't be read keeps the default marks; setup says what is wrong with it.
-    if (!cli.flags.edit && process.stdin.isTTY && process.stdout.isTTY) {
-      await readTerminal(!!process.env.NO_COLOR);
-      try {
-        const saved = readUserConfigFile();
-        await setMarks(loadGlyphSetting(saved), loadIconSetting(saved));
-      } catch (error) {
-        if (!(error instanceof UserConfigError)) throw error;
-      }
-    }
-    await setup({ edit: cli.flags.edit });
+    await runConfig({ edit: cli.flags.edit });
     return;
   }
   if (cmd === 'cleanup') {
@@ -362,7 +351,9 @@ async function main() {
   }
 
   const prArg = /^(#?\d+|https?:\/\/|[\w.-]+\/[\w.-]+#\d+)/;
-  const demo = cmd === 'demo';
+  // gr tutor: lessons over the demo tour, a sample change toured offline.
+  const tutor = cmd === 'tutor';
+  const demo = tutor;
   if (cmd && cmd !== 'review' && cmd !== 'feedback' && cmd !== 'preview' && cmd !== 'diff' && !demo && !prArg.test(cmd)) cli.showHelp(1);
   if (cli.flags.base !== undefined && cmd !== 'preview') fail(`--base goes with ${NAME} preview. For two commits, use ${NAME} diff <a>..<b>.`);
 
@@ -497,7 +488,7 @@ async function main() {
   } else if (demo) {
     // Not the repository gr runs in: the demo's own, under GR_HOME.
     const { demoPreview } = await import('./demo.js');
-    opts = { ...base, localRepo: undefined, demo: true, preview: await demoPreview().catch((e: Error) => fail(`could not set up the demo: ${e.message}`)) };
+    opts = { ...base, localRepo: undefined, demo: true, tutor, preview: await demoPreview().catch((e: Error) => fail(`could not set up the demo: ${e.message}`)) };
   } else if (cmd) {
     opts = { ...base, target: parsePRArg(cmd, await cwdRepoP) };
   }
@@ -515,13 +506,25 @@ async function main() {
   // (not now, skipped, or failed), the PR list opens again.
   for (;;) {
     let wantsUpdate = false;
+    let wantsConfig = false;
     const offer = updateCheck?.available();
     holdTerminalInput();
     const app = render(
-      <App {...opts} onQuit={(line) => (summary = line)} update={offer && { version: offer.latest, deprecated: offer.deprecated }} onUpdate={offer ? () => (wantsUpdate = true) : undefined} />,
+      <App
+        {...opts}
+        onQuit={(line) => (summary = line)}
+        update={offer && { version: offer.latest, deprecated: offer.deprecated }}
+        onUpdate={offer ? () => (wantsUpdate = true) : undefined}
+        onConfig={demo ? () => (wantsConfig = true) : undefined}
+      />,
       { ...SCREEN_RENDER, exitOnCtrlC: true },
     );
     await app.waitUntilExit();
+    // The tutor's end: gr config, in place of the demo.
+    if (wantsConfig) {
+      await runConfig();
+      process.exit(0);
+    }
     if (!wantsUpdate || !offer) break;
     // Back on the PR list, wherever it was started from: the args that pick a PR are left out.
     const args = process.argv.slice(2).filter((a) => !cli.input.includes(a));
@@ -535,6 +538,22 @@ async function main() {
   // Backstop: stray timers, sockets, or child processes must not keep gr alive
   // after the tour has closed.
   process.exit(0);
+}
+
+// gr config, and c at the end of the demo's tutor. The wizard's theme preview draws as the tour
+// will: for this terminal, with the config's marks. A config that can't be read keeps the default
+// marks; setup says what is wrong with it.
+async function runConfig(o: { edit?: boolean } = {}): Promise<void> {
+  if (!o.edit && process.stdin.isTTY && process.stdout.isTTY) {
+    await readTerminal(!!process.env.NO_COLOR);
+    try {
+      const saved = readUserConfigFile();
+      await setMarks(loadGlyphSetting(saved), loadIconSetting(saved));
+    } catch (error) {
+      if (!(error instanceof UserConfigError)) throw error;
+    }
+  }
+  await setup({ edit: o.edit });
 }
 
 // A yes-or-no question on the terminal before the tour starts; Enter is yes.

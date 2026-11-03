@@ -50,7 +50,7 @@
  ‹b,dim›           ‹/›‹cyan›Q             ‹/›quit
  ‹b,dim›           ‹/›‹cyan›?             ‹/›these keys
 
-
+ ‹dim›New to gr? Run gr tutor, or open it from a tour with : Tutor.‹/›
 
 
 

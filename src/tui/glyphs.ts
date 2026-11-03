@@ -36,6 +36,8 @@ const UNICODE = {
   rule: '─',
   gutter: '│',
   up: '↑',
+  pointUp: '▲',
+  pointDown: '▼',
 };
 
 export type Glyphs = typeof UNICODE;
@@ -72,6 +74,8 @@ const ASCII: Glyphs = {
   rule: '-',
   gutter: '|',
   up: '^',
+  pointUp: '^',
+  pointDown: 'v',
 };
 
 export const GLYPH_SETS: Record<GlyphSet, Glyphs> = { unicode: UNICODE, ascii: ASCII };

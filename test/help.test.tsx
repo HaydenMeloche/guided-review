@@ -28,6 +28,6 @@ describe('Help', () => {
   });
 
   it('is sized to fit every row and the keys that work everywhere', () => {
-    expect(helpSize(sections).height).toBe(13 + 1 + 1 + 4 + 2 + 2);
+    expect(helpSize(sections).height).toBe(13 + 1 + 1 + 4 + 2 + 2 + 2); // and the tutor line under a blank row
   });
 });

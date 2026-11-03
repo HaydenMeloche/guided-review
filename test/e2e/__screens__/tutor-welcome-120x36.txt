@@ -1,0 +1,36 @@
+ ‹dim› demo/shop #0 Add discount codes to quotes and orders (demo)  @you · 1071624…  briefing · ▱▱▱▱▱▱▱▱▱▱▱▱ 0% · 0/9 hunks ‹/›
+
+ ‹dim›Chapters‹/›‹cyan,dim› · Guided order‹/›‹dim› · 0/9 hunks done · ‹/›‹cyan,dim›f‹/› ‹dim›───────‹/›  ‹bright-black›│‹/› ‹dim›Overview · ‹/›‹cyan,dim›d‹/›‹dim› to explore‹/› ‹dim›──────────────────────────────────────‹/›
+ ‹cyan,dim,inv› 1 ‹/›‹bright-black,dim,inv›·‹/›‹dim,inv› Taking a code at POST /o…  ▱▱▱▱   0/1  ‹/›‹green,dim,inv› +1‹/›‹dim,inv› ‹/›‹red,dim,inv›−1 ‹/›   ‹bright-black›│‹/› ‹yellow,dim›╭─────────────╮‹/›‹dim›   ‹/›‹yellow,dim›╭───────────────╮‹/›‹dim›   ‹/›‹yellow,dim›╭──────────────╮‹/›
+ ‹dim› 2 ‹/›‹bright-black,dim›·‹/›‹dim› Pricing an order with a …  ▱▱▱▱   0/3  ‹/›‹green,dim›+31‹/›‹dim› ‹/›‹red,dim›−12‹/›   ‹bright-black›│‹/› ‹yellow,dim›│‹/›‹dim› ‹/›‹yellow,dim›createOrder‹/›‹dim› ‹/›‹yellow,dim›│‹/›‹dim›   ‹/›‹yellow,dim›│‹/›‹dim› ‹/›‹yellow,dim›formatReceipt‹/›‹dim› ‹/›‹yellow,dim›│‹/›‹dim›   ‹/›‹yellow,dim›│‹/›‹dim› ‹/›‹yellow,dim›POST‹/›‹dim› ‹/›‹yellow,dim›/orders‹/›‹dim› ‹/›‹yellow,dim›│‹/›
+ ‹dim› 3 ‹/›‹bright-black,dim›·‹/›‹dim› formatReceipt moves to r…  ▱▱▱▱   0/1  ‹/›‹green,dim› +5‹/›‹dim› −0 ‹/›   ‹bright-black›│‹/› ‹yellow,dim›╰──────╤──────╯‹/›‹dim›   ‹/›‹yellow,dim›╰───────────────╯‹/›‹dim›   ‹/›‹yellow,dim›╰──────────────╯‹/›
+ ‹dim› 4 ‹/›‹bright-black,dim›·‹/›‹dim› Dependencies and runtimes  ▱▱▱▱   0/2  ‹/›‹green,dim› +9‹/›‹dim› ‹/›‹red,dim›−2 ‹/›   ‹bright-black›│‹/› ‹dim›       │‹/›
+ ‹dim› 5 ‹/›‹bright-black,dim›·‹/›‹dim› Config, infra and docs     ▱▱▱▱   0/1  ‹/›‹green,dim› +2‹/›‹dim› −0 ‹/›   ‹bright-black›│‹/› ‹dim›       └────────────┬───┬───┐‹/›
+ ‹dim› 6 ‹/›‹green,dim›✓‹/›‹dim› Import-only changes         optional   +1 −1 ‹/›    ‹bright-black›│‹/› ‹dim›                    │   │   │‹/›
+ ‹dim› 7 ‹/›‹bright-black,dim›·‹/›‹dim› Generated code             ▱▱▱▱   0/1   +1 −0 ‹/›   ‹bright-black›│‹/› ‹yellow,dim›╭───────────────╮‹/›‹dim›   │   │   │‹/›
+ ‹dim›  ✓ read  – skipped  ◇ deferred  · unread  · ? then…‹/›  ‹bright-black›│‹/› ‹yellow,dim›│‹/›‹dim› ‹/›‹yellow,dim›printReceipts‹/›‹dim› ‹/›‹yellow,dim›│‹/›‹dim›   │   │   │‹/›
+                                                       ‹bright-black›│‹/› ‹yellow,dim›╰───────────────╯‹/›‹dim›   │   │   │‹/›
+ ‹dim›From the author‹/› ‹dim›────────────────────────────────────‹/›  ‹bright-black›│‹/› ‹dim›                    │   │   │‹/›
+ ‹dim›Customers can enter a dis‹/›‹blue,bg:c235›╭──────────────────────────────────────────────────────────────────╮‹/›
+ ‹cyan,dim›quote‹/›‹dim› takes an optional c‹/›‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹blue,bg:c235,b›Tutor · lesson 1 of 9 · Welcome · 1/3‹/›‹bg:c235›                            ‹/›‹blue,bg:c235›│‹/›‹dim›──┐‹/›
+ ‹dim›before tax, and ‹/›‹cyan,dim›createOrd‹/›‹blue,bg:c235›│‹/›‹bg:c235› This is a real tour of a made-up change. You read it the way you ‹/›‹blue,bg:c235›│‹/›‹dim›──│───────────────┐‹/›
+ ‹dim› ‹/›                        ‹blue,bg:c235›│‹/›‹bg:c235› would read a PR: the briefing first, then one chapter at a time. ‹/›‹blue,bg:c235›│‹/›‹dim›  ▼               ▼‹/›
+ ‹dim›This is the Guided Review‹/›‹blue,bg:c235›│‹/›‹bg:c235›                                                                  ‹/›‹blue,bg:c235›│‹/›‹yellow,dim›──────────╮‹/›‹dim›   ‹/›‹yellow,dim›╭───────╮‹/›
+ ‹dim›toured offline. Its narra‹/›‹blue,bg:c235›│‹/›‹bg:c235› Every key you learn here is the real key. Nothing you do leaves  ‹/›‹blue,bg:c235›│‹/›‹yellow,dim›untAmount‹/›‹dim› ‹/›‹yellow,dim›│‹/›‹dim›   ‹/›‹yellow,dim›│‹/›‹dim› ‹/›‹yellow,dim›quote‹/›‹dim› ‹/›‹yellow,dim›│‹/›
+ ‹dim›time, so no model runs. R‹/›‹blue,bg:c235›│‹/›‹bg:c235› your machine.                                                    ‹/›‹blue,bg:c235›│‹/›‹yellow,dim›──────────╯‹/›‹dim›   ‹/›‹yellow,dim›╰───────╯‹/›
+ ‹dim›c, and see the review you‹/›‹blue,bg:c235›│‹/›‹bg:c235›                                                                  ‹/›‹blue,bg:c235›│‹/›
+ ‹dim›Nothing leaves your machi‹/›‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹cyan,bg:c235,b›enter‹/›‹bg:c235› start   ‹/›‹cyan,bg:c235,b›esc‹/›‹bg:c235› explore on my own                              ‹/›‹blue,bg:c235›│‹/›
+                          ‹blue,bg:c235›╰──────────────────────────────────────────────────────────────────╯‹/›
+                                                       ‹bright-black›│‹/›
+                                                       ‹bright-black›│‹/›
+                                                       ‹bright-black›│‹/›
+                                                       ‹bright-black›│‹/›
+                                                       ‹bright-black›│‹/›
+                                                       ‹bright-black›│‹/›
+                                                       ‹bright-black›│‹/›
+                                                       ‹bright-black›│‹/›
+                                                       ‹bright-black›│‹/›
+                                                       ‹bright-black›│‹/›
+                                                       ‹bright-black›│‹/›
+ ‹dim› ‹/›
+ ‹dim› ‹/›‹cyan,dim›n‹/›‹dim› start   ‹/›‹cyan,dim›enter‹/›‹dim› open   ‹/›‹cyan,dim›j/k‹/›‹dim› select   │   ‹/›‹cyan,dim›r‹/›‹dim› read description   │   ‹/›‹cyan,dim›s‹/›‹dim› submit   ‹/›            ‹cyan,dim›:‹/›‹dim› commands   ‹/›‹cyan,dim›?‹/›‹dim› keys   ‹/›‹cyan,dim›q‹/›‹dim› quit  ‹/›

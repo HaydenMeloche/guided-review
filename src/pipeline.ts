@@ -45,7 +45,7 @@ export interface PipelineOptions {
   // emission is a new top-level object, and unchanged chapters and hunks keep their identity.
   onTour: (tour: Tour) => void;
   signal?: AbortSignal;
-  // Written-out model results for the static tour, applied as a model's would be: gr demo's
+  // Written-out model results for the static tour, applied as a model's would be: gr tutor's
   // briefing and narration, without a model.
   narrate?: (tour: Tour) => CannedNarration;
 }

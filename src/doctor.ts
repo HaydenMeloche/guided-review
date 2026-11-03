@@ -93,7 +93,7 @@ async function ghCheck(d: DoctorDeps): Promise<Finding> {
   }
   const version = await d.run('gh', ['--version']);
   if (version.missing)
-    return { name: 'gh', status: 'fail', detail: 'not found: reviews need it, gr preview and gr demo don’t', fix: 'install it from https://cli.github.com, or set a token with gr config' };
+    return { name: 'gh', status: 'fail', detail: 'not found: reviews need it, gr preview and gr tutor don’t', fix: 'install it from https://cli.github.com, or set a token with gr config' };
   const v = versionIn(version.out) ?? '';
   const user = await d.run('gh', ['api', 'user', '--jq', '.login']);
   if (!user.ok || !/^[\w-]+$/.test(user.out)) return { name: 'gh', status: 'fail', detail: `${v} · not signed in, or GitHub could not be reached`, fix: 'gh auth login' };

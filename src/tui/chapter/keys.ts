@@ -220,7 +220,7 @@ export const KEYS: KeyRow[] = [
     group: 'View',
     help: 'n/p test · j/k line · c comment · a ask · t/Esc back to source',
     bind: [
-      { mode: 'tests', on: ['escape', 't'], do: 'leaveTests' },
+      { mode: 'tests', on: ['t', 'escape'], do: 'leaveTests' },
       { mode: 'tests', on: ['j', 'down'], do: 'testDown' },
       { mode: 'tests', on: ['k', 'up'], do: 'testUp' },
       { mode: 'tests', on: ['J', 'pageDown'], do: 'testPageDown' },

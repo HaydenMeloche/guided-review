@@ -38,8 +38,12 @@ function keyLines(sections: HelpSection[], width: number): MdLine[] {
       ]);
     }
   }
+  out.push([], [{ text: truncate(TUTOR_LINE, width), dim: true }]);
   return out;
 }
+
+// The help's last line, on every screen: the way to learn the rest.
+export const TUTOR_LINE = 'New to gr? Run gr tutor, or open it from a tour with : Tutor.';
 
 // The popup size that fits the help without scrolling.
 export function helpSize(sections: HelpSection[], legend?: MdLine[]): { width: number; height: number } {

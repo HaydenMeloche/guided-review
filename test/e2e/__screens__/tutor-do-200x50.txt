@@ -1,0 +1,50 @@
+ ‹dim›demo/shop ‹/›‹b›#0 Add discount codes to quotes and orders (demo)‹/›                                                                            ‹dim›  chapter 1/7 · hunk 1/1 · ▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/9 hunks · Guided‹/›
+‹inv›1 ‹/›‹bright-black,inv›·‹/›‹inv› Taking a code at PO… ‹/›‹dim,inv›▱▱▱▱  0/1‹/›‹inv› ‹/›‹yellow,inv›▲‹/› ‹blue,b›Taking a code at POST /orders‹/›‹dim› · hunk 1/1 · entry route POST /orders‹/›
+‹dim›2‹/› ‹bright-black›·‹/› Pricing an order wi… ‹dim›▱▱▱▱  0/3‹/› ‹yellow›▲‹/› ‹bright-black›▎ ‹/›The handler now passes ‹cyan›req.body.discountCode‹/› to ‹cyan›createOrder‹/›.‹dim› Nothing here checks that it is a‹/›
+‹dim›3‹/› ‹bright-black›·‹/› formatReceipt moves… ‹dim›▱▱▱▱  0/1‹/›   ‹bright-black›▎ ‹/›‹dim›string, or how long it is, so whatever the client sends reaches the discount lookup.‹/›
+‹dim›4‹/› ‹bright-black›·‹/› Dependencies and ru… ‹dim›▱▱▱▱  0/2‹/›   ‹bright-black›▎ ‹/›
+‹dim›5‹/› ‹bright-black›·‹/› Config, infra and d… ‹dim›▱▱▱▱  0/1‹/›   ‹bright-black›▎ ‹/›‹red›○ No linked test · U: details‹/›
+‹dim›6 ‹/›‹green,dim›✓‹/›‹dim› Import-only changes       opt  ‹/›  ‹bright-black›· ‹/›‹dim›src/routes.ts:4‹/›
+‹dim›7 ‹/›‹bright-black,dim›·‹/›‹dim› Generated code       ▱▱▱▱  0/1  ‹/›  ‹dim›   4    4 │ ‹/›  ‹c73›export‹/› ‹c73›const‹/› router ‹c73›=‹/› ‹c217›Router‹/›()‹c145›;‹/›
+                                      ‹dim›   5    5 │ ‹/›
+                                      ‹dim›   6    6 │ ‹/›  router‹c73›.‹/›‹c217›post‹/›(‹c222›'/orders'‹/›‹c145›,‹/› ‹c145›(‹/›‹c183›req‹/›‹c145›,‹/› ‹c183›res‹/›‹c145›)‹/› ‹c73›=>‹/› ‹c145›{‹/›
+                                     ‹cyan›▶‹/›‹dim›   7    7 │ ‹/›‹green›+ ‹/›  res‹c73›.‹/›‹c217›status‹/›(‹c217›201‹/›)‹c73›.‹/›‹c217›json‹/›(‹c217›createOrder‹/›(req‹c73›.‹/›body‹c73›.‹/›items‹c145,bg:c28›,‹/›‹bg:c28› req‹/›‹c73,bg:c28›.‹/›‹bg:c28›body‹/›‹c73,bg:c28›.‹/›‹bg:c28›discountCode‹/›))‹c145›;‹/›
+                                      ‹dim›   8    8 │ ‹/›  ‹c145›}‹/›)‹c145›;‹/›
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+‹blue,bg:c235›╭────────────────────────────────────────────────────────╮‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹blue,bg:c235,b›Tutor · lesson 3 of 9 · Move through the tour · 1/4‹/›‹bg:c235›    ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› Press ‹/›‹cyan,bg:c235,b›n‹/›‹bg:c235› to mark this hunk read and go to the next one. ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235›                                                        ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,dim›waiting for n …‹/›‹bg:c235›                                        ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›╰‹/›‹blue,bg:c235,b›▼‹/›‹blue,bg:c235›───────────────────────────────────────────────────────╯‹/›
+ ‹cyan,b,inv›n/p‹/› hunk   ‹cyan,b›]/[‹/› chapter   ‹dim›│   ‹/›‹cyan,b›c‹/› comment   ‹cyan,b›v‹/› range   ‹dim›│   ‹/›‹cyan,b›d‹/› diagram   ‹cyan,b›+/-‹/› context   ‹dim›│   ‹/›‹cyan,b›x‹/› skip                                            ‹yellow›whitespace hidden   ‹/›‹cyan,b›:‹/› commands   ‹cyan,b›tab‹/› pane   ‹cyan,b›esc‹/› back   ‹cyan,b›?‹/› keys
+

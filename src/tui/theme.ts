@@ -313,7 +313,7 @@ export const SURFACES = {
 // Green and red are good and bad, yellow needs attention.
 //
 // Borders are quiet unless a box floats or takes input, and then their color says what it is for.
-export const BORDER = { input: 'cyan', model: 'magenta', decision: 'yellow', reading: 'gray' } as const;
+export const BORDER = { input: 'cyan', model: 'magenta', decision: 'yellow', reading: 'gray', tutor: 'blue' } as const;
 export type BorderTone = keyof typeof BORDER;
 
 // Text roles: a heading is blue with the terminal's colors; the rest are plain text there.

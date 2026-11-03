@@ -144,6 +144,30 @@ describe.each(SIZES)('screens at %ix%i', (cols, rows) => {
     await snap(gr, 'chapter-deps', cols, rows);
   });
 
+  it('walks the tutor', async () => {
+    const gr = startGr(box, ['tutor'], { cwd: box.root, cols, rows, env: { GR_DEMO_INSTANT: '1' } });
+    sessions.push(gr);
+    // The welcome, centred over the dimmed briefing (docked on small terminals).
+    await gr.waitFor('explore on my own');
+    await snap(gr, 'tutor-welcome', cols, rows);
+    await keys(gr, KEY.enter, KEY.enter);
+    await gr.waitFor('to open the first chapter');
+    gr.press('n');
+    // A read step pointing at the header: the rest is dimmed.
+    await gr.waitFor('The top line says');
+    for (let i = 0; i < 400 && !/‹c\d+[^›]*›export‹\/›/.test(gr.screenWithAttrs()); i++) await new Promise((resolve) => setTimeout(resolve, 25));
+    await gr.idle();
+    await snap(gr, 'tutor-read', cols, rows);
+    await keys(gr, KEY.enter, KEY.enter, KEY.enter);
+    // A do step: the screen as it is, and the key it asks for inverted in the key bar.
+    await gr.waitFor('to mark this hunk read');
+    await snap(gr, 'tutor-do', cols, rows);
+    // Off the lesson's chapter: the way back, docked above the key bar.
+    gr.press('b');
+    await gr.waitFor('This lesson is on chapter 1.');
+    await snap(gr, 'tutor-away', cols, rows);
+  });
+
   it('shows the PR list when gh cannot list PRs', async () => {
     const gr = startGr(box, ['--no-agent'], { cwd: box.root, cols, rows });
     sessions.push(gr);

@@ -1,0 +1,36 @@
+ ‹dim›demo/shop ‹/›‹b›#0 Add discount codes to quotes and orders (…‹/›‹dim›  chapter 1/7 · hunk 1/1 · ▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/9 hunks · Guided‹/›
+‹cyan,dim›1/7 ‹/›‹dim›Taking a code at POST /orders · hunk 1/1 · next: Pricing a‹/›‹blue,bg:c235›╭─────────────────────────────────────‹/›‹blue,bg:c235,b›▲‹/›‹blue,bg:c235›──────────────────╮‹/›
+‹blue,dim›Taking a code at POST /orders‹/›‹dim› · hunk 1/1 · entry route POST /o‹/›‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹blue,bg:c235,b›Tutor · lesson 2 of 9 · Where you are · 1/3‹/›‹bg:c235›            ‹/›‹blue,bg:c235›│‹/›
+‹bright-black,dim›▎ ‹/›‹dim›The handler now passes ‹/›‹cyan,dim›req.body.discountCode‹/›‹dim› to ‹/›‹cyan,dim›createOrder‹/›‹dim›.‹/›‹blue,bg:c235›│‹/›‹bg:c235› The top line says where you are: the chapter, the      ‹/›‹blue,bg:c235›│‹/›
+‹bright-black,dim›▎ ‹/›‹dim›string, or how long it is, so whatever the client sends reac‹/›‹blue,bg:c235›│‹/›‹bg:c235› hunk, and how much of the tour you have read. A hunk   ‹/›‹blue,bg:c235›│‹/›
+‹bright-black,dim›▎ ‹/›‹dim› ‹/›                                                           ‹blue,bg:c235›│‹/›‹bg:c235› counts once you move past it with ‹/›‹cyan,bg:c235,b›n‹/›‹bg:c235›, or skip it with   ‹/›‹blue,bg:c235›│‹/›
+‹bright-black,dim›▎ ‹/›‹red,dim›○ No linked test · U: details‹/›                               ‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹cyan,bg:c235,b›x‹/›‹bg:c235›.                                                     ‹/›‹blue,bg:c235›│‹/›
+‹bright-black,dim›· ‹/›‹dim›src/routes.ts:4‹/›                                             ‹blue,bg:c235›│‹/›‹bg:c235›                                                        ‹/›‹blue,bg:c235›│‹/›
+‹dim›    4    4 │   ‹/›‹c73,dim›export‹/›‹dim› ‹/›‹c73,dim›const‹/›‹dim› router ‹/›‹c73,dim›=‹/›‹dim› ‹/›‹c217,dim›Router‹/›‹dim›()‹/›‹c145,dim›;‹/›                ‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹cyan,bg:c235,b›enter‹/›‹bg:c235› next   ‹/›‹cyan,bg:c235,b›backspace‹/›‹bg:c235› back                            ‹/›‹blue,bg:c235›│‹/›
+‹dim›    5    5 │   ‹/›                                               ‹blue,bg:c235›╰────────────────────────────────────────────────────────╯‹/›
+‹dim›    6    6 │   router‹/›‹c73,dim›.‹/›‹c217,dim›post‹/›‹dim›(‹/›‹c222,dim›'/orders'‹/›‹c145,dim›,‹/›‹dim› ‹/›‹c145,dim›(‹/›‹c183,dim›req‹/›‹c145,dim›,‹/›‹dim› ‹/›‹c183,dim›res‹/›‹c145,dim›)‹/›‹dim› ‹/›‹c73,dim›=>‹/›‹dim› ‹/›‹c145,dim›{‹/›
+‹cyan,dim›▶‹/›‹dim›   7    7 │ ‹/›‹green,dim›+ ‹/›‹dim›  res‹/›‹c73,dim›.‹/›‹c217,dim›status‹/›‹dim›(‹/›‹c217,dim›201‹/›‹dim›)‹/›‹c73,dim›.‹/›‹c217,dim›json‹/›‹dim›(‹/›‹c217,dim›createOrder‹/›‹dim›(req‹/›‹c73,dim›.‹/›‹dim›body‹/›‹c73,dim›.‹/›‹dim›items‹/›‹c145,bg:c28,dim›,‹/›‹bg:c28,dim› req‹/›‹c73,bg:c28,dim›.‹/›‹bg:c28,dim›body‹/›‹c73,bg:c28,dim›.‹/›‹bg:c28,dim›discountCode‹/›‹dim›))‹/›‹c145,dim›;‹/›
+‹dim›    8    8 │   ‹/›‹c145,dim›}‹/›‹dim›)‹/›‹c145,dim›;‹/›
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+‹dim›hunk 1/1 · line 7 · ✎ 0 drafts‹/›‹red,dim› · ○ untested‹/›
+‹dim› ‹/›‹cyan,dim›n/p‹/›‹dim› hunk   ‹/›‹cyan,dim›]/[‹/›‹dim› chapter   │   ‹/›‹cyan,dim›c‹/›‹dim› comment   +4 more‹/›       ‹yellow,dim›whitespace hidden   ‹/›‹cyan,dim›:‹/›‹dim› commands   ‹/›‹cyan,dim›tab‹/›‹dim› pane   ‹/›‹cyan,dim›esc‹/›‹dim› back   ‹/›‹cyan,dim›?‹/›‹dim› keys   ‹/›
+

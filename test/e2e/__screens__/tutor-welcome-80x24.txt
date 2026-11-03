@@ -1,0 +1,24 @@
+ ‹dim› demo/shop #0 Add discount codes to …  briefing · ▱▱▱▱▱▱▱▱▱▱▱▱ 0% · 0/9 hunks ‹/›
+
+ ‹dim›Chapters‹/›‹cyan,dim› · Guided order‹/›‹dim› · 0/9 hunks done · ‹/›‹cyan,dim›f‹/› ‹dim›─────────────────────────────────‹/›
+ ‹cyan,dim,inv› 1 ‹/›‹bright-black,dim,inv›·‹/›‹dim,inv› Taking a code at POST /orders                        ▱▱▱▱   0/1  ‹/›‹green,dim,inv› +1‹/›‹dim,inv› ‹/›‹red,dim,inv›−1 ‹/›
+ ‹dim› 2 ‹/›‹bright-black,dim›·‹/›‹dim› Pricing an order with a discount                     ▱▱▱▱   0/3  ‹/›‹green,dim›+31‹/›‹dim› ‹/›‹red,dim›−12‹/›
+ ‹dim› 3 ‹/›‹bright-black,dim›·‹/›‹dim› formatReceipt moves to receipt.ts                    ▱▱▱▱   0/1  ‹/›‹green,dim› +5‹/›‹dim› −0 ‹/›
+ ‹dim› 4 ‹/›‹bright-black,dim›·‹/›‹dim› Dependencies and runtimes                            ▱▱▱▱   0/2  ‹/›‹green,dim› +9‹/›‹dim› ‹/›‹red,dim›−2 ‹/›
+ ‹dim› 5 ‹/›‹bright-black,dim›·‹/›‹dim› Config, infra and docs                               ▱▱▱▱   0/1  ‹/›‹green,dim› +2‹/›‹dim› −0 ‹/›
+ ‹dim› 6 ‹/›‹green,dim›✓‹/›‹dim› Import-only changes                                   optional   +1 −1 ‹/›
+ ‹dim› 7 ‹/›‹bright-black,dim›·‹/›‹dim› Generated code                                       ▱▱▱▱   0/1   +1 −0 ‹/›
+ ‹dim›  ✓ read  – skipped  ◇ deferred  · unread  · ? then tab for every mark‹/›
+
+ ‹dim›From the author‹/› ‹dim›──────────────────────────────────────────────────────────────‹/›
+ ‹dim›Customers can enter a discount code at checkout. ‹/›‹cyan,dim›quote‹/›‹dim› takes an optional code,‹/›
+‹blue,bg:c235›╭──────────────────────────────────────────────────────────────────────────────╮‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹blue,bg:c235,b›Tutor 1/9 · Welcome‹/›‹bg:c235›                                                          ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› This is a real tour of a made-up change. You read it the way you would read  ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› a PR: the briefing first, then one chapter at a time.                        ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235›                                                                              ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› Every key you learn here is the real key. Nothing you do leaves your         ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› machine.                                                                     ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹cyan,bg:c235,b›enter‹/›‹bg:c235› start   ‹/›‹cyan,bg:c235,b›esc‹/›‹bg:c235› explore on my own                                          ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›╰──────────────────────────────────────────────────────────────────────────────╯‹/›
+ ‹dim› ‹/›‹cyan,dim›n‹/›‹dim› start   ‹/›‹cyan,dim›enter‹/›‹dim› open   ‹/›‹cyan,dim›j/k‹/›‹dim› select   +3 more‹/›     ‹cyan,dim›:‹/›‹dim› commands   ‹/›‹cyan,dim›?‹/›‹dim› keys   ‹/›‹cyan,dim›q‹/›‹dim› quit  ‹/›

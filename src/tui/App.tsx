@@ -58,7 +58,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { ErrorBlock } from './ErrorBlock.js';
 import { openInEditor } from '../util/editor.js';
-import { demoNarration } from '../demo.js';
+import { demoNarration, demoPreview, DEMO_ANSWERS, NO_PREPARED_ANSWER, preparedAnswer } from '../demo.js';
+import { useTutor, type TutorNav } from './tutor/Tutor.js';
+import { Anchor } from './tutor/anchors.js';
+import type { PreparedAsk } from './AskOverlay.js';
 
 export interface Target {
   repo: string;
@@ -89,10 +92,12 @@ export interface AppOptions {
   palette?: Palette; // the saved theme, loaded before the first frame; the terminal's colors when unset
   saveTheme?: (name: string) => void; // records a theme chosen in the picker; unset when there is no config file
   previewTarget?: LocalTarget; // gr preview --base and gr diff: what `preview` compares, to read it again
-  demo?: boolean;
-  onQuit?: (summary: string | undefined) => void; // Q: the line to print once the screen is gone // gr demo: starts over each run, its preview carries written-out narration, and its submit screen posts nothing
+  demo?: boolean; // gr tutor's demo tour: starts over each run, its preview carries written-out narration, and its submit screen posts nothing
+  tutor?: boolean; // gr tutor: the lessons run over the demo
+  onQuit?: (summary: string | undefined) => void; // Q: the line to print once the screen is gone
   update?: { version: string; deprecated?: string }; // a newer version gr can install, offered on the PR list
   onUpdate?: () => void; // U on the PR list: gr closes to install the update
+  onConfig?: () => void; // gr tutor: c at the tutor's end, gr closes to run gr config
   notice?: string; // shown on the PR list as it opens, such as the version just updated to
 }
 
@@ -236,20 +241,31 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const { columns, rows } = useWindowSize();
   const store = useMemo(() => {
     const s = new Store();
-    // gr demo starts over each run: nothing read, no drafts.
+    // The demo starts over each run: nothing read, no drafts.
     if (opts.demo && opts.preview) s.forgetPR(opts.preview.pr.repo, opts.preview.pr.number);
     return s;
     // Once, as the app starts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [phase, setPhase] = useState<Phase>(opts.target || opts.preview ? 'load' : 'pick');
+  // The demo, from gr tutor or started from a tour with : Tutor. A ref too, for a load started in
+  // the same moment it turns on.
+  const [demo, setDemo] = useState(!!opts.demo);
+  const demoRef = useRef(!!opts.demo);
+  // The tutor's runs: each new number starts it again from the welcome.
+  const [tutorRun, setTutorRun] = useState(opts.demo && opts.tutor ? 1 : 0);
+  // Where : Tutor was started from, to go back to when it ends: the tour (and the chapter, if it
+  // was open), or the PR list.
+  const returnTo = useRef<{ target?: Target; source?: typeof localSource.current; local?: LocalPreview; mode: Mode; chapter: boolean } | undefined>(undefined);
+  // A tour reopened after the tutor goes straight to the chapter it was left on.
+  const reopenChapter = useRef(false);
   const [submitFrom, setSubmitFrom] = useState<'briefing' | 'chapter'>('chapter');
   const [target, setTarget] = useState<Target | undefined>(opts.target ?? (opts.preview ? { repo: opts.preview.pr.repo, number: opts.preview.pr.number } : undefined));
   // A tour of a local branch, from gr preview or l on the PR list: the branch as last read, and
   // where to read it again. Each load reads it again, as the working tree changes under it;
   // gr preview's first load uses what the CLI read.
   const [local, setLocal] = useState<LocalPreview | undefined>(opts.preview);
-  // gr preview, gr diff and gr demo keep the repository name and the comparison they started with
+  // gr preview, gr diff and the demo keep the repository name and the comparison they started with
   // when they read it again.
   const localSource = useRef<{ cwd: string; first?: LocalPreview; repo?: string; target?: LocalTarget } | undefined>(
     opts.preview ? { cwd: opts.preview.worktree, first: opts.preview, repo: opts.preview.pr.repo, target: opts.previewTarget } : undefined,
@@ -497,7 +513,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
           noAgent: opts.noAgent,
           fresh,
           diffOverride: diff,
-          narrate: opts.demo ? demoNarration : undefined,
+          narrate: demoRef.current ? demoNarration : undefined,
           signal,
           onProgress,
           onTour: (tr) => {
@@ -510,7 +526,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
             if (!shown) {
               shown = true;
               setDeltaOnly(!!tr.rereview?.newHunkIds.length);
-              skipBriefing.current = !src && isShortTour(tr);
+              skipBriefing.current = (!src && isShortTour(tr)) || reopenChapter.current;
+              reopenChapter.current = false;
               setPhase('briefing');
               // Files viewed on GitHub are read here too; from now on, reading here ticks them there.
               if (!src && opts.syncViewed !== false)
@@ -548,7 +565,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         }
         if (!shown) {
           setDeltaOnly(!!final.rereview?.newHunkIds.length);
-          skipBriefing.current = !src && isShortTour(final);
+          skipBriefing.current = (!src && isShortTour(final)) || reopenChapter.current;
+          reopenChapter.current = false;
           setPhase('briefing');
         }
       } catch (e) {
@@ -927,6 +945,63 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     { isActive: process.platform !== 'win32' },
   );
 
+  // ---------- the tutor ----------
+  // The PR list offers the tutor until it is finished or dismissed once.
+  const [offerTutor, setOfferTutor] = useState(() => {
+    const t = store.getTutor();
+    return t?.state !== 'finished' && t?.state !== 'dismissed';
+  });
+  const [quitAsk, setQuitAsk] = useState<string | undefined>();
+  const tutorNav: TutorNav = {
+    go: (place) => {
+      if (place.phase === 'briefing' || !tour) {
+        setPhase('briefing');
+        return {};
+      }
+      const ci = chapters.findIndex((c) => c.hunkIds.some((id) => tour.hunks[id]?.file === place.file));
+      if (ci < 0) return {};
+      const c = chapters[ci];
+      const page = pageOf(
+        c,
+        c.hunkIds.findIndex((id) => tour.hunks[id]?.file === place.file),
+      );
+      setPos(ci, page);
+      setPhase('chapter');
+      return { hunkId: page >= 0 ? c.hunkIds[page] : undefined, line: place.line };
+    },
+    back: (home) => {
+      if (home.phase === 'chapter') setPos(home.ci, home.hi);
+      setPhase(home.phase);
+    },
+  };
+  const tutor = useTutor({
+    session: demo,
+    start: tutorRun,
+    ready: !!tour && phase !== 'load' && chapters.length > 0,
+    view: { phase, ci: pos.ci, hi: pos.hi, drafts: drafts.filter((d) => !d.posted).length },
+    saved: () => store.getTutor(),
+    save: (p) => {
+      store.setTutor(p);
+      if (p.state !== 'started') setOfferTutor(false);
+    },
+    nav: tutorNav,
+    paused: !!quitAsk,
+    offer: () => startTutor(),
+    onQuit: () => requestQuit(),
+    finale: {
+      quit: () => quit(),
+      returning: !!returnTo.current,
+      config:
+        opts.onConfig && !returnTo.current
+          ? () => {
+              opts.onConfig!();
+              quit();
+            }
+          : undefined,
+    },
+    onLeave: () => leaveTutor(),
+  });
+
   const quit = () => {
     loadAbort.current?.abort();
     predownloadAbort.current?.abort();
@@ -939,15 +1014,22 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
           drafts: store.listDrafts(tour.repo, tour.pr).filter((d) => !d.posted).length,
           replies: store.listReplies(tour.repo, tour.pr).length,
           local,
-          demo: opts.demo,
+          demo: demoRef.current,
         }),
       );
     exit();
   };
   // Q: quit, once asked again when drafts or replies have not been posted. They are saved, so
   // the question only makes sure the reviewer knows they are still waiting.
-  const [quitAsk, setQuitAsk] = useState<string | undefined>();
+  // What y to the question does: quit, or (leaving a tutor started from a tour) go back to it.
+  const onQuitYes = useRef<() => void>(() => quit());
   const requestQuit = () => {
+    // In the tutor, Q asks before leaving it; a tutor started from a tour goes back there.
+    if (tutor.on && !quitAsk) {
+      onQuitYes.current = returnTo.current ? () => leaveTutor() : () => quit();
+      return setQuitAsk(`Leave the tutor? You can pick up at lesson ${tutor.lesson} next time.`);
+    }
+    onQuitYes.current = () => quit();
     const at = quitAsksAbout(phase, tour, target, !!localSource.current);
     const drafts = at ? store.listDrafts(at.repo, at.pr).filter((d) => !d.posted).length : 0;
     const replies = at ? store.listReplies(at.repo, at.pr).length : 0;
@@ -958,30 +1040,73 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   // Ink's own useInput: the question takes keys while everything under it is quiet.
   useInkInput(
     (input, key) => {
-      if (input === 'Q' || input === 'y') return quit();
+      if (input === 'Q' || input === 'y') {
+        setQuitAsk(undefined);
+        return onQuitYes.current();
+      }
       if (key.escape || input === 'n' || input === 'q') setQuitAsk(undefined);
     },
     { isActive: !!quitAsk },
   );
 
   // q while reviewing: drop the open tour and return to the PR list. gr preview has no list,
-  // so there q quits.
-  const back = opts.preview
-    ? undefined
-    : () => {
-        loadGen.current++;
-        localSource.current = undefined;
-        setLocal(undefined);
-        loadAbort.current?.abort();
-        setTour(undefined);
-        setSteps([]);
-        setBanner(undefined);
-        setNewHead(undefined);
-        setLocalEdited(false);
-        setAnalyzing(undefined);
-        setNarration(undefined);
-        setPhase('pick');
-      };
+  // so there q quits. In a tutor started from a tour, q leaves the demo for that tour.
+  const toPicker = () => {
+    loadGen.current++;
+    localSource.current = undefined;
+    setLocal(undefined);
+    loadAbort.current?.abort();
+    setTour(undefined);
+    setSteps([]);
+    setBanner(undefined);
+    setNewHead(undefined);
+    setLocalEdited(false);
+    setAnalyzing(undefined);
+    setNarration(undefined);
+    setPhase('pick');
+  };
+  const back = returnTo.current ? () => leaveTutor() : opts.preview ? undefined : toPicker;
+
+  // : Tutor from a tour or the PR list: the demo opens with the tutor over it, and the place it
+  // was started from is kept to come back to.
+  const startTutor = () => {
+    if (!demoRef.current) returnTo.current = { target: phase === 'pick' ? undefined : target, source: localSource.current, local, mode, chapter: phase === 'chapter' };
+    demoRef.current = true;
+    setDemo(true);
+    setTutorRun((n) => n + 1);
+    loadAbort.current?.abort();
+    setPhase('load');
+    setSteps([]);
+    setTour(undefined);
+    void demoPreview().then(
+      (p) => {
+        store.forgetPR(p.pr.repo, p.pr.number);
+        localSource.current = { cwd: p.worktree, first: p, repo: p.pr.repo };
+        const t = { repo: p.pr.repo, number: p.pr.number };
+        setTarget(t);
+        void load(t, false, 'review');
+      },
+      (e: Error) => {
+        setError(`could not set up the demo: ${e.message}`);
+        setPhase('error');
+      },
+    );
+  };
+  // The tutor ends (finished, left from the palette, or esc on its welcome): a tutor started from
+  // a tour goes back to it; gr tutor stays in the demo, to look around in.
+  const leaveTutor = () => {
+    const r = returnTo.current;
+    if (!r) return;
+    returnTo.current = undefined;
+    demoRef.current = false;
+    setDemo(false);
+    localSource.current = r.source;
+    setLocal(r.local);
+    if (!r.target) return toPicker();
+    setTarget(r.target);
+    reopenChapter.current = r.chapter && r.mode === 'review';
+    void load(r.target, false, r.mode);
+  };
   // After a merge the PR is done: back to the list, saying so.
   const showMerged = (notice: string) => {
     setPickerNotice(notice);
@@ -997,7 +1122,14 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const live = !quitAsk;
   // Every screen sits in the same popup frame, so asking to quit never remounts it.
   return (
-    <ReviewPopup background={<KeysLive.Provider value={live}>{screens()}</KeysLive.Provider>} width={width} height={height} maxWidth={Math.min(width - 2, 72)} maxHeight={4} tone="decision">
+    <ReviewPopup
+      background={<KeysLive.Provider value={live && !tutor.captures}>{tutor.layer(screens(), width, height)}</KeysLive.Provider>}
+      width={width}
+      height={height}
+      maxWidth={Math.min(width - 2, 72)}
+      maxHeight={4}
+      tone="decision"
+    >
       {quitAsk
         ? (w) => (
             <Box flexDirection="column" paddingX={1}>
@@ -1080,6 +1212,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
               : undefined
           }
           readLocalChanges={readLocalChanges}
+          onTutor={startTutor}
+          offerTutor={offerTutor}
           onMerge={setMerging}
           onChecks={setChecking}
           onReviewers={setAskingReviewers}
@@ -1168,7 +1302,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     // Why AI features are off, said in their place.
     const aiOff = agent
       ? undefined
-      : opts.demo
+      : demo
         ? 'The demo runs without a model, so questions are off. Run gr config to choose one for your own reviews.'
         : opts.noAgent
           ? 'AI is off for this review (no model in gr config, or --no-agent), so questions are off.'
@@ -1233,6 +1367,13 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         recent.current = pushRecent(recent.current, loc);
       },
     };
+    // The demo's prepared answers to a, about the file asked about.
+    const prepared = demo
+      ? (file: string | undefined): PreparedAsk => ({
+          suggest: () => (file ? (DEMO_ANSWERS[file] ?? []) : []).map((a) => a.question),
+          answer: (q) => preparedAnswer(file, q)?.answer ?? NO_PREPARED_ANSWER,
+        })
+      : undefined;
     const composerEnv: ComposerEnv = {
       tour,
       root: worktree || undefined,
@@ -1312,6 +1453,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         writingBriefing={writingBriefing}
         agent={agent}
         aiOff={aiOff}
+        prepared={prepared}
         width={width}
         height={height}
         active={active}
@@ -1394,7 +1536,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       );
     }
     if (phase === 'submit') {
-      if (local && !opts.demo) {
+      if (local && !demo) {
         return (
           <ReviewPopup background={submitBackground()} width={width} height={height} maxWidth={76} maxHeight={9} tone="decision">
             {() => <PreviewSubmit onBack={() => setPhase(submitFrom)} />}
@@ -1404,37 +1546,39 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       return (
         <ReviewPopup background={submitBackground()} width={width} height={height} maxWidth={104} maxHeight={34} tone="decision">
           {(dialogWidth, dialogHeight) => (
-            <SubmitScreen
-              tour={tour}
-              checklist={chapters.flatMap((c) => c.checklist ?? [])}
-              confirms={confirms}
-              chapters={chapters}
-              states={states}
-              drafts={drafts}
-              width={dialogWidth}
-              height={dialogHeight}
-              onEdit={(d) => {
-                setEditing(d);
-                setEditState(initComposer(d, { index: indexFor() }));
-                setPhase('edit');
-              }}
-              onDelete={(d) => {
-                store.deleteDraft(d.id);
-                setDrafts(store.listDrafts(tour.repo, tour.pr));
-              }}
-              onPosted={(ids, review, moved) => {
-                store.markPosted(ids);
-                setDrafts(store.listDrafts(tour.repo, tour.pr));
-                const notice = `Posted review for ${tour.repo}#${tour.pr}: ${review.url}${moved.length ? ` · ${plural(moved.length, 'comment')} re-anchored` : ''}`;
-                setPickerNotice(notice);
-                setPostedNotice({ key: `${tour.repo}#${tour.pr}`, text: notice });
-                setPhase('pick');
-              }}
-              onBack={() => setPhase(submitFrom)}
-              onQuit={requestQuit}
-              loadMentionUsers={local ? undefined : () => getMentionUsers(tour.repo)}
-              noPost={opts.demo ? 'This is the demo: nothing is posted. p shows what a draft would post as.' : undefined}
-            />
+            <Anchor id="submit">
+              <SubmitScreen
+                tour={tour}
+                checklist={chapters.flatMap((c) => c.checklist ?? [])}
+                confirms={confirms}
+                chapters={chapters}
+                states={states}
+                drafts={drafts}
+                width={dialogWidth}
+                height={dialogHeight}
+                onEdit={(d) => {
+                  setEditing(d);
+                  setEditState(initComposer(d, { index: indexFor() }));
+                  setPhase('edit');
+                }}
+                onDelete={(d) => {
+                  store.deleteDraft(d.id);
+                  setDrafts(store.listDrafts(tour.repo, tour.pr));
+                }}
+                onPosted={(ids, review, moved) => {
+                  store.markPosted(ids);
+                  setDrafts(store.listDrafts(tour.repo, tour.pr));
+                  const notice = `Posted review for ${tour.repo}#${tour.pr}: ${review.url}${moved.length ? ` · ${plural(moved.length, 'comment')} re-anchored` : ''}`;
+                  setPickerNotice(notice);
+                  setPostedNotice({ key: `${tour.repo}#${tour.pr}`, text: notice });
+                  setPhase('pick');
+                }}
+                onBack={() => setPhase(submitFrom)}
+                onQuit={requestQuit}
+                loadMentionUsers={local ? undefined : () => getMentionUsers(tour.repo)}
+                noPost={demo ? 'This is the demo: nothing is posted. p shows what a draft would post as.' : undefined}
+              />
+            </Anchor>
           )}
         </ReviewPopup>
       );

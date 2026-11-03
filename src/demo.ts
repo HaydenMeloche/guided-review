@@ -7,7 +7,7 @@ import type { CannedNarration } from './pipeline.js';
 import type { ChapterResult } from './agent/agent.js';
 import type { Tour } from './types.js';
 
-// `gr demo`: a tour to try without a PR, gh, or a model. A small shop's branch that adds
+// The demo tour `gr tutor` runs its lessons over: a tour to try without a PR, gh, or a model. A small shop's branch that adds
 // discount codes is written to ~/.guided-review/demo as a git repository and toured as
 // `gr preview` would tour it, so it runs offline and nothing can be posted. Each run starts
 // over: the repository is written afresh and App forgets what the last run read and drafted.
@@ -18,7 +18,7 @@ const TITLE = 'Add discount codes to quotes and orders';
 const BODY = [
   'Customers can enter a discount code at checkout. `quote` takes an optional code, takes the discount off before tax, and `createOrder` passes the code through.',
   '',
-  'This is the gr demo: a made-up shop, toured offline. Its narration was written ahead of time, so no model runs. Read it with n, comment with c, and see the review you would submit with s. Nothing leaves your machine.',
+  'This is the Guided Review demo: a made-up shop, toured offline. Its narration was written ahead of time, so no model runs. Read it with n, comment with c, and see the review you would submit with s. Nothing leaves your machine.',
 ].join('\n');
 
 // Fixed dates and author, so the commits and the SHAs on screen are the same each run.
@@ -279,4 +279,104 @@ export async function demoPreview(root = path.join(grHome(), 'demo')): Promise<L
   await writeDemoRepo(root);
   const p = await localPreview(root, DEMO_REPO);
   return { ...p, pr: { ...p.pr, title: `${TITLE} (demo)`, body: BODY } };
+}
+
+// ---------- prepared answers ----------
+
+// What `a` answers in the demo, with no model to ask: a few questions about each file, written
+// about the demo's real lines. A typed question is matched to them by keyword. Every file:line an
+// answer cites is in `cites` with the name on that line, and test/demo.test.ts checks them against
+// the demo's head, so an edit above can't leave an answer pointing at the wrong line.
+export interface PreparedAnswer {
+  question: string;
+  keywords: string[];
+  answer: string;
+  cites: { file: string; line: number; name: string }[];
+}
+
+const STAFF50: PreparedAnswer = {
+  question: 'Who can use STAFF50?',
+  keywords: ['staff50', 'staff', 'who', 'anyone', 'employee', 'public'],
+  answer:
+    'Anyone who types it. `discountAmount` looks the code up in `DISCOUNTS` (src/pricing.ts:30) and checks only the order’s minimum (src/pricing.ts:31), which is 0 for STAFF50 (src/pricing.ts:18). Nothing in `quote` or `createOrder` knows who the customer is, and POST /orders passes the code straight from the request body (src/routes.ts:7). As written, STAFF50 is a public 50% off code.',
+  cites: [
+    { file: 'src/pricing.ts', line: 30, name: 'DISCOUNTS' },
+    { file: 'src/pricing.ts', line: 31, name: 'minCents' },
+    { file: 'src/pricing.ts', line: 18, name: 'STAFF50' },
+    { file: 'src/routes.ts', line: 7, name: 'discountCode' },
+  ],
+};
+const NOT_A_STRING: PreparedAnswer = {
+  question: 'What if discountCode is not a string?',
+  keywords: ['string', 'number', 'type', 'validat', 'touppercase', 'crash', 'throw', '500', 'invalid', 'object'],
+  answer:
+    '`discountAmount` calls `code.toUpperCase()` (src/pricing.ts:30), so a number or an object in the request body throws a TypeError. `quote` only checks that the code is truthy (src/pricing.ts:37), and the route passes `req.body.discountCode` on as it came (src/routes.ts:7), so the request fails with a 500 rather than a 400. The change adds zod, but nothing uses it yet.',
+  cites: [
+    { file: 'src/pricing.ts', line: 30, name: 'toUpperCase' },
+    { file: 'src/pricing.ts', line: 37, name: 'discountCode ?' },
+    { file: 'src/routes.ts', line: 7, name: 'req.body.discountCode' },
+  ],
+};
+const TAX_AFTER: PreparedAnswer = {
+  question: 'Is tax charged after the discount?',
+  keywords: ['tax', 'before', 'after', 'total'],
+  answer:
+    'Yes. `quote` takes the discount off the subtotal and taxes what is left, `tax(subtotalCents - discountCents)` (src/pricing.ts:38). The test checks it: a 2000-cent item with WELCOME10 is 200 off and 2034 in all (test/pricing.test.ts:10).',
+  cites: [
+    { file: 'src/pricing.ts', line: 38, name: 'tax(subtotalCents - discountCents)' },
+    { file: 'test/pricing.test.ts', line: 10, name: '2034' },
+  ],
+};
+const TEST_GAPS: PreparedAnswer = {
+  question: 'What does the test miss?',
+  keywords: ['test', 'miss', 'cover', 'untested', 'case', 'gap'],
+  answer:
+    'It tries one valid code, in lowercase (test/pricing.test.ts:8). Nothing tries an unknown code, an order under BULK15’s minimum of 20000 cents (src/pricing.ts:17), or a code that is not a string. The first two are the ways `discountAmount` returns 0 (src/pricing.ts:31).',
+  cites: [
+    { file: 'test/pricing.test.ts', line: 8, name: 'welcome10' },
+    { file: 'src/pricing.ts', line: 17, name: 'BULK15' },
+    { file: 'src/pricing.ts', line: 31, name: 'return 0' },
+  ],
+};
+
+export const DEMO_ANSWERS: Record<string, PreparedAnswer[]> = {
+  'src/pricing.ts': [STAFF50, NOT_A_STRING, TAX_AFTER, TEST_GAPS],
+  'src/routes.ts': [NOT_A_STRING, STAFF50],
+  'src/orders.ts': [
+    {
+      question: 'Where did formatReceipt go?',
+      keywords: ['formatreceipt', 'receipt', 'moved', 'removed', 'gone', 'where'],
+      answer: 'It moved to src/receipt.ts without a change (src/receipt.ts:1), and src/admin.ts imports it from there now (src/admin.ts:1).',
+      cites: [
+        { file: 'src/receipt.ts', line: 1, name: 'formatReceipt' },
+        { file: 'src/admin.ts', line: 1, name: './receipt' },
+      ],
+    },
+    {
+      question: 'Is the code kept on the order?',
+      keywords: ['kept', 'keep', 'store', 'save', 'order', 'return'],
+      answer:
+        'Yes: `createOrder` returns the order with `discountCode` on it (src/orders.ts:5), as the customer typed it rather than upper-cased, so `welcome10` and `WELCOME10` are stored differently.',
+      cites: [{ file: 'src/orders.ts', line: 5, name: 'discountCode' }],
+    },
+  ],
+  'test/pricing.test.ts': [TEST_GAPS, TAX_AFTER],
+};
+
+export const NO_PREPARED_ANSWER = 'The demo answers a few prepared questions about this code: try one of the numbered ones. With a model chosen in gr config, you can ask anything.';
+
+// The prepared answer to a question about a file: the one asked word for word, else the one whose
+// keywords the question shares most. None when nothing matches.
+export function preparedAnswer(file: string | undefined, question: string): PreparedAnswer | undefined {
+  const answers = (file && DEMO_ANSWERS[file]) || [];
+  const q = question.toLowerCase();
+  const exact = answers.find((a) => a.question.toLowerCase() === q.trim());
+  if (exact) return exact;
+  let best: PreparedAnswer | undefined;
+  let score = 0;
+  for (const a of answers) {
+    const s = a.keywords.filter((k) => q.includes(k)).length;
+    if (s > score) [best, score] = [a, s];
+  }
+  return best;
 }

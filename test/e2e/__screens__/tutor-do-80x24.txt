@@ -1,0 +1,24 @@
+ ‹dim›demo/shop ‹/›‹b›#0 A…‹/›‹dim›  chapter 1/7 · hunk 1/1 · ▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/9 hunks · Guided‹/›
+‹cyan,b›1/7 ‹/›‹b›Taking a code at POST /orders‹/›‹dim› · hunk 1/1 · next: Pricing an order with a di…‹/›
+‹blue,b›Taking a code at POST /orders‹/›‹dim› · hunk 1/1 · entry route POST /orders‹/›
+‹bright-black›▎ ‹/›The handler now passes ‹cyan›req.body.discountCode‹/› to ‹cyan›createOrder‹/›.‹dim› Nothing here‹/›
+‹bright-black›▎ ‹/›‹dim›checks that it is a string, or how long it is, so whatever the client sends‹/›
+‹bright-black›▎ ‹/›‹dim›reaches the discount lookup.‹/›
+‹bright-black›▎ ‹/›
+‹bright-black›▎ ‹/›‹red›○ No linked test · U: details‹/›
+‹bright-black›· ‹/›‹dim›src/routes.ts:4‹/›
+ ‹dim›   4    4 │ ‹/›  ‹c73›export‹/› ‹c73›const‹/› router ‹c73›=‹/› ‹c217›Router‹/›()‹c145›;‹/›
+ ‹dim›   5    5 │ ‹/›
+ ‹dim›   6    6 │ ‹/›  router‹c73›.‹/›‹c217›post‹/›(‹c222›'/orders'‹/›‹c145›,‹/› ‹c145›(‹/›‹c183›req‹/›‹c145›,‹/› ‹c183›res‹/›‹c145›)‹/› ‹c73›=>‹/› ‹c145›{‹/›
+‹cyan›▶‹/›‹dim›   7    7 │ ‹/›‹green›+ ‹/›  res‹c73›.‹/›‹c217›status‹/›(‹c217›201‹/›)‹c73›.‹/›‹c217›json‹/›(‹c217›createOrder‹/›(req‹c73›.‹/›body‹c73›.‹/›items‹c145,bg:c28›,‹/›‹bg:c28› req‹/›‹c73,bg:c28›.‹/›‹bg:c28›body‹/›‹c73,bg:c28›.‹/›‹bg:c28›disco‹/›
+ ‹dim›        ↪ │ ‹/›‹green›  ‹/›‹bg:c28›untCode‹/›))‹c145›;‹/›
+ ‹dim›   8    8 │ ‹/›  ‹c145›}‹/›)‹c145›;‹/›
+
+
+‹blue,bg:c235›╭──────────────────────────────────────────────────────────────────────────────╮‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹blue,bg:c235,b›Tutor 3/9 · Move through the tour‹/›‹bg:c235›                                            ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› Press ‹/›‹cyan,bg:c235,b›n‹/›‹bg:c235› to mark this hunk read and go to the next one.                       ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,dim›waiting for n …‹/›‹bg:c235›                                                              ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›╰──────────────────────────────────────────────────────────────────────────────╯‹/›
+ ‹cyan,b,inv›n/p‹/› hunk   ‹dim›+6 more‹/›          ‹yellow›whitespace hidden   ‹/›‹cyan,b›tab‹/› pane   ‹cyan,b›esc‹/› back   ‹cyan,b›?‹/› keys
+

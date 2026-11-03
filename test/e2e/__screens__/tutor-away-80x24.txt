@@ -1,0 +1,24 @@
+ ‹dim› demo/shop #0 Add discount codes to …  briefing · ▱▱▱▱▱▱▱▱▱▱▱▱ 0% · 0/9 hunks ‹/›
+
+ ‹dim›Chapters‹/›‹cyan,dim› · Guided order‹/›‹dim› · 0/9 hunks done · ‹/›‹cyan,dim›f‹/› ‹dim›─────────────────────────────────‹/›
+ ‹cyan,dim,inv› 1 ‹/›‹bright-black,dim,inv›·‹/›‹dim,inv› Taking a code at POST /orders                        ▱▱▱▱   0/1  ‹/›‹green,dim,inv› +1‹/›‹dim,inv› ‹/›‹red,dim,inv›−1 ‹/›
+ ‹dim› 2 ‹/›‹bright-black,dim›·‹/›‹dim› Pricing an order with a discount                     ▱▱▱▱   0/3  ‹/›‹green,dim›+31‹/›‹dim› ‹/›‹red,dim›−12‹/›
+ ‹dim› 3 ‹/›‹bright-black,dim›·‹/›‹dim› formatReceipt moves to receipt.ts                    ▱▱▱▱   0/1  ‹/›‹green,dim› +5‹/›‹dim› −0 ‹/›
+ ‹dim› 4 ‹/›‹bright-black,dim›·‹/›‹dim› Dependencies and runtimes                            ▱▱▱▱   0/2  ‹/›‹green,dim› +9‹/›‹dim› ‹/›‹red,dim›−2 ‹/›
+ ‹dim› 5 ‹/›‹bright-black,dim›·‹/›‹dim› Config, infra and docs                               ▱▱▱▱   0/1  ‹/›‹green,dim› +2‹/›‹dim› −0 ‹/›
+ ‹dim› 6 ‹/›‹green,dim›✓‹/›‹dim› Import-only changes                                   optional   +1 −1 ‹/›
+ ‹dim› 7 ‹/›‹bright-black,dim›·‹/›‹dim› Generated code                                       ▱▱▱▱   0/1   +1 −0 ‹/›
+ ‹dim›  ✓ read  – skipped  ◇ deferred  · unread  · ? then tab for every mark‹/›
+
+ ‹dim›From the author‹/› ‹dim›──────────────────────────────────────────────────────────────‹/›
+ ‹dim›Customers can enter a discount code at checkout. ‹/›‹cyan,dim›quote‹/›‹dim› takes an optional code,‹/›
+ ‹dim›takes the discount off before tax, and ‹/›‹cyan,dim›createOrder‹/›‹dim› passes the code through.‹/›
+ ‹dim› ‹/›
+ ‹dim›This is the Guided Review demo: a made-up shop, toured offline. Its narration‹/›
+‹blue,bg:c235›╭──────────────────────────────────────────────────────────────────────────────╮‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹blue,bg:c235,b›Tutor 3/9 · Move through the tour‹/›‹bg:c235›                                            ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› This lesson is on chapter 1. enter takes you back, or esc lets you look      ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› around first (: has the way back).                                           ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹cyan,bg:c235,b›enter‹/›‹bg:c235› take me back   ‹/›‹cyan,bg:c235,b›esc‹/›‹bg:c235› explore here                                        ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›╰──────────────────────────────────────────────────────────────────────────────╯‹/›
+ ‹dim› ‹/›‹cyan,dim›n‹/›‹dim› resume · chapter 1, hunk 1/1   +5 more‹/›        ‹cyan,dim›:‹/›‹dim› commands   ‹/›‹cyan,dim›?‹/›‹dim› keys   ‹/›‹cyan,dim›q‹/›‹dim› quit  ‹/›

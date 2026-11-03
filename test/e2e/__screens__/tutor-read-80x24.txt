@@ -1,0 +1,24 @@
+ ‹dim›demo/shop ‹/›‹b›#0 A…‹/›‹dim›  chapter 1/7 · hunk 1/1 · ▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/9 hunks · Guided‹/›
+‹cyan,dim›1/7 ‹/›‹dim›Taking a code at POST /orders · hunk 1/1 · next: Pricing an order with a di…‹/›
+‹blue,dim›Taking a code at POST /orders‹/›‹dim› · hunk 1/1 · entry route POST /orders‹/›
+‹bright-black,dim›▎ ‹/›‹dim›The handler now passes ‹/›‹cyan,dim›req.body.discountCode‹/›‹dim› to ‹/›‹cyan,dim›createOrder‹/›‹dim›. Nothing here‹/›
+‹bright-black,dim›▎ ‹/›‹dim›checks that it is a string, or how long it is, so whatever the client sends‹/›
+‹bright-black,dim›▎ ‹/›‹dim›reaches the discount lookup.‹/›
+‹bright-black,dim›▎ ‹/›‹dim› ‹/›
+‹bright-black,dim›▎ ‹/›‹red,dim›○ No linked test · U: details‹/›
+‹bright-black,dim›· ‹/›‹dim›src/routes.ts:4‹/›
+‹dim›    4    4 │   ‹/›‹c73,dim›export‹/›‹dim› ‹/›‹c73,dim›const‹/›‹dim› router ‹/›‹c73,dim›=‹/›‹dim› ‹/›‹c217,dim›Router‹/›‹dim›()‹/›‹c145,dim›;‹/›
+‹dim›    5    5 │   ‹/›
+‹dim›    6    6 │   router‹/›‹c73,dim›.‹/›‹c217,dim›post‹/›‹dim›(‹/›‹c222,dim›'/orders'‹/›‹c145,dim›,‹/›‹dim› ‹/›‹c145,dim›(‹/›‹c183,dim›req‹/›‹c145,dim›,‹/›‹dim› ‹/›‹c183,dim›res‹/›‹c145,dim›)‹/›‹dim› ‹/›‹c73,dim›=>‹/›‹dim› ‹/›‹c145,dim›{‹/›
+‹cyan,dim›▶‹/›‹dim›   7    7 │ ‹/›‹green,dim›+ ‹/›‹dim›  res‹/›‹c73,dim›.‹/›‹c217,dim›status‹/›‹dim›(‹/›‹c217,dim›201‹/›‹dim›)‹/›‹c73,dim›.‹/›‹c217,dim›json‹/›‹dim›(‹/›‹c217,dim›createOrder‹/›‹dim›(req‹/›‹c73,dim›.‹/›‹dim›body‹/›‹c73,dim›.‹/›‹dim›items‹/›‹c145,bg:c28,dim›,‹/›‹bg:c28,dim› req‹/›‹c73,bg:c28,dim›.‹/›‹bg:c28,dim›body‹/›‹c73,bg:c28,dim›.‹/›‹bg:c28,dim›disco‹/›
+‹dim›         ↪ │ ‹/›‹green,dim›  ‹/›‹bg:c28,dim›untCode‹/›‹dim›))‹/›‹c145,dim›;‹/›
+‹dim›    8    8 │   ‹/›‹c145,dim›}‹/›‹dim›)‹/›‹c145,dim›;‹/›
+‹blue,bg:c235›╭──────────────────────────────────────────────────────────────────────────────╮‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹blue,bg:c235,b›Tutor 2/9 · Where you are‹/›‹bg:c235›                                                    ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› The top line says where you are: the chapter, the hunk, and how much of the  ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› tour you have read. A hunk counts once you move past it with ‹/›‹cyan,bg:c235,b›n‹/›‹bg:c235›, or skip it   ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› with ‹/›‹cyan,bg:c235,b›x‹/›‹bg:c235›.                                                                      ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›│‹/›‹bg:c235› ‹/›‹cyan,bg:c235,b›enter‹/›‹bg:c235› next   ‹/›‹cyan,bg:c235,b›backspace‹/›‹bg:c235› back                                                  ‹/›‹blue,bg:c235›│‹/›
+‹blue,bg:c235›╰──────────────────────────────────────────────────────────────────────────────╯‹/›
+‹dim› ‹/›‹cyan,dim›n/p‹/›‹dim› hunk   +6 more‹/›          ‹yellow,dim›whitespace hidden   ‹/›‹cyan,dim›tab‹/›‹dim› pane   ‹/›‹cyan,dim›esc‹/›‹dim› back   ‹/›‹cyan,dim›?‹/›‹dim› keys   ‹/›
+

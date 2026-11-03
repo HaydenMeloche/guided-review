@@ -19,10 +19,14 @@ A model is optional. Without one, the tour is built from static analysis alone a
 ```sh
 npm install -g @haydenmeloche/guided-review
 gr        # the first run walks you through setup, then lists PRs awaiting your review
-gr demo   # or try a tour of a sample change first: offline, no PR, gh, or model needed
+gr tutor  # or learn it first: lessons in a sample tour, offline, no PR, gh, or model needed
 ```
 
 You need Node 22.13 or newer, `git`, and the [GitHub CLI](https://cli.github.com/) signed in with `gh auth login`.
+
+The install adds two names for the same command: `guided-review` and the short `gr`. If `gr` is already a shell alias (Oh My Zsh's git plugin defines one), use `guided-review`, as in `guided-review tutor`.
+
+New to it? `gr tutor` opens a sample tour with lessons over it, in the spirit of `vimtutor`: it points at one part of the screen at a time and has you press the real keys, from reading a hunk to submitting a review. It takes about ten minutes, runs offline, and posts nothing. From any tour, `:` then **Tutor** opens it too. See [Learn gr](https://haydenmeloche.github.io/guided-review/usage.html#learn-gr).
 
 ## Documentation
 

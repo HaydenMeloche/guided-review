@@ -22,7 +22,7 @@ export const COMMANDS: CommandSpec[] = [
   { name: 'feedback', about: 'Work through the review feedback on your PR', flags: TOUR_FLAGS, arg: 'pr' },
   { name: 'preview', about: 'Tour your current branch before opening the PR', flags: [...TOUR_FLAGS, '--base'] },
   { name: 'diff', about: 'Tour the working tree against a commit, or two commits', flags: TOUR_FLAGS, arg: 'ref' },
-  { name: 'demo', about: 'Try a tour of a sample change', flags: [] },
+  { name: 'tutor', about: 'Learn gr: lessons in a tour of a sample change', flags: [] },
   { name: 'open', about: 'Open the tour of a PR in a new terminal window', flags: ['--preview'], arg: 'pr' },
   { name: 'build', about: 'Build a tour without the TUI (for CI)', flags: [...TOUR_FLAGS, '--comment', '--out'], arg: 'pr' },
   { name: 'doctor', about: 'Check what gr needs and how to fix what is missing', flags: ['--no-agent'] },

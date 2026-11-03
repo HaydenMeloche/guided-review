@@ -1,4 +1,4 @@
-
+ ‹dim›New to gr? ‹/›‹cyan,b›T‹/›‹dim› starts the tutor: about 10 minutes in a sample tour, offline.‹/›
  ‹red,b›Your review requests could not be loaded‹/›
  ‹dim›gh search prs --review-requested=@me --state=open --limit 50 --json ‹/›
  ‹dim›number,title,url,updatedAt,author,repository,isDraft,labels failed: gh: not ‹/›

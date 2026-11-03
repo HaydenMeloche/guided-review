@@ -25,10 +25,16 @@ const Surface = createContext<string | undefined | typeof NO_BOX>(NO_BOX);
 // Whether a Text sits inside one shown in the theme's muted color in place of Ink's dim.
 const InMuted = createContext(false);
 
+// The tutor's spotlight: while on, every Text under it is drawn dim, so what the tutor points at
+// (an Anchor, which turns it off for its own subtree) stands out. It needs no layout.
+export const Dimmed = createContext(false);
+
 export function Text(props: TextProps) {
   const palette = useTheme();
   const nested = use(InText);
   const inMuted = use(InMuted);
+  // Bold goes too: the code that ends bold ends dim as well, which would light the rest of the line.
+  if (use(Dimmed)) props = { ...props, dimColor: true, bold: false };
   // Dimmed text without its own color takes the theme's muted color instead of a faded foreground.
   const muted = props.dimColor && !props.color && palette.muted;
   // NO_COLOR: no colors or backgrounds, only bold, dim and inverse.

@@ -44,7 +44,7 @@ export function SubmitScreen(props: {
   onBack: () => void;
   onQuit?: () => void; // Q
   loadMentionUsers?: () => Promise<string[]>; // collaborators for @mentions in the summary
-  noPost?: string; // why this review can't be posted (gr demo): shown under the title, and P says it instead of posting
+  noPost?: string; // why this review can't be posted (the demo): shown under the title, and P says it instead of posting
 }) {
   const { tour, states, width } = props;
   const pending = useMemo(() => props.drafts.filter((d) => !d.posted), [props.drafts]);

@@ -19,6 +19,8 @@ import { ReadinessLine } from './MergeScreen.js';
 import { HelpPopup } from './Help.js';
 import { ReviewPopup } from './ReviewPopup.js';
 import { CommandPalette, type PaletteItem } from './CommandPalette.js';
+import { useTutorBridge } from './tutor/bridge.js';
+import { Anchor } from './tutor/anchors.js';
 import { reviewLegend } from './legend.js';
 import { REVIEW_BRIEFING_KEYS, reviewBriefingBar } from './screenKeys.js';
 import { PALETTE_HINT } from './chapter/keys.js';
@@ -100,6 +102,12 @@ export function BriefingScreen(props: {
   const [noticeSeen, setNoticeSeen] = useState<string>();
   const notice = props.notice && props.notice !== noticeSeen ? props.notice : undefined;
   const [overlay, setOverlay] = useState<'none' | 'diagram' | 'ask' | 'read' | 'summary' | 'reviews' | 'help' | 'palette' | 'restart'>('none');
+  const tutor = useTutorBridge();
+  // A tutor's request to start a lesson here closes whatever is open.
+  const tutorSeq = tutor?.request.seq ?? 0;
+  useEffect(() => {
+    if (tutorSeq) setOverlay('none');
+  }, [tutorSeq]);
   useEffect(() => setSel(0), [props.order]);
   // D keeps the selected chapter when it is in both lists.
   const keepSel = useRef<string | undefined>(undefined);
@@ -297,68 +305,70 @@ export function BriefingScreen(props: {
           ))}
         </Box>
       ) : null}
-      <Box flexDirection="column" marginTop={topRows ? 1 : 0} flexShrink={0}>
-        <SectionHeading title="Chapters" width={leftW}>
-          <Text bold color="cyan">
-            {' '}
-            · {ORDER_LABEL[props.order]} order
-          </Text>
-          <Text bold dimColor>
-            {' '}
-            · {prog.read + prog.skipped}/{prog.total} hunks done ·{' '}
-          </Text>
-          <Key k="f" />
-        </SectionHeading>
-        {rows.slice(chStart, chStart + shownCount).map(({ chapter: c, ci }, k) => {
-          const unchanged = ci < 0;
-          const st = stateMark(chapterState(tour, c, states));
-          const p = progress(tour, states, c.hunkIds);
-          const m = meter(p.read + p.skipped, p.total, 4);
-          const count = c.optional ? 'optional' : !delta ? `${p.read + p.skipped}/${p.total}` : unchanged ? 'unchanged' : `${c.hunkIds.length} of ${fullCount(c.id)} changed`;
-          // Where the discussion is: open threads (or resolved ones, when none is open) and your drafts.
-          const said = chapterNotes(tour, c, props.drafts ?? []);
-          const threadNote = said.open ? `${said.open} open` : said.resolved ? `${said.resolved} resolved` : '';
-          const draftNote = said.drafts ? `${G.draft} ${said.drafts}` : '';
-          const notes = [threadNote, draftNote].filter(Boolean).join(' · ');
-          const size = sizes.get(c.id);
-          const added = size ? `+${size.added}`.padStart(addW) : ' '.repeat(addW);
-          const removed = size ? `−${size.removed}`.padEnd(delW) : ' '.repeat(delW);
-          const tail = `  ${c.optional || unchanged ? '' : `${m.filled}${m.rest} `}${count.padStart(5)}  ${added} ${removed}${notes ? `  ${notes}` : ''}`;
-          const selected = !unchanged && ci === sel;
-          const quiet = unchanged || (c.collapsed && !selected);
-          const n = String(chStart + k + 1).padStart(numW);
-          return (
-            <Text key={c.id} {...selectedRow(selected)} dimColor={quiet} wrap="truncate">
-              <Text color={selected ? 'cyan' : undefined} dimColor={!selected}>{` ${n} `}</Text>
-              <Text color={unchanged ? undefined : st.color}>{st.mark}</Text>{' '}
-              <Text color={quiet || selected ? undefined : ROLES.title}>{pad(safe(c.title), Math.max(12, leftW - tail.length - numW - 5))}</Text>
-              {c.optional || unchanged ? null : (
-                <>
-                  {'  '}
-                  <Text color="green">{m.filled}</Text>
-                  <Text dimColor>{m.rest}</Text>
-                </>
-              )}
-              <Text dimColor>{` ${count.padStart(5)}  `}</Text>
-              <Text color={quiet || !size?.added ? undefined : 'green'} dimColor={!size?.added}>
-                {added}
-              </Text>{' '}
-              <Text color={quiet || !size?.removed ? undefined : 'red'} dimColor={!size?.removed}>
-                {removed}
-              </Text>
-              {threadNote ? <Text color={said.open ? 'yellow' : undefined} dimColor={!said.open}>{`  ${threadNote}`}</Text> : null}
-              {draftNote ? <Text dimColor>{`${threadNote ? ' · ' : '  '}${draftNote}`}</Text> : null}
+      <Anchor id="briefing.chapters">
+        <Box flexDirection="column" marginTop={topRows ? 1 : 0} flexShrink={0}>
+          <SectionHeading title="Chapters" width={leftW}>
+            <Text bold color="cyan">
+              {' '}
+              · {ORDER_LABEL[props.order]} order
             </Text>
-          );
-        })}
-        {windowed ? <Text dimColor>{`  ${chStart ? `… ${chStart} above · ` : ''}${rows.length - chStart - shownCount} more below`}</Text> : null}
-        {/* Where the marks first appear, what they mean; ? then Tab has them all. */}
-        {legendRow ? (
-          <Text dimColor wrap="truncate">
-            {`  ${G.read} read  ${G.skipped} skipped  ${G.deferred} deferred  ${G.unread} unread  · ? then tab for every mark`}
-          </Text>
-        ) : null}
-      </Box>
+            <Text bold dimColor>
+              {' '}
+              · {prog.read + prog.skipped}/{prog.total} hunks done ·{' '}
+            </Text>
+            <Key k="f" />
+          </SectionHeading>
+          {rows.slice(chStart, chStart + shownCount).map(({ chapter: c, ci }, k) => {
+            const unchanged = ci < 0;
+            const st = stateMark(chapterState(tour, c, states));
+            const p = progress(tour, states, c.hunkIds);
+            const m = meter(p.read + p.skipped, p.total, 4);
+            const count = c.optional ? 'optional' : !delta ? `${p.read + p.skipped}/${p.total}` : unchanged ? 'unchanged' : `${c.hunkIds.length} of ${fullCount(c.id)} changed`;
+            // Where the discussion is: open threads (or resolved ones, when none is open) and your drafts.
+            const said = chapterNotes(tour, c, props.drafts ?? []);
+            const threadNote = said.open ? `${said.open} open` : said.resolved ? `${said.resolved} resolved` : '';
+            const draftNote = said.drafts ? `${G.draft} ${said.drafts}` : '';
+            const notes = [threadNote, draftNote].filter(Boolean).join(' · ');
+            const size = sizes.get(c.id);
+            const added = size ? `+${size.added}`.padStart(addW) : ' '.repeat(addW);
+            const removed = size ? `−${size.removed}`.padEnd(delW) : ' '.repeat(delW);
+            const tail = `  ${c.optional || unchanged ? '' : `${m.filled}${m.rest} `}${count.padStart(5)}  ${added} ${removed}${notes ? `  ${notes}` : ''}`;
+            const selected = !unchanged && ci === sel;
+            const quiet = unchanged || (c.collapsed && !selected);
+            const n = String(chStart + k + 1).padStart(numW);
+            return (
+              <Text key={c.id} {...selectedRow(selected)} dimColor={quiet} wrap="truncate">
+                <Text color={selected ? 'cyan' : undefined} dimColor={!selected}>{` ${n} `}</Text>
+                <Text color={unchanged ? undefined : st.color}>{st.mark}</Text>{' '}
+                <Text color={quiet || selected ? undefined : ROLES.title}>{pad(safe(c.title), Math.max(12, leftW - tail.length - numW - 5))}</Text>
+                {c.optional || unchanged ? null : (
+                  <>
+                    {'  '}
+                    <Text color="green">{m.filled}</Text>
+                    <Text dimColor>{m.rest}</Text>
+                  </>
+                )}
+                <Text dimColor>{` ${count.padStart(5)}  `}</Text>
+                <Text color={quiet || !size?.added ? undefined : 'green'} dimColor={!size?.added}>
+                  {added}
+                </Text>{' '}
+                <Text color={quiet || !size?.removed ? undefined : 'red'} dimColor={!size?.removed}>
+                  {removed}
+                </Text>
+                {threadNote ? <Text color={said.open ? 'yellow' : undefined} dimColor={!said.open}>{`  ${threadNote}`}</Text> : null}
+                {draftNote ? <Text dimColor>{`${threadNote ? ' · ' : '  '}${draftNote}`}</Text> : null}
+              </Text>
+            );
+          })}
+          {windowed ? <Text dimColor>{`  ${chStart ? `… ${chStart} above · ` : ''}${rows.length - chStart - shownCount} more below`}</Text> : null}
+          {/* Where the marks first appear, what they mean; ? then Tab has them all. */}
+          {legendRow ? (
+            <Text dimColor wrap="truncate">
+              {`  ${G.read} read  ${G.skipped} skipped  ${G.deferred} deferred  ${G.unread} unread  · ? then tab for every mark`}
+            </Text>
+          ) : null}
+        </Box>
+      </Anchor>
       {reviews.length ? (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
           <SectionHeading title="Other reviewers" width={leftW}>
@@ -458,26 +468,28 @@ export function BriefingScreen(props: {
       {overlay === 'restart' ? (
         <Confirm yes="restart">Mark the {plural(reviewed, 'hunk')} you went through unread and start the tour over? Drafts stay.</Confirm>
       ) : (
-        <KeyBar
-          width={width}
-          accent
-          // Keys hinted where they apply on screen (D, f, d beside the overview, r under a cut-off
-          // description, i on its heading) stay off the bar.
-          keys={reviewBriefingBar({
-            start: props.resume ?? 'start',
-            agent: !!props.agent,
-            readDescription: !descCut,
-            summary: !!props.agent && !descAll.length, // otherwise hinted on the description's heading
-            diagram: !(wide && tour.overview),
-            feedback: !!props.onFeedback,
-            checks: !!props.onChecks,
-          })}
-          extraEnd={[PALETTE_HINT]}
-          end={[
-            ['?', 'keys'],
-            ['q', props.onBack ? 'PR list' : 'quit'],
-          ]}
-        />
+        <Anchor id="keybar">
+          <KeyBar
+            width={width}
+            accent
+            // Keys hinted where they apply on screen (D, f, d beside the overview, r under a cut-off
+            // description, i on its heading) stay off the bar.
+            keys={reviewBriefingBar({
+              start: props.resume ?? 'start',
+              agent: !!props.agent,
+              readDescription: !descCut,
+              summary: !!props.agent && !descAll.length, // otherwise hinted on the description's heading
+              diagram: !(wide && tour.overview),
+              feedback: !!props.onFeedback,
+              checks: !!props.onChecks,
+            })}
+            extraEnd={[PALETTE_HINT]}
+            end={[
+              ['?', 'keys'],
+              ['q', props.onBack ? 'PR list' : 'quit'],
+            ]}
+          />
+        </Anchor>
       )}
     </Box>
   );
@@ -497,6 +509,7 @@ export function BriefingScreen(props: {
       ...(props.onChecks ? [{ label: 'Checks and their logs', key: 'c', run: () => props.onChecks?.() }] : []),
       ...(props.onTheme ? [{ label: 'Color theme', run: () => props.onTheme?.() }] : []),
       ...(props.onRestart && reviewed ? [{ label: 'Restart the tour: mark every hunk unread', run: () => setOverlay('restart') }] : []),
+      ...(tutor?.palette ?? []),
       ...chapters.map((c, i) => ({ label: `Go to chapter ${i + 1}: ${c.title}`, detail: plural(c.hunkIds.length, 'hunk'), run: () => props.onStart(i) })),
     ];
     return (

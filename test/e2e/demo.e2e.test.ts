@@ -14,15 +14,22 @@ afterEach(() => {
   box.cleanup();
 });
 
-function demo(): Session {
-  const session = startGr(box, ['demo'], { cwd: box.root, cols: 160, rows: 50 });
+// The tutor's demo tour, explored on its own: esc on the welcome leaves the lessons
+// (test/e2e/tutor.e2e.test.ts walks them).
+async function demo(): Promise<Session> {
+  const session = startGr(box, ['tutor'], { cwd: box.root, cols: 160, rows: 50 });
   sessions.push(session);
+  await session.waitFor('explore on my own');
+  await session.idle();
+  session.press(KEY.escape);
+  for (let i = 0; i < 200 && session.screen().includes('Tutor ·'); i++) await new Promise((resolve) => setTimeout(resolve, 25));
+  await session.idle();
   return session;
 }
 
-describe('gr demo', () => {
+describe('the demo tour', () => {
   it('opens a narrated sample tour with no config, no gh and no model', async () => {
-    const gr = demo();
+    const gr = await demo();
     const screen = await gr.waitFor('Chapters · Guided order');
     // No setup first: the demo needs no model.
     expect(fs.existsSync(path.join(box.env.GR_HOME!, 'config.json'))).toBe(false);
@@ -38,14 +45,14 @@ describe('gr demo', () => {
     await gr.waitFor('Chapters · ');
     gr.press('n');
     expect(await gr.waitFor('hunk 1/')).toContain('Nothing here checks that it is a');
-    // Questions need a model, and the demo has none.
+    // No model: a answers prepared questions about the code.
     gr.press('a');
-    await gr.waitFor('The demo runs without a model');
+    await gr.waitFor('prepared answers, demo');
     expect(box.ghCalls()).toEqual([]);
   });
 
   it('shows the submit screen but posts nothing', async () => {
-    const gr = demo();
+    const gr = await demo();
     await gr.waitFor('Chapters · Guided order');
     gr.press('s');
     expect(await gr.waitFor('This is the demo: nothing is posted.')).toContain('Suggested:');
@@ -58,7 +65,7 @@ describe('gr demo', () => {
   });
 
   it('starts over on each run', async () => {
-    const gr = demo();
+    const gr = await demo();
     await gr.waitFor('Chapters · Guided order');
     gr.press('n');
     await gr.waitFor('hunk 1/');
@@ -68,7 +75,7 @@ describe('gr demo', () => {
     expect(await gr.exited).toBe(0);
 
     // Read before, unread again: the demo forgets the last run.
-    const again = demo();
+    const again = await demo();
     expect(await again.waitFor('Chapters · Guided order')).toContain('0/9 hunks done');
   });
 });
