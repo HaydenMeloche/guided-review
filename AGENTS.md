@@ -38,4 +38,4 @@ If a change alters how a screen looks, it shows up as a diff of the golden scree
 ## Commits and releases
 
 - Write commit subjects as plain sentences that say what changed for the user, such as "Return to the PR list on q". If the change needs explaining, add a body.
-- Don't tag, bump the version, or publish. Publishing a GitHub release runs `npm publish`, and the tag must match `package.json`. The user handles releases. `/release-notes` drafts the notes.
+- Don't tag, bump the version, or publish on your own. Publishing a GitHub release runs `npm publish`, and the tag must match `package.json`. `/prepare-release` drafts the notes and then asks whether to bump the version, push master and the tag, and create a draft release; only do that after the user says yes. Never publish the release: the user reviews the draft and publishes it on GitHub.
