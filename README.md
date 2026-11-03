@@ -6,27 +6,42 @@
 
 > **Status:** Guided Review is early (0.x). Expect small bugs, and breaking changes between minor versions.
 
-Read a code change the way the code runs, in your terminal.
+Guided Review (`gr`) is a TUI for reviewing code changes through a tour.
 
-A diff lists files alphabetically. Code runs from an entry point through the functions it calls. Guided Review (`gr`) turns a change into a tour that follows that path: a briefing says what the change is for, chapters walk each route, command, or handler through the changed code, and the tests for each hunk sit beside it. It works on a pull request, on your own branch before you open one, or on uncommitted work. Mark what you've read, ask a model about any line, and post your comments as one GitHub review. On your own PR, `gr feedback` turns the review into a work list you can answer in one go.
+Traditionally, code is reviewed file by file in alphabetical order. `gr` creates tours that open with a briefing stating what the change is for, then follow each route, command, or handler through the changed code, with the tests for each hunk sitting beside it. It works on a pull request, on your own branch before you open one, or on uncommitted work.
 
-A model is optional. Without one, the tour is built from static analysis alone and nothing leaves your machine.
+As you review, you can ask an AI model about any line, generate diagrams of the flow, and write comments that reference files or functions you find by search, then post them as one GitHub review.
+
+An AI model is optional. Without one, the tour is built from static analysis alone and nothing leaves your machine.
 
 <p align="center"><img src="docs/images/chapter.webp" alt="A Guided Review chapter: the chapter list, an explanation of the hunk, the changed code with review threads, and linked tests side by side" width="900"></p>
 
-## Quick start
+## Installation
+
+### Requirements
+
+- Node 22.13 or newer
+- `git`
+- The [GitHub CLI](https://cli.github.com/) signed in with `gh auth login`, or a GitHub personal access token
+- Optional: an AI model provider, such as an Anthropic or OpenAI API key or a Codex login
+- Optional: [ripgrep](https://github.com/BurntSushi/ripgrep), which lets the model search your repository
+
+`gr` runs on macOS and Linux, including WSL. Native Windows is untested.
+
+### Install
 
 ```sh
 npm install -g @haydenmeloche/guided-review
-gr        # the first run walks you through setup, then lists PRs awaiting your review
-gr tutor  # or learn it first: lessons in a sample tour, offline, no PR, gh, or model needed
+guided-review --version # or gr --version for short
 ```
 
-You need Node 22.13 or newer, `git`, and the [GitHub CLI](https://cli.github.com/) signed in with `gh auth login`.
+If `gr` runs something else, a shell alias is in the way (Oh My Zsh's git plugin defines `gr` as `git remote`), so use `guided-review` instead.
 
-The install adds two names for the same command: `guided-review` and the short `gr`. If `gr` is already a shell alias (Oh My Zsh's git plugin defines one), use `guided-review`, as in `guided-review tutor`.
+### Getting started
 
-New to it? `gr tutor` opens a sample tour with lessons over it, in the spirit of `vimtutor`: it points at one part of the screen at a time and has you press the real keys, from reading a hunk to submitting a review. It takes about ten minutes, runs offline, and posts nothing. From any tour, `:` then **Tutor** opens it too. See [Learn gr](https://haydenmeloche.github.io/guided-review/usage.html#learn-gr).
+Run `gr`. The first run walks you through setup (color theme, model, and GitHub access), then lists the PRs waiting for your review. If something isn't working, `gr doctor` checks your setup.
+
+To learn `gr` before touching a real PR, run `gr tutor`. It opens a sample tour and walks you through it one key at a time. It takes about five minutes, works offline, and posts nothing.
 
 ## Documentation
 
