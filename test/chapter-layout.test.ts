@@ -69,12 +69,13 @@ describe('chapterLayout heights', () => {
     expect(layout({ width: 180 }).mainHeight).toBe(36);
   });
 
-  it('gives the code the rest when there is no explanation', () => {
+  it('gives the code the rest, under the location row, when there is no explanation', () => {
     const p = layout({});
     expect(p.explainLines).toEqual([]);
-    expect(p.bodyHeight).toBe(34);
-    expect(p.threadHeight).toBe(17);
-    expect(p.askHeight).toBe(20);
+    expect(p.bodyHeight).toBe(33);
+    expect(layout({ hunkLines: undefined }).bodyHeight).toBe(34);
+    expect(p.threadHeight).toBe(16);
+    expect(p.askHeight).toBe(19);
   });
 
   it('cuts a long explanation to explainMax, ending in a note', () => {

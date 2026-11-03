@@ -1,5 +1,5 @@
-// Optional Nerd Font file icons ("icons": "nerd" in config.json), before file paths in the chapter
-// title, the PR preview's file list, the submit screen, and the theme preview. Off by default:
+// Optional Nerd Font file icons ("icons": "nerd" in config.json), before file paths above a hunk's
+// diff, the PR preview's file list, the submit screen, and the theme preview. Off by default:
 // whether the terminal's font has the glyphs can't be detected, and without them each shows as a box.
 
 export type IconSetting = 'none' | 'nerd';

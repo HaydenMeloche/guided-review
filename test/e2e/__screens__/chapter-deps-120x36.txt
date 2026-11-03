@@ -1,8 +1,8 @@
  ‹dim›local/deps ‹/›‹b›#0 deps/react-19 (preview)‹/›                  ‹dim›  chapter 1/1 · hunk 1/1 · ▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/2 hunks · Guided‹/›
 ‹cyan,b›1/1 ‹/›‹b›Dependencies and runtimes‹/›‹dim› · hunk 1/1 · last chapter · Guided order‹/›
-‹blue,b›Dependencies and runtimes‹/›‹dim› · hunk 1/1 · ‹/›‹bright-black›· ‹/›package.json:3
+‹blue,b›Dependencies and runtimes‹/›‹dim› · hunk 1/1‹/›
 ‹bright-black›▎ ‹/›Changed keys: react, zod
-
+‹bright-black›· ‹/›‹dim›package.json:3‹/›
  ‹dim›   3    3 │ ‹/›    ‹c145›"‹/›‹c152›version‹/›‹c145›":‹/› ‹c222›"0.3.0"‹/›‹c145›,‹/›
  ‹dim›   4    4 │ ‹/›    ‹c145›"‹/›‹c152›dependencies‹/›‹c145›":‹/› ‹c145›{‹/›
  ‹dim›   5    5 │ ‹/›      ‹c145›"‹/›‹c152›express‹/›‹c145›":‹/› ‹c222›"^4.19.2"‹/›‹c145›,‹/›

@@ -18,7 +18,7 @@ import { CommentLabels } from '../src/tui/CommentEditor.js';
 import { SubmitScreen } from '../src/tui/SubmitScreen.js';
 import { BriefingScreen, stripFileRefs } from '../src/tui/BriefingScreen.js';
 import { leadThenDim } from '../src/tui/chapter/guide.js';
-import { ChapterTitle } from '../src/tui/chapter/parts.js';
+import { Explanation, hunkLocation } from '../src/tui/chapter/parts.js';
 import { ORDER_SEQUENCE, positionAfterOrderChange, progress, sortChapters, type States } from '../src/tui/nav.js';
 import { waitFor } from './helpers/waitFor.js';
 import { hunkKeys } from '../src/review/hunkState.js';
@@ -2207,11 +2207,11 @@ describe('split view, test pane toggle and expanded context', () => {
     const hi = t.chapters[ci].hunkIds.findIndex((id) => t.hunks[id].tests.some((x) => x.source !== 'naming'));
     const ui = render(screen(t, { ci, hi, width: 100 }));
     await waitFor(() => expect(ui.lastFrame()).toMatch(/t \d+ linked tests?\s*$/m));
-    // Right-aligned on the blank row under the explanation, so the code's first line follows it.
+    // Right-aligned on the hunk's location row under the explanation, so the code's first line follows it.
     const rows = ui.lastFrame()!.split('\n');
     const tab = rows.findIndex((r) => /linked tests?/.test(r));
     expect(rows[tab]).not.toContain('· hunk');
-    expect(rows[tab]).toMatch(/^\s+t \d+ linked/);
+    expect(rows[tab]).toMatch(/^\S.*:\d+\s+t \d+ linked/);
     expect(rows[tab + 1]).toMatch(/▶\s*1\s/);
     ui.stdin.write('t');
     await waitFor(() => expect(ui.lastFrame()).toContain('back to code'));
@@ -2219,12 +2219,26 @@ describe('split view, test pane toggle and expanded context', () => {
     ui.unmount();
   });
 
-  it('keeps the tests tab on the title row when there is no explanation', () => {
+  it('puts the location row and tests tab above the code when there is no explanation', () => {
     const h = hunkFromDiff('src/a.ts', '-go();', '+stop();');
-    const t = makeTour([h], [{ hunkIds: [h.id] }], { files: filesFor([h]) });
-    const ui = render(<ChapterTitle chapter={t.chapters[0]} hunk={h} hi={0} isNew={false} width={100} states={{}} drawer="1 linked test" />);
-    expect(ui.lastFrame()).toMatch(/· hunk 1\/1 .*t 1 linked test\s*$/);
+    h.symbols = ['Runner.start'];
+    const ui = render(<Explanation lines={[]} inferred={false} collapsed={false} width={100} hunk={h} drawer="1 linked test" />);
+    expect(ui.lastFrame()).toMatch(/^· start · src\/a\.ts:\d+\s+t 1 linked test\s*$/);
     ui.unmount();
+  });
+
+  it('names the declaration before the path, and shortens the path first when the row is short', () => {
+    const h = hunkFromDiff('src/main/kotlin/ca/pine/payments/PaymentsService.kt', '-return a', '+return a to f');
+    h.newStart = 1150;
+    h.symbols = ['PaymentsService.recomputeFacilityPaymentOnPrimeRateChange'];
+    expect(hunkLocation(h, 120)).toEqual({ symbol: 'recomputeFacilityPaymentOnPrimeRateChange', path: 'src/main/kotlin/ca/pine/payments/PaymentsService.kt:1150' });
+    expect(hunkLocation(h, 80)).toEqual({ symbol: 'recomputeFacilityPaymentOnPrimeRateChange', path: '…/payments/PaymentsService.kt:1150' });
+    expect(hunkLocation(h, 70).path).toBe('…/PaymentsService.kt:1150');
+    expect(hunkLocation(h, 55).path).toBe('…/Payments…');
+    h.symbols = ['a', 'b', 'c'];
+    expect(hunkLocation(h, 120).symbol).toBe('a +2');
+    h.symbols = [];
+    expect(hunkLocation(h, 30)).toEqual({ symbol: '', path: '…/PaymentsService.kt:1150' });
   });
 
   it('refuses a comment range that crosses dimmed lines between fused hunks', async () => {

@@ -4,7 +4,7 @@
 ‹bright-black›▎ ‹/›‹cyan,bg:c235›│‹/›‹bg:c235› ‹/›‹cyan,bg:c235,b›: ‹/›‹bg:c235,inv› ‹/›‹bg:c235,dim›a command, a file, or a chapter‹/›‹bg:c235›                                       ‹/›‹cyan,bg:c235›│‹/›
 ‹bright-black›▎ ‹/›‹cyan,bg:c235›│‹/›‹bg:c235› ‹/›‹bg:c235,inv› Show or hide the chapter list                      ‹/›‹cyan,bg:c235,inv›                  \‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
 ‹bright-black›▎ ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Briefing                                           ‹/›‹cyan,bg:c235›                  b‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
-  ‹cyan,bg:c235›│‹/›‹bg:c235›  Next hunk, marking this one read                   ‹/›‹cyan,bg:c235›                  n‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
+‹bright-black›· ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Next hunk, marking this one read                   ‹/›‹cyan,bg:c235›                  n‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
  ‹dim› ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Previous hunk                                      ‹/›‹cyan,bg:c235›                  p‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
  ‹dim› ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Next chapter                                       ‹/›‹cyan,bg:c235›                  N‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›
  ‹dim› ‹/›‹cyan,bg:c235›│‹/›‹bg:c235›  Previous chapter                                   ‹/›‹cyan,bg:c235›                  P‹/›‹bg:c235›  ‹/›‹cyan,bg:c235›│‹/›‹c152,bg:c28›tr‹/›

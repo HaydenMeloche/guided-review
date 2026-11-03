@@ -1,10 +1,10 @@
  ‹dim›local/rich ‹/›‹b›#0 …‹/›‹dim›  chapter 1/3 · hunk 1/3 · ▱▱▱▱▱▱▱▱▱▱▱▱‹/›‹b› 0%‹/›‹dim› · 0/5 hunks · Guided‹/›
 ‹cyan,b›1/3 ‹/›‹b›createOrder‹/›‹dim› · hunk 1/3 · next: Dependencies and runtimes (1) · ‹/›‹cyan,b›]‹/›
-‹blue,b›createOrder‹/›‹dim› · hunk 1/3 · ‹/›‹bright-black›· ‹/›src/orders.ts:1‹dim› · entry exported API (createOrder)‹/›
+‹blue,b›createOrder‹/›‹dim› · hunk 1/3 · entry exported API (createOrder)‹/›
 ‹bright-black›▎ ‹/›‹dim›Plain mode: no narration.‹/›
 ‹bright-black›▎ ‹/›
 ‹bright-black›▎ ‹/›‹red›○ No linked test · U: details‹/›
-
+‹bright-black›· ‹/›‹b›createOrder‹/›‹dim› · src/orders.ts:1‹/›
  ‹dim›   1    1 │ ‹/›  ‹c73›import ‹/›‹c145›{‹/›‹c73› ‹/›quote‹c145›,‹/›‹c73› type ‹/›LineItem‹c73› ‹/›‹c145›}‹/›‹c73› from ‹/›‹c222›'./pricing'‹/›‹c145›;‹/›
  ‹dim›   2    2 │ ‹/›
 ‹cyan›▶‹/›‹dim›   3    3 │ ‹/›‹green›+ ‹/›‹c73›export‹/› ‹c73›function‹/› ‹c217›createOrder‹/›‹c145›(‹/›‹c183›items‹/›‹c73›:‹/› ‹c152›LineItem‹/›[]‹c145,bg:c28›,‹/›‹bg:c28› ‹/›‹c183,bg:c28›discountCode‹/›‹c73,bg:c28›?:‹/›‹bg:c28› ‹/›‹c152,bg:c28›str‹/›

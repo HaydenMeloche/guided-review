@@ -81,7 +81,8 @@ export function chapterLayout(i: LayoutInput) {
           line(`… ${explainTop ? `${explainTop} above, ` : ''}${plural(Math.max(0, hidden - explainTop), 'more line')} · tab to it, then j/k to scroll or enter to read it all`, { dim: true }),
         ]
       : explainAll;
-  const explainRows = explainLines.length ? explainLines.length + 1 : 0; // and a blank row under it
+  // and a row under it: the hunk's location, or blank under a collapsed chapter's explanation
+  const explainRows = explainLines.length || (!collapsed && i.hunkLines) ? explainLines.length + 1 : 0;
   const bodyHeight = Math.max(6, avail - explainRows);
   // A lockfile pair's page splits the body: the manifest diff on top, as much of it as fits in
   // half the body when the package list wants more, then a blank row and the list, which takes

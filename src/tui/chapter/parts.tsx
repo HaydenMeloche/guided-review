@@ -126,51 +126,74 @@ function TestDrawer(props: { label: string }) {
   );
 }
 
-// One row: the chapter, and where the hunk is in it and in the code.
-// `drawer`: a hint at the right end for linked tests that are not on screen.
-export const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: Chapter; hunk?: Hunk; hi: number; isNew: boolean; unchanged?: number; width: number; states: States; drawer?: string }) {
+// One row: the chapter, and where the hunk is in it. The hunk's own state and where it is in the
+// code go right above the diff (HunkLocation).
+export const ChapterTitle = React.memo(function ChapterTitle(props: { chapter: Chapter; hunk?: Hunk; hi: number; unchanged?: number; width: number }) {
   const { chapter, hunk, hi } = props;
   const at = hunkPosition(chapter, hi);
-  const st = hunk ? stateMark(stateOf(props.states, hunk)) : undefined;
-  // A deleted file's hunk has no new lines: point at where it was.
-  const location = hunk ? `${hunk.file}:${hunk.newStart || hunk.oldStart}` : '';
   return (
     <Box width={props.width} flexShrink={0}>
-      <Box flexShrink={1} flexGrow={1}>
-        <Text wrap="truncate">
-          <Text bold color={ROLES.heading}>
-            {truncate(safe(chapter.title), Math.floor(props.width * 0.45))}
-          </Text>
-          {hunk ? (
-            <>
-              <Text dimColor>
-                {' '}
-                · hunk {at.n}/{at.total} ·{' '}
-              </Text>
-              {st ? <Text color={st.color}>{st.mark} </Text> : null}
-              {props.isNew ? (
-                <>
-                  <Text color="black" backgroundColor="yellow">
-                    {' NEW '}
-                  </Text>{' '}
-                </>
-              ) : null}
-              <Text>{safe(`${fileIcon(location)}${location}`)}</Text>
-              {hunk.importOnly ? <Text dimColor> · imports only · optional</Text> : null}
-            </>
-          ) : chapter.collapsed ? (
-            <Text dimColor>{` · ${plural(chapter.hunkIds.length, 'hunk')}, collapsed${chapter.optional ? ' · optional: not counted toward progress' : ''}`}</Text>
-          ) : chapter.folded?.length ? (
-            <Text dimColor>{` · summary of ${plural(summaryHunkIds(chapter).length, 'lockfile hunk')} · n for the other ${plural(pageCount(chapter), 'hunk')}`}</Text>
-          ) : null}
-          {props.unchanged ? <Text dimColor> · {props.unchanged} unchanged hidden</Text> : null}
-          {chapter.entryPoint ? <Text dimColor> · entry {safe(chapter.entryPoint)}</Text> : null}
+      <Text wrap="truncate">
+        <Text bold color={ROLES.heading}>
+          {truncate(safe(chapter.title), Math.floor(props.width * 0.45))}
         </Text>
-      </Box>
-      {props.drawer ? <TestDrawer label={props.drawer} /> : null}
+        {hunk ? (
+          <>
+            <Text dimColor>
+              {' '}
+              · hunk {at.n}/{at.total}
+            </Text>
+            {hunk.importOnly ? <Text dimColor> · imports only · optional</Text> : null}
+          </>
+        ) : chapter.collapsed ? (
+          <Text dimColor>{` · ${plural(chapter.hunkIds.length, 'hunk')}, collapsed${chapter.optional ? ' · optional: not counted toward progress' : ''}`}</Text>
+        ) : chapter.folded?.length ? (
+          <Text dimColor>{` · summary of ${plural(summaryHunkIds(chapter).length, 'lockfile hunk')} · n for the other ${plural(pageCount(chapter), 'hunk')}`}</Text>
+        ) : null}
+        {props.unchanged ? <Text dimColor> · {props.unchanged} unchanged hidden</Text> : null}
+        {chapter.entryPoint ? <Text dimColor> · entry {safe(chapter.entryPoint)}</Text> : null}
+      </Text>
     </Box>
   );
 });
+
+// Where a hunk is in the code, in `width` columns: the declaration it changes, then its file and
+// line. The declaration leads, so a run of hunks in one function reads as one; when the row is
+// short the path loses its leading directories first, then is cut at the end.
+export function hunkLocation(hunk: Hunk, width: number): { symbol: string; path: string } {
+  const name = hunk.symbols[0]?.split('.').pop() ?? '';
+  const symbol = name ? `${name}${hunk.symbols.length > 1 ? ` +${hunk.symbols.length - 1}` : ''}` : '';
+  // A deleted file's hunk has no new lines: point at where it was.
+  const line = `:${hunk.newStart || hunk.oldStart}`;
+  const icon = fileIcon(hunk.file);
+  const room = Math.max(0, width - (symbol ? symbol.length + 3 : 0)); // " · "
+  const dirs = hunk.file.split('/');
+  let path = `${icon}${hunk.file}${line}`;
+  for (let i = 1; path.length > room && i < dirs.length; i++) path = `${icon}…/${dirs.slice(i).join('/')}${line}`;
+  return { symbol: truncate(safe(symbol), width), path: truncate(safe(path), room) };
+}
+
+// The hunk's read mark, NEW when it changed since your last review, and where it is in the code.
+export function HunkLocation(props: { hunk: Hunk; states: States; isNew: boolean; width: number }) {
+  const st = stateMark(stateOf(props.states, props.hunk));
+  const lead = st.mark.length + 1 + (props.isNew ? 6 : 0); // "✓ ", " NEW "
+  const { symbol, path } = hunkLocation(props.hunk, props.width - lead);
+  return (
+    <Text wrap="truncate">
+      <Text color={st.color}>{st.mark} </Text>
+      {props.isNew ? (
+        <>
+          <Text color="black" backgroundColor="yellow">
+            {' NEW '}
+          </Text>{' '}
+        </>
+      ) : null}
+      {symbol ? <Text bold>{symbol}</Text> : null}
+      {symbol && path ? <Text dimColor> · </Text> : null}
+      {path ? <Text dimColor>{path}</Text> : null}
+    </Text>
+  );
+}
 
 // The hunks of a chapter with a page of their own (not read on its summary or a manifest's page).
 function pageCount(chapter: Chapter): number {
@@ -294,10 +317,23 @@ export const ChapterStrip = React.memo(function ChapterStrip(props: { tour: Tour
 // An in-flow block with a left rule, not a box: it is always in the same place, so a frame and a
 // title would only cost rows. The rule is quiet, magenta for narration that is the model's
 // inference, and green for a moment when the explanation has just arrived.
-// `drawer`: the tab for linked tests not on screen, right-aligned on the blank row under it.
-export function Explanation(props: { lines: MdLine[]; inferred: boolean; collapsed: boolean; updated?: boolean; focused?: boolean; width: number; drawer?: string }) {
-  if (!props.lines.length) return null;
+// Under it, right above the code, a row with where the hunk is (HunkLocation) on the left and
+// `drawer`, the tab for linked tests not on screen, on the right.
+export function Explanation(props: {
+  lines: MdLine[];
+  inferred: boolean;
+  collapsed: boolean;
+  updated?: boolean;
+  focused?: boolean;
+  width: number;
+  hunk?: Hunk;
+  states?: States;
+  isNew?: boolean;
+  drawer?: string;
+}) {
+  if (!props.lines.length && !props.hunk) return null;
   const rule = props.focused ? 'cyan' : props.updated ? 'green' : props.inferred ? 'magenta' : 'gray';
+  const drawerWidth = props.drawer ? props.drawer.length + 4 : 0; // margin, "t ", label
   return (
     <Box flexDirection="column" flexShrink={0} width={props.width}>
       {props.lines.map((l, i) => (
@@ -309,7 +345,10 @@ export function Explanation(props: { lines: MdLine[]; inferred: boolean; collaps
           {i === 0 && props.updated ? <Text color="green"> updated</Text> : null}
         </Box>
       ))}
-      <Box height={1} justifyContent="flex-end">
+      <Box height={1}>
+        <Box flexGrow={1} flexShrink={1}>
+          {props.hunk ? <HunkLocation hunk={props.hunk} states={props.states ?? {}} isNew={!!props.isNew} width={props.width - drawerWidth} /> : null}
+        </Box>
         {props.drawer ? <TestDrawer label={props.drawer} /> : null}
       </Box>
     </Box>
