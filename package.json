@@ -35,7 +35,8 @@
     "dist/**/*.js.map",
     "codex/",
     "claude/",
-    "docs/"
+    "docs/",
+    "!docs/images/"
   ],
   "engines": {
     "node": ">=22.13.0"
