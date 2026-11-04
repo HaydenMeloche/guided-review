@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'ink-testing-library';
 import { PickerScreen } from '../src/tui/PickerScreen.js';
+import { listReviewRequests } from '../src/github/gh.js';
 import type { Store } from '../src/store/db.js';
 import { waitFor } from './helpers/waitFor.js';
 
@@ -58,6 +59,19 @@ describe('Reviewed by you in the picker', () => {
     // Enter opens it as a review.
     ui.stdin.write('\r');
     await waitFor(() => expect(onPick).toHaveBeenCalledWith({ repo: 'acme/web', number: 330 }));
+    ui.unmount();
+  });
+
+  it('keeps the cursor at the top when the review requests load after the PRs you reviewed', async () => {
+    let resolve!: (prs: Awaited<ReturnType<typeof listReviewRequests>>) => void;
+    vi.mocked(listReviewRequests).mockImplementationOnce(() => new Promise((r) => (resolve = r)));
+    const onPick = vi.fn();
+    const ui = render(<PickerScreen store={store} width={120} height={24} onPick={onPick} onQuit={() => {}} readClipboard={async () => undefined} downloads={{}} onDownload={() => {}} />);
+    await waitFor(() => expect(ui.lastFrame()).toContain('Reviewed by you (1)'));
+    resolve([{ repo: 'acme/web', number: 412, title: 'Cart totals', author: 'ana', url: 'https://github.com/acme/web/pull/412', updatedAt: '2026-10-09T00:00:00Z', isDraft: false, labels: [] }]);
+    await waitFor(() => expect(ui.lastFrame()).toContain('Review requests (1)'));
+    ui.stdin.write('\r');
+    await waitFor(() => expect(onPick).toHaveBeenCalledWith({ repo: 'acme/web', number: 412 }));
     ui.unmount();
   });
 });
