@@ -18,11 +18,11 @@ import { CommentLabels } from '../src/tui/CommentEditor.js';
 import { SubmitScreen } from '../src/tui/SubmitScreen.js';
 import { BriefingScreen, stripFileRefs } from '../src/tui/BriefingScreen.js';
 import { leadThenDim } from '../src/tui/chapter/guide.js';
-import { Explanation, hunkLocation } from '../src/tui/chapter/parts.js';
+import { CollapsedSummary, Explanation, hunkLocation } from '../src/tui/chapter/parts.js';
 import { ORDER_SEQUENCE, positionAfterOrderChange, progress, sortChapters, type States } from '../src/tui/nav.js';
 import { waitFor } from './helpers/waitFor.js';
 import { hunkKeys } from '../src/review/hunkState.js';
-import { filesFor, hunkFromDiff, tour as makeTour } from './fixtures/tour.js';
+import { filesFor, hunk as makeHunk, hunkFromDiff, tour as makeTour } from './fixtures/tour.js';
 import { writeClipboard } from '../src/util/clipboard.js';
 
 // Never reach GitHub from a test: confirming the submit screen posts through this.
@@ -2357,5 +2357,21 @@ describe('leadThenDim', () => {
     ]);
     // A period inside code is not the end of a sentence.
     expect(leadThenDim([[{ text: 'Calls ' }, { text: 'a.b()', color: 'cyan' }, { text: ' twice. Once more.' }]])[0].at(-1)).toEqual({ text: ' Once more.', dim: true });
+  });
+});
+
+describe('CollapsedSummary', () => {
+  it('shows a file summary once, and a later hunk of the file by its line and counts', () => {
+    const add = (n: number) => [{ kind: 'add' as const, text: 'x', newLine: n }];
+    const hs = [makeHunk('k1', 'gen/Keys.java', add(3)), makeHunk('k2', 'gen/Keys.java', [...add(40), ...add(41)]), makeHunk('t1', 'gen/Tables.java', add(1))];
+    const files = filesFor(hs, {}, {}, { summary: 'generated lines (header)' });
+    const { lastFrame } = render(
+      <CollapsedSummary hunks={Object.fromEntries(hs.map((h) => [h.id, h]))} files={new Map(files.map((f) => [f.path, f]))} ids={hs.map((h) => h.id)} states={{}} sel={-1} width={80} height={5} />,
+    );
+    const rows = lastFrame()!.split('\n');
+    expect(rows[0]).toMatch(/gen\/Keys\.java:3 +generated lines \(header\)$/);
+    expect(rows[1]).toMatch(/gen\/Keys\.java:40 +\+2 −0$/);
+    expect(rows[2]).toMatch(/gen\/Tables\.java +generated lines \(header\)$/);
+    expect(lastFrame()).not.toContain('(+');
   });
 });

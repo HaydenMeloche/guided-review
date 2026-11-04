@@ -214,6 +214,8 @@ export function LockfileChanges(props: { lines: MdLine[]; width: number; height:
 }
 
 // Renders only the visible window of a collapsed chapter, which can hold thousands of generated hunks.
+// A file's first row carries its summary; a file with more hunks than one gets a row per hunk,
+// marked with its line and its own counts.
 export const CollapsedSummary = React.memo(function CollapsedSummary(props: {
   hunks: Tour['hunks'];
   files: Map<string, DiffFile>;
@@ -224,18 +226,34 @@ export const CollapsedSummary = React.memo(function CollapsedSummary(props: {
   height: number;
 }) {
   const { hunks, files, ids, states, width } = props;
+  const { firstOfFile, rowsOfFile } = React.useMemo(() => {
+    const first = new Set<string>();
+    const count = new Map<string, number>();
+    for (const id of ids) {
+      const file = hunks[id]?.file ?? id;
+      if (!count.has(file)) first.add(id);
+      count.set(file, (count.get(file) ?? 0) + 1);
+    }
+    return { firstOfFile: first, rowsOfFile: count };
+  }, [hunks, ids]);
   const total = ids.length;
+  const pathWidth = Math.floor(width * 0.45);
   const top = Math.max(0, Math.min(props.sel - Math.floor(props.height / 2), total - props.height));
   const rows = ids.slice(top, top + Math.max(0, props.height)).map((id, k) => {
     const i = top + k;
     const h = hunks[id];
+    const file = h?.file ?? id;
     const f = h ? files.get(h.file) : undefined;
     const st = stateMark(stateOf(states, h));
-    const summary = f?.summary ?? f?.kindReason ?? '';
+    const at = h && (rowsOfFile.get(file) ?? 0) > 1 ? `:${h.newStart || h.oldStart}` : '';
+    let detail: string;
+    if (!firstOfFile.has(id) && h) {
+      const add = h.lines.filter((l) => l.kind === 'add').length;
+      detail = `+${add} −${changedLineCount(h) - add}`;
+    } else detail = f?.summary ?? `${f?.kindReason ? `${f.kindReason} · ` : ''}+${f?.additions ?? 0} −${f?.deletions ?? 0}`;
     return (
       <Text key={id} inverse={i === props.sel}>
-        <Text color={st.color}>{st.mark}</Text> {pad(h?.file ?? id, Math.floor(width * 0.45))}{' '}
-        <Text dimColor>{truncate(`${summary} (+${f?.additions ?? 0}/-${f?.deletions ?? 0}, ${h ? changedLineCount(h) : 0} lines)`, Math.floor(width * 0.5))}</Text>
+        <Text color={st.color}>{st.mark}</Text> {pad(truncate(file, pathWidth - at.length) + at, pathWidth)} <Text dimColor>{truncate(detail, Math.floor(width * 0.5))}</Text>
       </Text>
     );
   });

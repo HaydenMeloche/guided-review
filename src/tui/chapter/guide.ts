@@ -65,6 +65,16 @@ export function callersLine(items: BlastItem[]): { text: string; warn: boolean }
   return { text: `${what ? `${G.flag} ${what}: ${uses}` : uses} · B: list`, warn: !!what };
 }
 
+// A collapsed chapter's summary, less its per-file lines (`path: summary`, or a one-file
+// chapter's bare summary): the file list under it shows those.
+function proseSummary(chapter: Chapter, tour: Tour): string | undefined {
+  if (!chapter.summary) return undefined;
+  const paths = new Set(chapter.hunkIds.map((id) => tour.hunks[id]?.file));
+  const fileSummaries = new Set(tour.files.filter((f) => paths.has(f.path)).map((f) => f.summary));
+  const kept = chapter.summary.split('\n').filter((l) => !paths.has(l.split(': ')[0]) && !fileSummaries.has(l));
+  return kept.join('\n').trim() || undefined;
+}
+
 // The explanation above the code, `width` wide: narration, notes on the chapter or hunk, the
 // hunk's callers outside the PR, and possible test gaps (U expands them). A filename-only test
 // guess becomes a one-line hint.
@@ -91,7 +101,7 @@ export function explanation(
         .map((id) => tour.hunks[id]?.narration)
         .find(Boolean)
     : undefined;
-  const narration = hunk?.narration ?? (collapsed ? [sharedNarration, chapter.summary].filter(Boolean).join('\n\n') : (configFile?.summary ?? configFile?.kindReason));
+  const narration = hunk?.narration ?? (collapsed ? [sharedNarration, proseSummary(chapter, tour)].filter(Boolean).join('\n\n') : (configFile?.summary ?? configFile?.kindReason));
   const chapterNotes: string[] = [];
   if (chapter.linkedHunkIds.length && hi <= 0) chapterNotes.push(`Also uses ${plural(chapter.linkedHunkIds.length, 'hunk')} shown in an earlier chapter.`);
   if (chapter.lowConfidence) chapterNotes.push('Some flow links use naming guesses: low confidence.');
