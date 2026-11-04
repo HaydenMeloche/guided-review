@@ -26,7 +26,7 @@ export const COMMANDS: CommandSpec[] = [
   { name: 'open', about: 'Open the tour of a PR in a new terminal window', flags: ['--preview'], arg: 'pr' },
   { name: 'build', about: 'Build a tour without the TUI (for CI)', flags: [...TOUR_FLAGS, '--comment', '--out'], arg: 'pr' },
   { name: 'doctor', about: 'Check what gr needs and how to fix what is missing', flags: ['--no-agent'] },
-  { name: 'cleanup', about: 'Remove local PR worktrees and old tours', flags: ['--days'] },
+  { name: 'cleanup', about: 'Remove local PR worktrees, unused clones, and old tours', flags: ['--days'] },
   { name: 'update', about: 'Install the newest version of gr', flags: [] },
   { name: 'config', about: 'Choose a model provider, models, API key, and GitHub access', flags: ['--edit', '--repo'] },
   { name: 'install-claude-command', about: 'Add /guided-review to Claude Code', flags: ['--force'] },

@@ -171,8 +171,9 @@
             clone under <code>~/.guided-review/repos/</code>.
           </p>
           <p>
-            <code>gr cleanup</code> removes PR worktrees and deletes tours you have not opened in 90 days (<code>--days &lt;n&gt;</code> to change it). Unposted drafts, queued replies, and cached
-            clones are always kept. A lighter cleanup also runs on its own at most once a week.
+            <code>gr cleanup</code> removes PR worktrees, deletes the cached clones under <code>~/.guided-review/repos</code> that no tour has used in 30 days, and deletes tours you have not opened in
+            90 days (<code>--days &lt;n&gt;</code> to change it). Unposted drafts and queued replies are always kept. A lighter cleanup also runs on its own at most once a day: it removes worktrees
+            not used in 3 days, clones not used in 30, and tours not opened in 30. A removed worktree is rebuilt from the clone, usually without a download, the next time you open its PR.
           </p>
           <h2 id="read-the-tour"><a class="anchor" href="#read-the-tour" aria-hidden="true">#</a>Read the tour</h2>
           <p>
@@ -922,7 +923,7 @@ gr open 1234                 # open a tour in a new tmux or Terminal window
 gr open --preview            # open gr preview in a new tmux or Terminal window
 gr build 1234 --comment      # build a tour without the TUI and post it to the PR (for CI)
 gr config                    # set up or change the model, GitHub access, and theme
-gr cleanup                   # remove managed worktrees and prune old tours
+gr cleanup                   # remove managed worktrees, unused clones, and old tours
 gr doctor                    # check git, gh, ripgrep, your model and the rest, with fixes
 gr completion zsh            # print a shell completion script (zsh, bash, or fish)
 gr update                    # install the newest version of gr

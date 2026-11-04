@@ -29,7 +29,7 @@ import {
 import { editRepoConfig, setup } from './setup.js';
 import { installClaudeCommand, installCodexSkill, refreshInstalled, type SkillInstallResult } from './codexSkill.js';
 import { planOpen, runOpen, targetArg } from './open.js';
-import { KEEP_TOURS_PER_PR, TOUR_MAX_AGE_DAYS } from './store/retention.js';
+import { KEEP_TOURS_PER_PR, REPO_MAX_AGE_DAYS, TOUR_MAX_AGE_DAYS } from './store/retention.js';
 import { AGENT_ROLES, configForRole, validateRouting } from './agent/types.js';
 import { packagedRun, packageInfo, promptForUpdate, RELEASES_URL, startUpdateCheck, updateNow } from './updateCheck.js';
 import { holdTerminalInput, SCREEN_RENDER } from './tui/renderOptions.js';
@@ -75,7 +75,7 @@ ${[
   usage('open --preview', 'Open the preview of your current branch in a new terminal window'),
   usage('build [number|URL]', 'Build a tour without the TUI (for CI); share it with --comment or --out'),
   usage('doctor', 'Check what gr needs (git, gh, ripgrep, your model, …) and how to fix what is missing'),
-  usage('cleanup [--days n]', 'Remove local PR worktrees (skip worktrees with changes) and old tours'),
+  usage('cleanup [--days n]', 'Remove local PR worktrees (skip worktrees with changes), unused clones, and old tours'),
   usage('update', 'Install the newest version of gr'),
   usage('config', 'Choose a model provider (or none), models, API key, and GitHub access'),
   usage('config --edit', 'Open ~/.guided-review/config.json in your editor'),
@@ -242,6 +242,7 @@ async function main() {
     const result = await cleanup(maxAge);
     process.stdout.write(`Removed ${result.worktrees.removed.length} PR worktree(s).\n`);
     for (const item of result.worktrees.skipped) process.stdout.write(`Skipped ${item.path}: ${item.reason}\n`);
+    process.stdout.write(`Removed ${result.repos.length} cached clone(s) not used in ${REPO_MAX_AGE_DAYS} days.\n`);
     process.stdout.write(`Removed ${result.tours} old tour(s): the newest ${KEEP_TOURS_PER_PR} per PR are kept, minus any not opened in ${maxAge} days.\n`);
     if (result.prs) process.stdout.write(`Cleared reading state for ${result.prs} PR(s) with no tour left; unposted drafts are kept.\n`);
     return;
@@ -383,7 +384,7 @@ async function main() {
     const result = await setup({ firstRun: true });
     if (result.kind === 'cancelled') fail(`no config saved. Run \`${NAME} config\` when you're ready, or pass --no-agent to review without a model.`);
   }
-  // The weekly cleanup runs while the PR is resolved, and finishes before the tour can open a worktree.
+  // The daily cleanup runs while the PR is resolved, and finishes before the tour can open a worktree.
   const cleanupP = autoCleanup();
   // Load the TUI while the PR is being resolved below.
   const tui = Promise.all([import('ink'), import('./tui/App.js')]);

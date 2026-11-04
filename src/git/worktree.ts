@@ -60,7 +60,42 @@ async function repoCache(repo: string, localRepo?: string): Promise<string> {
     fs.mkdirSync(path.dirname(dir), { recursive: true });
     await git(path.dirname(dir), ['clone', '--bare', '--filter=blob:none', await cloneUrl(repo), dir], { maxBuffer: 256 * 1024 * 1024 });
   }
+  markUsed(dir);
   return dir;
+}
+
+// A file in each cached clone whose time is when a tour last used it. The clone's own time is no
+// guide: removing its last worktree changes it.
+const USED_MARK = 'gr-last-used';
+
+function markUsed(clone: string): void {
+  try {
+    fs.writeFileSync(path.join(clone, USED_MARK), '');
+  } catch {
+    // gone, or not ours to write: cleanup falls back to the clone's HEAD
+  }
+}
+
+// When a cached clone was last used: its mark, or for a clone made before marks, its last fetch.
+function lastUsed(clone: string): number {
+  for (const file of [USED_MARK, 'FETCH_HEAD', 'HEAD']) {
+    try {
+      return fs.statSync(path.join(clone, file)).mtimeMs;
+    } catch {
+      // try the next
+    }
+  }
+  return fs.statSync(clone).mtimeMs;
+}
+
+// Marks a worktree as used now, so the automatic cleanup keeps it.
+function touch(dir: string): void {
+  const now = new Date();
+  try {
+    fs.utimesSync(dir, now, now);
+  } catch {
+    // gone: whoever needs it next makes it again
+  }
 }
 
 export async function hasCommit(root: string, sha: string, signal?: AbortSignal): Promise<boolean> {
@@ -88,7 +123,10 @@ export async function ensureWorktree(pr: PRInfo, opts: { localRepo?: string } = 
     await git(repoDir, ['fetch', 'origin', pr.baseSha, `+refs/pull/${pr.number}/head:refs/gr/pr-${pr.number}`], { maxBuffer: 256 * 1024 * 1024 });
   }
 
-  if (fs.existsSync(path.join(target, '.git'))) return target;
+  if (fs.existsSync(path.join(target, '.git'))) {
+    touch(target);
+    return target;
+  }
 
   // Drop worktrees left from earlier heads of this PR.
   fs.mkdirSync(prDir, { recursive: true });
@@ -109,18 +147,39 @@ export async function ensureWorktree(pr: PRInfo, opts: { localRepo?: string } = 
 export async function commitWorktree(root: string, repo: string, sha: string): Promise<string> {
   const dir = path.join(grHome(), 'worktrees', repoSlug(repo));
   const target = path.join(dir, `pr-0-${sha.slice(0, 8)}`);
-  if (fs.existsSync(path.join(target, '.git'))) return target;
+  if (fs.existsSync(path.join(target, '.git'))) {
+    touch(target);
+    return target;
+  }
   fs.mkdirSync(dir, { recursive: true });
   await git(root, ['worktree', 'prune']).catch(() => undefined);
   await git(root, ['worktree', 'add', '--detach', target, sha], { maxBuffer: 256 * 1024 * 1024 });
   return target;
 }
 
-export async function cleanupWorktrees(home = grHome()): Promise<{ removed: string[]; skipped: { path: string; reason: string }[] }> {
+const DAY = 86_400_000;
+
+// The repository a worktree's .git file points into, or undefined when it is not a file.
+function linkedGitDir(worktree: string): string | undefined {
+  try {
+    return fs
+      .readFileSync(path.join(worktree, '.git'), 'utf8')
+      .match(/^gitdir: (.+)$/m)?.[1]
+      .trim();
+  } catch {
+    return undefined;
+  }
+}
+
+// Removes managed PR worktrees: all of them, or with `unusedDays`, those not used for that long.
+// Git refuses one with local changes, which is reported. A worktree whose repository is gone (a
+// deleted clone or temporary repo) cannot be removed through Git, so its folder is deleted.
+export async function cleanupWorktrees(home = grHome(), opts: { unusedDays?: number; now?: number } = {}): Promise<{ removed: string[]; skipped: { path: string; reason: string }[] }> {
   const root = path.join(home, 'worktrees');
   const removed: string[] = [];
   const skipped: { path: string; reason: string }[] = [];
   if (!fs.existsSync(root)) return { removed, skipped };
+  const cutoff = opts.unusedDays === undefined ? Infinity : (opts.now ?? Date.now()) - opts.unusedDays * DAY;
   for (const repo of fs.readdirSync(root, { withFileTypes: true })) {
     if (!repo.isDirectory()) continue;
     const repoDir = path.join(root, repo.name);
@@ -131,6 +190,14 @@ export async function cleanupWorktrees(home = grHome()): Promise<{ removed: stri
         skipped.push({ path: target, reason: 'not a registered Git worktree' });
         continue;
       }
+      // Git writes the link relative to the worktree under worktree.useRelativePaths.
+      const gitDir = linkedGitDir(target);
+      if (gitDir && !fs.existsSync(path.resolve(target, gitDir))) {
+        fs.rmSync(target, { recursive: true, force: true });
+        removed.push(target);
+        continue;
+      }
+      if (fs.statSync(target).mtimeMs >= cutoff) continue;
       try {
         const common = (await git(target, ['rev-parse', '--path-format=absolute', '--git-common-dir'])).trim();
         await git(root, ['--git-dir', common, 'worktree', 'remove', target]);
@@ -143,6 +210,30 @@ export async function cleanupWorktrees(home = grHome()): Promise<{ removed: stri
   }
   if (!fs.readdirSync(root).length) fs.rmdirSync(root);
   return { removed, skipped };
+}
+
+// Deletes cached clones under repos/ that no tour has used in `unusedDays` and that no worktree
+// still uses. Each clone first forgets worktrees whose folders are gone.
+export async function cleanupRepos(home = grHome(), opts: { unusedDays: number; now?: number }): Promise<string[]> {
+  const root = path.join(home, 'repos');
+  const removed: string[] = [];
+  if (!fs.existsSync(root)) return removed;
+  const cutoff = (opts.now ?? Date.now()) - opts.unusedDays * DAY;
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory() || !entry.name.endsWith('.git')) continue;
+    const clone = path.join(root, entry.name);
+    try {
+      await git(root, ['--git-dir', clone, 'worktree', 'prune']);
+      const worktrees = (await git(root, ['--git-dir', clone, 'worktree', 'list', '--porcelain'])).split('\n').filter((l) => l.startsWith('worktree ')).length;
+      // The first entry is the bare clone itself.
+      if (worktrees > 1 || lastUsed(clone) >= cutoff) continue;
+      fs.rmSync(clone, { recursive: true, force: true });
+      removed.push(clone);
+    } catch {
+      // not a clone Git can read: leave it
+    }
+  }
+  return removed;
 }
 
 // Tracked files plus untracked ones that are not ignored: a preview's new files are not committed yet.

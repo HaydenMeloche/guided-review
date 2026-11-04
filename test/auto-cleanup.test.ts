@@ -20,7 +20,7 @@ afterEach(() => {
 
 const stamp = () => JSON.parse(fs.readFileSync(path.join(home, 'cleanup.json'), 'utf8')) as { ranAt: number };
 
-it('deletes tours not opened in 30 days, at most once a week', async () => {
+it('deletes tours not opened in 30 days, at most once a day', async () => {
   const now = Date.now();
   const store = new Store(path.join(home, 'gr.db'));
   vi.useFakeTimers();
@@ -31,15 +31,15 @@ it('deletes tours not opened in 30 days, at most once a week', async () => {
   vi.useRealTimers();
 
   const first = await autoCleanup(home, now);
-  expect(first).toMatchObject({ tours: 1, worktrees: { removed: [], skipped: [] } });
+  expect(first).toMatchObject({ tours: 1, repos: [], worktrees: { removed: [], skipped: [] } });
   expect(stamp().ranAt).toBe(now);
   expect(store.listTours('o/r', 1)).toEqual([]);
   expect(store.listTours('o/r', 2).map((t) => t.headSha)).toEqual(['recent']);
 
-  expect(await autoCleanup(home, now + 6 * DAY)).toBeUndefined();
+  expect(await autoCleanup(home, now + DAY - 1)).toBeUndefined();
   expect(stamp().ranAt).toBe(now);
-  expect(await autoCleanup(home, now + 7 * DAY)).toBeDefined();
-  expect(stamp().ranAt).toBe(now + 7 * DAY);
+  expect(await autoCleanup(home, now + DAY)).toBeDefined();
+  expect(stamp().ranAt).toBe(now + DAY);
   store.close();
 });
 
@@ -49,4 +49,12 @@ it('runs when the saved time is unreadable or in the future', async () => {
   expect(await autoCleanup(home, now)).toBeDefined();
   fs.writeFileSync(path.join(home, 'cleanup.json'), JSON.stringify({ ranAt: now + DAY }));
   expect(await autoCleanup(home, now)).toBeDefined();
+});
+
+it('saves the time only once the cleanup has run, so one cut short runs again', async () => {
+  const now = Date.now();
+  const run = autoCleanup(home, now);
+  expect(fs.existsSync(path.join(home, 'cleanup.json'))).toBe(false);
+  await run;
+  expect(stamp().ranAt).toBe(now);
 });
