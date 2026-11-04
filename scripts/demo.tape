@@ -3,7 +3,8 @@
 # It runs this checkout with pnpm dev, so it records the current code, not the installed gr.
 
 Output docs/images/demo.gif
-# A video that scripts/demo.sh turns into docs/images/demo.webp for the website
+# A video that scripts/demo.sh turns into docs/images/demo.webp for the website,
+# and the Screenshot stills below, which it turns into docs/images/briefing.webp and ask.webp
 Output .scratch/demo.mp4
 
 # 2240x1260 at font size 20 keeps the same ~150-column layout as 1600x900 at 14,
@@ -26,8 +27,9 @@ Escape
 Sleep 1s
 Show
 
-# The briefing
+# The briefing, also the website's still of it
 Sleep 2500ms
+Screenshot .scratch/briefing.png
 
 # Read through the first hunks to the pricing one
 Type "n"
@@ -42,6 +44,7 @@ Type "a"
 Sleep 1500ms
 Type "1"
 Sleep 7s
+Screenshot .scratch/ask.png
 Escape
 Sleep 1s
 
