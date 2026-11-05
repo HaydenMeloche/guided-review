@@ -167,8 +167,8 @@
             </table>
           </div>
           <p>
-            Guided Review checks out the PR head in a detached worktree under <code>~/.guided-review/worktrees/</code>, so your own checkout is left alone. PRs from other repositories use a cached
-            clone under <code>~/.guided-review/repos/</code>.
+            Guided Review checks out the PR head in a detached worktree under <code>~/.guided-review/worktrees/</code>, so your own checkout is left alone. It comes from your own clone of the
+            repository when <code>gr</code> knows one (see <a href="configuration.html#local-clones">Local clones</a>), and otherwise from a cached clone under <code>~/.guided-review/repos/</code>.
           </p>
           <p>
             <code>gr cleanup</code> removes PR worktrees, deletes the cached clones under <code>~/.guided-review/repos</code> that no tour has used in 30 days, and deletes tours you have not opened in
@@ -923,6 +923,7 @@ gr open 1234                 # open a tour in a new tmux or Terminal window
 gr open --preview            # open gr preview in a new tmux or Terminal window
 gr build 1234 --comment      # build a tour without the TUI and post it to the PR (for CI)
 gr config                    # set up or change the model, GitHub access, and theme
+gr config --clones           # find your clones, so PRs are checked out from them
 gr cleanup                   # remove managed worktrees, unused clones, and old tours
 gr doctor                    # check git, gh, ripgrep, your model and the rest, with fixes
 gr completion zsh            # print a shell completion script (zsh, bash, or fish)
@@ -974,9 +975,9 @@ gr update                    # install the newest version of gr
           </div>
           <p>
             <code>gr doctor</code> checks what gr leans on outside itself: Node, git, <code>gh</code> and its sign-in (or a token set in <code>gr config</code>), ripgrep, the tree-sitter grammars,
-            your terminal&#39;s colors, a clipboard tool, how <code>gr open</code> opens a window, <code>$EDITOR</code>, your config, and the size of <code>~/.guided-review</code>. It sends one short
-            request to each model your config uses, as setup does; <code>--no-agent</code> skips that. Each line ends with what to do about it, and it exits with status 1 when something gr needs is
-            missing, so it is the output to paste into a bug report.
+            your terminal&#39;s colors, a clipboard tool, how <code>gr open</code> opens a window, <code>$EDITOR</code>, your config, the size of <code>~/.guided-review</code>, and how many of your
+            own clones gr knows next to the ones it downloaded. It sends one short request to each model your config uses, as setup does; <code>--no-agent</code> skips that. Each line ends with what
+            to do about it, and it exits with status 1 when something gr needs is missing, so it is the output to paste into a bug report.
           </p>
           <p>
             Models and keys live in the config file, not in options; see <a href="configuration.html">Configuration</a>. <code>GR_DEBUG=1</code> prints stack traces, and

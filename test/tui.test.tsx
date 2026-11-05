@@ -1194,6 +1194,32 @@ describe('BriefingScreen and SubmitScreen', () => {
     ui.unmount();
   });
 
+  it('shows a one-time tip as the briefing opens, until a key is pressed', async () => {
+    const tour = fixtureTour();
+    const onTipShown = vi.fn();
+    const ui = render(
+      <BriefingScreen
+        tour={tour}
+        chapters={tour.chapters}
+        order="flow"
+        cycleOrder={() => {}}
+        states={{}}
+        width={140}
+        height={45}
+        tip="Tip: gr config --clones uses your clone of this repo"
+        onTipShown={onTipShown}
+        onStart={() => {}}
+        onSubmit={() => {}}
+        onQuit={() => {}}
+      />,
+    );
+    await waitFor(() => expect(ui.lastFrame()).toContain('Tip: gr config --clones uses your clone of this repo'));
+    expect(onTipShown).toHaveBeenCalledTimes(1);
+    ui.stdin.write('j');
+    await waitFor(() => expect(ui.lastFrame()).not.toContain('gr config --clones'));
+    ui.unmount();
+  });
+
   it('summarizes other reviewers and opens their full reviews', async () => {
     const tour = fixtureTour();
     tour.viewer = 'me';

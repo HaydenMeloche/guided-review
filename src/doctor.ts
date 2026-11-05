@@ -200,10 +200,27 @@ function homeCheck(d: DoctorDeps): Finding {
   return { name: 'data', status: 'ok', detail: `${d.home}: ${mb} MB · ${worktrees} PR worktree${worktrees === 1 ? '' : 's'}`, fix: mb > 1000 ? 'gr cleanup frees space' : undefined };
 }
 
+// gr's own clones under repos/ and the user's clones it knows. Large own clones are the case for a
+// clones scan: each is a repository gr downloaded that the user may have cloned already.
+function clonesCheck(d: DoctorDeps): Finding {
+  let known = 0;
+  try {
+    known = Object.keys(JSON.parse(fs.readFileSync(path.join(d.home, 'clones.json'), 'utf8')) as object).length;
+  } catch {
+    // none recorded yet
+  }
+  const repos = path.join(d.home, 'repos');
+  const own = subdirs(repos);
+  const mb = own.length ? Math.round(size(repos) / 1e6) : 0;
+  const yours = known ? `using ${known} of your clones` : 'none of your clones known yet';
+  const detail = own.length ? `${yours} · ${own.length} downloaded by gr (${mb} MB)` : yours;
+  return { name: 'clones', status: 'ok', detail, fix: mb > 100 ? 'gr config --clones finds your own clones, so gr stops keeping copies of them' : undefined };
+}
+
 // Every check, in the order printed. They run at once; the model check is the slow one.
 export async function diagnose(d: DoctorDeps): Promise<Finding[]> {
   const [git, gh, rg, ts, model] = await Promise.all([gitCheck(d), ghCheck(d), rgCheck(d), treeSitterCheck(d), modelCheck(d)]);
-  return [nodeCheck(d), git, gh, rg, ts, colorCheck(d), clipboardCheck(d), openCheck(d), editorCheck(d), ...model, homeCheck(d)];
+  return [nodeCheck(d), git, gh, rg, ts, colorCheck(d), clipboardCheck(d), openCheck(d), editorCheck(d), ...model, homeCheck(d), clonesCheck(d)];
 }
 
 // One line per finding: its mark, name, what was found, and the fix after a dot.

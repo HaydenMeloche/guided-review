@@ -85,6 +85,8 @@ export function BriefingScreen(props: {
   onStart: (ci?: number) => void;
   resume?: string; // where n picks up, when a position is saved
   notice?: string; // news to show until a key is pressed, such as a review just posted
+  tip?: string; // a one-time tip, shown as the briefing opens until a key is pressed
+  onTipShown?: () => void; // so the tip isn't shown again on coming back to the briefing
   onSubmit: () => void;
   readiness?: Readiness; // whether the PR can merge; unset in a preview or until it arrives
   onMerge?: () => void; // M: merge the PR
@@ -100,6 +102,13 @@ export function BriefingScreen(props: {
   const [sel, setSel] = useState(0);
   const { flash, show: showFlash, dismiss: dismissFlash } = useFlash();
   const [noticeSeen, setNoticeSeen] = useState<string>();
+  // Shown once as the briefing opens; a later change of the prop (another PR) shows its own.
+  useEffect(() => {
+    if (!props.tip) return;
+    showFlash(props.tip, 'tip');
+    props.onTipShown?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.tip]);
   const notice = props.notice && props.notice !== noticeSeen ? props.notice : undefined;
   const [overlay, setOverlay] = useState<'none' | 'diagram' | 'ask' | 'read' | 'summary' | 'reviews' | 'help' | 'palette' | 'restart'>('none');
   const tutor = useTutorBridge();

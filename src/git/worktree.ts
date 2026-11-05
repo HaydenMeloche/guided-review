@@ -6,7 +6,8 @@ import { grHome, repoSlug } from '../paths.js';
 import { gh } from '../github/gh.js';
 import { githubAuth } from '../github/auth.js';
 import { restJson, webHost } from '../github/api.js';
-import { git, repoFromRemote } from './git.js';
+import { git } from './git.js';
+import { findClone, remoteFor, remoteRepos } from './clones.js';
 
 // The PR's repo can set diff/textconv drivers in .gitattributes that resolve to commands in the
 // user's git config; never run them on reviewed content.
@@ -17,15 +18,6 @@ export async function localRepoRoot(cwd: string): Promise<string | undefined> {
     return (await git(cwd, ['rev-parse', '--show-toplevel'])).trim();
   } catch {
     return undefined;
-  }
-}
-
-async function originMatches(root: string, repo: string): Promise<boolean> {
-  try {
-    const url = await git(root, ['remote', 'get-url', 'origin']);
-    return repoFromRemote(url)?.toLowerCase() === repo.toLowerCase();
-  } catch {
-    return false;
   }
 }
 
@@ -48,20 +40,32 @@ async function cloneUrl(repo: string): Promise<string> {
   }
 }
 
-// The repo the worktree hangs off: the user's own clone when it matches,
+// The repo the worktree hangs off, and the remote to fetch the PR from: the clone gr runs in when
+// one of its remotes is the PR's repository, then the user's clone recorded in clones.json,
 // otherwise a cached bare, blobless clone under ~/.guided-review/repos/.
-async function repoCache(repo: string, localRepo?: string): Promise<string> {
+async function repoCache(repo: string, localRepo?: string, onOwnCopy?: (repo: string, downloading: boolean) => void): Promise<{ dir: string; remote: string }> {
   if (localRepo) {
     const root = await localRepoRoot(localRepo);
-    if (root && (await originMatches(root, repo))) return root;
+    const remote = root && (await remoteFor(root, repo));
+    if (root && remote) return { dir: root, remote };
   }
+  const own = await findClone(repo);
+  if (own) return { dir: own.root, remote: own.remote };
   const dir = path.join(grHome(), 'repos', `${repoSlug(repo)}.git`);
-  if (!fs.existsSync(dir)) {
+  const downloading = !fs.existsSync(dir);
+  onOwnCopy?.(repo, downloading);
+  if (downloading) {
     fs.mkdirSync(path.dirname(dir), { recursive: true });
     await git(path.dirname(dir), ['clone', '--bare', '--filter=blob:none', await cloneUrl(repo), dir], { maxBuffer: 256 * 1024 * 1024 });
   }
   markUsed(dir);
-  return dir;
+  return { dir, remote: 'origin' };
+}
+
+// Adds a detached worktree without the repository's hooks or Git LFS downloads: in the user's own
+// clone, a post-checkout hook (husky, LFS) would otherwise run for every PR gr opens.
+async function addWorktree(repoDir: string, target: string, sha: string): Promise<void> {
+  await git(repoDir, ['-c', 'core.hooksPath=/dev/null', 'worktree', 'add', '--detach', target, sha], { maxBuffer: 256 * 1024 * 1024, env: { GIT_LFS_SKIP_SMUDGE: '1' } });
 }
 
 // A file in each cached clone whose time is when a tour last used it. The clone's own time is no
@@ -108,19 +112,34 @@ export async function hasCommit(root: string, sha: string, signal?: AbortSignal)
   }
 }
 
-// Fetches one commit by id from origin, e.g. a PR's earlier head for a re-review diff.
+// Fetches one commit by id, e.g. a PR's earlier head for a re-review diff: from origin, then
+// upstream, then any other GitHub remote, since the user's clone may have its fork as origin.
 export async function fetchCommit(root: string, sha: string, signal?: AbortSignal): Promise<void> {
-  await git(root, ['fetch', '--quiet', 'origin', sha], { signal });
+  const remotes = (await remoteRepos(root)).map((r) => r.remote);
+  const order = [...['origin', 'upstream'].filter((r) => remotes.includes(r)), ...remotes.filter((r) => r !== 'origin' && r !== 'upstream')];
+  let failure: unknown = new Error('no GitHub remote to fetch from');
+  for (const remote of order.length ? order : ['origin']) {
+    try {
+      await git(root, ['fetch', '--quiet', remote, sha], { signal });
+      return;
+    } catch (error) {
+      signal?.throwIfAborted();
+      failure = error;
+    }
+  }
+  throw failure;
 }
 
-export async function ensureWorktree(pr: PRInfo, opts: { localRepo?: string } = {}): Promise<string> {
-  const repoDir = await repoCache(pr.repo, opts.localRepo);
+// `onOwnCopy` hears when the PR comes from gr's own clone of the repository rather than the user's,
+// and whether gr must download that clone first (the one slow case).
+export async function ensureWorktree(pr: PRInfo, opts: { localRepo?: string; onOwnCopy?: (repo: string, downloading: boolean) => void } = {}): Promise<string> {
+  const { dir: repoDir, remote } = await repoCache(pr.repo, opts.localRepo, opts.onOwnCopy);
   const prDir = path.join(grHome(), 'worktrees', repoSlug(pr.repo));
   const target = path.join(prDir, `pr-${pr.number}-${pr.headSha.slice(0, 8)}`);
 
   if (!(await hasCommit(repoDir, pr.headSha)) || !(await hasCommit(repoDir, pr.baseSha))) {
     // Refs live under refs/gr/ so the user's branches are never touched.
-    await git(repoDir, ['fetch', 'origin', pr.baseSha, `+refs/pull/${pr.number}/head:refs/gr/pr-${pr.number}`], { maxBuffer: 256 * 1024 * 1024 });
+    await git(repoDir, ['fetch', remote, pr.baseSha, `+refs/pull/${pr.number}/head:refs/gr/pr-${pr.number}`], { maxBuffer: 256 * 1024 * 1024 });
   }
 
   if (fs.existsSync(path.join(target, '.git'))) {
@@ -137,7 +156,7 @@ export async function ensureWorktree(pr: PRInfo, opts: { localRepo?: string } = 
     }
   }
   await git(repoDir, ['worktree', 'prune']).catch(() => undefined);
-  await git(repoDir, ['worktree', 'add', '--detach', target, pr.headSha], { maxBuffer: 256 * 1024 * 1024 });
+  await addWorktree(repoDir, target, pr.headSha);
   return target;
 }
 
@@ -153,7 +172,7 @@ export async function commitWorktree(root: string, repo: string, sha: string): P
   }
   fs.mkdirSync(dir, { recursive: true });
   await git(root, ['worktree', 'prune']).catch(() => undefined);
-  await git(root, ['worktree', 'add', '--detach', target, sha], { maxBuffer: 256 * 1024 * 1024 });
+  await addWorktree(root, target, sha);
   return target;
 }
 
@@ -202,6 +221,11 @@ export async function cleanupWorktrees(home = grHome(), opts: { unusedDays?: num
         const common = (await git(target, ['rev-parse', '--path-format=absolute', '--git-common-dir'])).trim();
         await git(root, ['--git-dir', common, 'worktree', 'remove', target]);
         removed.push(target);
+        // The PR's ref goes with its last worktree, so the user's own clone doesn't collect them.
+        const pr = entry.name.match(/^pr-(\d+)-/)![1];
+        if (pr !== '0' && !fs.readdirSync(repoDir).some((e) => e.startsWith(`pr-${pr}-`))) {
+          await git(root, ['--git-dir', common, 'update-ref', '-d', `refs/gr/pr-${pr}`]).catch(() => undefined);
+        }
       } catch (error) {
         skipped.push({ path: target, reason: (error as Error).message });
       }
@@ -212,8 +236,9 @@ export async function cleanupWorktrees(home = grHome(), opts: { unusedDays?: num
   return { removed, skipped };
 }
 
-// Deletes cached clones under repos/ that no tour has used in `unusedDays` and that no worktree
-// still uses. Each clone first forgets worktrees whose folders are gone.
+// Deletes cached clones under repos/ that no worktree still uses and that either no tour has used in
+// `unusedDays` or that the user's own clone (in clones.json) has replaced. Each clone first forgets
+// worktrees whose folders are gone.
 export async function cleanupRepos(home = grHome(), opts: { unusedDays: number; now?: number }): Promise<string[]> {
   const root = path.join(home, 'repos');
   const removed: string[] = [];
@@ -226,7 +251,11 @@ export async function cleanupRepos(home = grHome(), opts: { unusedDays: number; 
       await git(root, ['--git-dir', clone, 'worktree', 'prune']);
       const worktrees = (await git(root, ['--git-dir', clone, 'worktree', 'list', '--porcelain'])).split('\n').filter((l) => l.startsWith('worktree ')).length;
       // The first entry is the bare clone itself.
-      if (worktrees > 1 || lastUsed(clone) >= cutoff) continue;
+      if (worktrees > 1) continue;
+      if (lastUsed(clone) >= cutoff) {
+        const repo = (await remoteRepos(clone)).find((r) => r.remote === 'origin')?.repo;
+        if (!repo || !(await findClone(repo, home))) continue;
+      }
       fs.rmSync(clone, { recursive: true, force: true });
       removed.push(clone);
     } catch {

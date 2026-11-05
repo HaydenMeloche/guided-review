@@ -24,6 +24,7 @@ import { isTheme, TERMINAL_THEME } from './tui/theme.js';
 import { expandHome, resolveGitHubAuth } from './github/auth.js';
 import { configForRole, defaultApiKeyEnv, formatModel, type AgentConfig, type AgentRouting, type Provider } from './agent/types.js';
 import type { ProviderFinding } from './detect.js';
+import { loadClones, saveClones, type CloneIndex } from './git/clones.js';
 
 function checkBaseUrl(value: string): string | undefined {
   let url: URL;
@@ -328,7 +329,8 @@ export function buildConfig(current: UserConfig | undefined, model: ModelAnswers
   return config;
 }
 
-export type SetupResult = { kind: 'saved'; config: UserConfig } | { kind: 'cancelled' } | { kind: 'edit' };
+// `clones`: the user's clones the clones step found, to add to clones.json.
+export type SetupResult = { kind: 'saved'; config: UserConfig; clones?: CloneIndex } | { kind: 'cancelled' } | { kind: 'edit' };
 
 // The full-screen setup. `firstRun` is gr starting without a config: it opens with an
 // introduction, and the command that was run continues once the config is saved.
@@ -362,6 +364,7 @@ export async function setup(opts: { edit?: boolean; firstRun?: boolean } = {}): 
     return result;
   }
   saveUserConfig(result.config);
+  if (result.clones) saveClones({ ...loadClones(), ...result.clones });
   process.stdout.write(`Saved ${file}. Run gr config to change it, or gr config --edit to fine-tune per-task models by hand.\n`);
   return result;
 }
@@ -409,4 +412,29 @@ export function editRepoConfig(root: string): void {
   if (problems.length) {
     process.stdout.write(`\nThese entries will be ignored:\n${problems.map((p) => `  - ${p}`).join('\n')}\nRun gr config --repo to fix them.\n`);
   }
+}
+
+// `gr config --clones`: scans for the user's clones and adds them to clones.json, leaving
+// config.json alone.
+export async function setupClones(): Promise<void> {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error('gr config --clones needs an interactive terminal.');
+  let theme: string | undefined;
+  try {
+    theme = loadUserConfig().theme;
+  } catch {
+    // no config yet, or one that can't be read: the terminal's colors
+  }
+  if (theme && !(await isTheme(theme))) theme = undefined;
+  const { runClonesSetup } = await import('./tui/SetupWizard.js');
+  const found = await runClonesSetup({ theme });
+  if (!found) {
+    process.stdout.write('Nothing saved.\n');
+    return;
+  }
+  const known = loadClones();
+  const added = Object.entries(found).filter(([repo, root]) => known[repo] !== root).length;
+  saveClones({ ...known, ...found });
+  process.stdout.write(
+    `${added ? `Saved ${added} clone${added === 1 ? '' : 's'}` : 'No new clones'}. gr now knows ${Object.keys({ ...known, ...found }).length}; PRs of those repositories are checked out from them.\n`,
+  );
 }

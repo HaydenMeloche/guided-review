@@ -28,7 +28,7 @@ export const COMMANDS: CommandSpec[] = [
   { name: 'doctor', about: 'Check what gr needs and how to fix what is missing', flags: ['--no-agent'] },
   { name: 'cleanup', about: 'Remove local PR worktrees, unused clones, and old tours', flags: ['--days'] },
   { name: 'update', about: 'Install the newest version of gr', flags: [] },
-  { name: 'config', about: 'Choose a model provider, models, API key, and GitHub access', flags: ['--edit', '--repo'] },
+  { name: 'config', about: 'Choose a model provider, models, API key, and GitHub access', flags: ['--edit', '--repo', '--clones'] },
   { name: 'install-claude-command', about: 'Add /guided-review to Claude Code', flags: ['--force'] },
   { name: 'install-codex-skill', about: 'Add Guided Review as a Codex skill', flags: ['--force'] },
   { name: 'completion', about: 'Print a shell completion script', flags: [], arg: 'shell' },
@@ -44,6 +44,7 @@ const FLAG_ABOUT: Record<string, string> = {
   '--days': 'Delete tours not opened in this many days',
   '--edit': 'Open the config file in your editor',
   '--repo': "Edit this repo's .guided-review.json",
+  '--clones': 'Find your clones to check PRs out from',
   '--force': 'Replace an existing file with different content',
 };
 

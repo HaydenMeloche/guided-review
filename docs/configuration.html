@@ -73,6 +73,10 @@
             </li>
             <li><strong>Comments:</strong> labeled (blocking, question, suggestion, or nit) or plain. See <code>commentLabels</code> below.</li>
             <li><strong>GitHub access:</strong> only when <code>gh</code> is missing or signed out. See <a href="#github-access">GitHub access</a>.</li>
+            <li>
+              <strong>Local clones:</strong> setup scans the folder you ran it in for clones of GitHub repositories, so PRs are checked out from them. <code>Ctrl+R</code> (or <code>/</code>) searches
+              the folders in your home folder, fzf style, for another to scan. See <a href="#local-clones">Local clones</a>.
+            </li>
             <li><strong>Finish:</strong> setup tests each model and shows how long it took to answer, so a wrong key shows up now rather than mid-review.</li>
           </ol>
           <p>
@@ -127,6 +131,22 @@
             </li>
             <li><strong>GitHub Enterprise Server:</strong> set the API URL to <code>https://&lt;host&gt;/api/v3</code>.</li>
           </ul>
+          <h2 id="local-clones"><a class="anchor" href="#local-clones" aria-hidden="true">#</a>Local clones</h2>
+          <p>
+            <code>gr</code> checks out each PR in a worktree made from your own clone of its repository when it knows one, so it doesn&#39;t download a copy of its own. It learns your clones from the
+            setup scan, and from every <code>gr</code> run inside a repository: the clone you run it in becomes the one used for that repository from anywhere. A clone counts when any remote points at
+            the PR&#39;s repository, so a fork with the original as <code>upstream</code> works too. They are listed in <code>~/.guided-review/clones.json</code>.
+          </p>
+          <p>
+            In your clone, <code>gr</code> fetches the PR under <code>refs/gr/</code> and never touches your branches or working tree. It adds the worktree without running your hooks or Git LFS
+            downloads, and the worktree shows in <code>git worktree list</code> until cleanup removes it with its ref. A clone that moves, or no longer points at the repository, is forgotten, and
+            <code>gr</code> uses a cached clone under <code>~/.guided-review/repos/</code> again. Once your clone replaces a cached one, cleanup deletes the cached one.
+          </p>
+          <p>
+            <code>gr config --clones</code> runs the scan on its own, without the rest of setup, and changes nothing in <code>config.json</code>. Whenever <code>gr</code> downloads its own clone of a
+            repository, the loading screen suggests it, and the first time a PR is checked out from <code>gr</code>&#39;s own clone rather than yours, the briefing says it once.
+            <code>gr doctor</code> suggests it once <code>gr</code>&#39;s own clones pass 100 MB.
+          </p>
           <h2 id="fast-mode-and-priority-processing"><a class="anchor" href="#fast-mode-and-priority-processing" aria-hidden="true">#</a>Fast mode and priority processing</h2>
           <p>
             <code>&quot;fastMode&quot;: true</code> gives faster answers at a higher price. Setup offers it for Q&amp;A with the <code>anthropic</code>, <code>openai</code>, and

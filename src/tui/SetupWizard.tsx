@@ -35,13 +35,15 @@ import {
 } from '../setup.js';
 import { agentRouting } from '../config.js';
 import { holdTerminalInput, SCREEN_RENDER } from './renderOptions.js';
+import { ClonesStep } from './ClonesStep.js';
+import { loadClones, scanClones, scanTargets, type CloneIndex, type ScanResult } from '../git/clones.js';
 
 // gr's setup, full screen: a welcome card, the color theme (so every later screen is already
 // in it), the model provider with what detection found marked, its details when something is
-// missing, GitHub access when gh isn't signed in, and a finish screen
+// missing, GitHub access when gh isn't signed in, the user's own clones to check PRs out from, and a finish screen
 // that sends one request to each model before saving. The caller saves the config the wizard returns.
 
-type Step = 'welcome' | 'theme' | 'provider' | 'details' | 'comments' | 'github' | 'finish';
+type Step = 'welcome' | 'theme' | 'provider' | 'details' | 'comments' | 'github' | 'clones' | 'finish';
 
 export interface Detected {
   providers: ProviderFinding[];
@@ -59,6 +61,8 @@ export interface WizardProps {
   checkModels: (config: UserConfig, signal: AbortSignal) => Promise<ModelCheck[]>;
   checkGitHub: (github: GitHubConfig) => Promise<{ ok: boolean; message: string }>;
   listModels: typeof listModels;
+  // The clones step; without it (as in most tests) setup skips it.
+  clones?: { start: string; known: CloneIndex; scan: (folder: string) => Promise<ScanResult>; targets: () => Promise<string[]> };
   env?: NodeJS.ProcessEnv;
   onDone: (result: SetupResult) => void;
 }
@@ -148,11 +152,13 @@ export function SetupWizard(props: WizardProps) {
   const [modelRow, setModelRow] = useState<string>(); // rowKey of the provider row the answers are for
   const [github, setGitHub] = useState<GitHubAnswers>();
   const [commentLabels, setCommentLabels] = useState<boolean>();
+  const [clones, setClones] = useState<CloneIndex>();
 
   // GitHub needs a step only when gh can't be used as it is, or the config already has a token.
   const needsGitHub = !detected || !detected.github.login || !!props.current?.github;
   const githubAnswers = github ?? githubDefaults(props.current?.github, detected?.github.installed ?? true);
-  const afterComments = (): Step => (needsGitHub ? 'github' : 'finish');
+  const afterGitHub: Step = props.clones ? 'clones' : 'finish';
+  const afterComments = (): Step => (needsGitHub ? 'github' : afterGitHub);
 
   // Ctrl+C leaves setup, as it does everywhere else in gr.
   useInput((input, key) => {
@@ -165,7 +171,14 @@ export function SetupWizard(props: WizardProps) {
 
   const width = columns - 2;
   const height = rows - 2;
-  const steps: [Step, string][] = [['theme', 'Theme'], ['provider', 'Model'], ['comments', 'Comments'], ...(needsGitHub ? ([['github', 'GitHub']] as [Step, string][]) : []), ['finish', 'Finish']];
+  const steps: [Step, string][] = [
+    ['theme', 'Theme'],
+    ['provider', 'Model'],
+    ['comments', 'Comments'],
+    ...(needsGitHub ? ([['github', 'GitHub']] as [Step, string][]) : []),
+    ...(props.clones ? ([['clones', 'Clones']] as [Step, string][]) : []),
+    ['finish', 'Finish'],
+  ];
   const stepIndex = steps.findIndex(([s]) => s === (step === 'details' ? 'provider' : step));
   const body = height - 1;
 
@@ -238,7 +251,20 @@ export function SetupWizard(props: WizardProps) {
     );
   } else if (step === 'github') {
     screen = (
-      <GitHubStep width={width} height={body} answers={githubAnswers} ghInstalled={detected?.github.installed ?? true} env={env} onChange={setGitHub} onBack={back} onDone={() => go('finish')} />
+      <GitHubStep width={width} height={body} answers={githubAnswers} ghInstalled={detected?.github.installed ?? true} env={env} onChange={setGitHub} onBack={back} onDone={() => go(afterGitHub)} />
+    );
+  } else if (step === 'clones' && props.clones) {
+    screen = (
+      <ClonesStep
+        width={width}
+        height={body}
+        {...props.clones}
+        onBack={back}
+        onDone={(found) => {
+          setClones(found);
+          go('finish');
+        }}
+      />
     );
   } else if (step === 'finish' && model) {
     const github = needsGitHub ? githubConfig(githubAnswers) : props.current?.github;
@@ -254,7 +280,7 @@ export function SetupWizard(props: WizardProps) {
         checkModels={props.checkModels}
         checkGitHub={props.checkGitHub}
         onBack={back}
-        onSave={() => props.onDone({ kind: 'saved', config })}
+        onSave={() => props.onDone({ kind: 'saved', config, ...(clones && Object.keys(clones).length ? { clones } : {}) })}
       />
     );
   }
@@ -1072,6 +1098,7 @@ export async function runSetupWizard(opts: { firstRun: boolean; current?: UserCo
       checkModels={(config, signal) => checkModels(agentRouting(config)!, { signal })}
       checkGitHub={checkGitHubToken}
       listModels={listModels}
+      clones={{ start: process.cwd(), known: loadClones(), scan: (folder) => scanClones(folder), targets: () => scanTargets() }}
       onDone={(r) => {
         result = r;
         app.unmount();
@@ -1083,4 +1110,46 @@ export async function runSetupWizard(opts: { firstRun: boolean; current?: UserCo
   await app.waitUntilExit();
   probes.abort();
   return result;
+}
+
+// `gr config --clones`: the clones step on its own, in the saved theme. Resolves with the clones it
+// found, or undefined when Esc or Ctrl+C leaves it.
+export async function runClonesSetup(opts: { theme?: string }): Promise<CloneIndex | undefined> {
+  const palette = await loadPalette(opts.theme ?? TERMINAL_THEME).catch(() => terminalPalette);
+  let result: CloneIndex | undefined;
+  holdTerminalInput();
+  const app = render(
+    <ClonesScreen
+      palette={palette}
+      onDone={(clones) => {
+        result = clones;
+        app.unmount();
+      }}
+      onCancel={() => app.unmount()}
+    />,
+    { ...SCREEN_RENDER, exitOnCtrlC: true },
+  );
+  await app.waitUntilExit();
+  return result;
+}
+
+function ClonesScreen(props: { palette: Palette; onDone: (clones: CloneIndex) => void; onCancel: () => void }) {
+  const { columns, rows } = useWindowSize();
+  return (
+    <ThemeContext value={props.palette}>
+      <Box flexDirection="column" width={columns} height={rows} backgroundColor={props.palette.bg} paddingX={1} paddingY={1}>
+        <ClonesStep
+          width={columns - 2}
+          height={rows - 2}
+          start={process.cwd()}
+          known={loadClones()}
+          scan={(folder) => scanClones(folder)}
+          targets={() => scanTargets()}
+          backLabel="cancel"
+          onBack={props.onCancel}
+          onDone={props.onDone}
+        />
+      </Box>
+    </ThemeContext>
+  );
 }

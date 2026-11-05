@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { fixtureRepo, KEY, runGr, sandbox, startGr, type Sandbox } from './harness.js';
@@ -154,6 +154,10 @@ describe('gr with a terminal', () => {
     await session.waitFor('GitHub access');
     await session.waitFor('your gh login');
     session.press(KEY.enter);
+    // The folder gr runs in is scanned for clones; Enter waits for the scan.
+    await session.waitFor('Local clones');
+    await session.waitFor('enter continue');
+    session.press(KEY.enter);
     await session.waitFor('Ready to save');
     expect(session.screen()).toContain('Provider: none');
     session.press(KEY.enter);
@@ -162,6 +166,21 @@ describe('gr with a terminal', () => {
     session.press('q');
     expect(await session.exited).toBe(0);
     expect(JSON.parse(fs.readFileSync(path.join(box.env.GR_HOME!, 'config.json'), 'utf8'))).toMatchObject({ provider: 'none', chapterOrder: 'guide' });
+  });
+
+  it('finds your clones with gr config --clones and saves only them', async () => {
+    const repo = fixtureRepo(box);
+    execFileSync('git', ['remote', 'add', 'origin', 'git@github.com:acme/shop.git'], { cwd: repo });
+    const session = startGr(box, ['config', '--clones'], { cwd: box.root });
+    await session.waitFor('Local clones');
+    await session.waitFor('1 clone found');
+    expect(session.screen()).toContain('acme/shop');
+    expect(session.screen()).toContain('ctrl+r');
+    session.press(KEY.enter);
+    await session.waitFor('Saved 1 clone');
+    expect(await session.exited).toBe(0);
+    expect(JSON.parse(fs.readFileSync(path.join(box.env.GR_HOME!, 'clones.json'), 'utf8'))).toEqual({ 'acme/shop': fs.realpathSync(repo) });
+    expect(fs.existsSync(path.join(box.env.GR_HOME!, 'config.json'))).toBe(false);
   });
 
   it('opens the same setup from gr config, starting from the saved settings', async () => {

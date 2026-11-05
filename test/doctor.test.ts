@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { diagnose, formatFindings, type DoctorDeps, type Run } from '../src/doctor.js';
 
@@ -82,5 +85,23 @@ describe('gr doctor', () => {
 
   it('warns when no editor is set', async () => {
     expect((await byName(deps({ env: { PATH: '' } }))).editor).toMatchObject({ status: 'warn', fix: 'set $EDITOR' });
+  });
+
+  it("suggests a clones scan once gr's own clones grow large", async () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'gr-doctor-'));
+    try {
+      expect((await byName(deps({ home }))).clones).toMatchObject({ status: 'ok', detail: 'none of your clones known yet', fix: undefined });
+      fs.writeFileSync(path.join(home, 'clones.json'), JSON.stringify({ 'org/app': '/code/app' }));
+      fs.mkdirSync(path.join(home, 'repos', 'org__big.git'), { recursive: true });
+      // Sparse: counts toward the size without taking the disk space.
+      const pack = path.join(home, 'repos', 'org__big.git', 'pack');
+      fs.writeFileSync(pack, '');
+      fs.truncateSync(pack, 150e6);
+      const f = (await byName(deps({ home }))).clones;
+      expect(f).toMatchObject({ status: 'ok', detail: 'using 1 of your clones · 1 downloaded by gr (150 MB)' });
+      expect(f.fix).toContain('gr config --clones');
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
   });
 });

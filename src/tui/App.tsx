@@ -63,6 +63,10 @@ import { useTutor, type TutorNav } from './tutor/Tutor.js';
 import { Anchor } from './tutor/anchors.js';
 import type { PreparedAsk } from './AskOverlay.js';
 
+// Shown once, the first time a PR comes from gr's own clone rather than the user's. No wider than
+// the intro's shortest footer, so it doesn't widen the box it shows in.
+export const CLONES_TIP = 'Tip: gr config --clones uses your clone of this repo';
+
 export interface Target {
   repo: string;
   number: number;
@@ -275,6 +279,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const [worktree, setWorktree] = useState<string>('');
   const [tour, setTour] = useState<Tour | undefined>();
   const [steps, setSteps] = useState<Step[]>([]);
+  const [cloneTip, setCloneTip] = useState(false); // the one-time clones tip, for the briefing
+  const [downloadTip, setDownloadTip] = useState(false); // the clones tip under the loading steps
   const [analyzing, setAnalyzing] = useState<string | undefined>();
   const [narration, setNarration] = useState<{ done: number; total: number }>();
   const [error, setError] = useState('');
@@ -288,16 +294,20 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const [shortExplanation, setShortExplanation] = useState(opts.shortExplanation ?? false);
   // First-run tips: each shows once, then is saved as seen.
   const tipsSeen = useRef(new Set(opts.tipsSeen ?? []));
-  const takeTip = (tip: string) => {
-    if (!opts.saveTipSeen || tipsSeen.current.has(tip)) return false;
-    tipsSeen.current.add(tip);
-    try {
-      opts.saveTipSeen?.(tip);
-    } catch {
-      // An unwritable config shows the tip again next time; nothing else depends on it.
-    }
-    return true;
-  };
+  const saveTipSeen = opts.saveTipSeen;
+  const takeTip = useCallback(
+    (tip: string) => {
+      if (!saveTipSeen || tipsSeen.current.has(tip)) return false;
+      tipsSeen.current.add(tip);
+      try {
+        saveTipSeen(tip);
+      } catch {
+        // An unwritable config shows the tip again next time; nothing else depends on it.
+      }
+      return true;
+    },
+    [saveTipSeen],
+  );
   const [hideTestPane, setHideTestPane] = useState(false);
   const [deltaOnly, setDeltaOnly] = useState(false);
   // Commit order's chapters for this head, once read (a git log of the tour's commits).
@@ -444,6 +454,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       setPhase('load');
       setPrTitle(undefined);
       setSteps([]);
+      setCloneTip(false);
+      setDownloadTip(false);
       setAnalyzing(undefined);
       setNarration(undefined);
       setError('');
@@ -477,7 +489,24 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
           info = await fetchPR(t.repo, t.number, signal);
           onProgress(`Fetching ${t.repo}#${t.number}`, true);
           onProgress('Checking out head in a worktree');
-          wt = await ensureWorktree(info, { localRepo: opts.localRepo });
+          let cloning: string | undefined;
+          wt = await ensureWorktree(info, {
+            localRepo: opts.localRepo,
+            onOwnCopy: (repo, downloading) => {
+              if (downloading) {
+                cloning = `Downloading ${repo}`;
+                onProgress(cloning);
+              }
+              // Every download shows the tip under the loading steps, as it happens. The first PR
+              // from gr's own clone also shows it once on the briefing, until a key is pressed; the
+              // PR list's background checkouts don't use that up.
+              if (takeTip('clones')) {
+                setCloneTip(true);
+                setDownloadTip(true);
+              } else if (downloading) setDownloadTip(true);
+            },
+          });
+          if (cloning) onProgress(cloning, true);
           onProgress('Checking out head in a worktree', true);
         }
         if (gen !== loadGen.current) return;
@@ -575,7 +604,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         setPhase('error');
       }
     },
-    [opts, store, onProgress, flagDraftsOnChangedLines, loadAuthor],
+    [opts, store, onProgress, flagDraftsOnChangedLines, loadAuthor, takeTip],
   );
 
   // Mount only: later loads come from explicit actions, and `load` changes identity with opts.
@@ -1058,6 +1087,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     loadAbort.current?.abort();
     setTour(undefined);
     setSteps([]);
+    setCloneTip(false);
+    setDownloadTip(false);
     setBanner(undefined);
     setNewHead(undefined);
     setLocalEdited(false);
@@ -1077,6 +1108,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
     loadAbort.current?.abort();
     setPhase('load');
     setSteps([]);
+    setCloneTip(false);
+    setDownloadTip(false);
     setTour(undefined);
     void demoPreview().then(
       (p) => {
@@ -1278,6 +1311,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
         ...shown,
         ...Array.from({ length: INTRO_STEPS - shown.length }, () => ' '),
         ' ',
+        ...(downloadTip ? [[{ text: CLONES_TIP, dim: true }] as IntroLine] : []),
         [{ text: `The briefing opens once the diff is mapped · ${back ? 'q for the PR list · Q to quit' : 'q to quit'}`, dim: true }],
       ];
     };
@@ -1399,6 +1433,8 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
       <BriefingScreen
         resume={resumeLabel()}
         notice={postedNotice?.key === `${tour.repo}#${tour.pr}` ? postedNotice.text : undefined}
+        tip={cloneTip ? CLONES_TIP : undefined}
+        onTipShown={() => setCloneTip(false)}
         tour={tour}
         chapters={chapters}
         allChapters={allChapters}
