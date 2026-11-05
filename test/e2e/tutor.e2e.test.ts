@@ -54,22 +54,22 @@ describe('gr tutor', () => {
     await step(gr, KEY.enter, at('Where you are', 3));
     await step(gr, KEY.enter, at('Move through the tour', 1));
     await step(gr, 'n', at('Move through the tour', 2));
-    expect(gr.screen()).toContain('chapter 2/7');
+    await gr.waitFor('chapter 2/7');
     await step(gr, KEY.enter, at('Move through the tour', 3));
     await step(gr, ']', at('Move through the tour', 4));
-    expect(gr.screen()).toContain('chapter 3/7');
+    await gr.waitFor('chapter 3/7');
     // Read the code: on the pricing hunk, which has tests.
     await step(gr, KEY.enter, at('Read the code', 1));
-    expect(gr.screen()).toContain('src/pricing.ts');
+    await gr.waitFor('src/pricing.ts');
     await step(gr, 'j', at('Read the code', 2));
     await step(gr, KEY.enter, at('Read the code', 3));
     await step(gr, 't', at('Read the code', 4));
     await step(gr, 't', at('Already done for you', 1));
     await step(gr, KEY.enter, at('Already done for you', 2));
-    expect(gr.screen()).toContain('package change in the lockfile');
+    await gr.waitFor('package change in the lockfile');
     await step(gr, KEY.enter, at('Already done for you', 3));
     await step(gr, KEY.enter, at('Leave a comment', 1));
-    expect(gr.screen()).toMatch(/▶ +18 │/);
+    await gr.waitFor(/▶ +18 │/);
     await step(gr, KEY.enter, at('Leave a comment', 2));
     await step(gr, 'c', at('Leave a comment', 3));
     gr.type('Anyone can type STAFF50.');
@@ -77,7 +77,7 @@ describe('gr tutor', () => {
     await step(gr, KEY.enter, at('Leave a comment', 4));
     await step(gr, KEY.enter, at('Ask about the code', 1));
     await step(gr, 'a', at('Ask about the code', 2));
-    expect(gr.screen()).toContain('prepared answers, demo');
+    await gr.waitFor('prepared answers, demo');
     // 1 asks the first prepared question; its answer cites the lines it relies on.
     expect(await step(gr, '1', at('Ask about the code', 3))).toContain('src/pricing.ts:30');
     await step(gr, KEY.escape, at('Find anything', 1));
@@ -88,7 +88,7 @@ describe('gr tutor', () => {
     await step(gr, ':', at('Find anything', 4));
     await step(gr, KEY.enter, at('Submit', 1));
     await step(gr, 's', at('Submit', 2));
-    expect(gr.screen()).toContain('This is the demo: nothing is posted.');
+    await gr.waitFor('This is the demo: nothing is posted.');
     await step(gr, KEY.enter, at('Submit', 3));
     gr.press(KEY.enter);
     // Finished: the demo is left to look around in.
@@ -196,7 +196,8 @@ describe('gr tutor', () => {
     // Q leaves the tutor for the tour it was opened from, where it was.
     await step(gr, 'Q', 'Leave the tutor?');
     gr.press('y');
-    expect(await gone(gr, 'Tutor ·')).toContain(where);
-    expect(gr.screen()).not.toContain('(demo)');
+    await gone(gr, 'Tutor ·');
+    // The tour it came from loads again (its loading card first), then opens where it was.
+    expect(await gr.waitFor(where)).not.toContain('(demo)');
   });
 });
