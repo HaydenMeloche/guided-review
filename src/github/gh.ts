@@ -1562,3 +1562,28 @@ export async function setFileViewed(prId: string, path: string, viewed: boolean)
   const action = viewed ? 'markFileAsViewed' : 'unmarkFileAsViewed';
   await graphql(`mutation($id: ID!, $path: String!) { ${action}(input: { pullRequestId: $id, path: $path }) { clientMutationId } }`, { id: prId, path });
 }
+
+// Guided Review's own repository, which a reviewer may star after a few reviews.
+export const GR_REPO = 'HaydenMeloche/guided-review';
+
+// The viewer's star on Guided Review, on github.com: GET 204s when it's starred and 404s when
+// not, PUT stars it. A token for an Enterprise Server can't reach github.com, so then (or with no
+// token) it goes through gh's github.com login.
+async function grStar(method: 'GET' | 'PUT'): Promise<void> {
+  const path = `user/starred/${GR_REPO}`;
+  const auth = githubAuth();
+  if (auth && githubWebHost() === 'github.com') await restText(auth, path, { method });
+  else await gh(['api', '--hostname', 'github.com', '-X', method, path]);
+}
+
+export const starGuidedReview = () => grStar('PUT');
+
+export async function hasStarredGuidedReview(): Promise<boolean> {
+  try {
+    await grStar('GET');
+    return true;
+  } catch (e) {
+    if (ghHttpStatus(e) === 404) return false;
+    throw e;
+  }
+}

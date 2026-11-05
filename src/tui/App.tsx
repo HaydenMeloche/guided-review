@@ -19,6 +19,8 @@ import {
   setThreadResolved,
   viewerLogin,
   type ViewedState,
+  starGuidedReview,
+  hasStarredGuidedReview,
 } from '../github/gh.js';
 import { hunksViewedOnGitHub, viewedChanges } from '../review/viewed.js';
 import { isBotAuthor, isShortTour } from '../review/botPR.js';
@@ -35,6 +37,7 @@ import { ChapterScreen, type Services } from './ChapterScreen.js';
 import { BriefingScreen } from './BriefingScreen.js';
 import { SubmitScreen } from './SubmitScreen.js';
 import { ReviewPopup } from './ReviewPopup.js';
+import { STAR_AFTER, StarPrompt } from './StarPrompt.js';
 import { CommentEditor, CommentLabels } from './CommentEditor.js';
 import { aiChromeRows } from './AiSuggestion.js';
 import { initComposer, type ComposerEnv, type ComposerState, type ReferenceServices } from './composer.js';
@@ -342,6 +345,26 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
   const skipBriefing = useRef(false);
   const [checking, setChecking] = useState<Target>(); // the checks popup, over the picker or the briefing
   const [askingReviewers, setAskingReviewers] = useState<Target>(); // the reviewers popup, over the picker
+  const [askingStar, setAskingStar] = useState(false); // the one-time ask to star gr, over the picker
+  // After a posted review: once enough are posted, ask to star gr, unless they already have (if
+  // GitHub can't say, ask anyway). Only a counter, so a failure never fails the post.
+  const askToStar = () => {
+    try {
+      if (!store.countPostedReview(STAR_AFTER)) return;
+    } catch {
+      return;
+    }
+    void hasStarredGuidedReview()
+      .catch(() => false)
+      .then((starred) => {
+        try {
+          store.setStarAsked();
+        } catch {
+          return;
+        }
+        if (!starred) setAskingStar(true);
+      });
+  };
   const [pickerReload, setPickerReload] = useState(0);
   const pickerCache = useRef<PickerCache>({}); // the list as it was, for coming back from a tour
   // Diffs from each outdated thread's commit to the head, so the tour shows it on its line now.
@@ -1283,6 +1306,22 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
             if (changed) setPickerReload((n) => n + 1);
           },
         });
+      // Last, so the PR's own popups, which open on a key, stay on top of this one.
+      if (askingStar)
+        return (
+          <ReviewPopup background={picker(false)} width={columns} height={rows} maxWidth={64} maxHeight={columns < 70 ? 12 : 9}>
+            {() => (
+              <StarPrompt
+                star={starGuidedReview}
+                onDone={(notice) => {
+                  setAskingStar(false);
+                  if (notice) setPickerNotice(notice);
+                }}
+                onQuit={requestQuit}
+              />
+            )}
+          </ReviewPopup>
+        );
       return withThemePicker(picker);
     }
     if (phase === 'error') {
@@ -1607,6 +1646,7 @@ function Screens(opts: AppOptions & { theme: ThemeControl }) {
                   const notice = `Posted review for ${tour.repo}#${tour.pr}: ${review.url}${moved.length ? ` · ${plural(moved.length, 'comment')} re-anchored` : ''}`;
                   setPickerNotice(notice);
                   setPostedNotice({ key: `${tour.repo}#${tour.pr}`, text: notice });
+                  if (!demo) askToStar();
                   setPhase('pick');
                 }}
                 onBack={() => setPhase(submitFrom)}

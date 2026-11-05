@@ -93,6 +93,13 @@ CREATE TABLE tutor (
 );
 `;
 
+// Reviews posted with gr, and whether it has asked to be starred on GitHub. One row.
+const SCHEMA_V4 = `
+CREATE TABLE star_ask (
+  id INTEGER PRIMARY KEY CHECK (id = 1), posted INTEGER NOT NULL, asked INTEGER NOT NULL
+);
+`;
+
 export interface TutorRecord {
   lesson?: string;
   state: 'started' | 'finished' | 'dismissed';
@@ -104,7 +111,7 @@ interface Row {
 
 // Each entry moves the database from user_version i to i + 1. Append only;
 // never edit a migration that has shipped.
-const MIGRATIONS: ((db: DatabaseSyncType) => void)[] = [(db) => db.exec(SCHEMA_V1), (db) => db.exec(SCHEMA_V2), (db) => db.exec(SCHEMA_V3)];
+const MIGRATIONS: ((db: DatabaseSyncType) => void)[] = [(db) => db.exec(SCHEMA_V1), (db) => db.exec(SCHEMA_V2), (db) => db.exec(SCHEMA_V3), (db) => db.exec(SCHEMA_V4)];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
 
@@ -410,6 +417,17 @@ export class Store {
       JSON.stringify(record),
       new Date().toISOString(),
     );
+  }
+
+  // Counts a posted review. True once `askAt` reviews are posted and gr hasn't yet asked whether
+  // to star it; setStarAsked records the ask once it is made.
+  countPostedReview(askAt: number): boolean {
+    const row = this.stmt('INSERT INTO star_ask (id, posted, asked) VALUES (1, 1, 0) ON CONFLICT(id) DO UPDATE SET posted = posted + 1 RETURNING posted, asked').get() as Row;
+    return !row.asked && Number(row.posted) >= askAt;
+  }
+
+  setStarAsked(): void {
+    this.stmt('UPDATE star_ask SET asked = 1 WHERE id = 1').run();
   }
 
   getPosition(repo: string, pr: number): Position | undefined {
