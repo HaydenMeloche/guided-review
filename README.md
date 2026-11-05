@@ -39,9 +39,19 @@ If `gr` runs something else, a shell alias is in the way (Oh My Zsh's git plugin
 
 ### Getting started
 
-Run `gr`. The first run walks you through setup (color theme, model, and GitHub access), then lists the PRs waiting for your review. If something isn't working, `gr doctor` checks your setup.
+To learn `gr` before touching a real PR, start with the tutor. It opens a sample tour and walks you through it one key at a time. It takes about five minutes, works offline, and posts nothing.
 
-To learn `gr` before touching a real PR, run `gr tutor`. It opens a sample tour and walks you through it one key at a time. It takes about five minutes, works offline, and posts nothing.
+```sh
+guided-review tutor
+```
+
+Or start right away. The first run walks you through setup (color theme, model, and GitHub access), then lists the PRs waiting for your review.
+
+```sh
+guided-review   # or gr
+```
+
+If something isn't working, `guided-review doctor` checks your setup.
 
 ## Documentation
 
