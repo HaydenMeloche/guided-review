@@ -38,8 +38,13 @@ export function SearchPanel(props: {
     if (key.escape) return props.onClose({ query, sel: chosen });
     if (key.downArrow || (key.ctrl && input === 'n')) return setSel(Math.min(hits.length - 1, chosen + 1));
     if (key.upArrow || (key.ctrl && input === 'p')) return setSel(Math.max(0, chosen - 1));
-    if (key.return && hits[chosen]) props.onGo(hits[chosen], { query, sel: chosen });
   });
+  // Enter comes through the field, with its text as typed: Enter typed right behind the text
+  // arrives before this render's hits catch up, so the text is searched again when it differs.
+  const go = (v: string) => {
+    const hit = v === query ? hits[chosen] : searchTour(props.tour, props.chapters, v).hits[0];
+    if (hit) props.onGo(hit, { query: v, sel: v === query ? chosen : 0 });
+  };
   const inner = props.width - 2;
   const chapterCount = new Set(hits.map((h) => h.ci)).size;
   const count = query ? (hits.length ? `${total > hits.length ? `first ${hits.length} of ${total}` : plural(total, 'match', 'matches')} · ${plural(chapterCount, 'chapter')}` : 'no matches') : '';
@@ -58,6 +63,7 @@ export function SearchPanel(props: {
             setQuery(v);
             setSel(0);
           }}
+          onSubmit={go}
           width={Math.max(8, inner - 4 - count.length - 1)}
           placeholder="text in this diff or its explanations, not the whole codebase"
         />

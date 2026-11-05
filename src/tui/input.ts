@@ -19,7 +19,14 @@ export function useInput(handler: Handler, options?: { isActive?: boolean; text?
   inkUseInput(
     (input, key) => {
       if (key.ctrl && input === 'z') return;
-      if (options?.text) return handler(input, key);
+      if (options?.text) {
+        // Text typed ahead of Enter can arrive with it ("abc\r"): the text, then Enter.
+        if (input.length > 1 && input.endsWith('\r') && !input.slice(0, -1).includes('\r') && !key.return && !key.ctrl && !key.meta) {
+          handler(input.slice(0, -1), key);
+          return handler('\r', { ...key, return: true, shift: false });
+        }
+        return handler(input, key);
+      }
       for (const [one, oneKey] of keypresses(input, key)) handler(one, oneKey);
     },
     { isActive: live && options?.isActive !== false },
